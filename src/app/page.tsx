@@ -20,14 +20,24 @@ export default function Home() {
     removeFromFinal
   } = useStudio();
 
-  const featuredStyles = [
-    { title: 'Samba', color: '#ff4b2b', tracks: '24 Tracks' },
-    { title: 'Cha-cha-cha', color: '#f7971e', tracks: '18 Tracks' },
-    { title: 'Rumba', color: '#11998e', tracks: '32 Tracks' },
-    { title: 'Paso Doble', color: '#cb2d3e', tracks: '12 Tracks' },
-    { title: 'Jive', color: '#3f2b96', tracks: '20 Tracks' },
-    { title: 'Slow Waltz', color: '#2193b0', tracks: '45 Tracks' },
+  const allStyles = [
+    // Latin Program
+    { title: 'Samba', color: '#ff4b2b', program: 'Latin' },
+    { title: 'Cha-cha-cha', color: '#f7971e', program: 'Latin' },
+    { title: 'Rumba', color: '#11998e', program: 'Latin' },
+    { title: 'Paso Doble', color: '#cb2d3e', program: 'Latin' },
+    { title: 'Jive', color: '#3f2b96', program: 'Latin' },
+    // Standard Program
+    { title: 'Slow Waltz', color: '#2193b0', program: 'Standard' },
+    { title: 'Tango', color: '#1e293b', program: 'Standard' },
+    { title: 'Viennese Waltz', color: '#4f46e5', program: 'Standard' },
+    { title: 'Slow Foxtrot', color: '#0891b2', program: 'Standard' },
+    { title: 'Quickstep', color: '#059669', program: 'Standard' },
   ];
+
+  const getStyleTrackCount = (styleName: string) => {
+    return tracks.filter(t => t.style?.toLowerCase() === styleName.toLowerCase()).length;
+  };
 
   const handlePlay = (track: any) => {
     loadTrack(track);
@@ -59,29 +69,68 @@ export default function Home() {
       </header>
 
       <section className="section">
-        <h2 className="section-title">Dance Styles</h2>
+        <div className="section-header-flex">
+          <h2 className="section-title">Latin Program</h2>
+          <span className="program-badge latin">International Latin</span>
+        </div>
         <div className="styles-grid">
-          {featuredStyles.map((style) => (
-            <Link
-              key={style.title}
-              href={`/style/${style.title.toLowerCase().replace(/\s+/g, '-')}`}
-              className="style-card glass"
-              style={{ backgroundColor: `${style.color}15`, borderRadius: '16px' }}
-            >
-              <div className="card-inner-box">
-                <div className="style-icon">
-                  <Music2 size={24} color={style.color} />
+          {allStyles.filter(s => s.program === 'Latin').map((style) => {
+            const count = getStyleTrackCount(style.title);
+            return (
+              <Link
+                key={style.title}
+                href={`/style/${style.title.toLowerCase().replace(/\s+/g, '-')}`}
+                className="style-card glass"
+                style={{ backgroundColor: `${style.color}15`, borderRadius: '16px' }}
+              >
+                <div className="card-inner-box">
+                  <div className="style-icon">
+                    <Music2 size={24} color={style.color} />
+                  </div>
+                  <div className="style-info">
+                    <h3>{style.title}</h3>
+                    <p>{count} {count === 1 ? 'Track' : 'Tracks'}</p>
+                  </div>
                 </div>
-                <div className="style-info">
-                  <h3>{style.title}</h3>
-                  <p>{style.tracks}</p>
+                <button className="play-button-small">
+                  <Play size={16} fill="currentColor" />
+                </button>
+              </Link>
+            );
+          })}
+        </div>
+      </section>
+
+      <section className="section" style={{ marginTop: '40px' }}>
+        <div className="section-header-flex">
+          <h2 className="section-title">Standard Program</h2>
+          <span className="program-badge standard">International Standard</span>
+        </div>
+        <div className="styles-grid">
+          {allStyles.filter(s => s.program === 'Standard').map((style) => {
+            const count = getStyleTrackCount(style.title);
+            return (
+              <Link
+                key={style.title}
+                href={`/style/${style.title.toLowerCase().replace(/\s+/g, '-')}`}
+                className="style-card glass"
+                style={{ backgroundColor: `${style.color}15`, borderRadius: '16px' }}
+              >
+                <div className="card-inner-box">
+                  <div className="style-icon">
+                    <Music2 size={24} color={style.color} />
+                  </div>
+                  <div className="style-info">
+                    <h3>{style.title}</h3>
+                    <p>{count} {count === 1 ? 'Track' : 'Tracks'}</p>
+                  </div>
                 </div>
-              </div>
-              <button className="play-button-small">
-                <Play size={16} fill="currentColor" />
-              </button>
-            </Link>
-          ))}
+                <button className="play-button-small">
+                  <Play size={16} fill="currentColor" />
+                </button>
+              </Link>
+            );
+          })}
         </div>
       </section>
 
@@ -237,6 +286,26 @@ export default function Home() {
           font-weight: 800;
           margin-bottom: 24px;
         }
+
+        .section-header-flex {
+          display: flex;
+          align-items: center;
+          justify-content: space-between;
+          margin-bottom: 24px;
+        }
+
+        .program-badge {
+          font-size: 10px;
+          font-weight: 900;
+          text-transform: uppercase;
+          padding: 6px 12px;
+          border-radius: 20px;
+          background: rgba(255, 255, 255, 0.05);
+          letter-spacing: 1px;
+        }
+
+        .program-badge.latin { color: #f7971e; border: 1px solid rgba(247, 151, 30, 0.2); }
+        .program-badge.standard { color: #2193b0; border: 1px solid rgba(33, 147, 176, 0.2); }
 
         .styles-grid {
           display: grid;

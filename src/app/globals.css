@@ -1,0 +1,187 @@
+:root {
+  --background: #000000;
+  --surface: #121212;
+  --surface-hover: #282828;
+  --primary: #1db954;
+  --primary-hover: #1ed760;
+  --text: #ffffff;
+  --text-secondary: #b3b3b3;
+  --border: #282828;
+  --accent: #1db954;
+  --sidebar-width: 280px;
+  --player-height: 90px;
+}
+
+* {
+  box-sizing: border-box;
+  padding: 0;
+  margin: 0;
+}
+
+body {
+  background-color: var(--background);
+  color: var(--text);
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  overflow: hidden;
+}
+
+a {
+  color: inherit;
+  text-decoration: none;
+}
+
+button {
+  cursor: pointer;
+  border: none;
+  background: none;
+  color: inherit;
+  font-family: inherit;
+}
+
+/* Layout System - Spotify Floating Cards Architecture */
+.app-container {
+  display: grid;
+  grid-template-areas:
+    "sidebar main"
+    "player player";
+  grid-template-columns: var(--sidebar-width) 1fr;
+  grid-template-rows: 1fr var(--player-height);
+  height: 100vh;
+  width: 100vw;
+  gap: 8px;
+  padding: 8px;
+  background-color: #000000;
+}
+
+/* Sidebar Card */
+.sidebar {
+  grid-area: sidebar;
+  background-color: var(--surface);
+  padding: 24px 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+  border-radius: 12px;
+  overflow: hidden;
+}
+
+.logo-container {
+  padding: 0 12px;
+  margin-bottom: 8px;
+}
+
+.logo-container h1 {
+  font-size: 1.5rem;
+  font-weight: 800;
+  letter-spacing: -0.5px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.nav-group {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.nav-item {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 12px;
+  border-radius: 8px;
+  color: var(--text-secondary);
+  font-weight: 700;
+  font-size: 14px;
+  transition: all 0.2s ease;
+}
+
+.nav-item:hover,
+.nav-item.active {
+  color: var(--text);
+  background-color: var(--surface-hover);
+}
+
+/* Main Content Card */
+.main-content {
+  grid-area: main;
+  background: linear-gradient(to bottom, #1e1e1e 0%, var(--surface) 100%);
+  overflow-y: auto;
+  padding: 32px;
+  position: relative;
+  border-radius: 12px;
+}
+
+.main-content::-webkit-scrollbar {
+  width: 12px;
+}
+
+.main-content::-webkit-scrollbar-thumb {
+  background-color: rgba(255, 255, 255, 0.1);
+  border-radius: 6px;
+}
+
+/* Player Bar (Restoring Flat Bottom) */
+.player-bar {
+  grid-area: player;
+  background-color: var(--background);
+  display: grid;
+  grid-template-columns: 1fr 2fr 1fr;
+  align-items: center;
+  padding: 0 8px;
+  margin-top: -8px; /* Stitch to bottom */
+}
+
+/* Responsive Media Queries */
+@media (max-width: 768px) {
+  .app-container {
+    display: flex;
+    flex-direction: column;
+    height: 100vh;
+    width: 100vw;
+    overflow-x: hidden;
+    gap: 0;
+    padding: 0;
+  }
+
+  .sidebar {
+    display: none !important;
+  }
+
+  .main-content {
+    flex: 1;
+    width: 100%;
+    padding: 24px 16px;
+    padding-bottom: 160px; /* Space for MiniPlayer + BottomNav */
+    border-radius: 0;
+  }
+
+  .player-bar {
+    display: none !important;
+  }
+}
+
+/* Tablet Optimizations */
+@media (min-width: 769px) and (max-width: 1024px) {
+  :root {
+    --sidebar-width: 240px;
+  }
+}
+
+/* Animations & Glassmorphism */
+.glass {
+  background: rgba(255, 255, 255, 0.05);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.text-gradient {
+  background: linear-gradient(90deg, #fff 0%, #aaa 100%);
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+}

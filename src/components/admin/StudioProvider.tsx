@@ -1,6 +1,5 @@
-"use client";
-
 import React, { createContext, useContext, useState, useEffect } from 'react';
+import { supabase } from '@/utils/supabase';
 
 export interface Track {
   id: string;
@@ -23,7 +22,7 @@ export interface Folder {
 interface StudioContextType {
   tracks: Track[];
   folders: Folder[];
-  addTrack: (track: Omit<Track, 'id' | 'date'>) => void;
+  addTrack: (track: Partial<Track>) => void;
   removeTrack: (id: string) => void;
   updateTrack: (id: string, updates: Partial<Track>) => void;
   addFolder: (name: string, color: string) => void;
@@ -43,107 +42,102 @@ interface StudioContextType {
 
 const StudioContext = createContext<StudioContextType | undefined>(undefined);
 
-const DEFAULT_TRACKS: Track[] = [
-  { id: '1', title: 'Samba Fever', artist: 'Rio Ensemble', album: 'Dancesport Classics', style: 'Samba', bpm: '52', date: '2026-04-01' },
-  { id: '2', title: 'Midnight Waltz', artist: 'Ballroom Orchestra', album: 'Slow Waltz Vol. 1', style: 'Slow Waltz', bpm: '29', date: '2026-03-25' },
-  { id: '3', title: 'Cha Cha Heat', artist: 'Latin Grooves', album: 'Summer Latin', style: 'Cha-cha-cha', bpm: '31', date: '2026-04-04' },
-];
-
-const DEFAULT_FOLDERS: Folder[] = [
-  { id: 'std-latin', name: 'Standard Latin', color: '#1db954' },
-  { id: 'mod-std', name: 'Modern Standard', color: '#2563eb' },
-];
-
 export const StudioProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [tracks, setTracks] = useState<Track[]>([]);
   const [folders, setFolders] = useState<Folder[]>([]);
   const [finalTracks, setFinalTracks] = useState<Track[]>([]);
   const [isLoaded, setIsLoaded] = useState(false);
 
-  // Load from localStorage
+  // Load from Supabase
   useEffect(() => {
-    const savedTracks = localStorage.getItem('studio_tracks');
-    const savedFolders = localStorage.getItem('studio_folders');
-    const savedFinals = localStorage.getItem('studio_finals');
+    const fetchData = async () => {
+      // Fetch Tracks
+      const { data: tracksData } = await supabase.from('tracks').select('*').order('created_at', { ascending: false });
+      if (tracksData) setTracks(tracksData);
 
-    if (savedTracks) setTracks(JSON.parse(savedTracks));
-    else setTracks(DEFAULT_TRACKS);
+      // Fetch Folders
+      const { data: foldersData } = await supabase.from('folders').select('*').order('name');
+      if (foldersData) setFolders(foldersData);
 
-    if (savedFolders) setFolders(JSON.parse(savedFolders));
-    else setFolders(DEFAULT_FOLDERS);
+      // Fetch Finals
+      const { data: finalsData } = await supabase.from('final_tracks').select('*, tracks(*)');
+      if (finalsData) {
+        setFinalTracks(finalsData.map((f: any) => f.tracks));
+      }
 
-    if (savedFinals) setFinalTracks(JSON.parse(savedFinals));
+      setIsLoaded(true);
+    };
 
-    setIsLoaded(true);
+    fetchData();
   }, []);
 
-  // Save to localStorage
-  useEffect(() => {
-    if (isLoaded) {
-      localStorage.setItem('studio_tracks', JSON.stringify(tracks));
-      localStorage.setItem('studio_folders', JSON.stringify(folders));
-      localStorage.setItem('studio_finals', JSON.stringify(finalTracks));
-    }
-  }, [tracks, folders, isLoaded]);
+  const addTrack = async (trackData: Partial<Track>) => {
+    const { data, error } = await supabase
+      .from('tracks')
+      .insert([{
+        title: trackData.title || 'Unknown',
+        artist: trackData.artist || 'Unknown',
+        style: trackData.style || 'Samba',
+        album: trackData.album,
+        bpm: trackData.bpm,
+        audio_url: trackData.audioUrl,
+        folder_id: trackData.folderId,
+      }])
+      .select();
 
-  const addTrack = (trackData: Partial<Track>) => {
-    const newTrack: Track = {
-      title: trackData.title || 'Unknown',
-      artist: trackData.artist || 'Unknown',
-      style: trackData.style || 'Samba',
-      album: trackData.album,
-      bpm: trackData.bpm,
-      audioUrl: trackData.audioUrl,
-      folderId: trackData.folderId,
-      id: trackData.id || Math.random().toString(36).substring(7),
-      date: trackData.date || new Date().toISOString().split('T')[0],
-    };
-    setTracks(prev => [newTrack, ...prev]);
+    if (data) setTracks(prev => [data[0], ...prev]);
   };
 
-  const removeTrack = (id: string) => {
+  const removeTrack = async (id: string) => {
+    await supabase.from('tracks').delete().eq('id', id);
     setTracks(prev => prev.filter(t => t.id !== id));
   };
 
-  const updateTrack = (id: string, updates: Partial<Track>) => {
+  const updateTrack = async (id: string, updates: Partial<Track>) => {
+    await supabase.from('tracks').update(updates).eq('id', id);
     setTracks(prev => prev.map(t => t.id === id ? { ...t, ...updates } : t));
   };
 
-  const addFolder = (name: string, color: string) => {
-    const newFolder: Folder = {
-      id: name.toLowerCase().replace(/\s+/g, '-'),
-      name,
-      color,
-    };
-    setFolders(prev => [...prev, newFolder]);
+  const addFolder = async (name: string, color: string) => {
+    const { data } = await supabase
+      .from('folders')
+      .insert([{ name, color }])
+      .select();
+
+    if (data) setFolders(prev => [...prev, data[0]]);
   };
 
-  const updateFolder = (id: string, updates: Partial<Folder>) => {
+  const updateFolder = async (id: string, updates: Partial<Folder>) => {
+    await supabase.from('folders').update(updates).eq('id', id);
     setFolders(prev => prev.map(f => f.id === id ? { ...f, ...updates } : f));
   };
 
-  const removeFolder = (id: string) => {
+  const removeFolder = async (id: string) => {
+    await supabase.from('folders').delete().eq('id', id);
     setFolders(prev => prev.filter(f => f.id !== id));
-    // Clear associations
     setTracks(prev => prev.map(t => t.folderId === id ? { ...t, folderId: undefined } : t));
   };
 
-  const assignToFolder = (trackId: string, folderId: string | undefined) => {
+  const assignToFolder = async (trackId: string, folderId: string | undefined) => {
+    await supabase.from('tracks').update({ folder_id: folderId }).eq('id', trackId);
     setTracks(prev => prev.map(t => t.id === trackId ? { ...t, folderId } : t));
   };
 
-  const addToFinal = (track: Track) => {
+  const addToFinal = async (track: Track) => {
+    await supabase.from('final_tracks').insert([{ track_id: track.id }]);
     setFinalTracks(prev => {
       if (prev.find(t => t.id === track.id)) return prev;
       return [...prev, track];
     });
   };
 
-  const removeFromFinal = (id: string) => {
+  const removeFromFinal = async (id: string) => {
+    await supabase.from('final_tracks').delete().eq('track_id', id);
     setFinalTracks(prev => prev.filter(t => t.id !== id));
   };
 
-  const reorderFinalTracks = (startIndex: number, endIndex: number) => {
+  const reorderFinalTracks = async (startIndex: number, endIndex: number) => {
+    // Logic for persistent reordering would go here
     setFinalTracks(prev => {
       const result = Array.from(prev);
       const [removed] = result.splice(startIndex, 1);
@@ -154,8 +148,8 @@ export const StudioProvider: React.FC<{ children: React.ReactNode }> = ({ childr
 
   const stats = {
     totalTracks: tracks.length,
-    storageUsed: `${(tracks.length * 4.2).toFixed(1)} GB`, // Mock calculation
-    activeUsers: 42,
+    storageUsed: `${(tracks.length * 4.2).toFixed(1)} MB`, 
+    activeUsers: 1,
   };
 
   return (

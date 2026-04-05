@@ -22,6 +22,7 @@ interface UploadingFile {
 }
 
 import { useStudio } from './StudioProvider';
+import { createPresignedUrl } from '@/utils/r2-server';
 
 const BulkUpload = () => {
   const { addTrack, folders } = useStudio();
@@ -88,35 +89,73 @@ const BulkUpload = () => {
     setFiles(prev => prev.filter(f => f.id !== id));
   };
 
-  const startUpload = () => {
+  const startUpload = async () => {
     if (!albumName || !artistName) {
       setShowValidation(true);
       return;
     }
     setShowValidation(false);
 
-    setFiles(prev => prev.map(f => {
-      if (f.status === 'pending') {
-        const mockUpload = setInterval(() => {
-          setFiles(current => current.map(currFile => {
-            if (currFile.id === f.id) {
-              const nextProgress = Math.min(currFile.progress + (Math.random() * 25), 100);
-              if (nextProgress === 100) {
-                clearInterval(mockUpload);
-              }
-              return { 
-                ...currFile, 
-                progress: nextProgress, 
-                status: nextProgress === 100 ? 'complete' : 'uploading' 
-              };
-            }
-            return currFile;
-          }));
-        }, 400);
-        return { ...f, status: 'uploading' };
+    for (const f of files) {
+      if (f.status !== 'pending') continue;
+
+      try {
+        setFiles(current => current.map(curr => curr.id === f.id ? { ...curr, status: 'uploading' } : curr));
+
+        // 1. Get Presigned URL
+        const { url, error } = await createPresignedUrl(
+          `tracks/${f.id}-${f.file.name}`,
+          f.file.type
+        );
+
+        if (error || !url) throw new Error(error || "Signed URL failed");
+
+        // 2. Upload to R2 via XHR for progress tracking
+        const xhr = new XMLHttpRequest();
+        xhr.open('PUT', url, true);
+        xhr.setRequestHeader('Content-Type', f.file.type);
+
+        xhr.upload.onprogress = (event) => {
+          if (event.lengthComputable) {
+            const progress = (event.loaded / event.total) * 100;
+            setFiles(current => current.map(curr => 
+              curr.id === f.id ? { ...curr, progress } : curr
+            ));
+          }
+        };
+
+        const uploadPromise = new Promise((resolve, reject) => {
+          xhr.onload = () => xhr.status === 200 ? resolve(true) : reject();
+          xhr.onerror = () => reject();
+        });
+
+        xhr.send(f.file);
+        await uploadPromise;
+
+        // 3. Register in Supabase
+        const publicUrl = `${process.env.NEXT_PUBLIC_R2_PUBLIC_URL}/tracks/${f.id}-${f.file.name}`;
+        
+        await addTrack({
+          title: f.file.name.replace(/\.[^/.]+$/, ""),
+          artist: artistName,
+          album: albumName,
+          style: 'Samba',
+          bpm: '0',
+          audioUrl: publicUrl,
+          folderId: targetFolderId || undefined
+        });
+
+        setFiles(current => current.map(curr => 
+          curr.id === f.id ? { ...curr, status: 'complete', progress: 100 } : curr
+        ));
+
+      } catch (err) {
+        console.error("Upload failed for", f.file.name, err);
+        setFiles(current => current.map(curr => 
+          curr.id === f.id ? { ...curr, status: 'error', errorMessage: 'Upload failed' } : curr
+        ));
       }
-      return f;
-    }));
+    }
   };
 
   const isAllComplete = files.length > 0 && files.every(f => f.status === 'complete');

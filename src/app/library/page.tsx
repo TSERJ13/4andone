@@ -166,7 +166,7 @@ export default function LibraryPage() {
 
         .collection-card {
           padding: 32px;
-          border-radius: 40px; /* Enhanced rounding for premium feel */
+          border-radius: 32px;
           display: flex;
           align-items: center;
           gap: 24px;
@@ -182,7 +182,7 @@ export default function LibraryPage() {
         .card-visual { position: absolute; inset: 0; pointer-events: none; }
 
         .card-icon { 
-          width: 64px; height: 64px; border-radius: 20px; display: flex; align-items: center; justify-content: center; 
+          width: 64px; height: 64px; border-radius: 24px; display: flex; align-items: center; justify-content: center; 
           background: rgba(0, 0, 0, 0.2); backdrop-filter: blur(8px);
         }
 
@@ -197,7 +197,7 @@ export default function LibraryPage() {
 
         .playlist-row {
           padding: 12px 20px;
-          border-radius: 12px;
+          border-radius: 16px;
           display: flex;
           align-items: center;
           gap: 16px;
@@ -206,7 +206,7 @@ export default function LibraryPage() {
         .row-image {
           width: 48px;
           height: 48px;
-          border-radius: 8px;
+          border-radius: 12px;
           display: flex;
           align-items: center;
           justify-content: center;

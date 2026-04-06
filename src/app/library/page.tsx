@@ -43,7 +43,7 @@ export default function LibraryPage() {
           <Link 
             href="/library/favorites" 
             className="collection-card glass"
-            style={{ borderRadius: '40px' }}
+            style={{ borderRadius: '20px' }}
           >
             <div className="card-visual" style={{ background: 'linear-gradient(135deg, #ff0000, transparent)', opacity: 0.1 }} />
             <div className="card-icon" style={{ color: '#ff0000' }}>
@@ -60,7 +60,7 @@ export default function LibraryPage() {
               key={folder.id} 
               href={`/library/${folder.id}`} 
               className="collection-card glass"
-              style={{ borderRadius: '40px' }}
+              style={{ borderRadius: '20px' }}
             >
               <div className="card-visual" style={{ 
                 background: `linear-gradient(135deg, ${folder.color}, transparent)`,
@@ -139,7 +139,7 @@ export default function LibraryPage() {
           margin: 0 20px 20px 0;
           padding-bottom: 140px;
           background: rgba(255, 255, 255, 0.02);
-          border-radius: 40px;
+          border-radius: 20px;
           border: 1px solid rgba(255, 255, 255, 0.05);
           min-height: calc(100vh - 40px);
           overflow: hidden;
@@ -181,8 +181,8 @@ export default function LibraryPage() {
         }
 
         .collection-card {
-          padding: 24px 32px;
-          border-radius: 40px;
+          padding: 24px 40px;
+          border-radius: 20px;
           display: flex;
           align-items: center;
           gap: 24px;

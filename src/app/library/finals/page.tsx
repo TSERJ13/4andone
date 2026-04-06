@@ -96,7 +96,7 @@ const FinalsPage = () => {
 
         <section className="folders-section">
           <header className="section-header">
-            <div className="simulation-actions">
+            <div className="simulation-actions" style={{ position: 'relative' }}>
               <button className="sim-btn latin glass" onClick={() => handleProgramShuffle('Latin')}>
                 <Play size={16} fill="currentColor" />
                 <span>Shuffle Latin</span>
@@ -106,16 +106,16 @@ const FinalsPage = () => {
                 <span>Shuffle Standard</span>
               </button>
               
-              {!showFolderForm ? (
-                <button 
-                  className="add-folder-icon-btn glass"
-                  onClick={() => setShowFolderForm(true)}
-                  title="Create New Folder"
-                >
-                  <FolderPlus size={18} />
-                </button>
-              ) : (
-                <form className="inline-folder-form animate-in-slide-left" onSubmit={(e) => {
+              <button 
+                className="add-folder-icon-btn glass"
+                onClick={() => setShowFolderForm(!showFolderForm)}
+                title="Create New Folder"
+              >
+                {showFolderForm ? <span style={{fontSize: '18px'}}>✕</span> : <FolderPlus size={18} />}
+              </button>
+
+              {showFolderForm && (
+                <form className="inline-folder-form-popup animate-in-popup" onSubmit={(e) => {
                   e.preventDefault();
                   if (!newFolderName.trim()) return;
                   addFinalFolder(newFolderName, '#1db954');
@@ -124,14 +124,13 @@ const FinalsPage = () => {
                 }}>
                   <input 
                     type="text" 
-                    placeholder="Folder Name..." 
+                    placeholder="New Folder Name..." 
                     value={newFolderName}
                     onChange={(e) => setNewFolderName(e.target.value)}
                     className="inline-t-input"
                     autoFocus
                   />
                   <button type="submit" className="inline-add-btn">Create</button>
-                  <button type="button" className="inline-cancel-btn" onClick={() => setShowFolderForm(false)}>✕</button>
                 </form>
               )}
             </div>
@@ -147,11 +146,12 @@ const FinalsPage = () => {
                   onDragOver={handleDragOver}
                   onDrop={(e) => handleDropToFolder(e, folder.id)}
                 >
+                  <button className="del-btn-top-right glass" onClick={() => removeFinalFolder(folder.id)}>
+                    <Trash2 size={14} />
+                  </button>
+
                   <div className="folder-header">
                     <h3>{folder.name}</h3>
-                    <div className="folder-actions">
-                      <button className="del-btn-small" onClick={() => removeFinalFolder(folder.id)}><Trash2 size={16}/></button>
-                    </div>
                   </div>
                   
                   <div className="folder-tracks-list">
@@ -513,56 +513,85 @@ const FinalsPage = () => {
 
         .empty-msg { color: #71717a; padding: 20px; text-align: center; font-size: 14px; }
         
-        .inline-folder-form {
+        .inline-folder-form-popup {
+          position: absolute;
+          top: calc(100% + 8px);
+          right: 0;
+          z-index: 100;
           display: flex;
           align-items: center;
-          gap: 8px;
-          background: rgba(255, 255, 255, 0.05);
-          padding: 4px 8px;
-          border-radius: 12px;
+          gap: 12px;
+          background: rgba(20, 20, 20, 0.95);
+          backdrop-filter: blur(20px);
+          padding: 12px 16px;
+          border-radius: 16px;
           border: 1px solid rgba(255, 255, 255, 0.1);
+          box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+          width: 280px;
         }
         .inline-t-input {
-          background: transparent;
-          border: none;
+          background: rgba(255,255,255,0.05);
+          border: 1px solid rgba(255,255,255,0.08);
           color: white;
           font-size: 13px;
-          font-weight: 600;
+          padding: 8px 12px;
+          border-radius: 8px;
           outline: none;
-          width: 150px;
+          flex: 1;
         }
         .inline-add-btn {
           background: var(--primary, #1db954);
           color: black;
           font-weight: 800;
-          font-size: 11px;
-          padding: 4px 10px;
-          border-radius: 6px;
+          font-size: 12px;
+          padding: 8px 16px;
+          border-radius: 8px;
           border: none;
           cursor: pointer;
         }
-        .inline-cancel-btn {
-          background: transparent;
+        
+        .final-folder-block {
+          padding: 32px;
+          border-radius: 32px;
+          display: flex;
+          flex-direction: column;
+          gap: 24px;
+          position: relative;
+        }
+
+        .del-btn-top-right {
+          position: absolute;
+          top: 20px;
+          right: 20px;
+          width: 32px;
+          height: 32px;
+          border-radius: 50%;
+          display: flex;
+          align-items: center;
+          justify-content: center;
           color: #71717a;
-          font-size: 14px;
-          padding: 4px;
-          border: none;
+          border: 1px solid rgba(255,255,255,0.05);
           cursor: pointer;
+          transition: all 0.2s;
+          z-index: 10;
         }
-        .inline-cancel-btn:hover { color: white; }
+        .del-btn-top-right:hover { color: #ff4b2b; background: rgba(255, 75, 43, 0.1); }
 
-        .folder-form { display: flex; gap: 12px; margin-bottom: 24px; padding: 20px; border-radius: 20px; }
-        .t-input { flex: 1; background: rgba(0,0,0,0.2); border: 1px solid rgba(255,255,255,0.1); border-radius: 12px; padding: 12px 16px; color: white; }
-        .add-btn { background: var(--primary, #1db954); color: black; font-weight: 800; padding: 0 20px; border-radius: 12px; border: none; cursor: pointer; }
+        .animate-in-popup { animation: popupFade 0.3s cubic-bezier(0.4, 0, 0.2, 1); }
+        @keyframes popupFade { from { opacity: 0; transform: translateY(-10px) scale(0.95); } to { opacity: 1; transform: translateY(0) scale(1); } }
 
-        .animate-in { animation: fadeIn 0.8s cubic-bezier(0.4, 0, 0.2, 1); }
-        @keyframes fadeIn { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: translateY(0); } }
-
-        @keyframes slideLeft { 
-          from { opacity: 0; transform: translateX(10px); } 
-          to { opacity: 1; transform: translateX(0); } 
+        @media (max-width: 768px) {
+          .final-folder-block {
+            padding: 20px;
+            border-radius: 24px;
+            gap: 16px;
+          }
+          .folder-header h3 { font-size: 1.2rem; }
+          .inline-folder-form-popup {
+            width: calc(100vw - 40px);
+            right: -10px; /* Adjust for mobile padding */
+          }
         }
-        .animate-in-slide-left { animation: slideLeft 0.3s ease-out; }
 
         @media (max-width: 1024px) {
           .finals-hero { flex-direction: column; align-items: flex-start; gap: 24px; }

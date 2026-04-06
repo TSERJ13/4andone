@@ -42,7 +42,7 @@ const SearchPage = () => {
       <div className="search-content">
         {!query ? (
           <div className="browse-all">
-            <h2 className="section-title">Browse Genres</h2>
+            <h2 className="section-title">Browse Styles</h2>
             <div className="genre-grid">
               {stylesWithTracks.length > 0 ? stylesWithTracks.map((style) => (
                 <Link 
@@ -66,7 +66,7 @@ const SearchPage = () => {
               )) : (
                 <div className="empty-search-state glass">
                   <Music2 size={48} opacity={0.2} />
-                  <p>Add some music in the Admin Panel to see categories here!</p>
+                  <p>Add some music in the Admin Panel to see styles here!</p>
                 </div>
               )}
             </div>
@@ -111,12 +111,12 @@ const SearchPage = () => {
         .search-header {
           position: sticky; top: 0; z-index: 100;
           display: flex; align-items: center; gap: 16px;
-          padding: 16px 28px; border-radius: 40px;
+          padding: 16px 32px; border-radius: 50px;
           width: 100%; max-width: 600px; margin-bottom: 50px;
           background: rgba(255, 255, 255, 0.03);
-          backdrop-filter: blur(20px);
-          border: 1px solid rgba(255,255,255,0.1);
-          box-shadow: 0 8px 32px rgba(0,0,0,0.2);
+          backdrop-filter: blur(24px);
+          border: 1px solid rgba(255,255,255,0.12);
+          box-shadow: 0 12px 40px rgba(0,0,0,0.3);
         }
         .search-icon { color: #71717a; }
         .search-input {
@@ -128,7 +128,7 @@ const SearchPage = () => {
           gap: 24px;
         }
         .genre-card {
-          padding: 32px; border-radius: 32px; height: 160px;
+          padding: 32px; border-radius: 36px; height: 160px;
           position: relative; overflow: hidden; cursor: pointer;
           transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
           border: 1px solid;
@@ -139,7 +139,7 @@ const SearchPage = () => {
         }
         .genre-card:hover { 
           transform: translateY(-8px) scale(1.02);
-          box-shadow: 0 12px 24px rgba(0,0,0,0.3);
+          box-shadow: 0 16px 32px rgba(0,0,0,0.4);
           background-color: rgba(255, 255, 255, 0.1) !important;
         }
         .genre-info { position: relative; z-index: 2; }
@@ -158,7 +158,7 @@ const SearchPage = () => {
         .results-container { display: flex; flex-direction: column; gap: 12px; }
         .search-row {
           display: flex; align-items: center; justify-content: space-between;
-          padding: 16px 24px; border-radius: 16px; cursor: pointer;
+          padding: 16px 30px; border-radius: 24px; cursor: pointer;
           transition: all 0.2s; border: 1px solid rgba(255,255,255,0.03);
           background: rgba(255,255,255,0.02);
         }

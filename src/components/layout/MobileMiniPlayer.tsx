@@ -89,9 +89,9 @@ const MobileMiniPlayer = () => {
       <style jsx>{`
         .mini-player-wrapper {
           position: fixed;
-          bottom: 80px; /* Above mobile nav */
-          left: 8px;
-          right: 8px;
+          bottom: 96px; /* Shifted up to clear the new floating nav */
+          left: 12px;
+          right: 12px;
           z-index: 999;
         }
 

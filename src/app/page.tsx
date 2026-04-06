@@ -58,8 +58,9 @@ export default function Home() {
 
       <section className="section">
         <div className="section-header-flex">
-          <h2 className="section-title">Latin Program</h2>
-          <span className="program-badge latin">International Latin</span>
+          <div className="section-title-group">
+            <span className="program-badge latin">International Latin</span>
+          </div>
         </div>
         <div className="styles-grid">
           {styles.filter(s => s.program === 'Latin').map((style) => {
@@ -91,8 +92,9 @@ export default function Home() {
 
       <section className="section" style={{ marginTop: '40px' }}>
         <div className="section-header-flex">
-          <h2 className="section-title">Standard Program</h2>
-          <span className="program-badge standard">International Standard</span>
+          <div className="section-title-group">
+            <span className="program-badge standard">International Standard</span>
+          </div>
         </div>
         <div className="styles-grid">
           {styles.filter(s => s.program === 'Standard').map((style) => {
@@ -280,20 +282,28 @@ export default function Home() {
           align-items: center;
           justify-content: space-between;
           margin-bottom: 24px;
+          border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+          padding-bottom: 12px;
+        }
+
+        .section-title-group {
+          display: flex;
+          align-items: center;
+          gap: 12px;
         }
 
         .program-badge {
-          font-size: 10px;
-          font-weight: 900;
+          font-size: 14px; /* Increased from 10px */
+          font-weight: 800;
           text-transform: uppercase;
-          padding: 6px 12px;
-          border-radius: 20px;
-          background: rgba(255, 255, 255, 0.05);
-          letter-spacing: 1px;
+          padding: 8px 16px;
+          border-radius: 12px;
+          background: rgba(255, 255, 255, 0.03);
+          letter-spacing: 1.5px;
         }
 
-        .program-badge.latin { color: #f7971e; border: 1px solid rgba(247, 151, 30, 0.2); }
-        .program-badge.standard { color: #2193b0; border: 1px solid rgba(33, 147, 176, 0.2); }
+        .program-badge.latin { color: #f7971e; border: 1px solid rgba(247, 151, 30, 0.3); }
+        .program-badge.standard { color: #2193b0; border: 1px solid rgba(33, 147, 176, 0.3); }
 
         .styles-grid {
           display: grid;

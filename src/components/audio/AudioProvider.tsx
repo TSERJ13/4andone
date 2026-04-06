@@ -71,6 +71,25 @@ export const AudioProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   useEffect(() => {
     const savedVol = localStorage.getItem('4andone-volume');
     if (savedVol) setVolumeState(parseFloat(savedVol));
+
+    // Global "Unlock" for mobile audio
+    const unlockAudio = async () => {
+      if (Tone.getContext().state !== 'running') {
+        await Tone.start();
+        await Tone.getContext().resume();
+      }
+      // Remove listeners once unlocked
+      document.removeEventListener('touchstart', unlockAudio);
+      document.removeEventListener('mousedown', unlockAudio);
+    };
+
+    document.addEventListener('touchstart', unlockAudio);
+    document.addEventListener('mousedown', unlockAudio);
+
+    return () => {
+      document.removeEventListener('touchstart', unlockAudio);
+      document.removeEventListener('mousedown', unlockAudio);
+    };
   }, []);
 
   const loadTrack = async (track: any, isRetry = false, forceFinalMode?: boolean) => {
@@ -117,12 +136,16 @@ export const AudioProvider: React.FC<{ children: React.ReactNode }> = ({ childre
           setDuration(player.buffer.duration);
           setIsLoaded(true);
           player.playbackRate = bpm / 100;
-          player.start();
-          setIsPlaying(true);
+          
+          // Only auto-start if we are successfully running
+          if (Tone.getContext().state === 'running') {
+            player.start();
+            setIsPlaying(true);
+          }
           setError(null);
         },
         onerror: async () => {
-          if (!isRetry && track.id) loadTrack(track, true);
+          if (!isRetry && track.id) loadTrack(track, true, forceFinalMode);
           else {
             setError("File Expired");
             setIsLoaded(false);
@@ -204,7 +227,12 @@ export const AudioProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   }, [isPlaying, duration, bpm, isFinalMode, currentTime]);
 
   const togglePlay = async () => {
-    if (Tone.getContext().state !== 'running') await Tone.start();
+    // Mobile browsers require resume() on user gesture
+    if (Tone.getContext().state !== 'running') {
+      await Tone.start();
+      await Tone.getContext().resume();
+    }
+
     if (!isLoaded || !playerRef.current) return;
 
     if (isPlaying) {

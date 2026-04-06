@@ -200,12 +200,12 @@ const SearchPage = () => {
         
         @media (max-width: 768px) {
           .search-page { padding: 20px; }
-          .search-header { margin-bottom: 30px; padding: 12px 20px; }
+          .search-header { margin-bottom: 30px; padding: 12px 24px; border-radius: 40px; }
           .genre-grid { grid-template-columns: repeat(2, 1fr); gap: 12px; }
-          .genre-card { padding: 20px; border-radius: 24px; height: 130px; }
+          .genre-card { padding: 20px; border-radius: 40px; height: 130px; }
           .genre-card h3 { font-size: 18px; }
           .card-decoration { display: none; }
-          .search-row { padding: 12px 16px; border-radius: 12px; }
+          .search-row { padding: 12px 20px; border-radius: 20px; }
           .track-title { font-size: 14px; }
         }
       `}</style>

@@ -176,7 +176,10 @@ const AddTrackModal = ({ isOpen, onClose, onAdd, initialData }: AddTrackModalPro
         });
 
         if (!uploadRes.ok) {
-          throw new Error(`Direct R2 upload failed (Status: ${uploadRes.status})`);
+          console.error(`[R2-UPLOAD] Error Status: ${uploadRes.status}`);
+          const errorText = await uploadRes.text();
+          console.error(`[R2-UPLOAD] Error Body: ${errorText}`);
+          throw new Error(`Direct R2 upload failed (Status: ${uploadRes.status}). Check browser console for details.`);
         }
 
         console.log(`[UPLOAD-DONE] Storage success. Public URL: ${publicUrl}`);

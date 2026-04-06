@@ -118,9 +118,28 @@ export const AudioProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       trackIdRef.current = track.id;
 
       let finalUrl = track.audioUrl;
-      const isBlob = finalUrl?.startsWith('blob:');
+      const isRemote = finalUrl?.startsWith('http');
 
-      if ((!finalUrl || isBlob || isRetry) && track.id) {
+      // 1. If REMOTE (Cloudflare R2), we need a temporary signed URL for playback
+      if (isRemote) {
+        try {
+          console.log(`[AUDIO-SIGN] Requesting playback pass for: ${track.title}`);
+          const fileName = finalUrl.split('/').pop(); // Extract safeFileName from the URL
+          const signRes = await fetch(`/api/upload?key=${fileName}`);
+          
+          if (signRes.ok) {
+            const { url } = await signRes.json();
+            finalUrl = url;
+            console.log(`[AUDIO-SIGN] Success. Secure link active.`);
+          } else {
+            console.error("[AUDIO-SIGN] Failed to sign, falling back to public link");
+          }
+        } catch (e) {
+          console.error("[AUDIO-SIGN] Error during signing:", e);
+        }
+      } 
+      // 2. Legacy Fallback (IndexedDB)
+      else if (track.id) {
         const file = await getAudioFile(track.id);
         if (file) {
           finalUrl = URL.createObjectURL(file);
@@ -128,7 +147,9 @@ export const AudioProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         }
       }
 
-      if (!finalUrl) throw new Error("Source Expired");
+      if (!finalUrl) {
+        throw new Error("Missing Audio Source");
+      }
 
       const player = new Tone.GrainPlayer({
         url: finalUrl,
@@ -137,19 +158,16 @@ export const AudioProvider: React.FC<{ children: React.ReactNode }> = ({ childre
           setIsLoaded(true);
           player.playbackRate = bpm / 100;
           
-          // Only auto-start if we are successfully running
           if (Tone.getContext().state === 'running') {
             player.start();
             setIsPlaying(true);
           }
           setError(null);
         },
-        onerror: async () => {
-          if (!isRetry && track.id) loadTrack(track, true, forceFinalMode);
-          else {
-            setError("File Expired");
-            setIsLoaded(false);
-          }
+        onerror: (err) => {
+          console.error("[PLAYER-ERROR]", err);
+          setError("Stream Error (CORS or Network)");
+          setIsLoaded(false);
         },
         loop: true
       });
@@ -157,11 +175,9 @@ export const AudioProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       player.connect(output);
       playerRef.current = player;
     } catch (err: any) {
-      if (!isRetry && track.id) loadTrack(track, true, forceFinalMode);
-      else {
-        setError(err.message || "Failed to load track");
-        setIsLoaded(false);
-      }
+      console.error("[LOAD-ERROR]", err);
+      setError(err.message || "Failed to load track");
+      setIsLoaded(false);
     }
   };
 

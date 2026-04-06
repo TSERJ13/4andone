@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { S3Client, PutObjectCommand } from '@aws-sdk/client-s3';
+import { S3Client, PutObjectCommand, GetObjectCommand } from '@aws-sdk/client-s3';
 import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
 
 const R2_ACCESS_KEY_ID = process.env.R2_ACCESS_KEY_ID;
@@ -14,14 +14,40 @@ const s3Client = new S3Client({
     accessKeyId: R2_ACCESS_KEY_ID || '',
     secretAccessKey: R2_SECRET_ACCESS_KEY || '',
   },
+  forcePathStyle: true,
 });
 
 /**
- * Modern Presigned URL Workflow:
- * 1. Frontend sends fileName + fileType
- * 2. Backend generates a temporary 'Signed PUT URL'
- * 3. Frontend uploads binary directly to that URL
- * 4. This bypasses Next.js body limits and is much more robust for large files.
+ * GET: Generates a Signed URL for Playback/Streaming
+ * Used by AudioProvider to bypass public access restrictions.
+ */
+export async function GET(request: NextRequest) {
+  try {
+    const { searchParams } = new URL(request.url);
+    const key = searchParams.get('key');
+
+    if (!key) {
+      return NextResponse.json({ error: 'Key is required' }, { status: 400 });
+    }
+
+    const command = new GetObjectCommand({
+      Bucket: R2_BUCKET_NAME,
+      Key: key,
+    });
+
+    // Generate a signed playback URL (valid for 1 hour)
+    const url = await getSignedUrl(s3Client, command, { expiresIn: 3600 });
+
+    return NextResponse.json({ url });
+  } catch (error: any) {
+    console.error('[R2-GET-SIGN] Failure:', error);
+    return NextResponse.json({ error: 'Failed to sign playback URL' }, { status: 500 });
+  }
+}
+
+/**
+ * POST: Generates a Signed URL for Upload
+ * Used by AddTrackModal for direct browser-to-cloud uploads.
  */
 export async function POST(request: NextRequest) {
   try {
@@ -39,20 +65,20 @@ export async function POST(request: NextRequest) {
       ContentType: fileType || 'audio/mpeg',
     });
 
-    // Generate a signed URL that expires in 60 minutes
-    const signedUrl = await getSignedUrl(s3Client, command, { expiresIn: 3600 });
+    // Generate a signed upload URL (valid for 10 minutes)
+    const signedUrl = await getSignedUrl(s3Client, command, { expiresIn: 600 });
     const publicUrl = `${process.env.NEXT_PUBLIC_R2_PUBLIC_URL}/${safeFileName}`;
 
-    console.log(`[R2-SIGN] Generated signed URL for: ${safeFileName}`);
+    console.log(`[R2-POST-SIGN] Generated upload URL for: ${safeFileName}`);
 
     return NextResponse.json({ 
       uploadUrl: signedUrl, 
       publicUrl: publicUrl 
     });
   } catch (error: any) {
-    console.error('[R2-SIGN] Failure:', error);
+    console.error('[R2-POST-SIGN] Failure:', error);
     return NextResponse.json({ 
-      error: error.message || 'Failed to generate signed URL' 
+      error: error.message || 'Failed to generate upload URL' 
     }, { status: 500 });
   }
 }

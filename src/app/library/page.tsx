@@ -159,17 +159,19 @@ export default function LibraryPage() {
         }
 
         .collection-grid {
-          display: grid;
-          grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+          display: flex;
+          flex-wrap: wrap;
           gap: 20px;
         }
 
         .collection-card {
-          padding: 32px;
+          padding: 24px 32px;
           border-radius: 32px;
           display: flex;
           align-items: center;
           gap: 24px;
+          width: fit-content;
+          min-width: 200px;
           position: relative;
           overflow: hidden;
           transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);

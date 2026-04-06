@@ -40,7 +40,11 @@ export default function LibraryPage() {
           <h2>Your Collections</h2>
         </div>
         <div className="collection-grid">
-          <Link href="/library/favorites" className="collection-card glass">
+          <Link 
+            href="/library/favorites" 
+            className="collection-card glass"
+            style={{ borderRadius: '32px' }}
+          >
             <div className="card-visual" style={{ background: 'linear-gradient(135deg, #ff0000, transparent)', opacity: 0.1 }} />
             <div className="card-icon" style={{ color: '#ff0000' }}>
               <Heart size={24} fill="#ff0000" />
@@ -52,7 +56,12 @@ export default function LibraryPage() {
           </Link>
 
           {folders.map((folder) => (
-            <Link key={folder.id} href={`/library/${folder.id}`} className="collection-card glass">
+            <Link 
+              key={folder.id} 
+              href={`/library/${folder.id}`} 
+              className="collection-card glass"
+              style={{ borderRadius: '32px' }}
+            >
               <div className="card-visual" style={{ 
                 background: `linear-gradient(135deg, ${folder.color}, transparent)`,
                 opacity: 0.1 

@@ -128,7 +128,7 @@ const SearchPage = () => {
           gap: 24px;
         }
         .genre-card {
-          padding: 32px; border-radius: 36px; height: 160px;
+          padding: 32px; border-radius: 48px; height: 160px;
           position: relative; overflow: hidden; cursor: pointer;
           transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
           border: 1px solid;

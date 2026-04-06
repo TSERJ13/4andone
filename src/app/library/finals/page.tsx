@@ -115,23 +115,29 @@ const FinalsPage = () => {
               </button>
 
               {showFolderForm && (
-                <form className="inline-folder-form-popup animate-in-popup" onSubmit={(e) => {
-                  e.preventDefault();
-                  if (!newFolderName.trim()) return;
-                  addFinalFolder(newFolderName, '#1db954');
-                  setNewFolderName('');
-                  setShowFolderForm(false);
-                }}>
-                  <input 
-                    type="text" 
-                    placeholder="New Folder Name..." 
-                    value={newFolderName}
-                    onChange={(e) => setNewFolderName(e.target.value)}
-                    className="inline-t-input"
-                    autoFocus
-                  />
-                  <button type="submit" className="inline-add-btn">Create</button>
-                </form>
+                <div className="folder-modal-overlay animate-in-fade" onClick={() => setShowFolderForm(false)}>
+                  <form className="folder-modal-content animate-in-popup" onClick={(e) => e.stopPropagation()} onSubmit={(e) => {
+                    e.preventDefault();
+                    if (!newFolderName.trim()) return;
+                    addFinalFolder(newFolderName, '#1db954');
+                    setNewFolderName('');
+                    setShowFolderForm(false);
+                  }}>
+                    <h3>Create New Folder</h3>
+                    <input 
+                      type="text" 
+                      placeholder="Folder Name (e.g. WDSF Latin Final)" 
+                      value={newFolderName}
+                      onChange={(e) => setNewFolderName(e.target.value)}
+                      className="modal-t-input"
+                      autoFocus
+                    />
+                    <div className="modal-actions">
+                      <button type="button" className="btn-cancel" onClick={() => setShowFolderForm(false)}>Cancel</button>
+                      <button type="submit" className="btn-confirm">Create Folder</button>
+                    </div>
+                  </form>
+                </div>
               )}
             </div>
           </header>
@@ -513,72 +519,56 @@ const FinalsPage = () => {
 
         .empty-msg { color: #71717a; padding: 20px; text-align: center; font-size: 14px; }
         
-        .inline-folder-form-popup {
-          position: absolute;
-          top: calc(100% + 8px);
-          right: 0;
-          z-index: 100;
-          display: flex;
-          align-items: center;
-          gap: 12px;
-          background: rgba(20, 20, 20, 0.95);
-          backdrop-filter: blur(20px);
-          padding: 12px 16px;
-          border-radius: 16px;
-          border: 1px solid rgba(255, 255, 255, 0.1);
-          box-shadow: 0 10px 30px rgba(0,0,0,0.5);
-          width: 280px;
-        }
-        .inline-t-input {
-          background: rgba(255,255,255,0.05);
-          border: 1px solid rgba(255,255,255,0.08);
-          color: white;
-          font-size: 13px;
-          padding: 8px 12px;
-          border-radius: 8px;
-          outline: none;
-          flex: 1;
-        }
-        .inline-add-btn {
-          background: var(--primary, #1db954);
-          color: black;
-          font-weight: 800;
-          font-size: 12px;
-          padding: 8px 16px;
-          border-radius: 8px;
-          border: none;
-          cursor: pointer;
-        }
-        
-        .final-folder-block {
-          padding: 32px;
-          border-radius: 32px;
-          display: flex;
-          flex-direction: column;
-          gap: 24px;
-          position: relative;
-        }
-
-        .del-btn-top-right {
-          position: absolute;
-          top: 20px;
-          right: 20px;
-          width: 32px;
-          height: 32px;
-          border-radius: 50%;
+        .folder-modal-overlay {
+          position: fixed;
+          inset: 0;
+          background: rgba(0, 0, 0, 0.6);
+          backdrop-filter: blur(8px);
           display: flex;
           align-items: center;
           justify-content: center;
-          color: #71717a;
-          border: 1px solid rgba(255,255,255,0.05);
-          cursor: pointer;
-          transition: all 0.2s;
-          z-index: 10;
+          z-index: 1000;
         }
-        .del-btn-top-right:hover { color: #ff4b2b; background: rgba(255, 75, 43, 0.1); }
+        .folder-modal-content {
+          background: #121212;
+          padding: 40px;
+          border-radius: 28px;
+          border: 1px solid rgba(255, 255, 255, 0.1);
+          width: 100%;
+          max-width: 440px;
+          display: flex;
+          flex-direction: column;
+          gap: 24px;
+          box-shadow: 0 20px 50px rgba(0,0,0,0.5);
+          margin: 20px;
+        }
+        .folder-modal-content h3 { font-size: 20px; font-weight: 800; }
+        .modal-t-input {
+          background: rgba(255, 255, 255, 0.05);
+          border: 1px solid rgba(255, 255, 255, 0.1);
+          border-radius: 12px;
+          padding: 16px;
+          color: white;
+          font-size: 16px;
+          outline: none;
+        }
+        .modal-t-input:focus { border-color: var(--primary); }
+        .modal-actions { display: flex; gap: 12px; justify-content: flex-end; }
+        .btn-cancel { background: transparent; color: #71717a; border: none; font-weight: 700; cursor: pointer; padding: 12px; }
+        .btn-confirm { 
+          background: var(--primary, #1db954); 
+          color: black; 
+          font-weight: 800; 
+          padding: 12px 24px; 
+          border-radius: 12px; 
+          border: none; 
+          cursor: pointer; 
+        }
 
-        .animate-in-popup { animation: popupFade 0.3s cubic-bezier(0.4, 0, 0.2, 1); }
-        @keyframes popupFade { from { opacity: 0; transform: translateY(-10px) scale(0.95); } to { opacity: 1; transform: translateY(0) scale(1); } }
+        .animate-in-fade { animation: fadeIn 0.3s ease-out; }
+        .animate-in-popup { animation: popupFade 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275); }
+        @keyframes popupFade { from { opacity: 0; transform: scale(0.9); } to { opacity: 1; transform: scale(1); } }
+        @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
 
         @media (max-width: 768px) {
           .final-folder-block {
@@ -587,9 +577,9 @@ const FinalsPage = () => {
             gap: 16px;
           }
           .folder-header h3 { font-size: 1.2rem; }
-          .inline-folder-form-popup {
-            width: calc(100vw - 40px);
-            right: -10px; /* Adjust for mobile padding */
+          .folder-modal-content {
+            padding: 24px;
+            gap: 20px;
           }
         }
 

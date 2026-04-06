@@ -96,17 +96,6 @@ const FinalsPage = () => {
 
         <section className="folders-section">
           <header className="section-header">
-            <div className="header-left">
-              <h2>Folders</h2>
-              <button 
-                className="add-folder-icon-btn glass"
-                onClick={() => setShowFolderForm(!showFolderForm)}
-                title="Create New Folder"
-              >
-                {showFolderForm ? <span style={{fontSize: '18px'}}>✕</span> : <FolderPlus size={18} />}
-              </button>
-            </div>
-            
             <div className="simulation-actions">
               <button className="sim-btn latin glass" onClick={() => handleProgramShuffle('Latin')}>
                 <Play size={16} fill="currentColor" />
@@ -115,6 +104,14 @@ const FinalsPage = () => {
               <button className="sim-btn standard glass" onClick={() => handleProgramShuffle('Standard')}>
                 <Play size={16} fill="currentColor" />
                 <span>Shuffle Standard</span>
+              </button>
+              <button 
+                className="add-folder-icon-btn glass"
+                onClick={() => setShowFolderForm(!showFolderForm)}
+                title="Create New Folder"
+                style={{ marginLeft: '8px' }}
+              >
+                {showFolderForm ? <span style={{fontSize: '18px'}}>✕</span> : <FolderPlus size={18} />}
               </button>
             </div>
           </header>

@@ -15,6 +15,7 @@ import {
 import Link from 'next/link';
 import { useStudio } from '@/components/admin/StudioProvider';
 import { useAudio } from '@/components/audio/AudioProvider';
+import { getMPMFromBPM } from '@/utils/audio';
 
 export default function LibraryPage() {
   const { tracks, folders, finalTracks, addToFinal, removeFromFinal } = useStudio();
@@ -86,7 +87,12 @@ export default function LibraryPage() {
               </div>
               <div className="row-content">
                 <p className="row-title">{track.title}</p>
-                <p className="row-artist text-secondary">{track.artist}</p>
+                <p className="row-artist text-secondary">
+                  {track.artist}
+                  {track.bpm && (
+                    <span className="text-primary font-bold ml-2">• {getMPMFromBPM(Number(track.bpm), track.style)} Bars/Min</span>
+                  )}
+                </p>
               </div>
               <div className="row-actions">
                 <button

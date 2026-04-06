@@ -5,6 +5,8 @@ import Link from 'next/link';
 import { Play, Mic2, Timer, Flame, Music2, Disc, Flag } from 'lucide-react';
 import { useAudio } from '@/components/audio/AudioProvider';
 import { useStudio } from '@/components/admin/StudioProvider';
+import { formatDuration } from '@/utils/format';
+import { getMPMFromBPM } from '@/utils/audio';
 
 export default function Home() {
   const {
@@ -15,25 +17,11 @@ export default function Home() {
   } = useAudio();
   const {
     tracks,
+    styles,
     finalTracks,
     addToFinal,
     removeFromFinal
   } = useStudio();
-
-  const allStyles = [
-    // Latin Program
-    { title: 'Samba', color: '#ff4b2b', program: 'Latin' },
-    { title: 'Cha-cha-cha', color: '#f7971e', program: 'Latin' },
-    { title: 'Rumba', color: '#11998e', program: 'Latin' },
-    { title: 'Paso Doble', color: '#cb2d3e', program: 'Latin' },
-    { title: 'Jive', color: '#3f2b96', program: 'Latin' },
-    // Standard Program
-    { title: 'Slow Waltz', color: '#2193b0', program: 'Standard' },
-    { title: 'Tango', color: '#1e293b', program: 'Standard' },
-    { title: 'Viennese Waltz', color: '#4f46e5', program: 'Standard' },
-    { title: 'Slow Foxtrot', color: '#0891b2', program: 'Standard' },
-    { title: 'Quickstep', color: '#059669', program: 'Standard' },
-  ];
 
   const getStyleTrackCount = (styleName: string) => {
     return tracks.filter(t => t.style?.toLowerCase() === styleName.toLowerCase()).length;
@@ -48,7 +36,7 @@ export default function Home() {
       {/* ... Hero Section remains ... */}
       <header className="hero-section glass">
         <div className="hero-content">
-          <span className="badge">Featured: Final Mode 1:45</span>
+          <span className="badge">Featured: Final Mode Practice</span>
           <h1 className="hero-title text-gradient">Master Your Dance<br />with AI & BPM Control</h1>
           <p className="hero-desc">
             The ultimate tool for Dancesport. Isolate beats, remove vocals,
@@ -74,11 +62,11 @@ export default function Home() {
           <span className="program-badge latin">International Latin</span>
         </div>
         <div className="styles-grid">
-          {allStyles.filter(s => s.program === 'Latin').map((style) => {
+          {styles.filter(s => s.program === 'Latin').map((style) => {
             const count = getStyleTrackCount(style.title);
             return (
               <Link
-                key={style.title}
+                key={style.id}
                 href={`/style/${style.title.toLowerCase().replace(/\s+/g, '-')}`}
                 className="style-card glass"
                 style={{ backgroundColor: `${style.color}15`, borderRadius: '16px' }}
@@ -107,11 +95,11 @@ export default function Home() {
           <span className="program-badge standard">International Standard</span>
         </div>
         <div className="styles-grid">
-          {allStyles.filter(s => s.program === 'Standard').map((style) => {
+          {styles.filter(s => s.program === 'Standard').map((style) => {
             const count = getStyleTrackCount(style.title);
             return (
               <Link
-                key={style.title}
+                key={style.id}
                 href={`/style/${style.title.toLowerCase().replace(/\s+/g, '-')}`}
                 className="style-card glass"
                 style={{ backgroundColor: `${style.color}15`, borderRadius: '16px' }}
@@ -152,7 +140,7 @@ export default function Home() {
                   <p className="track-artist">{track.artist}</p>
                 </div>
               </div>
-              <div className="track-duration text-secondary">{track.bpm ? `${track.bpm} BPM` : '1:45'}</div>
+              <div className="track-duration text-secondary">{track.bpm ? `${getMPMFromBPM(Number(track.bpm), track.style)} Bars/Min` : formatDuration(track.duration)}</div>
               <div className="track-actions">
                 <button
                   className={`feature-icon ${finalTracks.some(t => t.id === track.id) ? 'active-flag' : ''}`}

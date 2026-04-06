@@ -13,6 +13,7 @@ import {
 } from 'lucide-react';
 import { useAudio } from '@/components/audio/AudioProvider';
 import SpeedSelector from '@/components/audio/SpeedSelector';
+import { formatDuration } from '@/utils/format';
 
 interface MobileFullPlayerProps {
   isOpen: boolean;
@@ -39,12 +40,10 @@ const MobileFullPlayer = ({ isOpen, onClose }: MobileFullPlayerProps) => {
   if (!isOpen) return null;
 
   const formatTime = (time: number) => {
-    const mins = Math.floor(time / 60);
-    const secs = Math.floor(time % 60);
-    return `${mins}:${secs.toString().padStart(2, '0')}`;
+    return formatDuration(time);
   };
 
-  const progress = (currentTime / (duration || 105)) * 100;
+  const progress = (currentTime / (duration || 1)) * 100;
 
   return (
     <div className="full-player-overlay">
@@ -73,7 +72,7 @@ const MobileFullPlayer = ({ isOpen, onClose }: MobileFullPlayerProps) => {
           </div>
           <div className="time-labels">
             <span>{formatTime(currentTime)}</span>
-            <span>{formatTime(duration || 105)}</span>
+            <span>{formatTime(duration)}</span>
           </div>
         </div>
 
@@ -107,7 +106,7 @@ const MobileFullPlayer = ({ isOpen, onClose }: MobileFullPlayerProps) => {
           <div className="setting-item">
             <div className="setting-info">
               <Timer size={20} />
-              <span>Final Mode (1:45)</span>
+              <span>Final Mode Practice</span>
             </div>
             <label className="switch">
               <input type="checkbox" checked={isFinalMode} onChange={toggleFinalMode} />

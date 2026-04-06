@@ -18,6 +18,7 @@ import {
 import { useAudio } from '@/components/audio/AudioProvider';
 import SpeedSelector from '@/components/audio/SpeedSelector';
 import { useStudio } from '@/components/admin/StudioProvider';
+import { getMPMFromBPM } from '@/utils/audio';
 
 const PlayerBar = () => {
   const pathname = usePathname();
@@ -45,6 +46,7 @@ const PlayerBar = () => {
   } = useAudio();
   
   const { finalTracks, addToFinal, removeFromFinal, tracks } = useStudio();
+  const currentTrack = tracks.find(t => t.title === title) || finalTracks.find(t => t.title === title);
 
   if (isAdmin) return null;
 
@@ -63,13 +65,39 @@ const PlayerBar = () => {
         </div>
         <div className="track-details">
           <div className="track-row-header">
-            <p className="track-title truncate max-w-[200px]">
+            <p className="track-title truncate">
               {title}
             </p>
           </div>
-          <p className={`track-artist truncate max-w-[200px] ${error ? 'error-text' : ''}`}>
+          <p className={`track-artist truncate ${error ? 'error-text' : ''}`}>
             {error || artist}
+            {currentTrack && currentTrack.bpm && (
+              <span className="track-tempo-inline ml-2 text-primary font-bold">
+                • {getMPMFromBPM(Number(currentTrack.bpm), currentTrack.style)} Bars/Min
+              </span>
+            )}
           </p>
+        </div>
+
+        {/* Repositioned Features: Metadata actions grouped with track info */}
+        <div className="metadata-actions-group">
+          <div className="quick-actions-bar left-aligned">
+            <button 
+              className={`action-btn-large ${finalTracks.some(t => t.title === title) ? 'active-flag' : ''}`}
+              onClick={() => {
+                const currentTrack = tracks.find(t => t.title === title);
+                if (currentTrack) {
+                  finalTracks.some(t => t.id === currentTrack.id) ? (removeFromFinal(currentTrack.id)) : (addToFinal(currentTrack));
+                }
+              }}
+              title="Add to Final Mode"
+            >
+              <Flag size={20} fill={finalTracks.some(t => t.title === title) ? "currentColor" : "none"} />
+            </button>
+            <button className="action-btn-large" title="Add to Favorites">
+              <Heart size={20} />
+            </button>
+          </div>
         </div>
       </div>
 
@@ -120,7 +148,6 @@ const PlayerBar = () => {
 
       <div className="extra-controls">
         <div className="special-features">
-          {/* Speed Selector */}
           <div className="speed-container">
             <button 
               className={`feature-btn glass ${bpm !== 100 ? 'active' : ''}`}
@@ -130,25 +157,6 @@ const PlayerBar = () => {
               <Gauge size={18} />
               <span className="label">Speed: {bpm}%</span>
             </button>
-
-            {/* Quick Actions Restored & Enlarged */}
-            <div className="quick-actions-bar">
-              <button 
-                className={`action-btn-large ${finalTracks.some(t => t.title === title) ? 'active-flag' : ''}`}
-                onClick={() => {
-                  const currentTrack = tracks.find(t => t.title === title);
-                  if (currentTrack) {
-                    finalTracks.some(t => t.id === currentTrack.id) ? (removeFromFinal(currentTrack.id)) : (addToFinal(currentTrack));
-                  }
-                }}
-                title="Add to Final Mode"
-              >
-                <Flag size={20} fill={finalTracks.some(t => t.title === title) ? "currentColor" : "none"} />
-              </button>
-              <button className="action-btn-large" title="Add to Favorites">
-                <Heart size={20} />
-              </button>
-            </div>
 
             {showSpeedSelector && (
               <SpeedSelector 
@@ -160,7 +168,6 @@ const PlayerBar = () => {
           </div>
         </div>
 
-        {/* Volume Control */}
         <div className="volume-control">
           <Volume2 size={20} className="text-secondary" />
           <input 
@@ -179,7 +186,18 @@ const PlayerBar = () => {
         .track-info {
           display: flex;
           align-items: center;
+          gap: 20px;
+          min-width: 450px;
+        }
+
+        .metadata-actions-group {
+          display: flex;
+          align-items: center;
           gap: 12px;
+          margin-left: 4px;
+          padding-left: 16px;
+          border-left: 1px solid rgba(255,255,255,0.1);
+          height: 32px;
         }
         .album-art {
           width: 56px;

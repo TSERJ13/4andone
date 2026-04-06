@@ -9,6 +9,7 @@ import {
 } from 'lucide-react';
 import { useAudio } from '@/components/audio/AudioProvider';
 import { useStudio } from '@/components/admin/StudioProvider';
+import { getMPMFromBPM } from '@/utils/audio';
 import MobileFullPlayer from './MobileFullPlayer';
 
 const MobileMiniPlayer = () => {
@@ -49,7 +50,12 @@ const MobileMiniPlayer = () => {
             </div>
             <div className="text-info">
               <span className="title truncate">{title}</span>
-              <span className="artist truncate">{artist}</span>
+              <span className="artist truncate">
+                {artist}
+                {currentTrack && currentTrack.bpm && (
+                  <span className="text-primary font-bold ml-1">({getMPMFromBPM(Number(currentTrack.bpm), currentTrack.style)})</span>
+                )}
+              </span>
             </div>
           </div>
 

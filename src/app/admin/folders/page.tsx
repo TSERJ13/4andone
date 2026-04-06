@@ -15,13 +15,17 @@ import {
   Edit2
 } from 'lucide-react';
 import { useStudio } from '@/components/admin/StudioProvider';
+import { getMPMFromBPM } from '@/utils/audio';
 import FolderModal from '@/components/admin/FolderModal';
+import ConfirmModal from '@/components/admin/ConfirmModal';
 
 export default function AdminFolders() {
   const { folders, tracks, addFolder, removeFolder, updateFolder } = useStudio();
   const [selectedFolderId, setSelectedFolderId] = useState<string | null>(null);
   const [isFolderModalOpen, setIsFolderModalOpen] = useState(false);
   const [editingFolder, setEditingFolder] = useState<{ id: string, name: string, color: string } | null>(null);
+  const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
+  const [folderToDelete, setFolderToDelete] = useState<any>(null);
 
   const currentFolder = folders.find(f => f.id === selectedFolderId);
   const folderTracks = tracks.filter(t => t.folderId === selectedFolderId);
@@ -41,6 +45,18 @@ export default function AdminFolders() {
       updateFolder(editingFolder.id, { name, color });
     } else {
       addFolder(name, color);
+    }
+  };
+
+  const handleDeleteClick = (folder: any) => {
+    setFolderToDelete(folder);
+    setIsDeleteModalOpen(true);
+  };
+
+  const confirmDeleteFolder = () => {
+    if (folderToDelete) {
+      removeFolder(folderToDelete.id);
+      setFolderToDelete(null);
     }
   };
 
@@ -79,7 +95,7 @@ export default function AdminFolders() {
                     <p className="t-name">{track.title}</p>
                     <p className="t-artist">{track.artist}</p>
                   </div>
-                  <span className="t-duration">{track.bpm ? `${track.bpm} BPM` : 'No BPM'}</span>
+                  <span className="t-duration">{track.bpm ? `${getMPMFromBPM(Number(track.bpm), track.style)} Bars/Min` : 'No Bars/Min'}</span>
                   <button className="t-more"><MoreVertical size={16} /></button>
                 </div>
               )) : (
@@ -121,7 +137,7 @@ export default function AdminFolders() {
                     className="action-btn delete" 
                     onClick={(e) => {
                       e.stopPropagation();
-                      if(confirm(`Delete folder ${folder.name}?`)) removeFolder(folder.id);
+                      handleDeleteClick(folder);
                     }}
                   >
                     <Trash2 size={18} />
@@ -153,6 +169,15 @@ export default function AdminFolders() {
         onClose={() => setIsFolderModalOpen(false)}
         onConfirm={handleFolderConfirm}
         initialData={editingFolder ? { name: editingFolder.name, color: editingFolder.color } : undefined}
+      />
+
+      <ConfirmModal 
+        isOpen={isDeleteModalOpen}
+        onClose={() => setIsDeleteModalOpen(false)}
+        onConfirm={confirmDeleteFolder}
+        title="Delete Collection?"
+        message={`Are you sure you want to permanently delete "${folderToDelete?.name}"? All tracks will be removed from this collection, but will remain in your General Library.`}
+        confirmText="Delete Collection"
       />
 
       <style jsx>{`

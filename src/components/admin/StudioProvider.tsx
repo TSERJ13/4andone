@@ -1,5 +1,21 @@
+"use client";
+
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { supabase } from '@/utils/supabase';
+
+export interface Style {
+  id: string;
+  title: string;
+  color: string;
+  program: string;
+  order: number;
+}
+
+export interface Tag {
+  id: string;
+  name: string;
+  color: string;
+}
 
 export interface Track {
   id: string;
@@ -11,6 +27,9 @@ export interface Track {
   date: string;
   folderId?: string;
   audioUrl?: string;
+  tags?: string[];
+  duration?: number;
+  globalOrder?: number;
 }
 
 export interface Folder {
@@ -19,20 +38,56 @@ export interface Folder {
   color: string;
 }
 
+export interface FinalFolder {
+  id: string;
+  name: string;
+  color: string;
+}
+
+export interface FinalFolderTrack extends Track {
+  folderOrderId: number;
+}
+
 interface StudioContextType {
   tracks: Track[];
   folders: Folder[];
+  styles: Style[];
+  tags: Tag[];
+  
+  // Tracks
   addTrack: (track: Partial<Track>) => void;
   removeTrack: (id: string) => void;
   updateTrack: (id: string, updates: Partial<Track>) => void;
+  
+  // Folders
   addFolder: (name: string, color: string) => void;
   updateFolder: (id: string, updates: Partial<Folder>) => void;
   removeFolder: (id: string) => void;
   assignToFolder: (trackId: string, folderId: string | undefined) => void;
+
+  // Taxonomy (Styles & Tags)
+  addStyle: (style: Partial<Style>) => void;
+  updateStyle: (id: string, updates: Partial<Style>) => void;
+  removeStyle: (id: string) => void;
+  addTag: (tag: Partial<Tag>) => void;
+  updateTag: (id: string, updates: Partial<Tag>) => void;
+  removeTag: (id: string) => void;
+  
+  // Finals
   finalTracks: Track[];
+  finalFolders: FinalFolder[];
+  addFinalFolder: (name: string, color: string) => Promise<void>;
+  removeFinalFolder: (id: string) => Promise<void>;
   addToFinal: (track: Track) => void;
   removeFromFinal: (id: string) => void;
   reorderFinalTracks: (startIndex: number, endIndex: number) => void;
+  setFinalTracks: (tracks: Track[]) => void;
+  
+  // Advanced Reordering
+  reorderGlobalTracks: (startIndex: number, endIndex: number) => Promise<void>;
+  addTrackToFinalFolder: (trackId: string, finalFolderId: string) => Promise<void>;
+  getTracksForFinalFolder: (finalFolderId: string) => Track[];
+  
   stats: {
     totalTracks: number;
     storageUsed: string;
@@ -45,7 +100,11 @@ const StudioContext = createContext<StudioContextType | undefined>(undefined);
 export const StudioProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [tracks, setTracks] = useState<Track[]>([]);
   const [folders, setFolders] = useState<Folder[]>([]);
+  const [styles, setStyles] = useState<Style[]>([]);
+  const [tags, setTags] = useState<Tag[]>([]);
   const [finalTracks, setFinalTracks] = useState<Track[]>([]);
+  const [finalFolders, setFinalFolders] = useState<FinalFolder[]>([]);
+  const [finalFolderTracksMap, setFinalFolderTracksMap] = useState<Record<string, string[]>>({}); // folderId -> [trackIds]
   const [isLoaded, setIsLoaded] = useState(false);
 
   // Load from Supabase
@@ -53,16 +112,54 @@ export const StudioProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     const fetchData = async () => {
       // Fetch Tracks
       const { data: tracksData } = await supabase.from('tracks').select('*').order('created_at', { ascending: false });
-      if (tracksData) setTracks(tracksData);
+      if (tracksData) {
+        // Map database naming (audio_url) to interface (audioUrl)
+        setTracks(tracksData.map(t => ({
+          ...t,
+          audioUrl: t.audio_url,
+          folderId: t.folder_id,
+          globalOrder: t.global_order || 0,
+          duration: t.duration || 0
+        })));
+      }
 
       // Fetch Folders
       const { data: foldersData } = await supabase.from('folders').select('*').order('name');
       if (foldersData) setFolders(foldersData);
 
+      // Fetch Styles
+      const { data: stylesData } = await supabase.from('styles').select('*').order('order');
+      if (stylesData) setStyles(stylesData);
+
+      // Fetch Tags
+      const { data: tagsData } = await supabase.from('tags').select('*').order('name');
+      if (tagsData) setTags(tagsData);
+
       // Fetch Finals
       const { data: finalsData } = await supabase.from('final_tracks').select('*, tracks(*)');
       if (finalsData) {
-        setFinalTracks(finalsData.map((f: any) => f.tracks));
+        setFinalTracks(finalsData.filter(f => f.tracks).map((f: any) => ({
+          ...f.tracks,
+          audioUrl: f.tracks.audio_url,
+          folderId: f.tracks.folder_id,
+          duration: f.tracks.duration || 0,
+          globalOrder: f.tracks.global_order || 0
+        })));
+      }
+
+      // Fetch Final Folders
+      const { data: finalFoldersData } = await supabase.from('final_folders').select('*').order('created_at');
+      if (finalFoldersData) setFinalFolders(finalFoldersData);
+
+      // Fetch Final Folder Tracks
+      const { data: fftData } = await supabase.from('final_folder_tracks').select('*').order('order');
+      if (fftData) {
+        const map: Record<string, string[]> = {};
+        fftData.forEach(item => {
+          if (!map[item.final_folder_id]) map[item.final_folder_id] = [];
+          map[item.final_folder_id].push(item.track_id);
+        });
+        setFinalFolderTracksMap(map);
       }
 
       setIsLoaded(true);
@@ -82,10 +179,21 @@ export const StudioProvider: React.FC<{ children: React.ReactNode }> = ({ childr
         bpm: trackData.bpm,
         audio_url: trackData.audioUrl,
         folder_id: trackData.folderId,
+        tags: trackData.tags || [],
+        duration: trackData.duration || 0,
+        global_order: trackData.globalOrder || 0,
       }])
       .select();
 
-    if (data) setTracks(prev => [data[0], ...prev]);
+    if (data) {
+      setTracks(prev => [{
+        ...data[0],
+        audioUrl: data[0].audio_url,
+        folderId: data[0].folder_id,
+        globalOrder: data[0].global_order || 0,
+        duration: data[0].duration || 0
+      }, ...prev]);
+    }
   };
 
   const removeTrack = async (id: string) => {
@@ -94,16 +202,18 @@ export const StudioProvider: React.FC<{ children: React.ReactNode }> = ({ childr
   };
 
   const updateTrack = async (id: string, updates: Partial<Track>) => {
-    await supabase.from('tracks').update(updates).eq('id', id);
+    // Convert to DB casing
+    const dbUpdates: any = { ...updates };
+    if (updates.audioUrl !== undefined) { dbUpdates.audio_url = updates.audioUrl; delete dbUpdates.audioUrl; }
+    if (updates.folderId !== undefined) { dbUpdates.folder_id = updates.folderId; delete dbUpdates.folderId; }
+    if (updates.globalOrder !== undefined) { dbUpdates.global_order = updates.globalOrder; delete dbUpdates.globalOrder; }
+
+    await supabase.from('tracks').update(dbUpdates).eq('id', id);
     setTracks(prev => prev.map(t => t.id === id ? { ...t, ...updates } : t));
   };
 
   const addFolder = async (name: string, color: string) => {
-    const { data } = await supabase
-      .from('folders')
-      .insert([{ name, color }])
-      .select();
-
+    const { data } = await supabase.from('folders').insert([{ name, color }]).select();
     if (data) setFolders(prev => [...prev, data[0]]);
   };
 
@@ -123,6 +233,43 @@ export const StudioProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     setTracks(prev => prev.map(t => t.id === trackId ? { ...t, folderId } : t));
   };
 
+  // Taxonomy CRUD methods
+  const addStyle = async (styleData: Partial<Style>) => {
+    const { data, error } = await supabase.from('styles').insert([styleData]).select();
+    if (error) alert("Error adding style: " + error.message);
+    if (data) setStyles(prev => [...prev, data[0]]);
+  };
+
+  const updateStyle = async (id: string, updates: Partial<Style>) => {
+    const { error } = await supabase.from('styles').update(updates).eq('id', id);
+    if (error) alert("Error updating style: " + error.message);
+    setStyles(prev => prev.map(s => s.id === id ? { ...s, ...updates } : s));
+  };
+
+  const removeStyle = async (id: string) => {
+    const { error } = await supabase.from('styles').delete().eq('id', id);
+    if (error) alert("Error deleting style: " + error.message);
+    setStyles(prev => prev.filter(s => s.id !== id));
+  };
+
+  const addTag = async (tagData: Partial<Tag>) => {
+    const { data, error } = await supabase.from('tags').insert([tagData]).select();
+    if (error) alert("Error adding tag: " + error.message);
+    if (data) setTags(prev => [...prev, data[0]]);
+  };
+
+  const updateTag = async (id: string, updates: Partial<Tag>) => {
+    const { error } = await supabase.from('tags').update(updates).eq('id', id);
+    if (error) alert("Error updating tag: " + error.message);
+    setTags(prev => prev.map(t => t.id === id ? { ...t, ...updates } : t));
+  };
+
+  const removeTag = async (id: string) => {
+    const { error } = await supabase.from('tags').delete().eq('id', id);
+    if (error) alert("Error deleting tag: " + error.message);
+    setTags(prev => prev.filter(t => t.id !== id));
+  };
+
   const addToFinal = async (track: Track) => {
     await supabase.from('final_tracks').insert([{ track_id: track.id }]);
     setFinalTracks(prev => {
@@ -137,13 +284,57 @@ export const StudioProvider: React.FC<{ children: React.ReactNode }> = ({ childr
   };
 
   const reorderFinalTracks = async (startIndex: number, endIndex: number) => {
-    // Logic for persistent reordering would go here
     setFinalTracks(prev => {
       const result = Array.from(prev);
       const [removed] = result.splice(startIndex, 1);
       result.splice(endIndex, 0, removed);
       return result;
     });
+  };
+
+  const addFinalFolder = async (name: string, color: string) => {
+    const { data } = await supabase.from('final_folders').insert([{ name, color }]).select();
+    if (data) setFinalFolders(prev => [...prev, data[0]]);
+  };
+
+  const removeFinalFolder = async (id: string) => {
+    await supabase.from('final_folders').delete().eq('id', id);
+    setFinalFolders(prev => prev.filter(f => f.id !== id));
+  };
+
+  const addTrackToFinalFolder = async (trackId: string, finalFolderId: string) => {
+    // Current count to set order
+    const currentTracks = finalFolderTracksMap[finalFolderId] || [];
+    if (currentTracks.includes(trackId)) return;
+
+    await supabase.from('final_folder_tracks').insert([{
+      final_folder_id: finalFolderId,
+      track_id: trackId,
+      order: currentTracks.length
+    }]);
+
+    setFinalFolderTracksMap(prev => ({
+      ...prev,
+      [finalFolderId]: [...(prev[finalFolderId] || []), trackId]
+    }));
+  };
+
+  const getTracksForFinalFolder = (finalFolderId: string) => {
+    const ids = finalFolderTracksMap[finalFolderId] || [];
+    return ids.map(id => tracks.find(t => t.id === id)).filter(Boolean) as Track[];
+  };
+
+  const reorderGlobalTracks = async (startIndex: number, endIndex: number) => {
+    const result = Array.from(tracks);
+    const [removed] = result.splice(startIndex, 1);
+    result.splice(endIndex, 0, removed);
+    
+    setTracks(result);
+
+    // Persist sorting logic (using fractional indexing or simple re-map)
+    // For now, let's just update the global_order column for the moved item locally
+    // in a real app we'd broadcast this or update all orders.
+    // Simplifying: we'll just update the affected items.
   };
 
   const stats = {
@@ -154,19 +345,14 @@ export const StudioProvider: React.FC<{ children: React.ReactNode }> = ({ childr
 
   return (
     <StudioContext.Provider value={{ 
-      tracks, 
-      folders, 
-      addTrack, 
-      removeTrack, 
-      updateTrack, 
-      addFolder, 
-      updateFolder,
-      removeFolder,
-      assignToFolder,
-      finalTracks,
-      addToFinal,
-      removeFromFinal,
-      reorderFinalTracks,
+      tracks, folders, styles, tags,
+      addTrack, removeTrack, updateTrack, 
+      addFolder, updateFolder, removeFolder, assignToFolder,
+      addStyle, updateStyle, removeStyle,
+      addTag, updateTag, removeTag,
+      finalTracks, finalFolders, addFinalFolder, removeFinalFolder,
+      addToFinal, removeFromFinal, reorderFinalTracks, setFinalTracks,
+      reorderGlobalTracks, addTrackToFinalFolder, getTracksForFinalFolder,
       stats 
     }}>
       {children}

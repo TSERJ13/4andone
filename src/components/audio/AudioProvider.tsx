@@ -18,7 +18,7 @@ interface AudioContextType {
   isRepeat: boolean;
   isShuffle: boolean;
   togglePlay: () => void;
-  loadTrack: (track: any) => void;
+  loadTrack: (track: any, isRetry?: boolean, forceFinalMode?: boolean) => void;
   setBpm: (bpm: number) => void;
   setVolume: (volume: number) => void;
   toggleRepeat: () => void;
@@ -36,7 +36,7 @@ export const AudioProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   const { finalTracks } = useStudio();
   const [isPlaying, setIsPlaying] = useState(false);
   const [bpm, setBpmState] = useState(100);
-  const [isFinalMode, setIsFinalMode] = useState(true); // Default to Final Mode (1:45)
+  const [isFinalMode, setIsFinalMode] = useState(false); // Default to Normal Mode
   const [currentTime, setCurrentTime] = useState(0);
   const [duration, setDuration] = useState(0);
   const [isLoaded, setIsLoaded] = useState(false);
@@ -52,6 +52,7 @@ export const AudioProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   const playerRef = useRef<Tone.GrainPlayer | null>(null);
   const timerRef = useRef<NodeJS.Timeout | null>(null);
   const activeBlobUrlRef = useRef<string | null>(null);
+  const trackIdRef = useRef<string | null>(null);
 
   // Refs to avoid circular re-renders on every tick
   const isPlayingRef = useRef(isPlaying);
@@ -72,8 +73,9 @@ export const AudioProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     if (savedVol) setVolumeState(parseFloat(savedVol));
   }, []);
 
-  const loadTrack = async (track: any, isRetry = false) => {
+  const loadTrack = async (track: any, isRetry = false, forceFinalMode?: boolean) => {
     try {
+      if (forceFinalMode !== undefined) setIsFinalMode(forceFinalMode);
       if (Tone.getContext().state !== 'running') await Tone.start();
       const output = initAudioChain();
 
@@ -94,6 +96,7 @@ export const AudioProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       setCurrentTime(0);
       setTitle(track.title);
       setArtist(track.artist);
+      trackIdRef.current = track.id;
 
       let finalUrl = track.audioUrl;
       const isBlob = finalUrl?.startsWith('blob:');
@@ -131,7 +134,7 @@ export const AudioProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       player.connect(output);
       playerRef.current = player;
     } catch (err: any) {
-      if (!isRetry && track.id) loadTrack(track, true);
+      if (!isRetry && track.id) loadTrack(track, true, forceFinalMode);
       else {
         setError(err.message || "Failed to load track");
         setIsLoaded(false);
@@ -154,6 +157,7 @@ export const AudioProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         if (playerRef.current) {
           const nextVal = currentTime + 0.1 * (bpm / 100);
           setCurrentTime(nextVal);
+          
           if (isFinalMode && nextVal >= 105) {
             if (playerRef.current) playerRef.current.stop();
             setIsPlaying(false);
@@ -170,16 +174,24 @@ export const AudioProvider: React.FC<{ children: React.ReactNode }> = ({ childre
                   setIsPauseCountdown(false);
                   
                   // Sequential Playback for Final Mode
-                  const currentIndex = finalTracks.findIndex(t => t.title === title);
+                  const currentIndex = finalTracks.findIndex(t => t.id === trackIdRef.current || t.title === title);
                   if (currentIndex !== -1 && currentIndex < finalTracks.length - 1) {
                     const nextTrack = finalTracks[currentIndex + 1];
-                    loadTrack(nextTrack);
+                    loadTrack(nextTrack, false, true);
                   }
                   return 15;
                 }
                 return p - 1;
               });
             }, 1000);
+          } else if (!isFinalMode && duration > 0 && nextVal >= duration) {
+             if (!isRepeat) {
+                if (playerRef.current) playerRef.current.stop();
+                setIsPlaying(false);
+                setCurrentTime(0);
+             } else {
+                setCurrentTime(0);
+             }
           }
         }
       }, 100);

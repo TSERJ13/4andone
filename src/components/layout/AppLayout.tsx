@@ -8,9 +8,9 @@ import PlayerBar from "@/components/layout/PlayerBar";
 
 export default function AppLayout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
-  const isAdmin = pathname.startsWith('/admin');
+  const isNoLayout = pathname.startsWith('/admin') || pathname === '/sa-login';
 
-  if (isAdmin) {
+  if (isNoLayout) {
     return <div className="admin-root-wrapper">{children}</div>;
   }
 

@@ -2,14 +2,30 @@
 
 import React from 'react';
 import { useParams } from 'next/navigation';
-import { Play, Clock, Music2, MoreHorizontal, Heart, Disc, ListMusic } from 'lucide-react';
+import { Play, Clock, Music2, MoreHorizontal, Heart, Disc, ListMusic, GripVertical } from 'lucide-react';
 import { useStudio } from '@/components/admin/StudioProvider';
 import { useAudio } from '@/components/audio/AudioProvider';
+import { formatDuration } from '@/utils/format';
 
 const PlaylistPage = () => {
   const { id } = useParams();
-  const { tracks, folders } = useStudio();
+  const { tracks, folders, reorderGlobalTracks } = useStudio();
   const { isPlaying, title: playingTitle, loadTrack } = useAudio();
+
+  const handleDragStart = (e: React.DragEvent, index: number) => {
+    e.dataTransfer.setData('draggedIndex', index.toString());
+  };
+
+  const handleDragOver = (e: React.DragEvent) => {
+    e.preventDefault();
+  };
+
+  const handleDrop = (e: React.DragEvent, dropIndex: number) => {
+    const dragIndex = parseInt(e.dataTransfer.getData('draggedIndex'));
+    if (dragIndex !== dropIndex) {
+      reorderGlobalTracks(dragIndex, dropIndex);
+    }
+  };
 
   const folder = folders.find(f => f.id === id);
   const playlistTracks = tracks.filter(t => t.folderId === id);
@@ -62,14 +78,21 @@ const PlaylistPage = () => {
           <div 
             key={track.id} 
             className={`track-row ${isPlaying && playingTitle === track.title ? 'is-playing' : ''}`} 
+            draggable
+            onDragStart={(e) => handleDragStart(e, i)}
+            onDragOver={handleDragOver}
+            onDrop={(e) => handleDrop(e, i)}
             onClick={() => loadTrack(track)}
           >
-            <div className="track-num">{i + 1}</div>
+            <div className="track-num-wrap">
+              <div className="track-num">{i + 1}</div>
+              <GripVertical size={14} className="drag-handle" />
+            </div>
             <div className="track-info">
               <span className="track-name">{track.title}</span>
               <span className="track-artist text-secondary">{track.artist}</span>
             </div>
-            <div className="track-duration text-secondary">{'1:45'}</div>
+            <div className="track-duration text-secondary">{formatDuration(track.duration)}</div>
           </div>
         ))}
       </div>
@@ -93,10 +116,14 @@ const PlaylistPage = () => {
         .play-btn-large:hover { transform: scale(1.05); }
         .tracks-list { display: flex; flex-direction: column; gap: 8px; }
         .track-row { 
-          display: grid; grid-template-columns: 40px 1fr 100px; 
+          display: grid; grid-template-columns: 60px 1fr 100px; 
           padding: 12px 16px; border-radius: 8px; cursor: pointer;
           transition: background 0.2s;
         }
+        .track-num-wrap { display: flex; align-items: center; gap: 8px; color: #b3b3b3; }
+        .drag-handle { opacity: 0; transition: opacity 0.2s; }
+        .track-row:hover .drag-handle { opacity: 0.3; }
+        .drag-handle:hover { opacity: 1 !important; color: var(--primary); }
         .track-row:hover { background: rgba(255,255,255,0.08); }
         .track-row.is-playing .track-name { color: var(--primary); }
         .track-num { color: #b3b3b3; display: flex; align-items: center; font-size: 14px; }

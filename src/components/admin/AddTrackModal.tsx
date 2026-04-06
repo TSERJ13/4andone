@@ -1,8 +1,10 @@
 "use client";
 
 import React, { useState, useRef } from 'react';
-import { X, Music, User, Globe, Activity, Upload, CheckCircle2 } from 'lucide-react';
+import { X, Music, User, Globe, Activity, Upload, CheckCircle2, ChevronDown, AlertTriangle } from 'lucide-react';
 import { saveAudioFile } from '@/utils/storage';
+import { detectBPM, getStyleFromBPM, getMPMFromBPM, getBPMFromMPM } from '@/utils/audio';
+import { useStudio } from './StudioProvider';
 
 interface AddTrackModalProps {
   isOpen: boolean;
@@ -12,49 +14,127 @@ interface AddTrackModalProps {
 }
 
 const AddTrackModal = ({ isOpen, onClose, onAdd, initialData }: AddTrackModalProps) => {
+  const { styles, tags } = useStudio();
+  
   const [formData, setFormData] = useState({
     title: initialData?.title || '',
     artist: initialData?.artist || '',
-    style: initialData?.style || 'Samba',
+    style: initialData?.style || (styles.length > 0 ? styles[0].title : 'Samba'),
+    tags: initialData?.tags || ([] as string[]),
     bpm: initialData?.bpm || '',
     album: initialData?.album || ''
   });
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isAnalyzing, setIsAnalyzing] = useState(false);
+  const [isStyleDropdownOpen, setIsStyleDropdownOpen] = useState(false);
   const [isSuccess, setIsSuccess] = useState(false);
+  const [mpm, setMpmState] = useState<string>('');
+  const [validationError, setValidationError] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const dropdownRef = useRef<HTMLDivElement>(null);
 
-  // Sync state if initialData changes (e.g. switching between Add and Repair)
   React.useEffect(() => {
     if (isOpen && initialData) {
+      setValidationError(null);
       setFormData({
         title: initialData.title,
         artist: initialData.artist,
         style: initialData.style,
+        tags: initialData.tags || [],
         bpm: initialData.bpm,
         album: initialData.album
       });
+      setMpmState(getMPMFromBPM(Number(initialData.bpm), initialData.style).toString());
     } else if (isOpen && !initialData) {
-      setFormData({ title: '', artist: '', style: 'Samba', bpm: '', album: '' });
+      setValidationError(null);
+      const defaultStyle = styles.length > 0 ? styles[0].title : 'Samba';
+      setFormData({ 
+        title: '', 
+        artist: '', 
+        style: defaultStyle, 
+        tags: [],
+        bpm: '', 
+        album: '' 
+      });
+      setMpmState('');
     }
-  }, [isOpen, initialData]);
+  }, [isOpen, initialData, styles]);
+
+  // Click outside to close dropdown
+  React.useEffect(() => {
+    function handleClickOutside(event: MouseEvent) {
+      if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
+        setIsStyleDropdownOpen(false);
+      }
+    }
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
 
   if (!isOpen) return null;
 
-  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files[0]) {
       const file = e.target.files[0];
       setSelectedFile(file);
-      if (!formData.title) {
-        setFormData(prev => ({ ...prev, title: file.name.replace(/\.[^/.]+$/, "") }));
+      setIsAnalyzing(true);
+
+      // 1. Auto-parse filename (Artist - Title)
+      let autoTitle = file.name.replace(/\.[^/.]+$/, "");
+      let autoArtist = formData.artist;
+      
+      if (autoTitle.includes('-')) {
+        const parts = autoTitle.split('-').map(s => s.trim());
+        autoArtist = parts[0];
+        autoTitle = parts[1];
+      } else if (autoTitle.includes('—')) { // Long dash
+        const parts = autoTitle.split('—').map(s => s.trim());
+        autoArtist = parts[0];
+        autoTitle = parts[1];
+      }
+
+      setFormData(prev => ({ 
+        ...prev, 
+        title: autoTitle, 
+        artist: autoArtist 
+      }));
+
+      // 2. Detect BPM and Auto-Select Style
+      try {
+        console.log(`[BPM-CHECK] Analysis started for ${file.name}`);
+        const detectedBpm = await detectBPM(file);
+        const bestStyle = getStyleFromBPM(detectedBpm, file.name);
+        
+        console.log(`[BPM-CHECK] Result: ${detectedBpm} BPM, Style: ${bestStyle}`);
+
+        // Immediate state update
+        if (detectedBpm > 0) {
+          setFormData(prev => ({ 
+            ...prev, 
+            bpm: detectedBpm.toString(),
+            style: bestStyle 
+          }));
+          const calMpm = getMPMFromBPM(detectedBpm, bestStyle);
+          setMpmState(calMpm.toString());
+          console.log(`[BPM-CHECK] State updated with BPM: ${detectedBpm}, Bars/Min: ${calMpm}`);
+        } else {
+          console.warn(`[BPM-CHECK] Analysis yielded 0 BPM. Manual entry required.`);
+          setFormData(prev => ({ ...prev, style: bestStyle }));
+        }
+      } catch (err) {
+        console.error("[BPM-CHECK] Critical error:", err);
+      } finally {
+        setIsAnalyzing(false);
       }
     }
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!selectedFile) {
-      alert("Please select an audio file first.");
+    setValidationError(null);
+    if (!selectedFile && !initialData) {
+      setValidationError("Please select an audio file first.");
       return;
     }
     setIsSubmitting(true);
@@ -63,11 +143,24 @@ const AddTrackModal = ({ isOpen, onClose, onAdd, initialData }: AddTrackModalPro
       // Use existing ID if repairing, otherwise generate a robust timestamp-based ID
       const trackId = initialData?.id || `track_${Date.now()}_${Math.random().toString(36).substring(7)}`;
 
-      // Save binary to IndexedDB for persistence
-      await saveAudioFile(trackId, selectedFile);
+      // Calculate Duration (only if new file selected)
+      let duration = initialData?.duration || 0;
+      if (selectedFile) {
+        duration = await new Promise((resolve) => {
+          const audio = new Audio();
+          audio.src = URL.createObjectURL(selectedFile!);
+          audio.onloadedmetadata = () => {
+            resolve(Math.round(audio.duration));
+            URL.revokeObjectURL(audio.src);
+          };
+        });
+        
+        // Save binary only if new file
+        await saveAudioFile(trackId, selectedFile!);
+      }
 
-      // Generate temporary session URL for immediate playback
-      const audioUrl = URL.createObjectURL(selectedFile);
+      // Generate temporary session URL for immediate playback (only if new file)
+      const audioUrl = selectedFile ? URL.createObjectURL(selectedFile!) : initialData?.audioUrl;
 
       // Simulate a bit of processing for UX
       setTimeout(() => {
@@ -78,11 +171,12 @@ const AddTrackModal = ({ isOpen, onClose, onAdd, initialData }: AddTrackModalPro
             ...formData, 
             audioUrl,
             id: trackId, 
+            duration,
             date: initialData?.date || new Date().toISOString().split('T')[0] 
           });
           setIsSuccess(false);
           if (!initialData) {
-            setFormData({ title: '', artist: '', style: 'Samba', bpm: '', album: '' });
+            setFormData({ title: '', artist: '', style: styles.length > 0 ? styles[0].title : 'Samba', tags: [], bpm: '', album: '' });
           }
           setSelectedFile(null);
           onClose();
@@ -90,7 +184,7 @@ const AddTrackModal = ({ isOpen, onClose, onAdd, initialData }: AddTrackModalPro
       }, 800);
     } catch (err) {
       console.error("Failed to save track:", err);
-      alert("Failed to save track to local storage. Please try again.");
+      setValidationError("Failed to save track to local storage. Please try again.");
       setIsSubmitting(false);
     }
   };
@@ -163,33 +257,121 @@ const AddTrackModal = ({ isOpen, onClose, onAdd, initialData }: AddTrackModalPro
                 </div>
               </div>
 
-              <div className="form-group">
+              <div className="form-group custom-style-selector" ref={dropdownRef}>
                 <label>Dance Style</label>
-                <select
-                  className="glass-select"
-                  value={formData.style}
-                  onChange={e => setFormData({ ...formData, style: e.target.value })}
+                <div 
+                  className={`style-picker-trigger glass ${isStyleDropdownOpen ? 'is-open' : ''}`}
+                  onClick={() => setIsStyleDropdownOpen(!isStyleDropdownOpen)}
                 >
-                  <option>Samba</option>
-                  <option>Cha-cha-cha</option>
-                  <option>Rumba</option>
-                  <option>Paso Doble</option>
-                  <option>Jive</option>
-                  <option>Slow Waltz</option>
-                  <option>Tango</option>
-                </select>
+                  <span className="current-style-badge">
+                     <span className="dot" style={{ backgroundColor: '#1db954' }}></span>
+                     {formData.style}
+                  </span>
+                  <ChevronDown size={14} className={`chevron ${isStyleDropdownOpen ? 'rotated' : ''}`} />
+                </div>
+                
+                {isStyleDropdownOpen && (
+                  <div className="style-dropdown-menu glass animate-in-slide">
+                    {styles.map(s => (
+                      <div 
+                        key={s.id} 
+                        className={`style-option ${formData.style === s.title ? 'selected' : ''}`}
+                        onClick={() => {
+                          setFormData({ ...formData, style: s.title });
+                          if (formData.bpm) {
+                            setMpmState(getMPMFromBPM(Number(formData.bpm), s.title).toString());
+                          }
+                          setIsStyleDropdownOpen(false);
+                        }}
+                      >
+                        <span className="dot" style={{ backgroundColor: '#1db954' }}></span>
+                        {s.title}
+                      </div>
+                    ))}
+                    {styles.length === 0 && (
+                      ['Samba', 'Cha-Cha-Cha', 'Rumba', 'Paso Doble', 'Jive'].map(s => (
+                        <div 
+                          key={s} 
+                          className={`style-option ${formData.style === s ? 'selected' : ''}`}
+                          onClick={() => {
+                            setFormData({ ...formData, style: s });
+                            setIsStyleDropdownOpen(false);
+                          }}
+                        >
+                          <span className="dot" style={{ backgroundColor: '#1db954' }}></span>
+                          {s}
+                        </div>
+                      ))
+                    )}
+                  </div>
+                )}
               </div>
 
               <div className="form-group">
-                <label>BPM</label>
+                <label>BPM (Beats/Min)</label>
                 <div className="input-wrapper">
                   <Activity size={16} />
                   <input
                     type="number"
-                    placeholder="e.g. 52"
+                    placeholder="e.g. 120"
                     value={formData.bpm}
-                    onChange={e => setFormData({ ...formData, bpm: e.target.value })}
+                    onChange={e => {
+                      const val = e.target.value;
+                      setFormData({ ...formData, bpm: val });
+                      if (val) {
+                         setMpmState(getMPMFromBPM(Number(val), formData.style).toString());
+                      }
+                    }}
                   />
+                </div>
+              </div>
+
+              <div className="form-group">
+                <label>Bars/Min</label>
+                <div className="input-wrapper">
+                  <Activity size={16} />
+                  <input
+                    type="number"
+                    step="0.1"
+                    placeholder="e.g. 30"
+                    value={mpm}
+                    onChange={e => {
+                      const val = e.target.value;
+                      setMpmState(val);
+                      if (val) {
+                         const calculatedBpm = getBPMFromMPM(Number(val), formData.style);
+                         setFormData({ ...formData, bpm: calculatedBpm.toString() });
+                      }
+                    }}
+                  />
+                </div>
+              </div>
+
+              <div className="form-group full">
+                <label>Track Tags</label>
+                <div className="tags-selection">
+                  {tags.map(tag => {
+                    const isSelected = formData.tags.includes(tag.name);
+                    return (
+                      <button 
+                        type="button"
+                        key={tag.id}
+                        className={`tag-toggle-btn ${isSelected ? 'active' : ''}`}
+                        onClick={() => {
+                          setFormData(prev => ({
+                            ...prev, 
+                            tags: isSelected 
+                              ? prev.tags.filter((t: string) => t !== tag.name)
+                              : [...prev.tags, tag.name]
+                          }))
+                        }}
+                      >
+                        <span className="tag-dot" style={{ backgroundColor: tag.color }}></span>
+                        {tag.name}
+                      </button>
+                    )
+                  })}
+                  {tags.length === 0 && <span style={{ fontSize: '12px', color: '#71717a' }}>No tags created yet. Manage them in Categories & Tags.</span>}
                 </div>
               </div>
             </div>
@@ -204,14 +386,22 @@ const AddTrackModal = ({ isOpen, onClose, onAdd, initialData }: AddTrackModalPro
 
             <div 
               className={`file-upload-zone glass ${selectedFile ? 'has-file' : ''}`}
-              onClick={() => fileInputRef.current?.click()}
+              onClick={() => !isAnalyzing && fileInputRef.current?.click()}
             >
-              {selectedFile ? (
+              {isAnalyzing ? (
+                <>
+                  <div className="analyzing-spinner"></div>
+                  <div className="file-preview">
+                     <p className="f-name">Analysing Audio...</p>
+                     <p className="f-size">Smart Onset Detection Active</p>
+                  </div>
+                </>
+              ) : selectedFile ? (
                 <>
                   <CheckCircle2 size={24} className="text-primary" />
                   <div className="file-preview">
                     <p className="f-name">{selectedFile.name}</p>
-                    <p className="f-size">{(selectedFile.size / (1024 * 1024)).toFixed(2)} MB</p>
+                    <p className="f-size">{(selectedFile.size / (1024 * 1024)).toFixed(2)} MB • Analysis Complete</p>
                   </div>
                 </>
               ) : (
@@ -222,10 +412,26 @@ const AddTrackModal = ({ isOpen, onClose, onAdd, initialData }: AddTrackModalPro
               )}
             </div>
 
+            {validationError && (
+              <div className="error-message animate-shake">
+                <AlertTriangle size={16} />
+                <span>{validationError}</span>
+              </div>
+            )}
+
             <div className="modal-footer">
-              <button type="button" className="btn-secondary" onClick={onClose}>Cancel</button>
-              <button type="submit" className="btn-primary" disabled={isSubmitting || !selectedFile}>
-                {isSubmitting ? 'Processing...' : 'Add to Library'}
+              <button type="button" className="btn-secondary" onClick={onClose} disabled={isAnalyzing || isSubmitting}>Cancel</button>
+              <button 
+                type="submit" 
+                className="btn-primary" 
+                disabled={isSubmitting || isAnalyzing || (!selectedFile && !initialData)}
+              >
+                {isAnalyzing ? (
+                  <div className="flex items-center gap-2">
+                    <div className="analyzing-spinner-small"></div>
+                     Analysing...
+                  </div>
+                ) : isSubmitting ? 'Processing...' : 'Add to Library'}
               </button>
             </div>
           </form>
@@ -294,10 +500,150 @@ const AddTrackModal = ({ isOpen, onClose, onAdd, initialData }: AddTrackModalPro
         
         @keyframes bounce { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-10px); } }
         .animate-bounce { animation: bounce 1s infinite; }
+
+        .analyzing-spinner {
+          width: 24px;
+          height: 24px;
+          border: 3px solid rgba(29, 185, 84, 0.1);
+          border-top: 3px solid #1db954;
+          border-radius: 50%;
+          animation: spin 1s linear infinite;
+        }
+
+        .analyzing-spinner-small {
+          width: 14px;
+          height: 14px;
+          border: 2px solid rgba(255, 255, 255, 0.1);
+          border-top: 2px solid white;
+          border-radius: 50%;
+          animation: spin 1s linear infinite;
+        }
+
+        @keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
+
+        .error-message {
+          display: flex;
+          align-items: center;
+          gap: 8px;
+          background: rgba(239, 68, 68, 0.1);
+          color: #ef4444;
+          padding: 12px 16px;
+          border-radius: 12px;
+          font-size: 13px;
+          font-weight: 600;
+          margin-bottom: 24px;
+          border: 1px solid rgba(239, 68, 68, 0.1);
+        }
+
+        .animate-shake {
+          animation: shake 0.4s cubic-bezier(.36,.07,.19,.97) both;
+        }
+
+        @keyframes shake {
+          10%, 90% { transform: translate3d(-1px, 0, 0); }
+          20%, 80% { transform: translate3d(2px, 0, 0); }
+          30%, 50%, 70% { transform: translate3d(-4px, 0, 0); }
+          40%, 60% { transform: translate3d(4px, 0, 0); }
+        }
+
+        .tags-selection {
+          display: flex;
+          flex-wrap: wrap;
+          gap: 8px;
+          margin-top: 4px;
+        }
+
+        .tag-toggle-btn {
+          display: flex;
+          align-items: center;
+          gap: 6px;
+          padding: 6px 14px;
+          border-radius: 20px;
+          font-size: 13px;
+          font-weight: 600;
+          color: #a1a1aa;
+          background: rgba(255,255,255,0.03);
+          border: 1px solid rgba(255,255,255,0.08);
+          cursor: pointer;
+          transition: all 0.2s ease;
+        }
+
+        .tag-toggle-btn:hover {
+          background: rgba(255,255,255,0.08);
+          color: white;
+        }
+
+        .tag-toggle-btn.active {
+          background: rgba(255,255,255,0.1);
+          border-color: rgba(255,255,255,0.3);
+          color: white;
+          box-shadow: 0 4px 12px rgba(0,0,0,0.2);
+        }
+
+        .tag-dot {
+          width: 8px;
+          height: 8px;
+          border-radius: 50%;
+        }
+
+        /* CUSTOM STYLE PICKER */
+        .custom-style-selector { position: relative; }
+        .style-picker-trigger {
+          display: flex;
+          align-items: center;
+          justify-content: space-between;
+          padding: 8px 16px;
+          border-radius: 12px;
+          background: rgba(255,255,255,0.03);
+          border: 1px solid rgba(255,255,255,0.08);
+          cursor: pointer;
+          transition: all 0.2s;
+          height: 48px;
+        }
+        .style-picker-trigger:hover { background: rgba(255,255,255,0.06); }
+        .current-style-badge { display: flex; align-items: center; gap: 8px; font-weight: 700; font-size: 14px; }
+        .current-style-badge .dot { width: 8px; height: 8px; border-radius: 50%; }
+        .chevron { transition: transform 0.2s; color: #71717a; }
+        .chevron.rotated { transform: rotate(180deg); }
+
+        .style-dropdown-menu {
+          position: absolute;
+          top: 100%;
+          left: 0;
+          right: 0;
+          z-index: 100;
+          margin-top: 8px;
+          border-radius: 16px;
+          overflow: hidden;
+          background: rgba(0,0,0,0.4);
+          backdrop-filter: blur(16px);
+          border: 1px solid rgba(255,255,255,0.1);
+          box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+          max-height: 300px;
+          overflow-y: auto;
+        }
+
+        .style-option {
+          display: flex;
+          align-items: center;
+          gap: 12px;
+          padding: 12px 20px;
+          font-size: 14px;
+          font-weight: 600;
+          cursor: pointer;
+          transition: all 0.2s;
+        }
+        .style-option:hover { background: rgba(255,255,255,0.05); }
+        .style-option.selected { color: var(--primary); background: rgba(29, 185, 84, 0.1); }
+        .style-option .dot { width: 8px; height: 8px; border-radius: 50%; }
+
+        @keyframes slideDown { from { opacity: 0; transform: translateY(-10px); } to { opacity: 1; transform: translateY(0); } }
+        .animate-in-slide { animation: slideDown 0.2s ease-out; }
       `}</style>
     </div>
   );
 };
+
 
 const Plus = ({ size, className }: { size: number, className?: string }) => (
   <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}>

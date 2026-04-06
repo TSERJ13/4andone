@@ -5,6 +5,7 @@ import { Search, Music2, Disc, Play } from 'lucide-react';
 import { useStudio } from '@/components/admin/StudioProvider';
 import { useAudio } from '@/components/audio/AudioProvider';
 import Link from 'next/link';
+import { getMPMFromBPM } from '@/utils/audio';
 
 const SearchPage = () => {
   const [query, setQuery] = useState('');
@@ -69,7 +70,12 @@ const SearchPage = () => {
                 >
                   <div className="track-info">
                     <p className="track-title">{track.title}</p>
-                    <p className="track-artist text-secondary">{track.artist} • {track.style}</p>
+                    <p className="track-artist text-secondary">
+                      {track.artist} • {track.style}
+                      {track.bpm && (
+                        <span className="text-primary font-bold ml-2">• {getMPMFromBPM(Number(track.bpm), track.style)} Bars/Min</span>
+                      )}
+                    </p>
                   </div>
                   <div className="track-action">
                     <button className="play-btn-small glass">

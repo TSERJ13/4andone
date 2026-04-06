@@ -129,7 +129,7 @@ const SearchPage = () => {
           gap: 24px;
         }
         .genre-card {
-          padding: 40px; border-radius: 24px; height: 160px;
+          padding: 40px 24px; border-radius: 24px; min-height: 180px;
           position: relative; overflow: hidden; cursor: pointer;
           transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
           border: 1px solid;
@@ -145,9 +145,12 @@ const SearchPage = () => {
           box-shadow: 0 16px 32px rgba(0,0,0,0.4);
           background-color: rgba(255, 255, 255, 0.1) !important;
         }
-        .genre-info { position: relative; z-index: 2; width: 100%; }
-        .genre-card h3 { font-size: 24px; font-weight: 900; letter-spacing: -1px; margin: 0; line-height: 1.1; }
-        .track-count { font-size: 13px; font-weight: 700; opacity: 0.8; margin-top: 4px; }
+        .genre-info { position: relative; z-index: 2; width: 100%; display: flex; flex-direction: column; align-items: center; }
+        .genre-card h3 { 
+          font-size: 24px; font-weight: 900; letter-spacing: -1px; margin: 0; line-height: 1.1; 
+          word-break: break-word; overflow-wrap: break-word; max-width: 100%; padding: 0 8px;
+        }
+        .track-count { font-size: 13px; font-weight: 700; opacity: 0.8; margin-top: 6px; }
         
         .card-decoration { 
           position: absolute; bottom: -10px; right: -10px; 
@@ -206,7 +209,7 @@ const SearchPage = () => {
           .search-page { padding: 20px; }
           .search-header { margin-bottom: 30px; padding: 12px 24px; border-radius: 40px; }
           .genre-grid { grid-template-columns: repeat(2, 1fr); gap: 12px; }
-          .genre-card { padding: 12px; border-radius: 24px; height: 120px; }
+          .genre-card { padding: 24px 12px; border-radius: 24px; min-height: 140px; }
           .genre-card h3 { font-size: 17px; }
           .track-count { font-size: 11px; }
           .card-decoration { display: none; }

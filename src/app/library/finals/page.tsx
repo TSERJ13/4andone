@@ -329,12 +329,12 @@ const FinalsPage = () => {
           align-items: center;
           justify-content: center;
           gap: 10px;
-          padding: 10px 20px;
-          border-radius: 14px;
+          padding: 8px 16px;
+          border-radius: 12px;
           background: rgba(255, 255, 255, 0.03);
           border: 1px solid rgba(255,255,255,0.08);
           font-weight: 800;
-          font-size: 13px;
+          font-size: 12px;
           cursor: pointer;
           transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
         }

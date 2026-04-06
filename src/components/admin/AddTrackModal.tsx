@@ -140,12 +140,31 @@ const AddTrackModal = ({ isOpen, onClose, onAdd, initialData }: AddTrackModalPro
     setIsSubmitting(true);
 
     try {
-      // Use existing ID if repairing, otherwise generate a robust timestamp-based ID
-      const trackId = initialData?.id || `track_${Date.now()}_${Math.random().toString(36).substring(7)}`;
-
-      // Calculate Duration (only if new file selected)
+      const trackId = initialData?.id || `track_${Date.now()}`;
+      let audioUrl = initialData?.audioUrl || '';
       let duration = initialData?.duration || 0;
+
       if (selectedFile) {
+        setIsSubmitting(true);
+        // 1. Upload to Cloudflare R2
+        const formDataUpload = new FormData();
+        formDataUpload.append('file', selectedFile);
+        formDataUpload.append('fileName', selectedFile.name);
+
+        const uploadRes = await fetch('/api/upload', {
+          method: 'POST',
+          body: formDataUpload,
+        });
+
+        if (!uploadRes.ok) {
+          const err = await uploadRes.json();
+          throw new Error(err.error || 'Upload to Cloud failed');
+        }
+
+        const { url } = await uploadRes.json();
+        audioUrl = url;
+
+        // 2. Calculate Duration
         duration = await new Promise((resolve) => {
           const audio = new Audio();
           audio.src = URL.createObjectURL(selectedFile!);
@@ -154,37 +173,27 @@ const AddTrackModal = ({ isOpen, onClose, onAdd, initialData }: AddTrackModalPro
             URL.revokeObjectURL(audio.src);
           };
         });
-        
-        // Save binary only if new file
-        await saveAudioFile(trackId, selectedFile!);
       }
 
-      // Generate temporary session URL for immediate playback (only if new file)
-      const audioUrl = selectedFile ? URL.createObjectURL(selectedFile!) : initialData?.audioUrl;
+      // 3. Save Metadata to Supabase
+      onAdd({ 
+        ...formData, 
+        audioUrl,
+        id: trackId, 
+        duration,
+        date: initialData?.date || new Date().toISOString().split('T')[0] 
+      });
 
-      // Simulate a bit of processing for UX
+      setIsSuccess(true);
       setTimeout(() => {
         setIsSubmitting(false);
-        setIsSuccess(true);
-        setTimeout(() => {
-          onAdd({ 
-            ...formData, 
-            audioUrl,
-            id: trackId, 
-            duration,
-            date: initialData?.date || new Date().toISOString().split('T')[0] 
-          });
-          setIsSuccess(false);
-          if (!initialData) {
-            setFormData({ title: '', artist: '', style: styles.length > 0 ? styles[0].title : 'Samba', tags: [], bpm: '', album: '' });
-          }
-          setSelectedFile(null);
-          onClose();
-        }, 1200);
-      }, 800);
-    } catch (err) {
-      console.error("Failed to save track:", err);
-      setValidationError("Failed to save track to local storage. Please try again.");
+        setIsSuccess(false);
+        onClose();
+      }, 1500);
+
+    } catch (err: any) {
+      console.error("Cloud Upload Failed:", err);
+      setValidationError(err.message || "Failed to upload to Cloudflare R2.");
       setIsSubmitting(false);
     }
   };

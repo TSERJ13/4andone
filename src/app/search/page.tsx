@@ -135,7 +135,9 @@ const SearchPage = () => {
           border: 1px solid;
           display: flex;
           flex-direction: column;
-          justify-content: flex-end;
+          justify-content: center;
+          align-items: center;
+          text-align: center;
           text-decoration: none;
         }
         .genre-card:hover { 
@@ -143,14 +145,15 @@ const SearchPage = () => {
           box-shadow: 0 16px 32px rgba(0,0,0,0.4);
           background-color: rgba(255, 255, 255, 0.1) !important;
         }
-        .genre-info { position: relative; z-index: 2; }
-        .genre-card h3 { font-size: 24px; font-weight: 900; letter-spacing: -1px; margin: 0; }
-        .track-count { font-size: 12px; font-weight: 700; opacity: 0.7; margin-top: 4px; }
+        .genre-info { position: relative; z-index: 2; width: 100%; }
+        .genre-card h3 { font-size: 24px; font-weight: 900; letter-spacing: -1px; margin: 0; line-height: 1.1; }
+        .track-count { font-size: 13px; font-weight: 700; opacity: 0.8; margin-top: 4px; }
         
         .card-decoration { 
-          position: absolute; top: -10px; right: -10px; 
-          transform: rotate(15deg); 
-          filter: blur(1px);
+          position: absolute; bottom: -10px; right: -10px; 
+          transform: rotate(-15deg); 
+          filter: blur(2px);
+          pointer-events: none;
         }
         
         .section-title { font-size: 28px; font-weight: 900; margin-bottom: 32px; letter-spacing: -1px; }
@@ -203,8 +206,9 @@ const SearchPage = () => {
           .search-page { padding: 20px; }
           .search-header { margin-bottom: 30px; padding: 12px 24px; border-radius: 40px; }
           .genre-grid { grid-template-columns: repeat(2, 1fr); gap: 12px; }
-          .genre-card { padding: 24px; border-radius: 24px; height: 130px; }
-          .genre-card h3 { font-size: 18px; }
+          .genre-card { padding: 12px; border-radius: 24px; height: 120px; }
+          .genre-card h3 { font-size: 17px; }
+          .track-count { font-size: 11px; }
           .card-decoration { display: none; }
           .search-row { padding: 12px 20px; border-radius: 20px; }
           .track-title { font-size: 14px; }

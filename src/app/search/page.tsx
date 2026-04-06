@@ -9,18 +9,22 @@ import { getMPMFromBPM } from '@/utils/audio';
 
 const SearchPage = () => {
   const [query, setQuery] = useState('');
-  const { tracks } = useStudio();
+  const { tracks, styles } = useStudio();
   const { isPlaying, title: playingTitle, loadTrack } = useAudio();
 
-  // Get unique styles from real tracks for browsing
-  const uniqueStyles = Array.from(new Set(tracks.map(t => t.style))).filter(Boolean);
+  const stylesWithTracks = styles.filter(s => 
+    tracks.some(t => t.style?.toLowerCase() === s.title.toLowerCase())
+  );
 
-  // Filter tracks based on search query
   const searchResults = tracks.filter(track => 
     track.title.toLowerCase().includes(query.toLowerCase()) ||
     track.artist.toLowerCase().includes(query.toLowerCase()) ||
-    track.style.toLowerCase().includes(query.toLowerCase())
+    (track.style && track.style.toLowerCase().includes(query.toLowerCase()))
   );
+
+  const getStyleTrackCount = (styleName: string) => {
+    return tracks.filter(t => t.style?.toLowerCase() === styleName.toLowerCase()).length;
+  };
 
   return (
     <div className="search-page">
@@ -38,21 +42,30 @@ const SearchPage = () => {
       <div className="search-content">
         {!query ? (
           <div className="browse-all">
-            <h2 className="section-title">Browse All</h2>
+            <h2 className="section-title">Browse Genres</h2>
             <div className="genre-grid">
-              {uniqueStyles.length > 0 ? uniqueStyles.map((style) => (
+              {stylesWithTracks.length > 0 ? stylesWithTracks.map((style) => (
                 <Link 
-                  key={style} 
-                  href={`/style/${style.toLowerCase().replace(/\s+/g, '-')}`}
-                  className="genre-card glass"
+                  key={style.id} 
+                  href={`/style/${style.title.toLowerCase().replace(/\s+/g, '-')}`}
+                  className="genre-card"
+                  style={{ 
+                    backgroundColor: `${style.color}15`,
+                    borderColor: `${style.color}30`,
+                    color: style.color
+                  }}
                 >
-                  <h3>{style}</h3>
+                  <div className="genre-info">
+                    <h3>{style.title}</h3>
+                    <p className="track-count">{getStyleTrackCount(style.title)} Tracks</p>
+                  </div>
                   <div className="card-decoration">
-                    <Music2 size={64} opacity={0.1} />
+                    <Music2 size={80} opacity={0.15} color={style.color} />
                   </div>
                 </Link>
               )) : (
                 <div className="empty-search-state glass">
+                  <Music2 size={48} opacity={0.2} />
                   <p>Add some music in the Admin Panel to see categories here!</p>
                 </div>
               )}
@@ -78,9 +91,11 @@ const SearchPage = () => {
                     </p>
                   </div>
                   <div className="track-action">
-                    <button className="play-btn-small glass">
-                      {isPlaying && playingTitle === track.title ? 'PLAYING' : <Play size={16} fill="currentColor" />}
-                    </button>
+                    <div className="play-btn-small glass">
+                      {isPlaying && playingTitle === track.title ? (
+                         <div className="playing-bars"><span></span><span></span><span></span></div>
+                      ) : <Play size={16} fill="currentColor" />}
+                    </div>
                   </div>
                 </div>
               )) : (
@@ -92,54 +107,106 @@ const SearchPage = () => {
       </div>
 
       <style jsx>{`
-        .search-page { padding: 24px; }
+        .search-page { padding: 40px; padding-bottom: 120px; }
         .search-header {
-          position: sticky; top: 0; z-index: 10;
+          position: sticky; top: 0; z-index: 100;
           display: flex; align-items: center; gap: 16px;
-          padding: 12px 24px; border-radius: 40px;
-          width: 100%; max-width: 500px; margin-bottom: 40px;
-          border-color: rgba(255,255,255,0.1);
+          padding: 16px 28px; border-radius: 40px;
+          width: 100%; max-width: 600px; margin-bottom: 50px;
+          background: rgba(255, 255, 255, 0.03);
+          backdrop-filter: blur(20px);
+          border: 1px solid rgba(255,255,255,0.1);
+          box-shadow: 0 8px 32px rgba(0,0,0,0.2);
         }
+        .search-icon { color: #71717a; }
         .search-input {
           background: transparent; border: none; outline: none;
-          color: white; font-size: 16px; width: 100%;
+          color: white; font-size: 18px; width: 100%; font-weight: 500;
         }
         .genre-grid {
-          display: grid; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
-          gap: 20px;
+          display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+          gap: 24px;
         }
         .genre-card {
-          padding: 24px; border-radius: 12px; height: 180px;
+          padding: 32px; border-radius: 32px; height: 160px;
           position: relative; overflow: hidden; cursor: pointer;
-          transition: transform 0.2s;
+          transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+          border: 1px solid;
+          display: flex;
+          flex-direction: column;
+          justify-content: flex-end;
+          text-decoration: none;
         }
-        .genre-card:hover { transform: translateY(-5px); }
-        .genre-card h3 { font-size: 24px; font-weight: 800; letter-spacing: -1px; }
-        .card-decoration { position: absolute; bottom: -10px; right: -10px; transform: rotate(-15deg); }
-        .section-title { font-size: 24px; margin-bottom: 24px; }
+        .genre-card:hover { 
+          transform: translateY(-8px) scale(1.02);
+          box-shadow: 0 12px 24px rgba(0,0,0,0.3);
+          background-color: rgba(255, 255, 255, 0.1) !important;
+        }
+        .genre-info { position: relative; z-index: 2; }
+        .genre-card h3 { font-size: 24px; font-weight: 900; letter-spacing: -1px; margin: 0; }
+        .track-count { font-size: 12px; font-weight: 700; opacity: 0.7; margin-top: 4px; }
+        
+        .card-decoration { 
+          position: absolute; top: -10px; right: -10px; 
+          transform: rotate(15deg); 
+          filter: blur(1px);
+        }
+        
+        .section-title { font-size: 28px; font-weight: 900; margin-bottom: 32px; letter-spacing: -1px; }
 
         .search-results { display: flex; flex-direction: column; }
-        .results-container { display: flex; flex-direction: column; gap: 8px; }
+        .results-container { display: flex; flex-direction: column; gap: 12px; }
         .search-row {
           display: flex; align-items: center; justify-content: space-between;
-          padding: 12px 20px; border-radius: 12px; cursor: pointer;
-          transition: all 0.2s; border: 1px solid transparent;
+          padding: 16px 24px; border-radius: 16px; cursor: pointer;
+          transition: all 0.2s; border: 1px solid rgba(255,255,255,0.03);
+          background: rgba(255,255,255,0.02);
         }
-        .search-row:hover { background: rgba(255,255,255,0.05); border-color: rgba(255,255,255,0.1); }
-        .search-row.is-playing { background: rgba(29, 185, 84, 0.05); border-color: rgba(29, 185, 84, 0.2); }
+        .search-row:hover { background: rgba(255,255,255,0.08); border-color: rgba(255,255,255,0.1); }
+        .search-row.is-playing { background: rgba(29, 185, 84, 0.05); border-color: rgba(29, 185, 84, 0.3); }
         
-        .track-title { font-weight: 700; font-size: 15px; margin: 0; }
-        .track-artist { font-size: 13px; margin: 2px 0 0; }
+        .track-title { font-weight: 700; font-size: 16px; margin: 0; }
+        .track-artist { font-size: 13px; margin: 4px 0 0; opacity: 0.6; }
         
         .play-btn-small {
-          width: 36px; height: 36px; border-radius: 50%;
+          width: 44px; height: 44px; border-radius: 50%;
           display: flex; align-items: center; justify-content: center;
-          color: var(--primary); font-size: 10px; font-weight: 800;
+          color: #1db954; 
+          background: rgba(255,255,255,0.05);
+        }
+
+        .playing-bars {
+          display: flex; align-items: flex-end; gap: 2px;
+          width: 14px; height: 14px;
+        }
+        .playing-bars span {
+          width: 2px; background: #1db954;
+          animation: dance 1s infinite ease-in-out;
+        }
+        .playing-bars span:nth-child(1) { height: 60%; animation-delay: -0.4s; }
+        .playing-bars span:nth-child(2) { height: 100%; animation-delay: -0.2s; }
+        .playing-bars span:nth-child(3) { height: 80%; animation-delay: 0s; }
+        @keyframes dance {
+          0%, 100% { transform: scaleY(0.5); }
+          50% { transform: scaleY(1); }
+        }
+
+        .empty-search-state {
+          grid-column: 1 / -1;
+          padding: 80px; text-align: center; border-radius: 32px;
+          color: #71717a; background: rgba(255, 255, 255, 0.02);
+          display: flex; flex-direction: column; align-items: center; gap: 16px;
         }
         
-        .empty-search-state {
-          padding: 60px; text-align: center; border-radius: 20px;
-          color: var(--text-secondary);
+        @media (max-width: 768px) {
+          .search-page { padding: 20px; }
+          .search-header { margin-bottom: 30px; padding: 12px 20px; }
+          .genre-grid { grid-template-columns: repeat(2, 1fr); gap: 12px; }
+          .genre-card { padding: 20px; border-radius: 24px; height: 130px; }
+          .genre-card h3 { font-size: 18px; }
+          .card-decoration { display: none; }
+          .search-row { padding: 12px 16px; border-radius: 12px; }
+          .track-title { font-size: 14px; }
         }
       `}</style>
     </div>

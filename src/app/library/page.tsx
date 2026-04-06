@@ -126,7 +126,13 @@ export default function LibraryPage() {
           display: flex;
           flex-direction: column;
           gap: 40px;
-          padding-bottom: 120px;
+          padding: 40px;
+          margin: 0 20px 20px 0;
+          padding-bottom: 140px;
+          background: rgba(255, 255, 255, 0.02);
+          border-radius: 24px;
+          border: 1px solid rgba(255, 255, 255, 0.05);
+          min-height: calc(100vh - 40px);
         }
 
         .library-header {

@@ -107,13 +107,12 @@ export const StudioProvider: React.FC<{ children: React.ReactNode }> = ({ childr
   const [finalFolderTracksMap, setFinalFolderTracksMap] = useState<Record<string, string[]>>({}); // folderId -> [trackIds]
   const [isLoaded, setIsLoaded] = useState(false);
 
-  // Load from Supabase
+  // Load from Supabase and Subscribe to Real-Time Updates
   useEffect(() => {
     const fetchData = async () => {
       // Fetch Tracks
       const { data: tracksData } = await supabase.from('tracks').select('*').order('created_at', { ascending: false });
       if (tracksData) {
-        // Map database naming (audio_url) to interface (audioUrl)
         setTracks(tracksData.map(t => ({
           ...t,
           audioUrl: t.audio_url,
@@ -123,49 +122,42 @@ export const StudioProvider: React.FC<{ children: React.ReactNode }> = ({ childr
         })));
       }
 
-      // Fetch Folders
+      // Fetch Folders, Styles, Tags (same as before)
       const { data: foldersData } = await supabase.from('folders').select('*').order('name');
       if (foldersData) setFolders(foldersData);
 
-      // Fetch Styles
       const { data: stylesData } = await supabase.from('styles').select('*').order('order');
       if (stylesData) setStyles(stylesData);
 
-      // Fetch Tags
       const { data: tagsData } = await supabase.from('tags').select('*').order('name');
       if (tagsData) setTags(tagsData);
-
-      // Fetch Finals
-      const { data: finalsData } = await supabase.from('final_tracks').select('*, tracks(*)');
-      if (finalsData) {
-        setFinalTracks(finalsData.filter(f => f.tracks).map((f: any) => ({
-          ...f.tracks,
-          audioUrl: f.tracks.audio_url,
-          folderId: f.tracks.folder_id,
-          duration: f.tracks.duration || 0,
-          globalOrder: f.tracks.global_order || 0
-        })));
-      }
-
-      // Fetch Final Folders
-      const { data: finalFoldersData } = await supabase.from('final_folders').select('*').order('created_at');
-      if (finalFoldersData) setFinalFolders(finalFoldersData);
-
-      // Fetch Final Folder Tracks
-      const { data: fftData } = await supabase.from('final_folder_tracks').select('*').order('order');
-      if (fftData) {
-        const map: Record<string, string[]> = {};
-        fftData.forEach(item => {
-          if (!map[item.final_folder_id]) map[item.final_folder_id] = [];
-          map[item.final_folder_id].push(item.track_id);
-        });
-        setFinalFolderTracksMap(map);
-      }
 
       setIsLoaded(true);
     };
 
     fetchData();
+
+    // Enable Real-Time Subscription
+    const channel = supabase
+      .channel('schema-db-changes')
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'tracks' },
+        (payload) => {
+          if (payload.eventType === 'INSERT') {
+            const nt = payload.new as any;
+            setTracks(prev => [{ ...nt, audioUrl: nt.audio_url, folderId: nt.folder_id }, ...prev]);
+          } else if (payload.eventType === 'UPDATE') {
+            const ut = payload.new as any;
+            setTracks(prev => prev.map(t => t.id === ut.id ? { ...ut, audioUrl: ut.audio_url, folderId: ut.folder_id } : t));
+          } else if (payload.eventType === 'DELETE') {
+            setTracks(prev => prev.filter(t => t.id !== payload.old.id));
+          }
+        }
+      )
+      .subscribe();
+
+    return () => { supabase.removeChannel(channel); };
   }, []);
 
   const addTrack = async (trackData: Partial<Track>) => {
@@ -185,31 +177,44 @@ export const StudioProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       }])
       .select();
 
-    if (data) {
-      setTracks(prev => [{
-        ...data[0],
-        audioUrl: data[0].audio_url,
-        folderId: data[0].folder_id,
-        globalOrder: data[0].global_order || 0,
-        duration: data[0].duration || 0
-      }, ...prev]);
+    if (error) {
+      console.error("[SYNC-ERROR] Add failed:", error);
+      alert("Failed to save to cloud: " + error.message);
     }
+    // State is updated by Real-Time listener or manually here if needed
   };
 
   const removeTrack = async (id: string) => {
-    await supabase.from('tracks').delete().eq('id', id);
-    setTracks(prev => prev.filter(t => t.id !== id));
+    const { error } = await supabase.from('tracks').delete().eq('id', id);
+    if (error) console.error("[SYNC-ERROR] Delete failed:", error);
   };
 
   const updateTrack = async (id: string, updates: Partial<Track>) => {
-    // Convert to DB casing
-    const dbUpdates: any = { ...updates };
-    if (updates.audioUrl !== undefined) { dbUpdates.audio_url = updates.audioUrl; delete dbUpdates.audioUrl; }
-    if (updates.folderId !== undefined) { dbUpdates.folder_id = updates.folderId; delete dbUpdates.folderId; }
-    if (updates.globalOrder !== undefined) { dbUpdates.global_order = updates.globalOrder; delete dbUpdates.globalOrder; }
+    const dbUpdates: any = { 
+      title: updates.title,
+      artist: updates.artist,
+      style: updates.style,
+      bpm: updates.bpm,
+      album: updates.album,
+      tags: updates.tags,
+      duration: updates.duration
+    };
+    
+    if (updates.audioUrl !== undefined) dbUpdates.audio_url = updates.audioUrl;
+    if (updates.folderId !== undefined) dbUpdates.folder_id = updates.folderId;
+    if (updates.globalOrder !== undefined) dbUpdates.global_order = updates.globalOrder;
 
-    await supabase.from('tracks').update(dbUpdates).eq('id', id);
-    setTracks(prev => prev.map(t => t.id === id ? { ...t, ...updates } : t));
+    // Clean undefined fields
+    Object.keys(dbUpdates).forEach(key => dbUpdates[key] === undefined && delete dbUpdates[key]);
+
+    const { error } = await supabase.from('tracks').update(dbUpdates).eq('id', id);
+    
+    if (error) {
+      console.error("[SYNC-ERROR] Update failed:", error);
+      alert("Changes were NOT saved to cloud. Refresh and try again.");
+    } else {
+      console.log(`[SYNC-OK] Track ${id} updated on cloud.`);
+    }
   };
 
   const addFolder = async (name: string, color: string) => {

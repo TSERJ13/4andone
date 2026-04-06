@@ -330,16 +330,6 @@ const AdminLibrary = () => {
                     <td className="col-actions">
                       <div className="action-buttons">
                         <button 
-                          className="action-btn repair-btn" 
-                          title="Repair Track"
-                          onClick={() => {
-                            setSelectedTrack(track);
-                            setIsAddModalOpen(true);
-                          }}
-                        >
-                          <Activity size={18} />
-                        </button>
-                        <button 
                           className="action-btn edit-btn" 
                           title="Edit Metadata"
                           onClick={() => handleEdit(track)}

@@ -89,7 +89,7 @@ const MobileMiniPlayer = () => {
       <style jsx>{`
         .mini-player-wrapper {
           position: fixed;
-          bottom: 96px; /* Shifted up to clear the new floating nav */
+          bottom: calc(80px + 12px + env(safe-area-inset-bottom)); /* Grounded nav (80px) + Gap (12px) + Safe Area */
           left: 12px;
           right: 12px;
           z-index: 999;

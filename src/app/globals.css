@@ -185,3 +185,63 @@ button {
   background-clip: text;
   -webkit-text-fill-color: transparent;
 }
+
+/* Mobile Navigation Styles */
+.mobile-nav {
+  display: none; /* Hide by default for Web/Desktop */
+  position: fixed;
+  bottom: 24px;
+  left: 16px;
+  right: 16px;
+  height: 64px;
+  z-index: 1000;
+  grid-template-columns: repeat(4, 1fr);
+  align-items: center;
+  background: rgba(10, 10, 10, 0.95);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 20px;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.5);
+  padding: 0 6px;
+}
+
+@media (max-width: 768px) {
+  .mobile-nav {
+    display: grid; /* Only visible on Mobile viewports */
+  }
+}
+
+.mobile-nav-item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  height: 52px;
+  color: rgba(255, 255, 255, 0.4);
+  transition: all 0.2s ease;
+  text-decoration: none;
+  gap: 4px;
+  border-radius: 14px;
+}
+
+.mobile-nav-item span {
+  font-size: 10px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.mobile-nav-item.active {
+  color: white;
+  background: rgba(255, 255, 255, 0.1);
+}
+
+.mobile-nav-item.active svg {
+  color: var(--primary);
+  filter: drop-shadow(0 0 5px var(--primary));
+}
+
+.mobile-nav-item.active span {
+  color: white;
+}

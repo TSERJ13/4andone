@@ -105,36 +105,37 @@ const FinalsPage = () => {
                 <Play size={16} fill="currentColor" />
                 <span>Shuffle Standard</span>
               </button>
-              <button 
-                className="add-folder-icon-btn glass"
-                onClick={() => setShowFolderForm(!showFolderForm)}
-                title="Create New Folder"
-                style={{ marginLeft: '8px' }}
-              >
-                {showFolderForm ? <span style={{fontSize: '18px'}}>✕</span> : <FolderPlus size={18} />}
-              </button>
+              
+              {!showFolderForm ? (
+                <button 
+                  className="add-folder-icon-btn glass"
+                  onClick={() => setShowFolderForm(true)}
+                  title="Create New Folder"
+                >
+                  <FolderPlus size={18} />
+                </button>
+              ) : (
+                <form className="inline-folder-form animate-in-slide-left" onSubmit={(e) => {
+                  e.preventDefault();
+                  if (!newFolderName.trim()) return;
+                  addFinalFolder(newFolderName, '#1db954');
+                  setNewFolderName('');
+                  setShowFolderForm(false);
+                }}>
+                  <input 
+                    type="text" 
+                    placeholder="Folder Name..." 
+                    value={newFolderName}
+                    onChange={(e) => setNewFolderName(e.target.value)}
+                    className="inline-t-input"
+                    autoFocus
+                  />
+                  <button type="submit" className="inline-add-btn">Create</button>
+                  <button type="button" className="inline-cancel-btn" onClick={() => setShowFolderForm(false)}>✕</button>
+                </form>
+              )}
             </div>
           </header>
-
-          {showFolderForm && (
-            <form className="folder-form glass animate-in" onSubmit={(e) => {
-              e.preventDefault();
-              if (!newFolderName.trim()) return;
-              addFinalFolder(newFolderName, '#1db954');
-              setNewFolderName('');
-              setShowFolderForm(false);
-            }}>
-              <input 
-                type="text" 
-                placeholder="Folder Name..." 
-                value={newFolderName}
-                onChange={(e) => setNewFolderName(e.target.value)}
-                className="t-input"
-                autoFocus
-              />
-              <button type="submit" className="add-btn">Create</button>
-            </form>
-          )}
 
           <div className="folders-grid">
             {finalFolders.map(folder => {
@@ -504,12 +505,56 @@ const FinalsPage = () => {
 
         .empty-msg { color: #71717a; padding: 20px; text-align: center; font-size: 14px; }
         
+        .inline-folder-form {
+          display: flex;
+          align-items: center;
+          gap: 8px;
+          background: rgba(255, 255, 255, 0.05);
+          padding: 4px 8px;
+          border-radius: 12px;
+          border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+        .inline-t-input {
+          background: transparent;
+          border: none;
+          color: white;
+          font-size: 13px;
+          font-weight: 600;
+          outline: none;
+          width: 150px;
+        }
+        .inline-add-btn {
+          background: var(--primary, #1db954);
+          color: black;
+          font-weight: 800;
+          font-size: 11px;
+          padding: 4px 10px;
+          border-radius: 6px;
+          border: none;
+          cursor: pointer;
+        }
+        .inline-cancel-btn {
+          background: transparent;
+          color: #71717a;
+          font-size: 14px;
+          padding: 4px;
+          border: none;
+          cursor: pointer;
+        }
+        .inline-cancel-btn:hover { color: white; }
+
         .folder-form { display: flex; gap: 12px; margin-bottom: 24px; padding: 20px; border-radius: 20px; }
         .t-input { flex: 1; background: rgba(0,0,0,0.2); border: 1px solid rgba(255,255,255,0.1); border-radius: 12px; padding: 12px 16px; color: white; }
         .add-btn { background: var(--primary, #1db954); color: black; font-weight: 800; padding: 0 20px; border-radius: 12px; border: none; cursor: pointer; }
 
         .animate-in { animation: fadeIn 0.8s cubic-bezier(0.4, 0, 0.2, 1); }
         @keyframes fadeIn { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: translateY(0); } }
+
+        @keyframes slideLeft { 
+          from { opacity: 0; transform: translateX(10px); } 
+          to { opacity: 1; transform: translateX(0); } 
+        }
+        .animate-in-slide-left { animation: slideLeft 0.3s ease-out; }
 
         @media (max-width: 1024px) {
           .finals-hero { flex-direction: column; align-items: flex-start; gap: 24px; }

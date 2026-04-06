@@ -53,7 +53,7 @@ const SearchPage = () => {
                     backgroundColor: `${style.color}15`,
                     borderColor: `${style.color}30`,
                     color: style.color,
-                    borderRadius: '20px'
+                    borderRadius: '12px'
                   }}
                 >
                   <div className="genre-info">
@@ -129,7 +129,7 @@ const SearchPage = () => {
           gap: 24px;
         }
         .genre-card {
-          padding: 48px 32px; border-radius: 20px; min-height: 180px;
+          padding: 48px 36px; border-radius: 12px; min-height: 180px;
           position: relative; overflow: hidden; cursor: pointer;
           transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
           border: 1px solid;
@@ -209,7 +209,7 @@ const SearchPage = () => {
           .search-page { padding: 20px; }
           .search-header { margin-bottom: 30px; padding: 12px 24px; border-radius: 40px; }
           .genre-grid { grid-template-columns: repeat(2, 1fr); gap: 12px; }
-          .genre-card { padding: 32px 16px; border-radius: 20px; min-height: 140px; }
+          .genre-card { padding: 32px 16px; border-radius: 12px; min-height: 140px; }
           .genre-card h3 { font-size: 16px; }
           .track-count { font-size: 11px; }
           .card-decoration { display: none; }

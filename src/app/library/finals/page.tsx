@@ -366,17 +366,25 @@ const FinalsPage = () => {
           }
           .simulation-actions {
             width: 100%;
-            display: grid;
-            grid-template-columns: 1fr 1fr;
-            gap: 10px;
+            display: flex;
+            flex-wrap: nowrap;
+            gap: 8px;
+            overflow-x: auto;
+            padding-bottom: 4px;
+            scrollbar-width: none;
           }
+          .simulation-actions::-webkit-scrollbar { display: none; }
+          
           .sim-btn {
-            padding: 12px 10px;
-            font-size: 12px;
+            padding: 10px 12px;
+            font-size: 11px;
+            white-space: nowrap;
+            flex-shrink: 0;
           }
           .add-folder-icon-btn {
-            width: 44px;
-            height: 44px; /* Larger for touch on mobile */
+            width: 40px;
+            height: 40px;
+            flex-shrink: 0;
           }
         }
 

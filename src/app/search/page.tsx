@@ -52,7 +52,8 @@ const SearchPage = () => {
                   style={{ 
                     backgroundColor: `${style.color}15`,
                     borderColor: `${style.color}30`,
-                    color: style.color
+                    color: style.color,
+                    borderRadius: '40px'
                   }}
                 >
                   <div className="genre-info">

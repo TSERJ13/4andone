@@ -39,26 +39,26 @@ const MobileNav = () => {
         .mobile-nav {
           display: none; /* Hidden by default (Desktop) */
           position: fixed;
-          bottom: 16px;
-          left: 16px;
-          right: 16px;
-          height: 64px;
+          bottom: 20px;
+          left: 20px;
+          right: 20px;
+          height: 68px;
           z-index: 1000;
-          display: flex;
+          display: grid;
+          grid-template-columns: repeat(4, 1fr);
           align-items: center;
-          justify-content: space-around;
-          background: rgba(18, 18, 18, 0.8);
-          backdrop-filter: blur(20px);
-          -webkit-backdrop-filter: blur(20px);
-          border: 1px solid rgba(255, 255, 255, 0.1);
-          border-radius: 20px;
-          box-shadow: 0 10px 40px rgba(0, 0, 0, 0.3);
-          padding: 0 8px;
+          background: rgba(18, 18, 18, 0.75);
+          backdrop-filter: blur(25px);
+          -webkit-backdrop-filter: blur(25px);
+          border: 1px solid rgba(255, 255, 255, 0.08);
+          border-radius: 24px;
+          box-shadow: 0 12px 40px rgba(0, 0, 0, 0.5);
+          padding: 0 4px;
         }
 
         @media (max-width: 768px) {
           .mobile-nav {
-            display: flex; /* Visible on mobile */
+            display: grid; /* Visible on mobile */
           }
         }
 
@@ -67,35 +67,61 @@ const MobileNav = () => {
           flex-direction: column;
           align-items: center;
           justify-content: center;
-          gap: 4px;
-          color: rgba(255, 255, 255, 0.5);
-          transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-          flex: 1;
           height: 100%;
+          color: rgba(255, 255, 255, 0.4);
+          transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+          text-decoration: none;
           position: relative;
+          gap: 6px;
+        }
+
+        .mobile-nav-item :global(svg) {
+          transition: transform 0.3s ease;
+          z-index: 2;
         }
 
         .mobile-nav-item span {
           font-size: 10px;
           font-weight: 700;
           text-transform: uppercase;
-          letter-spacing: 0.5px;
+          letter-spacing: 0.8px;
+          transition: color 0.3s ease;
+          z-index: 2;
+        }
+
+        /* The Button/Pill Highlight */
+        .mobile-nav-item::before {
+          content: '';
+          position: absolute;
+          top: 10%;
+          left: 10%;
+          right: 10%;
+          bottom: 10%;
+          background: rgba(255, 255, 255, 0.05);
+          border-radius: 16px;
+          opacity: 0;
+          transform: scale(0.8);
+          transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+          z-index: 1;
         }
 
         .mobile-nav-item.active {
           color: var(--primary);
-          transform: translateY(-4px);
         }
 
-        .mobile-nav-item.active::after {
-          content: '';
-          position: absolute;
-          bottom: 10px;
-          width: 4px;
-          height: 4px;
-          background: var(--primary);
-          border-radius: 50%;
-          box-shadow: 0 0 10px var(--primary);
+        .mobile-nav-item.active::before {
+          opacity: 1;
+          transform: scale(1);
+          background: rgba(29, 185, 84, 0.12);
+        }
+
+        .mobile-nav-item.active :global(svg) {
+          transform: translateY(-2px);
+          filter: drop-shadow(0 0 8px rgba(29, 185, 84, 0.4));
+        }
+
+        .mobile-nav-item.active span {
+          color: var(--primary);
         }
       `}</style>
     </>

@@ -201,7 +201,7 @@ button {
   backdrop-filter: blur(25px);
   -webkit-backdrop-filter: blur(25px);
   border-top: 1px solid rgba(255, 255, 255, 0.1);
-  border-radius: 24px 24px 0 0; /* Only top rounding */
+  border-radius: 0; /* Removed rounding as requested */
   box-shadow: 0 -4px 30px rgba(0, 0, 0, 0.5);
   padding: 8px 12px;
   padding-bottom: calc(8px + env(safe-area-inset-bottom)); /* Safe Area Support */

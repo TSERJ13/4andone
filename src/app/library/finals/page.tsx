@@ -570,6 +570,34 @@ const FinalsPage = () => {
         @keyframes popupFade { from { opacity: 0; transform: scale(0.9); } to { opacity: 1; transform: scale(1); } }
         @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
 
+        .final-folder-block {
+          padding: 32px;
+          border-radius: 32px;
+          display: flex;
+          flex-direction: column;
+          gap: 24px;
+          position: relative;
+        }
+
+        .del-btn-top-right {
+          position: absolute;
+          top: 20px;
+          right: 20px;
+          width: 32px;
+          height: 32px;
+          border-radius: 50%;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          color: #71717a;
+          background: rgba(255, 255, 255, 0.03);
+          border: 1px solid rgba(255, 255, 255, 0.05);
+          cursor: pointer;
+          transition: all 0.2s;
+          z-index: 10;
+        }
+        .del-btn-top-right:hover { color: #ff4b2b; background: rgba(255, 75, 43, 0.1); }
+
         @media (max-width: 768px) {
           .final-folder-block {
             padding: 20px;
@@ -580,6 +608,10 @@ const FinalsPage = () => {
           .folder-modal-content {
             padding: 24px;
             gap: 20px;
+          }
+          .del-btn-top-right {
+            top: 12px;
+            right: 12px;
           }
         }
 

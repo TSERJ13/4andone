@@ -7,7 +7,8 @@ import {
   Trash2,
   GripVertical,
   Music2,
-  Disc
+  Disc,
+  FolderPlus
 } from 'lucide-react';
 import { useAudio } from '@/components/audio/AudioProvider';
 import { useStudio, Track } from '@/components/admin/StudioProvider';
@@ -97,6 +98,13 @@ const FinalsPage = () => {
           <header className="section-header">
             <div className="header-left">
               <h2>Folders</h2>
+              <button 
+                className="add-folder-icon-btn glass"
+                onClick={() => setShowFolderForm(!showFolderForm)}
+                title="Create New Folder"
+              >
+                {showFolderForm ? <span style={{fontSize: '18px'}}>✕</span> : <FolderPlus size={18} />}
+              </button>
             </div>
             
             <div className="simulation-actions">
@@ -301,22 +309,37 @@ const FinalsPage = () => {
         .simulation-actions {
           display: flex;
           gap: 12px;
+          justify-content: flex-start;
+          flex-wrap: wrap;
         }
+
+        .add-folder-icon-btn {
+          width: 36px;
+          height: 36px;
+          border-radius: 10px;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          color: var(--primary);
+          border: 1px solid rgba(29, 185, 84, 0.2);
+          cursor: pointer;
+          transition: all 0.2s;
+        }
+        .add-folder-icon-btn:hover { background: rgba(29, 185, 84, 0.1); transform: scale(1.05); }
 
         .sim-btn {
           display: flex;
           align-items: center;
           justify-content: center;
           gap: 10px;
-          padding: 12px 24px;
-          border-radius: 16px;
+          padding: 10px 20px;
+          border-radius: 14px;
           background: rgba(255, 255, 255, 0.03);
           border: 1px solid rgba(255,255,255,0.08);
           font-weight: 800;
-          font-size: 14px;
+          font-size: 13px;
           cursor: pointer;
           transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-          box-shadow: 0 4px 12px rgba(0,0,0,0.2);
         }
         .sim-btn.latin { 
           color: #ff4b2b;
@@ -324,7 +347,6 @@ const FinalsPage = () => {
         }
         .sim-btn.latin:hover {
           background: rgba(255, 75, 43, 0.1);
-          box-shadow: 0 0 20px rgba(255, 75, 43, 0.15);
         }
         .sim-btn.standard { 
           color: #00d2ff;
@@ -332,14 +354,18 @@ const FinalsPage = () => {
         }
         .sim-btn.standard:hover {
           background: rgba(0, 210, 255, 0.1);
-          box-shadow: 0 0 20px rgba(0, 210, 255, 0.15);
         }
         .sim-btn:hover { 
-          transform: translateY(-2px) scale(1.02);
+          transform: translateY(-2px);
         }
         .sim-btn:active { transform: scale(0.98); }
 
         @media (max-width: 768px) {
+          .section-header {
+            flex-direction: column;
+            align-items: flex-start;
+            gap: 16px;
+          }
           .simulation-actions {
             width: 100%;
             display: grid;
@@ -347,8 +373,12 @@ const FinalsPage = () => {
             gap: 10px;
           }
           .sim-btn {
-            padding: 14px 10px;
+            padding: 12px 10px;
             font-size: 12px;
+          }
+          .add-folder-icon-btn {
+            width: 44px;
+            height: 44px; /* Larger for touch on mobile */
           }
         }
 

@@ -146,25 +146,43 @@ const AddTrackModal = ({ isOpen, onClose, onAdd, initialData }: AddTrackModalPro
 
       if (selectedFile) {
         setIsSubmitting(true);
-        // 1. Upload to Cloudflare R2
-        const formDataUpload = new FormData();
-        formDataUpload.append('file', selectedFile);
-        formDataUpload.append('fileName', selectedFile.name);
+        console.log(`[UPLOAD-START] Preparing signs for: ${selectedFile.name}`);
 
-        const uploadRes = await fetch('/api/upload', {
+        // 1. Get Presigned URL
+        const signRes = await fetch('/api/upload', {
           method: 'POST',
-          body: formDataUpload,
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            fileName: selectedFile.name,
+            fileType: selectedFile.type || 'audio/mpeg'
+          })
+        });
+
+        if (!signRes.ok) {
+          const err = await signRes.json();
+          throw new Error(err.error || 'Failed to request upload signature');
+        }
+
+        const { uploadUrl, publicUrl } = await signRes.json();
+        console.log(`[UPLOAD-SIGN] Signature received. Origin: Browser -> R2`);
+
+        // 2. Direct Binary Upload to Cloudflare R2
+        const uploadRes = await fetch(uploadUrl, {
+          method: 'PUT',
+          body: selectedFile,
+          headers: {
+            'Content-Type': selectedFile.type || 'audio/mpeg'
+          }
         });
 
         if (!uploadRes.ok) {
-          const err = await uploadRes.json();
-          throw new Error(err.error || 'Upload to Cloud failed');
+          throw new Error(`Direct R2 upload failed (Status: ${uploadRes.status})`);
         }
 
-        const { url } = await uploadRes.json();
-        audioUrl = url;
+        console.log(`[UPLOAD-DONE] Storage success. Public URL: ${publicUrl}`);
+        audioUrl = publicUrl;
 
-        // 2. Calculate Duration
+        // 3. Calculate Duration (only if new file)
         duration = await new Promise((resolve) => {
           const audio = new Audio();
           audio.src = URL.createObjectURL(selectedFile!);

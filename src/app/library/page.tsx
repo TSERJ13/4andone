@@ -166,7 +166,7 @@ export default function LibraryPage() {
 
         .collection-card {
           padding: 32px;
-          border-radius: 28px;
+          border-radius: 40px; /* Enhanced rounding for premium feel */
           display: flex;
           align-items: center;
           gap: 24px;

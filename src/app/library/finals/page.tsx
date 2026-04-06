@@ -91,44 +91,8 @@ const FinalsPage = () => {
 
   return (
     <div className="finals-container animate-in">
-      <header className="finals-hero animate-in">
-        <div className="hero-content">
-          <div className="badge glass">Final Mode</div>
-          <h1 className="text-gradient">Finals Manager</h1>
-          <p className="description">Manage folders, drag tracks to organize, and run competition simulations from one place.</p>
-        </div>
-        
-        <div className="hero-actions">
-           <button 
-            className="btn-create-folder glass"
-            onClick={() => setShowFolderForm(!showFolderForm)}
-          >
-            {showFolderForm ? '✕ Cancel' : '+ New Folder'}
-          </button>
-        </div>
-      </header>
+      <div className="finals-sectors-unified animate-in" style={{ marginTop: '40px' }}>
 
-      {showFolderForm && (
-        <form className="folder-form glass animate-in" onSubmit={(e) => {
-          e.preventDefault();
-          if (!newFolderName.trim()) return;
-          addFinalFolder(newFolderName, '#1db954');
-          setNewFolderName('');
-          setShowFolderForm(false);
-        }}>
-          <input 
-            type="text" 
-            placeholder="Folder Name (e.g. WDSF Latin Final)" 
-            value={newFolderName}
-            onChange={(e) => setNewFolderName(e.target.value)}
-            className="t-input"
-            autoFocus
-          />
-          <button type="submit" className="add-btn">Create</button>
-        </form>
-      )}
-
-      <div className="finals-sectors-unified animate-in">
         <section className="folders-section">
           <header className="section-header">
             <div className="header-left">
@@ -342,18 +306,51 @@ const FinalsPage = () => {
         .sim-btn {
           display: flex;
           align-items: center;
-          gap: 8px;
-          padding: 8px 16px;
-          border-radius: 12px;
-          border: 1px solid rgba(255,255,255,0.1);
-          font-weight: 700;
-          font-size: 13px;
+          justify-content: center;
+          gap: 10px;
+          padding: 12px 24px;
+          border-radius: 16px;
+          background: rgba(255, 255, 255, 0.03);
+          border: 1px solid rgba(255,255,255,0.08);
+          font-weight: 800;
+          font-size: 14px;
           cursor: pointer;
-          transition: all 0.2s;
+          transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+          box-shadow: 0 4px 12px rgba(0,0,0,0.2);
         }
-        .sim-btn.latin { color: #ff4b2b; }
-        .sim-btn.standard { color: white; }
-        .sim-btn:hover { background: rgba(255,255,255,0.05); transform: translateY(-2px); }
+        .sim-btn.latin { 
+          color: #ff4b2b;
+          border-color: rgba(255, 75, 43, 0.2);
+        }
+        .sim-btn.latin:hover {
+          background: rgba(255, 75, 43, 0.1);
+          box-shadow: 0 0 20px rgba(255, 75, 43, 0.15);
+        }
+        .sim-btn.standard { 
+          color: #00d2ff;
+          border-color: rgba(0, 210, 255, 0.2);
+        }
+        .sim-btn.standard:hover {
+          background: rgba(0, 210, 255, 0.1);
+          box-shadow: 0 0 20px rgba(0, 210, 255, 0.15);
+        }
+        .sim-btn:hover { 
+          transform: translateY(-2px) scale(1.02);
+        }
+        .sim-btn:active { transform: scale(0.98); }
+
+        @media (max-width: 768px) {
+          .simulation-actions {
+            width: 100%;
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 10px;
+          }
+          .sim-btn {
+            padding: 14px 10px;
+            font-size: 12px;
+          }
+        }
 
         /* TRACK QUEUE SECTION */
         .track-queue-section {

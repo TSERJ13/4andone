@@ -102,6 +102,12 @@ export async function detectBPM(file: File): Promise<number> {
     while (detectedBpm > 220) detectedBpm /= 2;
 
     console.log(`[AudioEngine] Precision Result: ${detectedBpm} BPM analyzed over ${analysisWindow.toFixed(1)}s.`);
+    
+    // CRITICAL: Close context to prevent leaking hundreds of contexts on mobile
+    if (tempContext && (tempContext as any).close) {
+      await (tempContext as any).close();
+    }
+    
     return detectedBpm;
   } catch (err) {
     console.error("[AudioEngine] Analysis failure:", err);

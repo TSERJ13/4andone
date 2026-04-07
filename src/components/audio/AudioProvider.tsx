@@ -150,61 +150,88 @@ export const AudioProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       }
 
       if (!finalUrl) {
-        throw new Error("Missing Audio Source");
+        throw new Error("Missing Audio Source (File not found in storage)");
       }
 
-      // 3. SECURE PRE-FETCH (Bypass Tone.js loading issues for remote R2 buckets)
-      if (isRemote) {
-        try {
-          console.log(`[AUDIO-FETCH] Pre-loading binary data for: ${track.title}`);
-          const fetchRes = await fetch(finalUrl);
-          if (!fetchRes.ok) throw new Error(`Fetch failed: ${fetchRes.statusText}`);
-          const blob = await fetchRes.blob();
-          finalUrl = URL.createObjectURL(blob);
-          activeBlobUrlRef.current = finalUrl; // Ensure cleanup on next track
-          console.log(`[AUDIO-FETCH] Ready.`);
-        } catch (e: any) {
-          console.error("[AUDIO-FETCH] Error:", e);
-          throw new Error("Network error while pre-fetching audio data.");
+      // 3. SECURE LOADING: Prefer non-blob direct loading for R2 to save memory
+      // We only use Blob pre-fetch if there's a specific CORS issue, but for Tone.js signed URLs are usually fine.
+      // However, on mobile, we want to watch out for OOM (Out of Memory) crashes.
+      
+      const setupPlayer = (url: string, type: 'grain' | 'standard' = 'grain') => {
+        return new Promise<Tone.GrainPlayer | Tone.Player>((resolve, reject) => {
+          console.log(`[AUDIO-LOAD] Initializing ${type} player for: ${track.title}`);
+          
+          const player = type === 'grain' 
+            ? new Tone.GrainPlayer({
+                url,
+                onload: () => resolve(player),
+                onerror: (e) => {
+                  console.warn("[PLAYER-GRAIN-FAIL] Granular synthesis failed, likely Memory OOM. Falling back.", e);
+                  reject(e);
+                },
+                loop: !isFinalMode
+              })
+            : new Tone.Player({
+                url,
+                onload: () => resolve(player),
+                onerror: (e) => {
+                  console.error("[PLAYER-STANDARD-FAIL] Standard player also failed.", e);
+                  reject(e);
+                },
+                loop: !isFinalMode
+              });
+          
+          player.connect(output);
+          playerRef.current = player as any;
+        });
+      };
+
+      try {
+        // Attempt 1: High Quality Granular Synthesis (Pitch Preserved)
+        const player = await setupPlayer(finalUrl, 'grain');
+        setDuration(player.buffer.duration);
+        setIsLoaded(true);
+        player.playbackRate = bpm / 100;
+
+        if (Tone.getContext().state === 'running') {
+          player.start();
+          setIsPlaying(true);
         }
-      }
-
-      const player = new Tone.GrainPlayer({
-        url: finalUrl,
-        onload: () => {
+      } catch (e) {
+        console.warn("[AUDIO-RETRY] GrainPlayer failed. Attempting Standard Player fallback...");
+        
+        try {
+          // Attempt 2: Standard Player (Pitch changes with speed, but works on low-memory devices)
+          const player = await setupPlayer(finalUrl, 'standard');
           setDuration(player.buffer.duration);
           setIsLoaded(true);
           player.playbackRate = bpm / 100;
-          
+
           if (Tone.getContext().state === 'running') {
             player.start();
             setIsPlaying(true);
           }
-          setError(null);
-
-          // MEDIA SESSION SETUP
-          if ('mediaSession' in navigator) {
-            navigator.mediaSession.metadata = new MediaMetadata({
-              title: track.title,
-              artist: track.artist,
-              album: track.album || '4and.one Music',
-              artwork: [
-                { src: '/icons/icon-192x192.png', sizes: '192x192', type: 'image/png' },
-                { src: '/icons/icon-512x512.png', sizes: '512x512', type: 'image/png' },
-              ]
-            });
-          }
-        },
-        onerror: (err) => {
-          console.error("[PLAYER-ERROR]", err);
+          // Notify user slightly if possible or just log
+          console.log("[AUDIO-FALLBACK] Success using Standard Player.");
+        } catch (e2) {
+          console.error("[AUDIO-CRITICAL] All Tone.js players failed.", e2);
           setError("Codec or Memory Error (Incompatible file)");
           setIsLoaded(false);
-        },
-        loop: !isFinalMode // Loop in practice, not in final
-      });
+        }
+      }
 
-      player.connect(output);
-      playerRef.current = player;
+      // MEDIA SESSION SETUP
+      if ('mediaSession' in navigator) {
+        navigator.mediaSession.metadata = new MediaMetadata({
+          title: track.title,
+          artist: track.artist,
+          album: track.album || '4and.one Music',
+          artwork: [
+            { src: '/icons/icon-192x192.png', sizes: '192x192', type: 'image/png' },
+            { src: '/icons/icon-512x512.png', sizes: '512x512', type: 'image/png' },
+          ]
+        });
+      }
     } catch (err: any) {
       console.error("[LOAD-ERROR]", err);
       setError(err.message || "Failed to load track");

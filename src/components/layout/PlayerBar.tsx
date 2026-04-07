@@ -69,8 +69,12 @@ const PlayerBar = () => {
               {title}
             </p>
           </div>
-          <p className={`track-artist truncate ${error ? 'error-text' : ''}`}>
-            {error || artist}
+          <p className="track-artist truncate">
+            {error ? (
+              <span className="error-text text-red-500 font-bold">{error}</span>
+            ) : (
+              artist
+            )}
             {currentTrack && currentTrack.bpm && (
               <span className="track-tempo-inline ml-2 text-primary font-bold">
                 • {getMPMFromBPM(Number(currentTrack.bpm), currentTrack.style)} Bars/Min

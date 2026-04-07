@@ -251,6 +251,10 @@ const MobileFullPlayer = ({ isOpen, onClose }: MobileFullPlayerProps) => {
           display: flex;
           flex-direction: column;
           padding: 20px;
+          padding-top: max(20px, env(safe-area-inset-top));
+          padding-bottom: max(20px, env(safe-area-inset-bottom));
+          height: 100dvh;
+          overflow: hidden;
           animation: slideUp 0.4s cubic-bezier(0.4, 0, 0.2, 1);
         }
 
@@ -281,14 +285,14 @@ const MobileFullPlayer = ({ isOpen, onClose }: MobileFullPlayerProps) => {
           display: flex;
           flex-direction: column;
           align-items: center;
-          gap: 20px;
-          justify-content: center;
+          gap: 12px;
+          justify-content: space-around;
         }
 
         .album-art-container {
-          width: 220px;
-          height: 220px;
-          margin-bottom: 10px;
+          width: 180px;
+          height: 180px;
+          margin-bottom: 5px;
         }
 
         .disc-art {
@@ -488,8 +492,11 @@ const MobileFullPlayer = ({ isOpen, onClose }: MobileFullPlayerProps) => {
         .speed-modal {
           width: 100%;
           border-radius: 30px 30px 0 0;
-          padding: 24px;
+          padding: 20px;
+          padding-bottom: max(20px, env(safe-area-inset-bottom));
           background: #121212;
+          max-height: 50vh;
+          overflow-y: auto;
         }
 
         .modal-header {

@@ -15,13 +15,6 @@ const SpeedSelector: React.FC<SpeedSelectorProps> = ({ currentBpm, onSelect, onC
   return (
     <div className="speed-selector-overlay" onClick={onClose}>
       <div className="speed-selector-popup glass animate-in" onClick={(e) => e.stopPropagation()}>
-        <header className="popup-header">
-          <div className="title">
-            <Gauge size={20} className="text-primary" />
-            <h3>Playback Speed</h3>
-          </div>
-          <button className="close-btn" onClick={onClose}><X size={20} /></button>
-        </header>
 
         <div className="speed-grid">
           {speeds.map((speed) => (
@@ -60,13 +53,13 @@ const SpeedSelector: React.FC<SpeedSelectorProps> = ({ currentBpm, onSelect, onC
         }
 
         .speed-selector-popup {
-          width: 90%;
-          max-width: 400px;
-          padding: 32px;
+          width: 95%;
+          max-width: 380px;
+          padding: 20px;
           border-radius: 24px;
           display: flex;
           flex-direction: column;
-          gap: 24px;
+          gap: 16px;
           box-shadow: 0 20px 40px rgba(0, 0, 0, 0.4);
         }
 
@@ -79,11 +72,11 @@ const SpeedSelector: React.FC<SpeedSelectorProps> = ({ currentBpm, onSelect, onC
         .title {
           display: flex;
           align-items: center;
-          gap: 12px;
+          gap: 10px;
         }
 
         .title h3 {
-          font-size: 20px;
+          font-size: 18px;
           font-weight: 800;
           letter-spacing: -0.5px;
         }
@@ -100,16 +93,16 @@ const SpeedSelector: React.FC<SpeedSelectorProps> = ({ currentBpm, onSelect, onC
         .speed-grid {
           display: grid;
           grid-template-columns: repeat(2, 1fr);
-          gap: 12px;
+          gap: 8px;
         }
 
         .speed-option {
-          padding: 16px;
+          padding: 12px;
           border-radius: 12px;
           display: flex;
           flex-direction: column;
           align-items: center;
-          gap: 4px;
+          gap: 2px;
           transition: all 0.2s;
         }
 
@@ -124,21 +117,15 @@ const SpeedSelector: React.FC<SpeedSelectorProps> = ({ currentBpm, onSelect, onC
         }
 
         .value {
-          font-size: 18px;
+          font-size: 16px;
           font-weight: 800;
         }
 
         .label {
-          font-size: 11px;
+          font-size: 10px;
           font-weight: 600;
           text-transform: uppercase;
           opacity: 0.7;
-        }
-
-        .speed-footer {
-          font-size: 13px;
-          text-align: center;
-          line-height: 1.5;
         }
 
         @keyframes animate-in {

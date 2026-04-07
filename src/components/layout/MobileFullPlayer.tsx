@@ -175,7 +175,7 @@ const MobileFullPlayer = ({ isOpen, onClose }: MobileFullPlayerProps) => {
             <div className={`progress-knob ${isDragging ? 'active' : ''}`} style={{ left: `${displayProgress}%` }}></div>
           </div>
           <div className="time-labels">
-            <span>{formatTime(isDragging ? (dragProgress / 100) * duration : currentTime)}</span>
+            <span>{formatTime(isDragging ? (dragProgress / 100) * (duration || 0) : currentTime)}</span>
             <span>{formatTime(duration)}</span>
           </div>
         </div>

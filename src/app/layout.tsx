@@ -37,7 +37,7 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="ka">
+    <html lang="ka" suppressHydrationWarning>
       <body className={inter.className}>
         <StudioProvider>
           <AudioProvider>

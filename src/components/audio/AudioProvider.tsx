@@ -122,10 +122,11 @@ export const AudioProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       const isRemote = finalUrl?.startsWith('http');
 
       // 1. If REMOTE (Cloudflare R2), we need a temporary signed URL for playback
-      if (isRemote) {
+      if (isRemote && finalUrl) {
         try {
           console.log(`[AUDIO-SIGN] Requesting playback pass for: ${track.title}`);
-          const fileName = finalUrl.split('/').pop(); // Extract safeFileName from the URL
+          const fileName = finalUrl.split('/').pop(); 
+          if (!fileName) throw new Error("Invalid remote URL");
           const signRes = await fetch(`/api/upload?key=${fileName}`);
           
           if (signRes.ok) {
@@ -254,13 +255,13 @@ export const AudioProvider: React.FC<{ children: React.ReactNode }> = ({ childre
               });
             }, 1000);
           } else if (!isFinalMode && duration > 0 && nextVal >= duration) {
-             if (!isRepeat) {
-                if (playerRef.current) playerRef.current.stop();
-                setIsPlaying(false);
-                setCurrentTime(0);
-             } else {
-                setCurrentTime(0);
-             }
+            if (!isRepeat) {
+              if (playerRef.current) playerRef.current.stop();
+              setIsPlaying(false);
+              setCurrentTime(0);
+            } else {
+              setCurrentTime(0);
+            }
           }
         }
       }, 100);

@@ -40,6 +40,8 @@ const MobileFullPlayer = ({ isOpen, onClose }: MobileFullPlayerProps) => {
     toggleFinalMode,
     seek,
     seekRelative,
+    playNext,
+    playPrevious,
     isShuffle,
     isRepeat,
     toggleShuffle,
@@ -188,7 +190,7 @@ const MobileFullPlayer = ({ isOpen, onClose }: MobileFullPlayerProps) => {
             <Shuffle size={24} />
           </button>
 
-          <button className="secondary-ctrl" onClick={() => seekRelative(-10)}>
+          <button className="secondary-ctrl" onClick={playPrevious}>
             <SkipBack size={32} fill="currentColor" />
           </button>
           
@@ -202,7 +204,7 @@ const MobileFullPlayer = ({ isOpen, onClose }: MobileFullPlayerProps) => {
             )}
           </div>
 
-          <button className="secondary-ctrl" onClick={() => seekRelative(10)}>
+          <button className="secondary-ctrl" onClick={playNext}>
             <SkipForward size={32} fill="currentColor" />
           </button>
 

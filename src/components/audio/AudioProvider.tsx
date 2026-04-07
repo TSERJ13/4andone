@@ -26,6 +26,8 @@ interface AudioContextType {
   toggleFinalMode: () => void;
   seek: (time: number) => void;
   seekRelative: (seconds: number) => void;
+  playNext: () => void;
+  playPrevious: () => void;
   stop: () => void;
 }
 
@@ -34,7 +36,7 @@ const AudioContext = createContext<AudioContextType | undefined>(undefined);
 import { useStudio } from '@/components/admin/StudioProvider';
 
 export const AudioProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const { finalTracks } = useStudio();
+  const { tracks, finalTracks } = useStudio();
   const [isPlaying, setIsPlaying] = useState(false);
   const [bpm, setBpmState] = useState(100);
   const [isFinalMode, setIsFinalMode] = useState(false); // Default to Normal Mode
@@ -194,6 +196,8 @@ export const AudioProvider: React.FC<{ children: React.ReactNode }> = ({ childre
           const player = type === 'grain' 
             ? new Tone.GrainPlayer({
                 url,
+                overlap: 0.2,   // SM-OPT: Smoother crossovers
+                grainSize: 0.2, // SM-OPT: Stable size
                 onload: () => resolve(player),
                 onerror: (e) => {
                   console.warn(`[PLAYER-GRAIN-FAIL] URL: ${url}`, e);
@@ -435,6 +439,36 @@ export const AudioProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   const toggleShuffle = () => setIsShuffle(!isShuffle);
   const toggleFinalMode = () => setIsFinalMode(!isFinalMode);
 
+  const playNext = () => {
+    const list = isFinalMode ? finalTracks : tracks;
+    if (list.length === 0) return;
+    
+    let currentIndex = list.findIndex(t => t.id === trackIdRef.current || t.title === title);
+    
+    // Handle shuffle
+    if (isShuffle) {
+      let nextIndex = Math.floor(Math.random() * list.length);
+      while (nextIndex === currentIndex && list.length > 1) {
+        nextIndex = Math.floor(Math.random() * list.length);
+      }
+      currentIndex = nextIndex - 1; // offset by 1 because we increment below
+    }
+
+    const nextIndex = (currentIndex + 1) % list.length;
+    const nextTrack = list[nextIndex];
+    loadTrack(nextTrack);
+  };
+
+  const playPrevious = () => {
+    const list = isFinalMode ? finalTracks : tracks;
+    if (list.length === 0) return;
+
+    const currentIndex = list.findIndex(t => t.id === trackIdRef.current || t.title === title);
+    const prevIndex = currentIndex <= 0 ? list.length - 1 : currentIndex - 1;
+    const prevTrack = list[prevIndex];
+    loadTrack(prevTrack);
+  };
+
   const stop = () => {
     if (playerRef.current) playerRef.current.stop();
     if (nativePlayerRef.current) nativePlayerRef.current.pause();
@@ -448,11 +482,8 @@ export const AudioProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       navigator.mediaSession.setActionHandler('pause', () => togglePlay());
       navigator.mediaSession.setActionHandler('seekbackward', () => seekRelative(-10));
       navigator.mediaSession.setActionHandler('seekforward', () => seekRelative(10));
-      navigator.mediaSession.setActionHandler('previoustrack', () => seekRelative(-30));
-      navigator.mediaSession.setActionHandler('nexttrack', () => {
-          // Future: Logic for next song in playlist
-          seekRelative(30);
-      });
+      navigator.mediaSession.setActionHandler('previoustrack', () => playPrevious());
+      navigator.mediaSession.setActionHandler('nexttrack', () => playNext());
       navigator.mediaSession.setActionHandler('seekto', (details) => {
         if (details.seekTime !== undefined) seek(details.seekTime);
       });
@@ -482,6 +513,8 @@ export const AudioProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       toggleFinalMode,
       seek,
       seekRelative,
+      playNext,
+      playPrevious,
       stop
     }}>
       {children}

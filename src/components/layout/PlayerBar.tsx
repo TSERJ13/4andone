@@ -1,6 +1,6 @@
 "use client";
 
-import React from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { usePathname } from 'next/navigation';
 import { 
   Play, 
@@ -24,26 +24,70 @@ const PlayerBar = () => {
   const pathname = usePathname();
   const isAdmin = pathname.startsWith('/admin');
 
-  const [showSpeedSelector, setShowSpeedSelector] = React.useState(false);
   const { 
+    currentTime,
+    duration,
     isPlaying,
+    isLoaded,
     togglePlay,
     bpm,
     setBpm,
-    isLoaded,
-    title,
-    artist,
-    error,
-    currentTime,
-    duration,
     volume,
     setVolume,
-    isShuffle,
-    toggleShuffle,
+    playNext,
+    playPrevious,
+    error,
+    title,
+    artist,
     isRepeat,
+    isShuffle,
     toggleRepeat,
-    isFinalMode
+    toggleShuffle,
+    seek
   } = useAudio();
+
+  const [showSpeedSelector, setShowSpeedSelector] = useState(false);
+  const [isDragging, setIsDragging] = useState(false);
+  const [dragProgress, setDragProgress] = useState(0);
+  const progressRef = useRef<HTMLDivElement>(null);
+
+  const handleSeekUpdate = (clientX: number) => {
+    if (!progressRef.current || !duration) return;
+    const rect = progressRef.current.getBoundingClientRect();
+    const x = Math.max(0, Math.min(clientX - rect.left, rect.width));
+    const percentage = x / rect.width;
+    setDragProgress(percentage * 100);
+    return percentage * duration;
+  };
+
+  const handleInteractionStart = (e: React.MouseEvent) => {
+    setIsDragging(true);
+    handleSeekUpdate(e.clientX);
+  };
+
+  useEffect(() => {
+    const handleMove = (e: MouseEvent) => {
+      if (!isDragging) return;
+      handleSeekUpdate(e.clientX);
+    };
+    const handleUp = (e: MouseEvent) => {
+      if (!isDragging) return;
+      const newTime = handleSeekUpdate(e.clientX);
+      if (newTime !== undefined) seek(newTime);
+      setIsDragging(false);
+    };
+
+    if (isDragging) {
+      window.addEventListener('mousemove', handleMove);
+      window.addEventListener('mouseup', handleUp);
+    }
+    return () => {
+      window.removeEventListener('mousemove', handleMove);
+      window.removeEventListener('mouseup', handleUp);
+    };
+  }, [isDragging, duration, seek]);
+
+  const displayProgress = isDragging ? dragProgress : (currentTime / (duration || 1)) * 100;
   
   const { finalTracks, addToFinal, removeFromFinal, tracks } = useStudio();
   const currentTrack = tracks.find(t => t.title === title) || finalTracks.find(t => t.title === title);
@@ -114,23 +158,17 @@ const PlayerBar = () => {
           >
             <Shuffle size={18} />
           </button>
-          <button className="control-btn"><SkipBack size={24} fill="currentColor" /></button>
-          <button 
-            className={`play-btn glass ${(!isLoaded && !error) ? 'loading' : ''} ${error ? 'error' : ''}`} 
-            onClick={togglePlay}
-            disabled={!isLoaded || !!error}
-          >
-            {((!isLoaded && !error)) ? (
-              <div className="loader"></div>
-            ) : error ? (
-              <span style={{ fontSize: '20px', fontWeight: 'bold' }}>!</span>
+          <button className="control-btn" onClick={playPrevious}><SkipBack size={24} fill="currentColor" /></button>
+          <div className="play-btn" onClick={togglePlay}>
+            {!isLoaded ? (
+              <div className="loading-spinner"></div>
             ) : isPlaying ? (
-              <Pause size={28} fill="currentColor" />
+              <Pause fill="currentColor" size={28} />
             ) : (
-              <Play size={28} fill="currentColor" style={{ marginLeft: '4px' }} />
+              <Play fill="currentColor" size={28} className="play-icon-offset" />
             )}
-          </button>
-          <button className="control-btn"><SkipForward size={24} fill="currentColor" /></button>
+          </div>
+          <button className="control-btn" onClick={playNext}><SkipForward size={24} fill="currentColor" /></button>
           <button 
             className={`control-btn ${isRepeat ? 'active' : ''}`} 
             onClick={toggleRepeat}
@@ -140,13 +178,22 @@ const PlayerBar = () => {
         </div>
 
         <div className="progress-container">
-          <span className="time-text">{formatTime(currentTime)}</span>
-          <div className="progress-bar-bg">
-            <div className={`progress-bar-fill ${error ? 'error' : ''}`} 
-                 style={{ width: `${(currentTime / (duration || 100)) * 100}%` }}>
-            </div>
+          <span className="time-text">{formatTime(isDragging ? (dragProgress / 100) * (duration || 0) : currentTime)}</span>
+          <div 
+            className="progress-bar-bg" 
+            ref={progressRef}
+            onMouseDown={handleInteractionStart}
+          >
+            <div 
+              className={`progress-bar-fill ${error ? 'error' : ''}`} 
+              style={{ width: `${displayProgress}%` }}
+            ></div>
+            <div 
+              className={`progress-knob ${isDragging ? 'active' : ''}`}
+              style={{ left: `${displayProgress}%` }}
+            ></div>
           </div>
-          <span className="time-text">{formatTime(duration || 135)}</span>
+          <span className="time-text">{formatTime(duration)}</span>
         </div>
       </div>
 
@@ -270,49 +317,19 @@ const PlayerBar = () => {
           background: var(--text);
           color: var(--background);
           border: none;
+          cursor: pointer;
         }
-        .play-btn:hover:not(:disabled) {
+        .play-btn:hover {
           transform: scale(1.05);
         }
-        .play-btn:disabled {
-          opacity: 0.5;
-          cursor: not-allowed;
-        }
-        .play-btn.loading {
-          cursor: wait;
-        }
-        .loader {
+        .play-icon-offset { margin-left: 4px; }
+        .loading-spinner {
           width: 20px;
           height: 20px;
           border: 2px solid var(--background);
           border-top: 2px solid var(--text-secondary);
           border-radius: 50%;
           animation: spin 1s linear infinite;
-        }
-        .ai-loader {
-          width: 28px;
-          height: 28px;
-          border: 3px solid rgba(168, 85, 247, 0.2);
-          border-top: 3px solid #a855f7;
-          border-radius: 50%;
-          animation: spin 0.8s cubic-bezier(0.5, 0, 0.5, 1) infinite;
-        }
-        .feature-btn.purple-glow {
-          background: rgba(168, 85, 247, 0.1);
-          border-color: rgba(168, 85, 247, 0.4);
-          box-shadow: 0 0 15px rgba(168, 85, 247, 0.2);
-        }
-        .text-purple {
-          color: #a855f7;
-        }
-        .progress-bar-fill.processing {
-          background: linear-gradient(90deg, #1db954, #a855f7);
-          animation: pulse 2s infinite;
-        }
-        @keyframes pulse {
-          0% { opacity: 0.8; }
-          50% { opacity: 1; }
-          100% { opacity: 0.8; }
         }
         @keyframes spin {
           0% { transform: rotate(0deg); }
@@ -328,18 +345,41 @@ const PlayerBar = () => {
         }
         .progress-bar-bg {
           flex: 1;
-          height: 4px;
-          background-color: var(--border);
-          border-radius: 2px;
+          height: 6px;
+          background: rgba(255,255,255,0.1);
+          border-radius: 3px;
           position: relative;
+          cursor: pointer;
+          display: flex;
+          align-items: center;
         }
         .progress-bar-fill {
           height: 100%;
-          background-color: var(--text);
-          border-radius: 2px;
+          background: var(--primary);
+          border-radius: 3px;
+          transition: width 0.1s linear;
         }
         .progress-bar-fill.error {
-          background-color: #ff4444;
+          background: #ef4444;
+        }
+        .progress-knob {
+          width: 12px;
+          height: 12px;
+          background: white;
+          border-radius: 50%;
+          position: absolute;
+          top: 50%;
+          transform: translate(-50%, -50%);
+          box-shadow: 0 2px 4px rgba(0,0,0,0.5);
+          transition: transform 0.2s, background 0.2s;
+          pointer-events: none;
+        }
+        .progress-bar-bg:hover .progress-knob {
+          transform: translate(-50%, -50%) scale(1.2);
+        }
+        .progress-knob.active {
+          transform: translate(-50%, -50%) scale(1.4);
+          background: var(--primary);
         }
         .play-btn.error {
           color: #ff4444;
@@ -378,6 +418,26 @@ const PlayerBar = () => {
           color: var(--primary);
           border-color: var(--primary);
           background: rgba(29, 185, 84, 0.1);
+        }
+        .speed-container {
+          position: relative;
+        }
+        .speed-container :global(.speed-container) {
+          position: absolute;
+          bottom: calc(100% + 20px);
+          right: 0;
+          width: 280px;
+          background: #181818;
+          border: 1px solid rgba(255,255,255,0.1);
+          border-radius: 16px;
+          padding: 20px;
+          box-shadow: 0 10px 40px rgba(0,0,0,0.5);
+          z-index: 100;
+          animation: slideUpPopup 0.2s ease-out;
+        }
+        @keyframes slideUpPopup {
+          from { opacity: 0; transform: translateY(10px); }
+          to { opacity: 1; transform: translateY(0); }
         }
         .bpm-control {
           display: flex;

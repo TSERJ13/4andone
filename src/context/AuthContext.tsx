@@ -18,6 +18,8 @@ interface AuthContextType {
   login: (user: TelegramUser) => void;
   logout: () => void;
   isLoading: boolean;
+  isAuthModalOpen: boolean;
+  setIsAuthModalOpen: (open: boolean) => void;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -25,6 +27,7 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined);
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [user, setUser] = useState<TelegramUser | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
 
   useEffect(() => {
     // Load from localStorage
@@ -38,6 +41,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const login = (userData: TelegramUser) => {
     setUser(userData);
     localStorage.setItem('4andone-user', JSON.stringify(userData));
+    setIsAuthModalOpen(false); // Close on successful login
   };
 
   const logout = () => {
@@ -51,7 +55,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       isAuthenticated: !!user,
       login,
       logout,
-      isLoading
+      isLoading,
+      isAuthModalOpen,
+      setIsAuthModalOpen
     }}>
       {children}
     </AuthContext.Provider>

@@ -3,26 +3,23 @@
 import React, { useState } from 'react';
 import { User, LogOut, ShieldCheck } from 'lucide-react';
 import { useAuth } from '@/context/AuthContext';
-import { TelegramLogin } from '@/components/auth/TelegramLogin';
+import { AuthModal } from '@/components/auth/AuthModal';
 
 export const UserBadge: React.FC<{ textColor?: string }> = ({ textColor = 'white' }) => {
-  const { user, logout, isAuthenticated } = useAuth();
+  const { user, logout, isAuthenticated, isAuthModalOpen, setIsAuthModalOpen } = useAuth();
   const [showPopup, setShowPopup] = useState(false);
-  const [showLoginPopover, setShowLoginPopover] = useState(false);
 
   return (
     <div className="user-badge-wrapper">
       {!isAuthenticated ? (
-        <div className="login-trigger" onClick={() => setShowLoginPopover(!showLoginPopover)}>
+        <div className="login-trigger" onClick={() => setIsAuthModalOpen(true)}>
           <div className="silhouette-wrapper glass">
             <User size={20} />
           </div>
-          {showLoginPopover && (
-            <div className="login-popover glass animate-in-popup" onClick={(e) => e.stopPropagation()}>
-               <p className="login-hint">Log in to sync your data</p>
-               <TelegramLogin />
-            </div>
-          )}
+          <AuthModal 
+            isOpen={isAuthModalOpen} 
+            onClose={() => setIsAuthModalOpen(false)} 
+          />
         </div>
       ) : (
         <div className="user-profile-trigger" onClick={() => setShowPopup(!showPopup)}>
@@ -63,9 +60,6 @@ export const UserBadge: React.FC<{ textColor?: string }> = ({ textColor = 'white
           position: relative;
           cursor: pointer;
         }
-        .login-trigger:hover .login-popover {
-          display: flex;
-        }
 
         .silhouette-wrapper {
           width: 40px;
@@ -78,21 +72,6 @@ export const UserBadge: React.FC<{ textColor?: string }> = ({ textColor = 'white
           transition: all 0.2s;
         }
         .silhouette-wrapper:hover { opacity: 1; transform: scale(1.05); }
-
-        .login-popover {
-          position: absolute;
-          top: calc(100% + 12px);
-          right: 0;
-          width: 200px;
-          padding: 16px;
-          border-radius: 16px;
-          display: none;
-          flex-direction: column;
-          gap: 12px;
-          box-shadow: 0 10px 30px rgba(0,0,0,0.4);
-          border: 1px solid rgba(255,255,255,0.05);
-        }
-        .login-hint { font-size: 11px; font-weight: 700; opacity: 0.6; text-align: center; }
 
         .profile-img, .profile-img-placeholder {
           width: 44px;

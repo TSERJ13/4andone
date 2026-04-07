@@ -14,6 +14,7 @@ import {
 } from 'lucide-react';
 import { useAudio } from '@/components/audio/AudioProvider';
 import { useStudio, Track } from '@/components/admin/StudioProvider';
+import { useAuth } from '@/context/AuthContext';
 import { getMPMFromBPM } from '@/utils/audio';
 import ConfirmModal from '@/components/admin/ConfirmModal';
 
@@ -32,6 +33,7 @@ const FinalsPage = () => {
     setFinalTracks
   } = useStudio();
   const { loadTrack, isPlaying, title: playingTitle } = useAudio();
+  const { isAuthenticated, setIsAuthModalOpen } = useAuth();
   
   const [selectedFolderId, setSelectedFolderId] = useState<string | null>(null);
   const [newFolderName, setNewFolderName] = useState('');
@@ -132,20 +134,34 @@ const FinalsPage = () => {
               {showFolderForm && (
                 <div className="folder-modal-overlay animate-in-fade" onClick={() => !isCreatingFolder && setShowFolderForm(false)}>
                   <form className="folder-modal-content animate-in-popup" onClick={(e) => e.stopPropagation()} onSubmit={async (e) => {
-                    e.preventDefault();
-                    if (!newFolderName.trim() || isCreatingFolder) return;
-                    
-                    setIsCreatingFolder(true);
-                    try {
-                      await addFinalFolder(newFolderName.trim(), '#1db954');
-                      setNewFolderName('');
-                      setShowFolderForm(false);
-                    } catch (err) {
-                      console.error("Folder creation error:", err);
-                    } finally {
-                      setIsCreatingFolder(false);
-                    }
-                  }}>
+                      e.preventDefault();
+                      if (!newFolderName.trim() || isCreatingFolder) return;
+
+                      if (!isAuthenticated) {
+                        setInfoModal({
+                          isOpen: true,
+                          title: 'Authentication Required',
+                          message: 'Please log in with Telegram to create competition folders and sync your data.',
+                          variant: 'primary',
+                          onConfirm: () => {
+                            setInfoModal(prev => ({ ...prev, isOpen: false }));
+                            setIsAuthModalOpen(true);
+                          }
+                        });
+                        return;
+                      }
+                      
+                      setIsCreatingFolder(true);
+                      try {
+                        await addFinalFolder(newFolderName.trim(), '#1db954');
+                        setNewFolderName('');
+                        setShowFolderForm(false);
+                      } catch (err) {
+                        console.error("Folder creation error:", err);
+                      } finally {
+                        setIsCreatingFolder(false);
+                      }
+                    }}>
                     <h3>New Folder</h3>
                     <input 
                       type="text" 

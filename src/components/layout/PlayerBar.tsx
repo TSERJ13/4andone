@@ -308,19 +308,25 @@ const PlayerBar = () => {
           background: var(--primary);
         }
         .play-btn {
-          width: 42px;
-          height: 42px;
+          width: 50px;
+          height: 50px;
           border-radius: 50%;
+          border: 2px solid var(--primary);
           display: flex;
           align-items: center;
           justify-content: center;
-          background: var(--text);
-          color: var(--background);
-          border: none;
+          background: transparent;
+          color: var(--primary);
           cursor: pointer;
+          transition: all 0.2s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+          outline: none !important;
+          -webkit-tap-highlight-color: transparent;
         }
+        .play-btn:focus { outline: none !important; }
         .play-btn:hover {
-          transform: scale(1.05);
+          transform: scale(1.1);
+          background: rgba(29, 185, 84, 0.1);
+          box-shadow: 0 0 15px rgba(29, 185, 84, 0.3);
         }
         .play-icon-offset { margin-left: 4px; }
         .loading-spinner {
@@ -512,6 +518,18 @@ const PlayerBar = () => {
           border-radius: 2px;
         }
         .text-primary { color: var(--primary); }
+        @media (max-width: 1024px) and (orientation: landscape) {
+          .player-grid {
+            grid-template-columns: 200px 1fr 200px;
+            padding: 0 20px;
+            height: 70px;
+          }
+          .play-btn { width: 44px; height: 44px; }
+          .track-info-mini h3 { font-size: 13px; }
+          .extra-controls { gap: 16px; }
+          .feature-btn { padding: 4px 8px; font-size: 10px; }
+        }
+
         @media (max-width: 768px) {
           .player-bar {
             grid-template-columns: 1fr auto;

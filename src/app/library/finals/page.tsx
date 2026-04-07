@@ -43,6 +43,8 @@ const FinalsPage = () => {
     variant: 'primary'
   });
   const [duplicateCheck, setDuplicateCheck] = useState<{ trackId: string, folderId: string, style: string } | null>(null);
+  const [isEditMode, setIsEditMode] = useState(false);
+  const [longPressTimeout, setLongPressTimeout] = useState<NodeJS.Timeout | null>(null);
 
   const selectedFolder = finalFolders.find(f => f.id === selectedFolderId);
   const selectedFolderTracks = selectedFolderId ? getTracksForFinalFolder(selectedFolderId) : [];
@@ -55,8 +57,10 @@ const FinalsPage = () => {
     const selectedTracks: Track[] = [];
 
     order.forEach((styleName: string) => {
+      // Find tracks of this style in the general library
       const styleTracks = tracks.filter((t: Track) => t.style.toLowerCase() === styleName.toLowerCase());
       if (styleTracks.length > 0) {
+        // Pick one random track for this style to build the "Final"
         const randomTrack = styleTracks[Math.floor(Math.random() * styleTracks.length)];
         selectedTracks.push(randomTrack);
       }
@@ -104,11 +108,11 @@ const FinalsPage = () => {
             <div className="simulation-actions">
               <button className="sim-btn latin glass" onClick={() => handleProgramShuffle('Latin')}>
                 <Play size={14} fill="currentColor" />
-                <span>Latin</span>
+                <span className="btn-label">Shuffle Latin</span>
               </button>
               <button className="sim-btn standard glass" onClick={() => handleProgramShuffle('Standard')}>
                 <Play size={14} fill="currentColor" />
-                <span>Standard</span>
+                <span className="btn-label">Shuffle Standard</span>
               </button>
               
               <button 
@@ -117,6 +121,12 @@ const FinalsPage = () => {
               >
                 {showFolderForm ? <span style={{fontSize: '16px'}}>✕</span> : <FolderPlus size={16} />}
               </button>
+              
+              {isEditMode && (
+                <button className="exit-edit-btn glass" onClick={() => setIsEditMode(false)}>
+                  Done
+                </button>
+              )}
 
               {showFolderForm && (
                 <div className="folder-modal-overlay animate-in-fade" onClick={() => setShowFolderForm(false)}>
@@ -148,29 +158,62 @@ const FinalsPage = () => {
 
           <div className="folders-grid">
             {finalFolders.map(folder => {
-              const count = getTracksForFinalFolder(folder.id).length;
+              const folderTracks = getTracksForFinalFolder(folder.id);
+              const count = folderTracks.length;
+              
+              const startLongPress = () => {
+                const timer = setTimeout(() => {
+                  setIsEditMode(true);
+                }, 600);
+                setLongPressTimeout(timer);
+              };
+
+              const endLongPress = () => {
+                if (longPressTimeout) {
+                  clearTimeout(longPressTimeout);
+                  setLongPressTimeout(null);
+                }
+              };
+
               return (
                 <div 
                   key={folder.id} 
-                  className={`compact-folder-card glass ${selectedFolderId === folder.id ? 'is-active' : ''}`}
-                  onClick={() => setSelectedFolderId(folder.id)}
+                  className={`compact-folder-card glass ${selectedFolderId === folder.id ? 'is-active' : ''} ${isEditMode ? 'jiggle' : ''}`}
+                  onClick={() => !isEditMode && setSelectedFolderId(folder.id)}
                   onDragOver={handleDragOver}
                   onDrop={(e) => handleDropToFolder(e, folder.id)}
+                  onMouseDown={startLongPress}
+                  onMouseUp={endLongPress}
+                  onMouseLeave={endLongPress}
+                  onTouchStart={startLongPress}
+                  onTouchEnd={endLongPress}
                 >
+                  {isEditMode && (
+                    <button className="delete-badge" onClick={(e) => {
+                      e.stopPropagation();
+                      removeFinalFolder(folder.id);
+                    }}>✕</button>
+                  )}
                   <div className="folder-info">
                     <span className="folder-name truncate">{folder.name}</span>
-                    <span className="folder-meta">{count} items</span>
+                    <div className="folder-mini-list">
+                      {folderTracks.slice(0, 3).map(t => (
+                        <span key={t.id} className="mini-track-pill">{t.style}</span>
+                      ))}
+                      {count > 3 && <span className="mini-track-pill">+{count - 3}</span>}
+                    </div>
                   </div>
-                  <button 
-                    className="quick-play-btn glass"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      const fTracks = getTracksForFinalFolder(folder.id);
-                      if (fTracks.length > 0) loadTrack(fTracks[0], false, true);
-                    }}
-                  >
-                    <Play size={16} fill="currentColor" />
-                  </button>
+                  {!isEditMode && (
+                    <button 
+                      className="quick-play-btn glass"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        if (folderTracks.length > 0) loadTrack(folderTracks[0], false, true);
+                      }}
+                    >
+                      <Play size={16} fill="currentColor" />
+                    </button>
+                  )}
                 </div>
               );
             })}
@@ -200,14 +243,33 @@ const FinalsPage = () => {
 
             <div className="detail-tracks-list">
                {selectedFolderTracks.length > 0 ? selectedFolderTracks.map((track, i) => (
-                 <div key={track.id} className="detail-track-row glass" onClick={() => loadTrack(track, false, true)}>
+                 <div 
+                   key={track.id} 
+                   className="detail-track-row glass" 
+                   draggable
+                   onDragStart={(e) => handleDragStart(e, track.id)}
+                   onDragOver={handleDragOver}
+                   onDrop={(e) => {
+                     e.preventDefault();
+                     const dragId = e.dataTransfer.getData('trackId');
+                     if (dragId && dragId !== track.id) {
+                       reorderFinalTracks(
+                         selectedFolderTracks.findIndex(t => t.id === dragId),
+                         i,
+                         selectedFolderId // Pass folderId to scope the reorder
+                       );
+                     }
+                   }}
+                   onClick={() => loadTrack(track, false, true)}
+                 >
+                   <GripVertical size={14} className="drag-handle text-secondary" />
                    <span className="idx">{i+1}</span>
                    <div className="meta">
                       <span className="name truncate">{track.title}</span>
                       <span className="style-badge">{track.style}</span>
                    </div>
                    <div className="actions">
-                     <span className="duration text-secondary text-xs">{getMPMFromBPM(Number(track.bpm), track.style)} MPM</span>
+                     <span className="duration text-secondary">{getMPMFromBPM(Number(track.bpm), track.style)} MPM</span>
                    </div>
                  </div>
                )) : <p className="empty-msg">Drag tracks from the queue below to add to this folder.</p>}
@@ -304,21 +366,64 @@ const FinalsPage = () => {
         }
 
         .compact-folder-card {
-          padding: 16px;
-          border-radius: 20px;
+          padding: 12px 16px;
+          border-radius: 12px;
           display: flex;
           align-items: center;
           justify-content: space-between;
-          border: 1px solid rgba(255, 255, 255, 0.05);
+          position: relative;
           cursor: pointer;
           transition: all 0.2s;
+          border: 1px solid rgba(255, 255, 255, 0.05);
         }
+
+        .jiggle {
+          animation: jiggle 0.3s infinite ease-in-out;
+        }
+
+        @keyframes jiggle {
+          0% { transform: rotate(-1deg); }
+          50% { transform: rotate(1deg); }
+          100% { transform: rotate(-1deg); }
+        }
+
+        .delete-badge {
+          position: absolute;
+          top: -8px;
+          left: -8px;
+          width: 24px;
+          height: 24px;
+          background: #ff4b2b;
+          color: white;
+          border-radius: 50%;
+          border: 2px solid #121212;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          font-size: 12px;
+          font-weight: 900;
+          cursor: pointer;
+          z-index: 10;
+        }
+
         .compact-folder-card:hover { transform: translateY(-2px); border-color: rgba(29, 185, 84, 0.3); }
         .compact-folder-card.is-active { border-color: var(--primary); background: rgba(29, 185, 84, 0.05); }
 
-        .folder-info { display: flex; flex-direction: column; gap: 2px; }
-        .folder-name { font-weight: 800; font-size: 14px; color: white; }
-        .folder-meta { font-size: 10px; opacity: 0.4; font-weight: 600; }
+        .folder-mini-list { 
+          display: flex; 
+          flex-wrap: wrap; 
+          gap: 3px; 
+          margin-top: 4px;
+        }
+        .mini-track-pill { 
+          font-size: 8px; 
+          padding: 1px 5px; 
+          border-radius: 6px; 
+          background: rgba(29, 185, 84, 0.15); 
+          color: var(--primary);
+          white-space: nowrap;
+          border: 1px solid rgba(29, 185, 84, 0.1);
+        }
 
         .quick-play-btn {
           width: 32px; height: 32px; border-radius: 50%; display: flex; align-items: center; justify-content: center;
@@ -373,11 +478,12 @@ const FinalsPage = () => {
         .final-row {
           display: flex; align-items: center; justify-content: space-between; padding: 12px 20px;
           border-radius: 16px; background: rgba(255,255,255,0.02); cursor: grab; transition: all 0.2s;
+          font-size: 11px !important;
         }
+        .final-row .title { font-weight: 700; font-size: 11px; }
+        .final-row .style-mini { font-size: 9px; padding: 2px 6px; font-weight: 800; text-transform: uppercase; color: var(--primary); }
         .track-info { display: flex; align-items: center; gap: 16px; flex: 1; }
         .track-meta { display: flex; align-items: center; gap: 12px; flex: 1; }
-        .track-meta .title { font-weight: 700; color: white; font-size: 14px; }
-        .style-mini { font-size: 10px; font-weight: 800; text-transform: uppercase; color: var(--primary); }
 
         .simulation-actions { display: flex; gap: 8px; align-items: center; }
         .sim-btn {

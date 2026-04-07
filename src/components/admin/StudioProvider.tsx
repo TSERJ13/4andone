@@ -83,7 +83,7 @@ interface StudioContextType {
   removeFinalFolder: (id: string) => Promise<void>;
   addToFinal: (track: Track) => void;
   removeFromFinal: (id: string) => void;
-  reorderFinalTracks: (startIndex: number, endIndex: number) => void;
+  reorderFinalTracks: (startIndex: number, endIndex: number, folderId?: string | null) => void;
   setFinalTracks: (tracks: Track[]) => void;
   
   // Advanced Reordering
@@ -348,7 +348,17 @@ export const StudioProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     setFinalTracks(prev => prev.filter(t => t.id !== id));
   };
 
-  const reorderFinalTracks = async (startIndex: number, endIndex: number) => {
+  const reorderFinalTracks = async (startIndex: number, endIndex: number, folderId?: string | null) => {
+    if (folderId) {
+      setFinalFolderTracksMap(prev => {
+        const result = Array.from(prev[folderId] || []);
+        const [removed] = result.splice(startIndex, 1);
+        result.splice(endIndex, 0, removed);
+        return { ...prev, [folderId]: result };
+      });
+      return;
+    }
+
     setFinalTracks(prev => {
       const result = Array.from(prev);
       const [removed] = result.splice(startIndex, 1);

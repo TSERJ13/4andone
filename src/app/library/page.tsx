@@ -178,13 +178,13 @@ export default function LibraryPage() {
         }
 
         .collection-card {
-          padding: 32px 28px;
+          padding: 24px 20px; /* Reduced from 32px 28px */
           border-radius: 16px;
           display: flex;
           align-items: center;
-          gap: 24px;
+          gap: 16px; /* Reduced from 24px */
           width: fit-content;
-          min-width: 220px;
+          min-width: 180px; /* Reduced from 220px */
           position: relative;
           overflow: hidden;
           transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
@@ -197,11 +197,11 @@ export default function LibraryPage() {
         .card-visual { position: absolute; inset: 0; pointer-events: none; }
 
         .card-icon { 
-          width: 64px; height: 64px; border-radius: 24px; display: flex; align-items: center; justify-content: center; 
+          width: 52px; height: 52px; border-radius: 18px; display: flex; align-items: center; justify-content: center; 
           background: rgba(0, 0, 0, 0.2); backdrop-filter: blur(8px);
         }
 
-        .card-info h3 { font-size: 1.4rem; font-weight: 800; margin-bottom: 4px; letter-spacing: -0.5px; }
+        .card-info h3 { font-size: 1.2rem; font-weight: 800; margin-bottom: 4px; letter-spacing: -0.5px; }
         .card-info .meta { font-size: 12px; opacity: 0.8; }
 
         .playlist-rows {
@@ -280,9 +280,23 @@ export default function LibraryPage() {
         }
 
         @media (max-width: 768px) {
+          .library-container {
+            padding: 16px;
+            gap: 20px;
+          }
           .collection-grid {
             grid-template-columns: 1fr;
           }
+          .collection-card {
+            padding: 16px;
+            min-width: 100%;
+          }
+          .card-icon {
+            width: 44px;
+            height: 44px;
+            border-radius: 12px;
+          }
+          .card-info h3 { font-size: 1rem; }
         }
       `}</style>
     </div>

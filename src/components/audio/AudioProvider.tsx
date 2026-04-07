@@ -52,11 +52,12 @@ export const AudioProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   const [isPauseCountdown, setIsPauseCountdown] = useState(false);
   const [pauseTime, setPauseTime] = useState(15);
 
-  const playerRef = useRef<Tone.GrainPlayer | null>(null);
+  const playerRef = useRef<Tone.GrainPlayer | Tone.Player | null>(null);
   const nativePlayerRef = useRef<HTMLAudioElement | null>(null);
   const timerRef = useRef<NodeJS.Timeout | null>(null);
   const activeBlobUrlRef = useRef<string | null>(null);
   const trackIdRef = useRef<string | null>(null);
+  const loadingTokenRef = useRef<number>(0); // Guard for race conditions
 
   // Refs to avoid circular re-renders on every tick
   const isPlayingRef = useRef(isPlaying);
@@ -97,22 +98,28 @@ export const AudioProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   }, []);
 
   const loadTrack = async (track: any, isRetry = false, forceFinalMode?: boolean) => {
+    const currentToken = ++loadingTokenRef.current;
+    
     try {
       if (forceFinalMode !== undefined) setIsFinalMode(forceFinalMode);
       if (Tone.getContext().state !== 'running') await Tone.start();
-      const output = initAudioChain();
+      
+      // Cleanup previous player immediately
+      const stopAndDispose = () => {
+        if (playerRef.current) {
+          playerRef.current.stop();
+          playerRef.current.dispose();
+          playerRef.current = null;
+        }
+        if (nativePlayerRef.current) {
+          nativePlayerRef.current.pause();
+          nativePlayerRef.current.src = "";
+          nativePlayerRef.current.load();
+          nativePlayerRef.current = null;
+        }
+      };
 
-      if (playerRef.current) {
-        playerRef.current.stop();
-        playerRef.current.dispose();
-        playerRef.current = null;
-      }
-      if (nativePlayerRef.current) {
-        nativePlayerRef.current.pause();
-        nativePlayerRef.current.src = "";
-        nativePlayerRef.current.load();
-        nativePlayerRef.current = null;
-      }
+      stopAndDispose();
 
       if (!isRetry && activeBlobUrlRef.current) {
         URL.revokeObjectURL(activeBlobUrlRef.current);
@@ -170,17 +177,26 @@ export const AudioProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         throw new Error("Missing Audio Source (File not found in storage)");
       }
 
-      // 3. SECURE LOADING: Prefer non-blob direct loading for R2 to save memory
-      // We only use Blob pre-fetch if there's a specific CORS issue, but for Tone.js signed URLs are usually fine.
-      // However, on mobile, we want to watch out for OOM (Out of Memory) crashes.
-      
       const setupPlayer = (url: string, type: 'grain' | 'standard' | 'native' = 'grain') => {
         return new Promise<Tone.GrainPlayer | Tone.Player | HTMLAudioElement>((resolve, reject) => {
+          // Check if we are still the relevant loading operation
+          if (currentToken !== loadingTokenRef.current) {
+             reject(new Error("Loading cancelled by new request"));
+             return;
+          }
+
           console.log(`[AUDIO-LOAD] Attempting ${type} playback for: ${track.title}`);
           
           if (type === 'native') {
             const audio = new Audio(url);
-            audio.oncanplay = () => resolve(audio);
+            audio.oncanplay = () => {
+              if (currentToken !== loadingTokenRef.current) {
+                audio.pause();
+                audio.src = "";
+                return;
+              }
+              resolve(audio);
+            };
             audio.onerror = (e) => {
               console.error(`[PLAYER-NATIVE-FAIL] URL: ${url}`, e);
               reject(new Error(`Unreachable: ${url.substring(0, 40)}...`));
@@ -198,7 +214,13 @@ export const AudioProvider: React.FC<{ children: React.ReactNode }> = ({ childre
                 url,
                 overlap: 0.2,   // SM-OPT: Smoother crossovers
                 grainSize: 0.2, // SM-OPT: Stable size
-                onload: () => resolve(player),
+                onload: () => {
+                  if (currentToken !== loadingTokenRef.current) {
+                    player.dispose();
+                    return;
+                  }
+                  resolve(player);
+                },
                 onerror: (e) => {
                   console.warn(`[PLAYER-GRAIN-FAIL] URL: ${url}`, e);
                   reject(new Error(`Decode Failed: ${url.substring(0, 40)}...`));
@@ -207,7 +229,13 @@ export const AudioProvider: React.FC<{ children: React.ReactNode }> = ({ childre
               })
             : new Tone.Player({
                 url,
-                onload: () => resolve(player),
+                onload: () => {
+                  if (currentToken !== loadingTokenRef.current) {
+                    player.dispose();
+                    return;
+                  }
+                  resolve(player);
+                },
                 onerror: (e) => {
                   console.error(`[PLAYER-STANDARD-FAIL] URL: ${url}`, e);
                   reject(new Error(`Standard Load Failed: ${url.substring(0, 40)}...`));
@@ -215,6 +243,7 @@ export const AudioProvider: React.FC<{ children: React.ReactNode }> = ({ childre
                 loop: !isFinalMode
               });
           
+          const output = initAudioChain();
           player.connect(output);
           playerRef.current = player as any;
         });

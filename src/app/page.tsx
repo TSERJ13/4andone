@@ -7,6 +7,7 @@ import { useAudio } from '@/components/audio/AudioProvider';
 import { useStudio } from '@/components/admin/StudioProvider';
 import { formatDuration } from '@/utils/format';
 import { getMPMFromBPM } from '@/utils/audio';
+import { UserBadge } from '@/components/auth/UserBadge';
 
 export default function Home() {
   const {
@@ -35,6 +36,9 @@ export default function Home() {
     <div className="home-container">
       {/* ... Hero Section remains ... */}
       <header className="hero-section glass">
+        <div className="hero-top-right">
+          <UserBadge />
+        </div>
         <div className="hero-content">
           <span className="badge">Featured: Final Mode Practice</span>
           <h1 className="hero-title text-gradient">Master Your Dance<br />with AI & BPM Control</h1>
@@ -183,6 +187,15 @@ export default function Home() {
           margin-bottom: 48px;
           background: linear-gradient(135deg, rgba(29, 185, 84, 0.1) 0%, rgba(0, 0, 0, 0) 100%);
           gap: 40px;
+          position: relative;
+          overflow: hidden;
+        }
+
+        .hero-top-right {
+          position: absolute;
+          top: 24px;
+          right: 24px;
+          z-index: 10;
         }
 
         .hero-content {
@@ -207,6 +220,7 @@ export default function Home() {
           line-height: 1.1;
           margin-bottom: 24px;
           letter-spacing: -2px;
+          max-width: 90%;
         }
 
         .hero-desc {
@@ -437,28 +451,44 @@ export default function Home() {
           color: white;
         }
 
+        @media (max-width: 1024px) and (orientation: landscape) {
+          .hero-section {
+            padding: 32px;
+            margin-bottom: 24px;
+            max-height: 300px; /* Prevent over-stretch on tablets */
+          }
+          .hero-title { font-size: 2.2rem; }
+          .hero-visual { width: 100px; height: 100px; }
+        }
+
         @media (max-width: 768px) {
           .hero-section {
             flex-direction: column;
-            padding: 20px 16px; /* Further reduced from 24px */
+            padding: 18px 14px; /* Reduced by ~10-15% */
             text-align: center;
             align-items: center;
-            gap: 12px; /* Further reduced */
-            margin-bottom: 20px;
+            gap: 10px; 
+            margin-bottom: 18px;
             border-radius: 16px;
           }
 
+          .hero-top-right {
+             top: 12px;
+             right: 12px;
+          }
+
           .hero-title {
-            font-size: 1.6rem; /* Slightly reduced */
+            font-size: 1.45rem; /* Reduced by ~10% */
             letter-spacing: -0.5px;
             margin-bottom: 6px;
+            max-width: 100%;
           }
 
           .hero-desc {
-            font-size: 0.85rem;
-            margin-bottom: 12px;
-            line-height: 1.3;
-            max-width: 300px;
+            font-size: 0.75rem; /* Reduced */
+            margin-bottom: 10px;
+            line-height: 1.25;
+            max-width: 280px;
             display: -webkit-box;
             -webkit-line-clamp: 2;
             -webkit-box-orient: vertical;
@@ -466,32 +496,32 @@ export default function Home() {
           }
 
           .badge {
-            font-size: 9px;
-            padding: 2px 8px;
-            margin-bottom: 8px;
+            font-size: 8px; /* Reduced */
+            padding: 2px 6px;
+            margin-bottom: 6px;
           }
 
           .hero-actions {
-            flex-direction: row; /* Keep buttons side-by-side on small screens if possible */
+            flex-direction: row; 
             width: 100%;
             gap: 6px;
           }
 
           .btn-primary, .btn-outline {
             flex: 1;
-            padding: 10px;
-            font-size: 0.8rem;
+            padding: 9px; /* Reduced */
+            font-size: 0.75rem; /* Reduced */
           }
 
           .hero-visual {
             order: -1;
-            width: 60px; /* Further reduced */
-            height: 60px;
+            width: 50px; /* Reduced */
+            height: 50px;
           }
 
           .visual-circle {
-            width: 60px;
-            height: 60px;
+            width: 50px;
+            height: 50px;
           }
 
           .section-title {

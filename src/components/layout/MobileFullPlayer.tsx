@@ -192,12 +192,15 @@ const MobileFullPlayer = ({ isOpen, onClose }: MobileFullPlayerProps) => {
             <SkipBack size={32} fill="currentColor" />
           </button>
           
-          <button 
-            className="play-pause-btn" 
-            onClick={togglePlay}
-          >
-            {isPlaying ? <Pause size={42} fill="currentColor" /> : <Play size={42} fill="currentColor" style={{marginLeft: 4}} />}
-          </button>
+          <div className="main-play-btn glass" onClick={togglePlay}>
+            {!isLoaded ? (
+              <div className="loading-spinner"></div>
+            ) : isPlaying ? (
+              <Pause fill="currentColor" size={32} />
+            ) : (
+              <Play fill="currentColor" size={32} className="play-icon-offset" />
+            )}
+          </div>
 
           <button className="secondary-ctrl" onClick={() => seekRelative(10)}>
             <SkipForward size={32} fill="currentColor" />
@@ -343,7 +346,20 @@ const MobileFullPlayer = ({ isOpen, onClose }: MobileFullPlayerProps) => {
         }
         .meta-btn.favorite.active { color: #f43f5e; }
         .meta-btn.flag.active { color: #1db954; }
-        .meta-btn:active { transform: scale(1.2); }
+        .main-play-btn:active { transform: scale(0.95); }
+        .play-icon-offset { transform: translateX(2px); }
+
+        .loading-spinner {
+          width: 32px;
+          height: 32px;
+          border: 3px solid rgba(255,255,255,0.1);
+          border-top-color: var(--primary);
+          border-radius: 50%;
+          animation: spin 0.8s linear infinite;
+        }
+        @keyframes spin {
+          to { transform: rotate(360deg); }
+        }
 
         .title { font-size: 22px; font-weight: 900; margin-bottom: 2px; }
         .artist { font-size: 15px; color: #b3b3b3; font-weight: 500; margin-bottom: 8px; }

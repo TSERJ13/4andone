@@ -30,6 +30,7 @@ export const viewport: Viewport = {
 };
 
 import { StudioProvider } from "@/components/admin/StudioProvider";
+import { AuthProvider } from "@/context/AuthContext";
 
 export default function RootLayout({
   children,
@@ -39,13 +40,15 @@ export default function RootLayout({
   return (
     <html lang="ka" suppressHydrationWarning>
       <body className={inter.className}>
-        <StudioProvider>
-          <AudioProvider>
-            <AppLayout>
-              {children}
-            </AppLayout>
-          </AudioProvider>
-        </StudioProvider>
+        <AuthProvider>
+          <StudioProvider>
+            <AudioProvider>
+              <AppLayout>
+                {children}
+              </AppLayout>
+            </AudioProvider>
+          </StudioProvider>
+        </AuthProvider>
     </body>
   </html>
 );

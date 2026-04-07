@@ -9,10 +9,10 @@ const inter = Inter({ subsets: ['latin'] });
 export const metadata: Metadata = {
   title: "4and.one Music | Dancesport Player",
   description: "The ultimate training tool for dancers and coaches. BPM control, AI vocal removal, and professional practice modes.",
-  manifest: "/manifest.json?v=2",
+  manifest: "/manifest.json?v=3",
   icons: {
-    icon: "/icon.png?v=2",
-    apple: "/apple-icon.png?v=2",
+    icon: "/icon.png?v=3",
+    apple: "/apple-icon.png?v=3",
   },
   appleWebApp: {
     capable: true,

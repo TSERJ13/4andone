@@ -199,7 +199,7 @@ const PlayerBar = () => {
 
       <div className="extra-controls">
         <div className="special-features">
-          <div className="speed-container">
+          <div className="speed-control-wrapper">
             <button 
               className={`feature-btn glass ${bpm !== 100 ? 'active' : ''}`}
               onClick={() => setShowSpeedSelector(!showSpeedSelector)}
@@ -437,17 +437,21 @@ const PlayerBar = () => {
         .speed-container {
           position: relative;
         }
-        .speed-container :global(.speed-container) {
+        .speed-control-wrapper {
+          position: relative;
+        }
+
+        .speed-control-wrapper :global(.speed-container) {
           position: absolute;
           bottom: calc(100% + 20px);
           right: 0;
           width: 280px;
           background: #121212;
-          border: 1px solid rgba(29, 185, 84, 0.3);
+          border: 1px solid rgba(29, 185, 84, 0.4);
           border-radius: 16px;
           padding: 24px;
-          box-shadow: 0 20px 50px rgba(0,0,0,0.8);
-          z-index: 9999;
+          box-shadow: 0 20px 50px rgba(0,0,0,1);
+          z-index: 10000;
           animation: slideUpPopup 0.2s cubic-bezier(0.4, 0, 0.2, 1);
         }
         @keyframes slideUpPopup {

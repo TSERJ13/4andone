@@ -67,7 +67,9 @@ export async function POST(request: NextRequest) {
 
     // Generate a signed upload URL (valid for 10 minutes)
     const signedUrl = await getSignedUrl(s3Client, command, { expiresIn: 600 });
-    const publicUrl = `${process.env.NEXT_PUBLIC_R2_PUBLIC_URL}/${safeFileName}`;
+    
+    const R2_DOMAIN = process.env.NEXT_PUBLIC_R2_PUBLIC_URL || 'https://pub-c41b1121b311f676bdc114d143278d18.r2.dev';
+    const publicUrl = `${R2_DOMAIN}/${safeFileName}`;
 
     console.log(`[R2-POST-SIGN] Generated upload URL for: ${safeFileName}`);
 

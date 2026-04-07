@@ -183,7 +183,10 @@ const AddTrackModal = ({ isOpen, onClose, onAdd, initialData }: AddTrackModalPro
         }
 
         console.log(`[UPLOAD-DONE] Storage success. Public URL: ${publicUrl}`);
-        audioUrl = publicUrl;
+        
+        // Final safety check for undefined
+        const R2_FALLBACK = 'https://pub-c41b1121b311f676bdc114d143278d18.r2.dev';
+        audioUrl = publicUrl.includes('undefined') ? publicUrl.replace('undefined', R2_FALLBACK) : publicUrl;
 
         // 3. Calculate Duration (only if new file)
         duration = await new Promise((resolve) => {

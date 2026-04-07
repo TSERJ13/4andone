@@ -126,6 +126,14 @@ export const AudioProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       trackIdRef.current = track.id;
 
       let finalUrl = track.audioUrl;
+      
+      // AUTO-HEALING: If track was saved with "undefined/" due to missing env vars
+      if (finalUrl?.startsWith('undefined/')) {
+        const R2_FALLBACK = 'https://pub-c41b1121b311f676bdc114d143278d18.r2.dev';
+        finalUrl = finalUrl.replace('undefined/', `${R2_FALLBACK}/`);
+        console.log(`[AUDIO-HEAL] Repaired broken URL: ${finalUrl}`);
+      }
+
       const isRemote = finalUrl?.startsWith('http');
 
       // 1. If REMOTE (Cloudflare R2), we need a temporary signed URL for playback

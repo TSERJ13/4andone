@@ -1,16 +1,42 @@
 "use client";
 
 import React, { useState } from 'react';
-import { Search, Music2, Disc, Play } from 'lucide-react';
+import { Search, Music2, Disc, Play, Heart, Flag } from 'lucide-react';
 import { useStudio } from '@/components/admin/StudioProvider';
 import { useAudio } from '@/components/audio/AudioProvider';
+import { useAuth } from '@/context/AuthContext';
 import Link from 'next/link';
 import { getMPMFromBPM } from '@/utils/audio';
+import ConfirmModal from '@/components/admin/ConfirmModal';
 
 const SearchPage = () => {
   const [query, setQuery] = useState('');
-  const { tracks, styles } = useStudio();
+  const { tracks, styles, finalTracks, addToFinal, removeFromFinal, toggleFavorite } = useStudio();
   const { isPlaying, title: playingTitle, loadTrack } = useAudio();
+  const { isAuthenticated, setIsAuthModalOpen } = useAuth();
+
+  const [infoModal, setInfoModal] = useState({
+    isOpen: false,
+    title: '',
+    message: '',
+    onConfirm: () => {}
+  });
+
+  const checkAuthAndExecute = (action: () => void, actionName: string) => {
+    if (!isAuthenticated) {
+      setInfoModal({
+        isOpen: true,
+        title: 'Authentication Required',
+        message: `Please log in with Telegram to ${actionName} and sync your studio data.`,
+        onConfirm: () => {
+          setInfoModal(prev => ({ ...prev, isOpen: false }));
+          setIsAuthModalOpen(true);
+        }
+      });
+      return;
+    }
+    action();
+  };
 
   const stylesWithTracks = styles.filter(s => 
     tracks.some(t => t.style?.toLowerCase() === s.title.toLowerCase())
@@ -93,7 +119,27 @@ const SearchPage = () => {
                     </p>
                   </div>
                   <div className="track-action">
-                    <div className="play-btn-small glass">
+                    <button
+                      className={`feature-icon ${track.isFavorite ? 'active-heart' : ''}`}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        checkAuthAndExecute(() => toggleFavorite?.(track.id), 'favorite tracks');
+                      }}
+                    >
+                      <Heart size={18} fill={track.isFavorite ? "#ff4b2b" : "none"} color={track.isFavorite ? "#ff4b2b" : "currentColor"} />
+                    </button>
+                    <button
+                      className={`feature-icon ${finalTracks.some(t => t.id === track.id) ? 'active-flag' : ''}`}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        checkAuthAndExecute(() => {
+                          finalTracks.some(t => t.id === track.id) ? removeFromFinal(track.id) : addToFinal(track);
+                        }, 'manage competition folders');
+                      }}
+                    >
+                      <Flag size={18} fill={finalTracks.some(t => t.id === track.id) ? "currentColor" : "none"} />
+                    </button>
+                    <div className="play-btn-small glass" onClick={(e) => { e.stopPropagation(); loadTrack(track); }}>
                       {isPlaying && playingTitle === track.title ? (
                          <div className="playing-bars"><span></span><span></span><span></span></div>
                       ) : <Play size={16} fill="currentColor" />}
@@ -107,6 +153,16 @@ const SearchPage = () => {
           </div>
         )}
       </div>
+
+      <ConfirmModal 
+        isOpen={infoModal.isOpen}
+        title={infoModal.title}
+        message={infoModal.message}
+        confirmText="Login Now"
+        variant="primary"
+        onClose={() => setInfoModal(prev => ({ ...prev, isOpen: false }))}
+        onConfirm={infoModal.onConfirm}
+      />
 
       <style jsx>{`
         .search-page { padding: 40px; padding-bottom: 120px; }
@@ -176,6 +232,22 @@ const SearchPage = () => {
         .track-title { font-weight: 700; font-size: 16px; margin: 0; }
         .track-artist { font-size: 13px; margin: 4px 0 0; opacity: 0.6; }
         
+        .track-action { display: flex; align-items: center; gap: 16px; }
+        
+        .feature-icon {
+          color: #555;
+          transition: all 0.2s;
+          background: transparent;
+          border: none;
+          cursor: pointer;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+        }
+        .feature-icon:hover { color: white; transform: scale(1.1); }
+        .feature-icon.active-flag { color: #1db954; }
+        .feature-icon.active-heart { color: #ff4b2b; }
+
         .play-btn-small {
           width: 44px; height: 44px; border-radius: 50%;
           display: flex; align-items: center; justify-content: center;

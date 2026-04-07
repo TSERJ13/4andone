@@ -2,15 +2,42 @@
 
 import React from 'react';
 import { useParams } from 'next/navigation';
-import { Play, Clock, Music2, MoreHorizontal, Heart, Disc, ListMusic, GripVertical } from 'lucide-react';
-import { useStudio } from '@/components/admin/StudioProvider';
+import { Play, Clock, Music2, MoreHorizontal, Heart, Disc, ListMusic, GripVertical, Flag } from 'lucide-react';
+import { useStudio, Track } from '@/components/admin/StudioProvider';
 import { useAudio } from '@/components/audio/AudioProvider';
+import { useAuth } from '@/context/AuthContext';
 import { formatDuration } from '@/utils/format';
+import ConfirmModal from '@/components/admin/ConfirmModal';
+import { useState } from 'react';
 
 const PlaylistPage = () => {
   const { id } = useParams();
-  const { tracks, folders, reorderGlobalTracks } = useStudio();
+  const { tracks, folders, reorderGlobalTracks, finalTracks, addToFinal, removeFromFinal, toggleFavorite } = useStudio();
   const { isPlaying, title: playingTitle, loadTrack } = useAudio();
+  const { isAuthenticated, setIsAuthModalOpen } = useAuth();
+
+  const [infoModal, setInfoModal] = useState({
+    isOpen: false,
+    title: '',
+    message: '',
+    onConfirm: () => {}
+  });
+
+  const checkAuthAndExecute = (action: () => void, actionName: string) => {
+    if (!isAuthenticated) {
+      setInfoModal({
+        isOpen: true,
+        title: 'Authentication Required',
+        message: `Please log in with Telegram to ${actionName} and sync your studio data.`,
+        onConfirm: () => {
+          setInfoModal(prev => ({ ...prev, isOpen: false }));
+          setIsAuthModalOpen(true);
+        }
+      });
+      return;
+    }
+    action();
+  };
 
   const handleDragStart = (e: React.DragEvent, index: number) => {
     e.dataTransfer.setData('draggedIndex', index.toString());
@@ -92,10 +119,42 @@ const PlaylistPage = () => {
               <span className="track-name">{track.title}</span>
               <span className="track-artist text-secondary">{track.artist}</span>
             </div>
+            <div className="track-actions">
+              <button
+                className={`feature-icon ${track.isFavorite ? 'active-heart' : ''}`}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  checkAuthAndExecute(() => toggleFavorite?.(track.id), 'favorite tracks');
+                }}
+              >
+                <Heart size={16} fill={track.isFavorite ? "#ff4b2b" : "none"} color={track.isFavorite ? "#ff4b2b" : "currentColor"} />
+              </button>
+              <button
+                className={`feature-icon ${finalTracks.some(t => t.id === track.id) ? 'active-flag' : ''}`}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  checkAuthAndExecute(() => {
+                    finalTracks.some(t => t.id === track.id) ? removeFromFinal(track.id) : addToFinal(track);
+                  }, 'manage competition folders');
+                }}
+              >
+                <Flag size={16} fill={finalTracks.some(t => t.id === track.id) ? "currentColor" : "none"} />
+              </button>
+            </div>
             <div className="track-duration text-secondary">{formatDuration(track.duration)}</div>
           </div>
         ))}
       </div>
+
+      <ConfirmModal 
+        isOpen={infoModal.isOpen}
+        title={infoModal.title}
+        message={infoModal.message}
+        confirmText="Login Now"
+        variant="primary"
+        onClose={() => setInfoModal(prev => ({ ...prev, isOpen: false }))}
+        onConfirm={infoModal.onConfirm}
+      />
 
       <style jsx>{`
         .playlist-page { padding: 24px; }
@@ -116,9 +175,10 @@ const PlaylistPage = () => {
         .play-btn-large:hover { transform: scale(1.05); }
         .tracks-list { display: flex; flex-direction: column; gap: 8px; }
         .track-row { 
-          display: grid; grid-template-columns: 60px 1fr 100px; 
-          padding: 12px 16px; border-radius: 8px; cursor: pointer;
+          display: grid; grid-template-columns: 60px 1fr auto 100px; 
+          padding: 12px 24px; border-radius: 12px; cursor: pointer;
           transition: background 0.2s;
+          align-items: center;
         }
         .track-num-wrap { display: flex; align-items: center; gap: 8px; color: #b3b3b3; }
         .drag-handle { opacity: 0; transition: opacity 0.2s; }
@@ -130,6 +190,22 @@ const PlaylistPage = () => {
         .track-info { display: flex; flex-direction: column; }
         .track-name { font-weight: 600; font-size: 15px; }
         .track-artist { font-size: 13px; }
+        
+        .track-actions { display: flex; align-items: center; gap: 16px; margin-right: 16px; }
+        .feature-icon {
+          color: #555;
+          transition: all 0.2s;
+          background: transparent;
+          border: none;
+          cursor: pointer;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+        }
+        .feature-icon:hover { color: white; transform: scale(1.1); }
+        .feature-icon.active-flag { color: #1db954; }
+        .feature-icon.active-heart { color: #ff4b2b; }
+
         .track-duration { display: flex; align-items: center; justify-content: flex-end; font-size: 14px; }
         .text-secondary { color: var(--text-secondary); }
         .text-primary { color: var(--primary); }

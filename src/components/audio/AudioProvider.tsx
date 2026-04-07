@@ -58,6 +58,9 @@ export const AudioProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   const activeBlobUrlRef = useRef<string | null>(null);
   const trackIdRef = useRef<string | null>(null);
   const loadingTokenRef = useRef<number>(0); // Guard for race conditions
+  const limiterRef = useRef<Tone.Limiter | null>(null);
+  const compressorRef = useRef<Tone.Compressor | null>(null);
+  const masterGainRef = useRef<Tone.Gain | null>(null);
 
   // Refs to avoid circular re-renders on every tick
   const isPlayingRef = useRef(isPlaying);
@@ -69,8 +72,31 @@ export const AudioProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   // Removed AI worker and processing hooks
 
   const initAudioChain = () => {
-    const gain = new Tone.Gain(volume).toDestination();
-    return gain;
+    if (!masterGainRef.current) {
+      // 1. Create Main Gain for volume control
+      masterGainRef.current = new Tone.Gain(volume);
+      
+      // 2. Create Compressor to stabilize dynamics and prevent 'pumping'
+      compressorRef.current = new Tone.Compressor({
+        threshold: -12,
+        ratio: 1.5, // Low ratio for natural smoothing
+        attack: 0.003,
+        release: 0.25
+      });
+
+      // 3. Create Limiter to prevent clipping (crucial for time-stretching stabilization)
+      limiterRef.current = new Tone.Limiter(-1.5);
+
+      // 4. Connect Chain: [Player] -> MasterGain -> Compressor -> Limiter -> Destination
+      masterGainRef.current.connect(compressorRef.current);
+      compressorRef.current.connect(limiterRef.current);
+      limiterRef.current.toDestination();
+    }
+    
+    // Smoothly apply volume changes to the persistent node
+    masterGainRef.current.gain.rampTo(volume, 0.05);
+    
+    return masterGainRef.current;
   };
 
   useEffect(() => {
@@ -212,8 +238,8 @@ export const AudioProvider: React.FC<{ children: React.ReactNode }> = ({ childre
           const player = type === 'grain' 
             ? new Tone.GrainPlayer({
                 url,
-                overlap: 0.2,   // SM-OPT: Smoother crossovers
-                grainSize: 0.2, // SM-OPT: Stable size
+                overlap: 0.08,   // SM-OPT: Reduced for significantly fewer phasing artifacts
+                grainSize: 0.12, // SM-OPT: Better for music preservation in high-tempo Latin tracks
                 onload: () => {
                   if (currentToken !== loadingTokenRef.current) {
                     player.dispose();
@@ -457,10 +483,8 @@ export const AudioProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   const setVolume = (v: number) => {
     setVolumeState(v);
     localStorage.setItem('4andone-volume', v.toString());
-    if (playerRef.current) {
-      // In Tone.js GrainPlayer doesn't have direct volume, it's connected to Gain
-      // We'd need to keep a ref to the Gain node or just dispose/reload.
-      // For now, let's just update the state and it will apply on next track.
+    if (masterGainRef.current) {
+      masterGainRef.current.gain.rampTo(v, 0.1);
     }
   };
 

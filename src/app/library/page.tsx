@@ -13,13 +13,40 @@ import {
   Play
 } from 'lucide-react';
 import Link from 'next/link';
-import { useStudio } from '@/components/admin/StudioProvider';
+import { useStudio, Track } from '@/components/admin/StudioProvider';
 import { useAudio } from '@/components/audio/AudioProvider';
+import { useAuth } from '@/context/AuthContext';
 import { getMPMFromBPM } from '@/utils/audio';
+import ConfirmModal from '@/components/admin/ConfirmModal';
+import { useState } from 'react';
 
 export default function LibraryPage() {
-  const { tracks, folders, finalTracks, addToFinal, removeFromFinal } = useStudio();
+  const { tracks, folders, finalTracks, addToFinal, removeFromFinal, toggleFavorite } = useStudio();
   const { isPlaying, title: playingTitle, loadTrack } = useAudio();
+  const { isAuthenticated, setIsAuthModalOpen } = useAuth();
+
+  const [infoModal, setInfoModal] = useState({
+    isOpen: false,
+    title: '',
+    message: '',
+    onConfirm: () => {}
+  });
+
+  const checkAuthAndExecute = (action: () => void, actionName: string) => {
+    if (!isAuthenticated) {
+      setInfoModal({
+        isOpen: true,
+        title: 'Authentication Required',
+        message: `Please log in with Telegram to ${actionName} and sync your studio data.`,
+        onConfirm: () => {
+          setInfoModal(prev => ({ ...prev, isOpen: false }));
+          setIsAuthModalOpen(true);
+        }
+      });
+      return;
+    }
+    action();
+  };
 
   return (
     <div className="library-container animate-in">
@@ -102,10 +129,21 @@ export default function LibraryPage() {
               </div>
               <div className="row-actions">
                 <button
+                  className={`feature-icon ${track.isFavorite ? 'active-heart' : ''}`}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    checkAuthAndExecute(() => toggleFavorite?.(track.id), 'favorite tracks');
+                  }}
+                >
+                  <Heart size={18} fill={track.isFavorite ? "#ff4b2b" : "none"} color={track.isFavorite ? "#ff4b2b" : "currentColor"} />
+                </button>
+                <button
                   className={`feature-icon ${finalTracks.some(t => t.id === track.id) ? 'active-flag' : ''}`}
                   onClick={(e) => {
                     e.stopPropagation();
-                    finalTracks.some(t => t.id === track.id) ? removeFromFinal(track.id) : addToFinal(track);
+                    checkAuthAndExecute(() => {
+                      finalTracks.some(t => t.id === track.id) ? removeFromFinal(track.id) : addToFinal(track);
+                    }, 'manage competition folders');
                   }}
                 >
                   <Flag size={18} fill={finalTracks.some(t => t.id === track.id) ? "currentColor" : "none"} />
@@ -126,6 +164,16 @@ export default function LibraryPage() {
           )}
         </div>
       </section>
+
+      <ConfirmModal 
+        isOpen={infoModal.isOpen}
+        title={infoModal.title}
+        message={infoModal.message}
+        confirmText="Login Now"
+        variant="primary"
+        onClose={() => setInfoModal(prev => ({ ...prev, isOpen: false }))}
+        onConfirm={infoModal.onConfirm}
+      />
 
       <style jsx>{`
         .library-container {
@@ -246,8 +294,13 @@ export default function LibraryPage() {
         .feature-icon {
           color: #555;
           transition: all 0.2s;
+          background: transparent;
+          border: none;
+          cursor: pointer;
         }
+        .feature-icon:hover { color: white; transform: scale(1.1); }
         .feature-icon.active-flag { color: #1db954; }
+        .feature-icon.active-heart { color: #ff4b2b; }
 
         .play-row-btn {
           width: 36px;

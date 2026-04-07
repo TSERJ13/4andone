@@ -91,13 +91,13 @@ export const UserBadge: React.FC<{ textColor?: string }> = ({ textColor = 'white
           top: calc(100% + 12px);
           right: 0;
           width: 240px;
-          padding: 20px;
-          border-radius: 20px;
+          padding: 24px;
+          border-radius: 24px;
           display: flex;
           flex-direction: column;
-          gap: 16px;
-          box-shadow: 0 20px 60px rgba(0,0,0,0.6);
-          border: 1px solid rgba(255,255,255,0.1);
+          gap: 20px;
+          background: #0a0a0a;
+          box-shadow: 0 40px 100px rgba(0,0,0,0.9), 0 0 0 1px rgba(255,255,255,0.1);
           color: white;
         }
         .popup-header { display: flex; justify-content: space-between; align-items: center; }

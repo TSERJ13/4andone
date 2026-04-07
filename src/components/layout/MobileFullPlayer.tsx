@@ -53,8 +53,6 @@ const MobileFullPlayer = ({ isOpen, onClose }: MobileFullPlayerProps) => {
   const [dragProgress, setDragProgress] = useState(0);
   const progressRef = useRef<HTMLDivElement>(null);
 
-  if (!isOpen) return null;
-
   const handleSeek = (clientX: number) => {
     if (!progressRef.current || !duration) return;
     const rect = progressRef.current.getBoundingClientRect();
@@ -102,6 +100,8 @@ const MobileFullPlayer = ({ isOpen, onClose }: MobileFullPlayerProps) => {
       window.removeEventListener('touchend', handleInteractionEnd);
     };
   }, [isDragging]);
+
+  if (!isOpen) return null;
 
   const displayProgress = isDragging ? dragProgress : (currentTime / (duration || 1)) * 100;
 

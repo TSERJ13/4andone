@@ -140,7 +140,7 @@ button {
   padding: 0 8px;
   margin-top: -8px; /* Stitch to bottom */
   transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
-  overflow: hidden;
+  overflow: visible;
   opacity: 0;
   transform: translateY(20px);
   pointer-events: none;

@@ -8,18 +8,21 @@ import { TelegramLogin } from '@/components/auth/TelegramLogin';
 export const UserBadge: React.FC<{ textColor?: string }> = ({ textColor = 'white' }) => {
   const { user, logout, isAuthenticated } = useAuth();
   const [showPopup, setShowPopup] = useState(false);
+  const [showLoginPopover, setShowLoginPopover] = useState(false);
 
   return (
     <div className="user-badge-wrapper">
       {!isAuthenticated ? (
-        <div className="login-trigger">
+        <div className="login-trigger" onClick={() => setShowLoginPopover(!showLoginPopover)}>
           <div className="silhouette-wrapper glass">
             <User size={20} />
           </div>
-          <div className="login-popover glass animate-in-popup">
-             <p className="login-hint">Log in to sync your data</p>
-             <TelegramLogin />
-          </div>
+          {showLoginPopover && (
+            <div className="login-popover glass animate-in-popup" onClick={(e) => e.stopPropagation()}>
+               <p className="login-hint">Log in to sync your data</p>
+               <TelegramLogin />
+            </div>
+          )}
         </div>
       ) : (
         <div className="user-profile-trigger" onClick={() => setShowPopup(!showPopup)}>

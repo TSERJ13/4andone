@@ -442,17 +442,18 @@ const PlayerBar = () => {
         }
 
         .speed-control-wrapper :global(.speed-container) {
-          position: absolute;
-          bottom: calc(100% + 20px);
-          right: 0;
-          width: 280px;
-          background: #121212;
-          border: 1px solid rgba(29, 185, 84, 0.4);
-          border-radius: 16px;
+          position: fixed;
+          bottom: 120px;
+          right: 24px;
+          width: 320px;
+          background: rgba(18, 18, 18, 0.95);
+          backdrop-filter: blur(20px);
+          border: 1px solid rgba(29, 185, 84, 0.5);
+          border-radius: 20px;
           padding: 24px;
-          box-shadow: 0 20px 50px rgba(0,0,0,1);
-          z-index: 10000;
-          animation: slideUpPopup 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+          box-shadow: 0 40px 100px rgba(0,0,0,1);
+          z-index: 999999;
+          animation: slideUpPopup 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
         }
         @keyframes slideUpPopup {
           from { opacity: 0; transform: translateY(10px); }

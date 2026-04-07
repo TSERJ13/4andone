@@ -11,7 +11,7 @@ export const metadata: Metadata = {
   description: "The ultimate training tool for dancers and coaches. BPM control, AI vocal removal, and professional practice modes.",
   manifest: "/manifest.json",
   icons: {
-    icon: "/icon.svg",
+    icon: "/icon.png",
     apple: "/apple-icon.png",
   },
   appleWebApp: {

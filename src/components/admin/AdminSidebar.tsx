@@ -39,7 +39,6 @@ const AdminSidebar = ({ isCollapsed, onToggle }: { isCollapsed: boolean, onToggl
   return (
     <aside className={`admin-sidebar ${isCollapsed ? 'collapsed' : ''}`}>
       <div className="sidebar-header">
-        {!isCollapsed && <h2 className="brand">4AND.ONE</h2>}
         <button className="toggle-btn" onClick={onToggle}>
           {isCollapsed ? <ChevronRight size={22} /> : <ChevronLeft size={22} />}
         </button>

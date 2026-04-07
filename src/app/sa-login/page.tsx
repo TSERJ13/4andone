@@ -39,7 +39,7 @@ export default function SaLogin() {
       <div className="login-card">
         <div className="login-header">
           <h1 className="text-gradient">Admin Dashboard</h1>
-          <p className="login-subtitle">4and.one Music Studio Management</p>
+          <p className="login-subtitle">Studio Management System</p>
         </div>
 
         <form className="login-form" onSubmit={handleLogin}>
@@ -79,7 +79,7 @@ export default function SaLogin() {
         </form>
 
         <div className="login-footer">
-          <p>&copy; 2026 4and.one Music Studio. All rights reserved.</p>
+          <p>&copy; 2026 Premium Music Studio. All rights reserved.</p>
         </div>
       </div>
 

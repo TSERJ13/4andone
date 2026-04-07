@@ -336,7 +336,16 @@ export const StudioProvider: React.FC<{ children: React.ReactNode }> = ({ childr
   };
 
   const addToFinal = async (track: Track) => {
-    await supabase.from('final_tracks').insert([{ track_id: track.id, user_id: user?.id || null }]);
+    const { error } = await supabase.from('final_tracks').insert([{ 
+      track_id: track.id, 
+      user_id: user?.id || null 
+    }]);
+
+    if (error) {
+      console.error("[STUDIO-ERROR] Add to final failed:", error);
+      return;
+    }
+
     setFinalTracks(prev => {
       if (prev.find(t => t.id === track.id)) return prev;
       return [...prev, track];
@@ -368,8 +377,25 @@ export const StudioProvider: React.FC<{ children: React.ReactNode }> = ({ childr
   };
 
   const addFinalFolder = async (name: string, color: string) => {
-    const { data } = await supabase.from('final_folders').insert([{ name, color, user_id: user?.id || null }]).select();
-    if (data) setFinalFolders(prev => [...prev, data[0]]);
+    if (!isAuthenticated || !user) {
+      alert("Authentication required. Please login with Telegram first.");
+      return;
+    }
+
+    const { data, error } = await supabase
+      .from('final_folders')
+      .insert([{ name, color, user_id: user.id }])
+      .select();
+
+    if (error) {
+       console.error("[STUDIO-ERROR] addFinalFolder failed:", error);
+       alert(`Failed to create folder: ${error.message}`);
+       return;
+    }
+
+    if (data && data.length > 0) {
+      setFinalFolders(prev => [...prev, data[0]]);
+    }
   };
 
   const removeFinalFolder = async (id: string) => {

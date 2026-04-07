@@ -45,6 +45,7 @@ const FinalsPage = () => {
   const [duplicateCheck, setDuplicateCheck] = useState<{ trackId: string, folderId: string, style: string } | null>(null);
   const [isEditMode, setIsEditMode] = useState(false);
   const [longPressTimeout, setLongPressTimeout] = useState<NodeJS.Timeout | null>(null);
+  const [isCreatingFolder, setIsCreatingFolder] = useState(false);
 
   const selectedFolder = finalFolders.find(f => f.id === selectedFolderId);
   const selectedFolderTracks = selectedFolderId ? getTracksForFinalFolder(selectedFolderId) : [];
@@ -129,13 +130,21 @@ const FinalsPage = () => {
               )}
 
               {showFolderForm && (
-                <div className="folder-modal-overlay animate-in-fade" onClick={() => setShowFolderForm(false)}>
-                  <form className="folder-modal-content animate-in-popup" onClick={(e) => e.stopPropagation()} onSubmit={(e) => {
+                <div className="folder-modal-overlay animate-in-fade" onClick={() => !isCreatingFolder && setShowFolderForm(false)}>
+                  <form className="folder-modal-content animate-in-popup" onClick={(e) => e.stopPropagation()} onSubmit={async (e) => {
                     e.preventDefault();
-                    if (!newFolderName.trim()) return;
-                    addFinalFolder(newFolderName, '#1db954');
-                    setNewFolderName('');
-                    setShowFolderForm(false);
+                    if (!newFolderName.trim() || isCreatingFolder) return;
+                    
+                    setIsCreatingFolder(true);
+                    try {
+                      await addFinalFolder(newFolderName.trim(), '#1db954');
+                      setNewFolderName('');
+                      setShowFolderForm(false);
+                    } catch (err) {
+                      console.error("Folder creation error:", err);
+                    } finally {
+                      setIsCreatingFolder(false);
+                    }
                   }}>
                     <h3>New Folder</h3>
                     <input 
@@ -145,10 +154,13 @@ const FinalsPage = () => {
                       onChange={(e) => setNewFolderName(e.target.value)}
                       className="modal-t-input"
                       autoFocus
+                      disabled={isCreatingFolder}
                     />
                     <div className="modal-actions">
-                      <button type="button" className="btn-cancel" onClick={() => setShowFolderForm(false)}>Cancel</button>
-                      <button type="submit" className="btn-confirm">Create</button>
+                      <button type="button" className="btn-cancel" onClick={() => setShowFolderForm(false)} disabled={isCreatingFolder}>Cancel</button>
+                      <button type="submit" className="btn-confirm" disabled={isCreatingFolder}>
+                        {isCreatingFolder ? 'Creating...' : 'Create'}
+                      </button>
                     </div>
                   </form>
                 </div>

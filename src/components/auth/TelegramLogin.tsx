@@ -8,6 +8,8 @@ export const TelegramLogin: React.FC = () => {
   const scriptContainerRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
+    const botName = process.env.NEXT_PUBLIC_TELEGRAM_BOT_NAME || 'fourandoneauthbot';
+    
     // Define the callback function globally so Telegram can call it
     (window as any).onTelegramAuth = (user: TelegramUser) => {
       login(user);
@@ -15,7 +17,7 @@ export const TelegramLogin: React.FC = () => {
 
     const script = document.createElement('script');
     script.src = "https://telegram.org/js/telegram-widget.js?22";
-    script.setAttribute('data-telegram-login', 'fourandoneauthbot');
+    script.setAttribute('data-telegram-login', botName);
     script.setAttribute('data-size', 'medium');
     script.setAttribute('data-radius', '12');
     script.setAttribute('data-onauth', 'onTelegramAuth(user)');

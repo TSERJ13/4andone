@@ -33,15 +33,15 @@ const FinalsPage = () => {
   
   const [newFolderName, setNewFolderName] = useState('');
   const [showFolderForm, setShowFolderForm] = useState(false);
-  const [infoModal, setInfoModal] = useState<{ isOpen: boolean, title: string, message: string, variant: 'primary' | 'danger' }>({
+  const [infoModal, setInfoModal] = useState<{ isOpen: boolean, title: string, message: string, variant: 'primary' | 'danger', onConfirm?: () => void }>({
     isOpen: false,
     title: '',
     message: '',
     variant: 'primary'
   });
+  const [duplicateCheck, setDuplicateCheck] = useState<{ trackId: string, folderId: string, style: string } | null>(null);
 
   const handleProgramShuffle = (programName: 'Latin' | 'Standard') => {
-    // Official Orders
     const latinOrder = ["Samba", "Cha-cha-cha", "Rumba", "Paso Doble", "Jive"];
     const standardOrder = ["Slow Waltz", "Tango", "Viennese Waltz", "Slow Foxtrot", "Quickstep"];
     
@@ -69,7 +69,7 @@ const FinalsPage = () => {
       setInfoModal({
         isOpen: true,
         title: 'Empty Program',
-        message: `No tracks found for ${programName} program! Please upload tracks for these dances first.`,
+        message: `No tracks found for ${programName} program!`,
         variant: 'danger'
       });
     }
@@ -87,7 +87,18 @@ const FinalsPage = () => {
     e.preventDefault();
     const trackId = e.dataTransfer.getData('trackId');
     if (!trackId) return;
-    await addTrackToFinalFolder(trackId, folderId);
+    
+    const result = await addTrackToFinalFolder(trackId, folderId);
+    
+    if (!result.success && result.duplicate) {
+      setDuplicateCheck({ trackId, folderId, style: result.duplicate });
+    }
+  };
+
+  const confirmDuplicateAdd = async () => {
+    if (!duplicateCheck) return;
+    await addTrackToFinalFolder(duplicateCheck.trackId, duplicateCheck.folderId, true);
+    setDuplicateCheck(null);
   };
 
   return (
@@ -148,37 +159,49 @@ const FinalsPage = () => {
               return (
                 <div 
                   key={folder.id} 
-                  className="final-folder-block glass scrollable-folder"
+                  className="final-folder-block glass"
                   onDragOver={handleDragOver}
                   onDrop={(e) => handleDropToFolder(e, folder.id)}
                 >
-                  <button className="del-btn-top-right glass" onClick={() => removeFinalFolder(folder.id)}>
-                    <Trash2 size={14} />
-                  </button>
-
                   <div className="folder-header">
-                    <h3>{folder.name}</h3>
+                    <div className="header-info">
+                      <h3 className="folder-name">{folder.name}</h3>
+                      <span className="track-count">{folderTracks.length} tracks</span>
+                    </div>
+                    <div className="folder-actions">
+                      <button 
+                        className="folder-play-btn glass" 
+                        onClick={() => folderTracks.length > 0 && loadTrack(folderTracks[0], false, true)}
+                        title="Play All"
+                      >
+                        <Play size={16} fill="currentColor" />
+                      </button>
+                      <button className="folder-del-btn glass" onClick={() => removeFinalFolder(folder.id)}>
+                        <Trash2 size={16} />
+                      </button>
+                    </div>
                   </div>
                   
-                  <div className="folder-tracks-list">
-                    {folderTracks.length > 0 ? folderTracks.map((track: Track, i: number) => (
-                      <div key={track.id} className="mini-track-row glass" onClick={() => loadTrack(track, false, true)}>
-                        <span className="idx">{i+1}</span>
-                        <GripVertical size={14} className="drag-handle-icon" />
-                        <span className="track-name truncate">{track.title}</span>
-                        <span className="track-artist truncate">
-                          {track.artist}
-                          {track.bpm && (
-                            <span className="text-primary font-bold ml-1">({getMPMFromBPM(Number(track.bpm), track.style)})</span>
-                          )}
-                        </span>
-                      </div>
-                    )) : (
-                      <div className="drop-placeholder">Drop tracks here</div>
+                  <div className="folder-tracks-list-compact">
+                    {folderTracks.length > 0 ? (
+                      <>
+                        {folderTracks.slice(0, 3).map((track: Track, i: number) => (
+                          <div key={track.id} className="mini-track-row glass" onClick={() => loadTrack(track, false, true)}>
+                            <span className="idx">{i+1}</span>
+                            <span className="track-name truncate">{track.title}</span>
+                            <span className="track-style-badge">{track.style}</span>
+                          </div>
+                        ))}
+                        {folderTracks.length > 3 && (
+                          <div className="more-indicator">+ {folderTracks.length - 3} more tracks</div>
+                        )}
+                      </>
+                    ) : (
+                      <div className="drop-placeholder">Drop tracks here to sort</div>
                     )}
                   </div>
                 </div>
-              )
+              );
             })}
           </div>
         </section>
@@ -217,7 +240,7 @@ const FinalsPage = () => {
                     <span className="artist truncate">
                       {track.artist}
                       {track.bpm && (
-                        <span className="text-primary font-bold ml-1">• {getMPMFromBPM(Number(track.bpm), track.style)} Bars/Min</span>
+                        <span className="text-primary font-bold ml-1 info-mobile-hide">• {getMPMFromBPM(Number(track.bpm), track.style)} Bars/Min</span>
                       )}
                     </span>
                     <span className="style-mini">{track.style}</span>
@@ -237,7 +260,7 @@ const FinalsPage = () => {
       <ConfirmModal 
         isOpen={infoModal.isOpen}
         onClose={() => setInfoModal({ ...infoModal, isOpen: false })}
-        onConfirm={() => setInfoModal({ ...infoModal, isOpen: false })}
+        onConfirm={infoModal.onConfirm || (() => setInfoModal({ ...infoModal, isOpen: false }))}
         title={infoModal.title}
         message={infoModal.message}
         confirmText="Got it"
@@ -245,64 +268,27 @@ const FinalsPage = () => {
         showCancel={false}
       />
 
+      <ConfirmModal 
+        isOpen={!!duplicateCheck}
+        onClose={() => setDuplicateCheck(null)}
+        onConfirm={confirmDuplicateAdd}
+        title="Duplicate Style"
+        message={`This folder already contains a ${duplicateCheck?.style}. Do you still want to add another one?`}
+        confirmText="Add Anyway"
+        variant="primary"
+      />
+
       <style jsx>{`
-        .finals-hero {
-          display: flex;
-          justify-content: space-between;
-          align-items: center;
-          margin-bottom: 40px;
-        }
-
-        .badge {
-          display: inline-block;
-          padding: 6px 12px;
-          border-radius: 30px;
-          font-size: 10px;
-          font-weight: 800;
-          text-transform: uppercase;
-          letter-spacing: 1px;
-          color: var(--primary, #1db954);
-          margin-bottom: 8px;
-        }
-
-        .hero-content h1 {
-          font-size: 2.5rem;
-          font-weight: 900;
-          margin-bottom: 8px;
-          line-height: 1.1;
-        }
-
-        .description {
-          max-width: 600px;
-          font-size: 1rem;
-          color: #71717a;
-        }
-
-        .finals-sectors-unified {
+        .finals-container {
           display: flex;
           flex-direction: column;
-          gap: 40px;
+          gap: 32px;
+          padding: 32px;
+          padding-bottom: 140px;
         }
 
         .folders-section { display: flex; flex-direction: column; gap: 24px; }
-        .header-left { display: flex; align-items: center; gap: 16px; }
         .section-header { display: flex; justify-content: space-between; align-items: center; }
-        .section-header h2 { font-size: 1.5rem; font-weight: 800; }
-
-        .btn-create-folder {
-          padding: 12px 24px;
-          border-radius: 14px;
-          font-weight: 800;
-          color: var(--primary);
-          border: 1px solid rgba(29, 185, 84, 0.2);
-          cursor: pointer;
-          transition: all 0.3s;
-          font-size: 14px;
-        }
-        .btn-create-folder:hover {
-          background: rgba(29, 185, 84, 0.1);
-          transform: translateY(-2px);
-        }
 
         .folders-grid {
           display: grid;
@@ -310,316 +296,102 @@ const FinalsPage = () => {
           gap: 20px;
         }
 
-        .simulation-actions {
-          display: flex;
-          gap: 12px;
-          justify-content: flex-start;
-          flex-wrap: wrap;
-        }
-
-        .add-folder-icon-btn {
-          width: 36px;
-          height: 36px;
-          border-radius: 10px;
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          color: var(--primary);
-          border: 1px solid rgba(29, 185, 84, 0.2);
-          cursor: pointer;
-          transition: all 0.2s;
-        }
-        .add-folder-icon-btn:hover { background: rgba(29, 185, 84, 0.1); transform: scale(1.05); }
-
-        .sim-btn {
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          gap: 10px;
-          padding: 8px 16px;
-          border-radius: 12px;
-          background: rgba(255, 255, 255, 0.03);
-          border: 1px solid rgba(255,255,255,0.08);
-          font-weight: 800;
-          font-size: 12px;
-          cursor: pointer;
-          transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-        }
-        .sim-btn.latin { 
-          color: #ff4b2b;
-          border-color: rgba(255, 75, 43, 0.2);
-        }
-        .sim-btn.latin:hover {
-          background: rgba(255, 75, 43, 0.1);
-        }
-        .sim-btn.standard { 
-          color: #00d2ff;
-          border-color: rgba(0, 210, 255, 0.2);
-        }
-        .sim-btn.standard:hover {
-          background: rgba(0, 210, 255, 0.1);
-        }
-        .sim-btn:hover { 
-          transform: translateY(-2px);
-        }
-        .sim-btn:active { transform: scale(0.98); }
-
-        @media (max-width: 768px) {
-          .section-header {
-            flex-direction: column;
-            align-items: flex-start;
-            gap: 16px;
-          }
-          .simulation-actions {
-            width: 100%;
-            display: flex;
-            flex-wrap: nowrap;
-            gap: 8px;
-            overflow-x: auto;
-            padding-bottom: 4px;
-            scrollbar-width: none;
-          }
-          .simulation-actions::-webkit-scrollbar { display: none; }
-          
-          .sim-btn {
-            padding: 10px 12px;
-            font-size: 11px;
-            white-space: nowrap;
-            flex-shrink: 0;
-          }
-          .add-folder-icon-btn {
-            width: 40px;
-            height: 40px;
-            flex-shrink: 0;
-          }
-        }
-
-        /* TRACK QUEUE SECTION */
-        .track-queue-section {
-          padding: 32px;
-          border-radius: 32px;
-          background: rgba(255,255,255,0.01);
+        .final-folder-block {
+          padding: 24px;
+          border-radius: 24px;
           display: flex;
           flex-direction: column;
-          gap: 24px;
+          gap: 20px;
+          border: 1px solid rgba(255, 255, 255, 0.05);
+          transition: all 0.3s ease;
         }
+        .final-folder-block:hover { transform: translateY(-4px); border-color: rgba(29, 185, 84, 0.2); }
+
+        .folder-header { display: flex; justify-content: space-between; align-items: center; }
+        .header-info { display: flex; flex-direction: column; gap: 2px; }
+        .folder-name { font-size: 1.1rem !important; font-weight: 800; color: white; }
+        .track-count { font-size: 11px; opacity: 0.5; font-weight: 600; }
         
-        .queue-header h3 { font-size: 1.5rem; font-weight: 800; }
+        .folder-actions { display: flex; gap: 8px; }
+        .folder-play-btn, .folder-del-btn {
+          width: 36px; height: 36px; border-radius: 10px; display: flex; align-items: center; justify-content: center;
+          cursor: pointer; transition: all 0.2s; border: 1px solid rgba(255,255,255,0.05);
+        }
+        .folder-play-btn { color: var(--primary); }
+        .folder-play-btn:hover { background: rgba(29, 185, 84, 0.1); transform: scale(1.05); }
+        .folder-del-btn:hover { color: #ef4444; background: rgba(239, 68, 68, 0.1); }
 
-        .queue-list {
-          display: grid;
-          grid-template-columns: 1fr;
-          gap: 8px;
+        .folder-tracks-list-compact { display: flex; flex-direction: column; gap: 8px; }
+        .mini-track-row { 
+          padding: 10px 14px; border-radius: 12px; display: flex; align-items: center; gap: 10px; font-size: 13px;
+          background: rgba(255,255,255,0.02); cursor: pointer;
+        }
+        .mini-track-row:hover { background: rgba(255,255,255,0.06); }
+        .track-name { font-weight: 600; flex: 1; color: #eee; }
+        .track-style-badge { 
+          font-size: 9px; font-weight: 800; text-transform: uppercase; padding: 2px 6px; 
+          border-radius: 4px; background: rgba(29, 185, 84, 0.1); color: var(--primary);
+        }
+        .more-indicator { font-size: 11px; opacity: 0.4; text-align: center; margin-top: 4px; font-weight: 600; }
+
+        .simulation-actions { display: flex; gap: 12px; align-items: center; }
+        .sim-btn {
+          display: flex; align-items: center; gap: 8px; padding: 10px 16px; border-radius: 12px;
+          font-weight: 800; font-size: 12px; cursor: pointer; transition: all 0.2s;
+        }
+        .sim-btn.latin { color: #ff4b2b; border: 1px solid rgba(255, 75, 43, 0.2); }
+        .sim-btn.standard { color: #00d2ff; border: 1px solid rgba(0, 210, 255, 0.2); }
+        .sim-btn:hover { transform: translateY(-2px); background: rgba(255,255,255,0.05); }
+
+        .add-folder-icon-btn {
+          width: 36px; height: 36px; border-radius: 10px; display: flex; align-items: center; justify-content: center;
+          color: var(--primary); border: 1px solid rgba(29, 185, 84, 0.2); cursor: pointer;
         }
 
+        .track-queue-section { padding: 24px; border-radius: 24px; background: rgba(255,255,255,0.01); }
+        .queue-header h3 { font-size: 1.2rem; font-weight: 800; margin-bottom: 4px; }
+        .queue-list { display: flex; flex-direction: column; gap: 8px; margin-top: 20px; }
+        
         .final-row {
-          display: flex;
-          align-items: center;
-          justify-content: space-between;
-          padding: 14px 24px;
-          border-radius: 16px;
-          cursor: grab;
-          transition: all 0.2s;
+          display: flex; align-items: center; justify-content: space-between; padding: 12px 20px;
+          border-radius: 16px; background: rgba(255,255,255,0.02); cursor: grab; transition: all 0.2s;
         }
         .final-row:active { cursor: grabbing; }
         .final-row:hover { background: rgba(255,255,255,0.05); }
+        .final-row.is-playing { border: 1px solid var(--primary); background: rgba(29, 185, 84, 0.05); }
 
-        .track-info { display: flex; align-items: center; gap: 20px; }
-        .track-meta { display: flex; align-items: center; gap: 16px; flex: 1; }
-        .style-mini { 
-          font-size: 10px; 
-          font-weight: 800; 
-          text-transform: uppercase; 
-          background: rgba(29, 185, 84, 0.1); 
-          color: var(--primary); 
-          padding: 2px 8px; 
-          border-radius: 4px;
-        }
+        .track-info { display: flex; align-items: center; gap: 16px; flex: 1; }
+        .track-meta { display: flex; align-items: center; gap: 12px; flex: 1; }
+        .track-meta .title { font-weight: 700; color: white; }
+        .track-meta .artist { font-size: 11px; opacity: 0.5; display: flex; align-items: center; gap: 8px; }
+        .style-mini { font-size: 10px; font-weight: 800; text-transform: uppercase; color: var(--primary); }
 
-        .finals-sectors {
-          display: grid;
-          grid-template-columns: repeat(auto-fill, minmax(340px, 1fr));
-          gap: 32px;
-        }
-
-        .final-folder-block {
-          padding: 32px;
-          border-radius: 32px;
-          display: flex;
-          flex-direction: column;
-          gap: 24px;
-        }
-
-        .folder-header h3 { font-size: 1.5rem; font-weight: 900; }
-        .folder-actions { display: flex; gap: 12px; align-items: center; }
-        
-        .shuffle-btn { 
-          font-size: 12px; 
-          padding: 6px 16px; 
-          border-radius: 30px; 
-          font-weight: 800; 
-          color: var(--primary, #1db954);
-          background: rgba(255,255,255,0.05);
-          border: none;
-          cursor: pointer;
-        }
-
-        .mini-track-row {
-          display: flex;
-          align-items: center;
-          gap: 12px;
-          padding: 12px 16px;
-          border-radius: 16px;
-          cursor: pointer;
-          transition: all 0.2s;
-        }
-
-        .mini-track-row:hover {
-          background: rgba(255,255,255,0.08);
-          transform: translateX(4px);
-        }
-
-        .track-name { font-weight: 700; flex: 1; }
-        .track-artist { font-size: 11px; opacity: 0.5; }
-
-        .btn-create-folder {
-          padding: 12px 24px;
-          border-radius: 30px;
-          font-weight: 800;
-          background: var(--primary, #1db954);
-          color: black;
-          border: none;
-          cursor: pointer;
-          transition: all 0.3s;
-        }
-
-        .btn-create-folder:hover {
-          transform: scale(1.05);
-          box-shadow: 0 8px 24px rgba(29, 185, 84, 0.4);
-        }
-
-        .unassigned-block {
-          border: 2px dashed rgba(255,255,255,0.1);
-        }
-
-        .final-row {
-          display: flex;
-          align-items: center;
-          justify-content: space-between;
-          padding: 12px 16px;
-          border-radius: 12px;
-          margin-bottom: 8px;
-          cursor: pointer;
-        }
-
-        .is-playing {
-          background: rgba(29, 185, 84, 0.1);
-          border: 1px solid rgba(29, 185, 84, 0.3);
-        }
-
-        .empty-msg { color: #71717a; padding: 20px; text-align: center; font-size: 14px; }
-        
-        .folder-modal-overlay {
-          position: fixed;
-          inset: 0;
-          background: rgba(0, 0, 0, 0.6);
-          backdrop-filter: blur(8px);
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          z-index: 1000;
-        }
-        .folder-modal-content {
-          background: #121212;
-          padding: 40px;
-          border-radius: 28px;
-          border: 1px solid rgba(255, 255, 255, 0.1);
-          width: 100%;
-          max-width: 440px;
-          display: flex;
-          flex-direction: column;
-          gap: 24px;
-          box-shadow: 0 20px 50px rgba(0,0,0,0.5);
-          margin: 20px;
-        }
-        .folder-modal-content h3 { font-size: 20px; font-weight: 800; }
-        .modal-t-input {
-          background: rgba(255, 255, 255, 0.05);
-          border: 1px solid rgba(255, 255, 255, 0.1);
-          border-radius: 12px;
-          padding: 16px;
-          color: white;
-          font-size: 16px;
-          outline: none;
-        }
-        .modal-t-input:focus { border-color: var(--primary); }
-        .modal-actions { display: flex; gap: 12px; justify-content: flex-end; }
-        .btn-cancel { background: transparent; color: #71717a; border: none; font-weight: 700; cursor: pointer; padding: 12px; }
-        .btn-confirm { 
-          background: var(--primary, #1db954); 
-          color: black; 
-          font-weight: 800; 
-          padding: 12px 24px; 
-          border-radius: 12px; 
-          border: none; 
-          cursor: pointer; 
-        }
-
-        .animate-in-fade { animation: fadeIn 0.3s ease-out; }
-        .animate-in-popup { animation: popupFade 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275); }
-        @keyframes popupFade { from { opacity: 0; transform: scale(0.9); } to { opacity: 1; transform: scale(1); } }
-        @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
-
-        .final-folder-block {
-          padding: 32px;
-          border-radius: 32px;
-          display: flex;
-          flex-direction: column;
-          gap: 24px;
-          position: relative;
-        }
-
-        .del-btn-top-right {
-          position: absolute;
-          top: 20px;
-          right: 20px;
-          width: 32px;
-          height: 32px;
-          border-radius: 50%;
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          color: #71717a;
-          background: rgba(255, 255, 255, 0.03);
-          border: 1px solid rgba(255, 255, 255, 0.05);
-          cursor: pointer;
-          transition: all 0.2s;
-          z-index: 10;
-        }
-        .del-btn-top-right:hover { color: #ff4b2b; background: rgba(255, 75, 43, 0.1); }
+        .drop-placeholder { padding: 30px; text-align: center; border: 2px dashed rgba(255,255,255,0.05); border-radius: 16px; font-size: 13px; opacity: 0.3; }
 
         @media (max-width: 768px) {
-          .final-folder-block {
-            padding: 20px;
-            border-radius: 24px;
-            gap: 16px;
-          }
-          .folder-header h3 { font-size: 1.2rem; }
-          .folder-modal-content {
-            padding: 24px;
-            gap: 20px;
-          }
-          .del-btn-top-right {
-            top: 12px;
-            right: 12px;
-          }
+          .finals-container { padding: 16px; padding-bottom: 120px; }
+          .folders-grid { grid-template-columns: 1fr; }
+          .track-meta .artist { display: none; }
+          .track-meta .info-mobile-hide { display: none !important; }
+          .final-row { padding: 12px 16px; }
+          .sim-btn span { display: none; }
+          .sim-btn { padding: 10px; }
         }
 
-        @media (max-width: 1024px) {
-          .finals-hero { flex-direction: column; align-items: flex-start; gap: 24px; }
-          .hero-content h1 { font-size: 2.5rem; }
-          .simulation-grid { grid-template-columns: 1fr; }
+        .folder-modal-overlay {
+          position: fixed; inset: 0; background: rgba(0,0,0,0.8); backdrop-filter: blur(10px);
+          display: flex; align-items: center; justify-content: center; z-index: 1000;
         }
+        .folder-modal-content {
+          background: #111; padding: 32px; border-radius: 24px; border: 1px solid #222;
+          width: 90%; max-width: 400px; display: flex; flex-direction: column; gap: 20px;
+        }
+        .modal-t-input {
+          background: #1a1a1a; border: 1px solid #333; border-radius: 12px; padding: 14px; color: white; outline: none;
+        }
+        .modal-actions { display: flex; gap: 12px; justify-content: flex-end; }
+        .btn-confirm { background: var(--primary); color: black; font-weight: 800; padding: 10px 20px; border-radius: 10px; border: none; cursor: pointer; }
+        .btn-cancel { background: transparent; color: #555; border: none; font-weight: 700; cursor: pointer; }
       `}</style>
     </div>
   );

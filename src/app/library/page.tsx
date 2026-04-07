@@ -27,10 +27,7 @@ export default function LibraryPage() {
       <header className="library-header">
         <h1>Your Library</h1>
         <div className="header-actions">
-          <Link href="/admin/library" className="btn-secondary glass">
-            <Plus size={18} />
-            Manage Assets
-          </Link>
+          {/* Manage Assets removed as per request */}
         </div>
       </header>
 

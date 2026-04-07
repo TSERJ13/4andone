@@ -87,7 +87,7 @@ interface StudioContextType {
   
   // Advanced Reordering
   reorderGlobalTracks: (startIndex: number, endIndex: number) => Promise<void>;
-  addTrackToFinalFolder: (trackId: string, finalFolderId: string) => Promise<void>;
+  addTrackToFinalFolder: (trackId: string, finalFolderId: string, force?: boolean) => Promise<{ success: boolean; duplicate?: string }>;
   getTracksForFinalFolder: (finalFolderId: string) => Track[];
   
   stats: {
@@ -96,6 +96,21 @@ interface StudioContextType {
     activeUsers: number;
   };
 }
+
+const DANCE_ORDER: Record<string, number> = {
+  // Standard (European)
+  'Slow Waltz': 1,
+  'Tango': 2,
+  'Viennese Waltz': 3,
+  'Slow Foxtrot': 4,
+  'Quickstep': 5,
+  // Latin
+  'Samba': 6,
+  'Cha-cha-cha': 7,
+  'Rumba': 8,
+  'Paso Doble': 9,
+  'Jive': 10
+};
 
 const StudioContext = createContext<StudioContextType | undefined>(undefined);
 
@@ -327,21 +342,46 @@ export const StudioProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     setFinalFolders(prev => prev.filter(f => f.id !== id));
   };
 
-  const addTrackToFinalFolder = async (trackId: string, finalFolderId: string) => {
-    // Current count to set order
-    const currentTracks = finalFolderTracksMap[finalFolderId] || [];
-    if (currentTracks.includes(trackId)) return;
+  const addTrackToFinalFolder = async (trackId: string, finalFolderId: string, force = false): Promise<{ success: boolean; duplicate?: string }> => {
+    const track = tracks.find(t => t.id === trackId);
+    if (!track) return { success: false };
 
+    const currentTracks = getTracksForFinalFolder(finalFolderId);
+    
+    // Check for duplicate style
+    if (!force && currentTracks.some(t => t.style === track.style)) {
+      return { success: false, duplicate: track.style };
+    }
+
+    // Add to DB
     await supabase.from('final_folder_tracks').insert([{
       final_folder_id: finalFolderId,
       track_id: trackId,
       order: currentTracks.length
     }]);
 
-    setFinalFolderTracksMap(prev => ({
-      ...prev,
-      [finalFolderId]: [...(prev[finalFolderId] || []), trackId]
-    }));
+    // Update Local Map
+    setFinalFolderTracksMap(prev => {
+      const newIds = [...(prev[finalFolderId] || []), trackId];
+      
+      // AUTO-SORT: Apply competition sequence logic
+      const sortedIds = newIds
+        .map(id => tracks.find(t => t.id === id))
+        .filter(Boolean)
+        .sort((a, b) => {
+          const orderA = DANCE_ORDER[a!.style] || 999;
+          const orderB = DANCE_ORDER[b!.style] || 999;
+          return orderA - orderB;
+        })
+        .map(t => t!.id);
+
+      return {
+        ...prev,
+        [finalFolderId]: sortedIds
+      };
+    });
+
+    return { success: true };
   };
 
   const getTracksForFinalFolder = (finalFolderId: string) => {

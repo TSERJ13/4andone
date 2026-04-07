@@ -1,7 +1,8 @@
 "use client";
 
-import React, { createContext, useContext, useState, useEffect } from 'react';
+import React, { createContext, useContext, useState, useEffect, useMemo } from 'react';
 import { supabase } from '@/utils/supabase';
+import { useAuth } from '@/context/AuthContext';
 
 export interface Style {
   id: string;
@@ -115,6 +116,7 @@ const DANCE_ORDER: Record<string, number> = {
 const StudioContext = createContext<StudioContextType | undefined>(undefined);
 
 export const StudioProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
+  const { user, isAuthenticated } = useAuth();
   const [tracks, setTracks] = useState<Track[]>([]);
   const [folders, setFolders] = useState<Folder[]>([]);
   const [styles, setStyles] = useState<Style[]>([]);
@@ -127,8 +129,30 @@ export const StudioProvider: React.FC<{ children: React.ReactNode }> = ({ childr
   // Load from Supabase and Subscribe to Real-Time Updates
   useEffect(() => {
     const fetchData = async () => {
-      // Fetch Tracks
+      // 1. Fetch Global Tracks (Shared for now)
       const { data: tracksData } = await supabase.from('tracks').select('*').order('created_at', { ascending: false });
+      
+      // 2. Fetch User Specific Collections
+      let foldersData = [];
+      let finalFoldersData = [];
+      let favoritesData: string[] = [];
+
+      if (isAuthenticated && user) {
+        const { data: fData } = await supabase.from('folders').select('*').eq('user_id', user.id).order('name');
+        if (fData) foldersData = fData;
+
+        const { data: ffData } = await supabase.from('final_folders').select('*').eq('user_id', user.id);
+        if (ffData) finalFoldersData = ffData;
+        
+        // Final Tracks Queue
+        const { data: ftData } = await supabase.from('final_tracks').select('track_id').eq('user_id', user.id);
+        if (ftData) {
+           const ftIds = ftData.map(f => f.track_id);
+           const ftTracks = tracksData?.filter(t => ftIds.includes(t.id)) || [];
+           setFinalTracks(ftTracks);
+        }
+      }
+
       if (tracksData) {
         setTracks(tracksData.map(t => ({
           ...t,
@@ -141,8 +165,8 @@ export const StudioProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       }
 
       // Fetch Folders, Styles, Tags (same as before)
-      const { data: foldersData } = await supabase.from('folders').select('*').order('name');
-      if (foldersData) setFolders(foldersData);
+      setFolders(foldersData);
+      setFinalFolders(finalFoldersData);
 
       const { data: stylesData } = await supabase.from('styles').select('*').order('order');
       if (stylesData) setStyles(stylesData);
@@ -253,7 +277,8 @@ export const StudioProvider: React.FC<{ children: React.ReactNode }> = ({ childr
   };
 
   const addFolder = async (name: string, color: string) => {
-    const { data } = await supabase.from('folders').insert([{ name, color }]).select();
+    const folderObj = { name, color, user_id: user?.id || null };
+    const { data } = await supabase.from('folders').insert([folderObj]).select();
     if (data) setFolders(prev => [...prev, data[0]]);
   };
 
@@ -311,7 +336,7 @@ export const StudioProvider: React.FC<{ children: React.ReactNode }> = ({ childr
   };
 
   const addToFinal = async (track: Track) => {
-    await supabase.from('final_tracks').insert([{ track_id: track.id }]);
+    await supabase.from('final_tracks').insert([{ track_id: track.id, user_id: user?.id || null }]);
     setFinalTracks(prev => {
       if (prev.find(t => t.id === track.id)) return prev;
       return [...prev, track];
@@ -333,7 +358,7 @@ export const StudioProvider: React.FC<{ children: React.ReactNode }> = ({ childr
   };
 
   const addFinalFolder = async (name: string, color: string) => {
-    const { data } = await supabase.from('final_folders').insert([{ name, color }]).select();
+    const { data } = await supabase.from('final_folders').insert([{ name, color, user_id: user?.id || null }]).select();
     if (data) setFinalFolders(prev => [...prev, data[0]]);
   };
 

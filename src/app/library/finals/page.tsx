@@ -8,7 +8,9 @@ import {
   GripVertical,
   Music2,
   Disc,
-  FolderPlus
+  FolderPlus,
+  ChevronLeft,
+  Settings
 } from 'lucide-react';
 import { useAudio } from '@/components/audio/AudioProvider';
 import { useStudio, Track } from '@/components/admin/StudioProvider';
@@ -31,6 +33,7 @@ const FinalsPage = () => {
   } = useStudio();
   const { loadTrack, isPlaying, title: playingTitle } = useAudio();
   
+  const [selectedFolderId, setSelectedFolderId] = useState<string | null>(null);
   const [newFolderName, setNewFolderName] = useState('');
   const [showFolderForm, setShowFolderForm] = useState(false);
   const [infoModal, setInfoModal] = useState<{ isOpen: boolean, title: string, message: string, variant: 'primary' | 'danger', onConfirm?: () => void }>({
@@ -40,6 +43,9 @@ const FinalsPage = () => {
     variant: 'primary'
   });
   const [duplicateCheck, setDuplicateCheck] = useState<{ trackId: string, folderId: string, style: string } | null>(null);
+
+  const selectedFolder = finalFolders.find(f => f.id === selectedFolderId);
+  const selectedFolderTracks = selectedFolderId ? getTracksForFinalFolder(selectedFolderId) : [];
 
   const handleProgramShuffle = (programName: 'Latin' | 'Standard') => {
     const latinOrder = ["Samba", "Cha-cha-cha", "Rumba", "Paso Doble", "Jive"];
@@ -59,19 +65,6 @@ const FinalsPage = () => {
     if (selectedTracks.length > 0) {
       setFinalTracks(selectedTracks);
       loadTrack(selectedTracks[0], false, true);
-      setInfoModal({
-        isOpen: true,
-        title: 'Simulation Started!',
-        message: `${programName} Program Sequence: ${selectedTracks.map((t: Track) => t.title).join(' → ')}`,
-        variant: 'primary'
-      });
-    } else {
-      setInfoModal({
-        isOpen: true,
-        title: 'Empty Program',
-        message: `No tracks found for ${programName} program!`,
-        variant: 'danger'
-      });
     }
   };
 
@@ -103,26 +96,26 @@ const FinalsPage = () => {
 
   return (
     <div className="finals-container animate-in">
-      <div className="finals-sectors-unified animate-in" style={{ marginTop: '40px' }}>
+      <div className="finals-sectors-unified animate-in" style={{ marginTop: '20px' }}>
 
         <section className="folders-section">
           <header className="section-header">
-            <div className="simulation-actions" style={{ position: 'relative' }}>
+            <h3>Comp. Folders</h3>
+            <div className="simulation-actions">
               <button className="sim-btn latin glass" onClick={() => handleProgramShuffle('Latin')}>
-                <Play size={16} fill="currentColor" />
-                <span>Shuffle Latin</span>
+                <Play size={14} fill="currentColor" />
+                <span>Latin</span>
               </button>
               <button className="sim-btn standard glass" onClick={() => handleProgramShuffle('Standard')}>
-                <Play size={16} fill="currentColor" />
-                <span>Shuffle Standard</span>
+                <Play size={14} fill="currentColor" />
+                <span>Standard</span>
               </button>
               
               <button 
                 className="add-folder-icon-btn glass"
                 onClick={() => setShowFolderForm(!showFolderForm)}
-                title="Create New Folder"
               >
-                {showFolderForm ? <span style={{fontSize: '18px'}}>✕</span> : <FolderPlus size={18} />}
+                {showFolderForm ? <span style={{fontSize: '16px'}}>✕</span> : <FolderPlus size={16} />}
               </button>
 
               {showFolderForm && (
@@ -134,10 +127,10 @@ const FinalsPage = () => {
                     setNewFolderName('');
                     setShowFolderForm(false);
                   }}>
-                    <h3>Create New Folder</h3>
+                    <h3>New Folder</h3>
                     <input 
                       type="text" 
-                      placeholder="Folder Name (e.g. WDSF Latin Final)" 
+                      placeholder="e.g. WDSF Final" 
                       value={newFolderName}
                       onChange={(e) => setNewFolderName(e.target.value)}
                       className="modal-t-input"
@@ -145,7 +138,7 @@ const FinalsPage = () => {
                     />
                     <div className="modal-actions">
                       <button type="button" className="btn-cancel" onClick={() => setShowFolderForm(false)}>Cancel</button>
-                      <button type="submit" className="btn-confirm">Create Folder</button>
+                      <button type="submit" className="btn-confirm">Create</button>
                     </div>
                   </form>
                 </div>
@@ -155,64 +148,80 @@ const FinalsPage = () => {
 
           <div className="folders-grid">
             {finalFolders.map(folder => {
-              const folderTracks = getTracksForFinalFolder(folder.id);
+              const count = getTracksForFinalFolder(folder.id).length;
               return (
                 <div 
                   key={folder.id} 
-                  className="final-folder-block glass"
+                  className={`compact-folder-card glass ${selectedFolderId === folder.id ? 'is-active' : ''}`}
+                  onClick={() => setSelectedFolderId(folder.id)}
                   onDragOver={handleDragOver}
                   onDrop={(e) => handleDropToFolder(e, folder.id)}
                 >
-                  <div className="folder-header">
-                    <div className="header-info">
-                      <h3 className="folder-name">{folder.name}</h3>
-                      <span className="track-count">{folderTracks.length} tracks</span>
-                    </div>
-                    <div className="folder-actions">
-                      <button 
-                        className="folder-play-btn glass" 
-                        onClick={() => folderTracks.length > 0 && loadTrack(folderTracks[0], false, true)}
-                        title="Play All"
-                      >
-                        <Play size={16} fill="currentColor" />
-                      </button>
-                      <button className="folder-del-btn glass" onClick={() => removeFinalFolder(folder.id)}>
-                        <Trash2 size={16} />
-                      </button>
-                    </div>
+                  <div className="folder-info">
+                    <span className="folder-name truncate">{folder.name}</span>
+                    <span className="folder-meta">{count} items</span>
                   </div>
-                  
-                  <div className="folder-tracks-list-compact">
-                    {folderTracks.length > 0 ? (
-                      <>
-                        {folderTracks.slice(0, 3).map((track: Track, i: number) => (
-                          <div key={track.id} className="mini-track-row glass" onClick={() => loadTrack(track, false, true)}>
-                            <span className="idx">{i+1}</span>
-                            <span className="track-name truncate">{track.title}</span>
-                            <span className="track-style-badge">{track.style}</span>
-                          </div>
-                        ))}
-                        {folderTracks.length > 3 && (
-                          <div className="more-indicator">+ {folderTracks.length - 3} more tracks</div>
-                        )}
-                      </>
-                    ) : (
-                      <div className="drop-placeholder">Drop tracks here to sort</div>
-                    )}
-                  </div>
+                  <button 
+                    className="quick-play-btn glass"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      const fTracks = getTracksForFinalFolder(folder.id);
+                      if (fTracks.length > 0) loadTrack(fTracks[0], false, true);
+                    }}
+                  >
+                    <Play size={16} fill="currentColor" />
+                  </button>
                 </div>
               );
             })}
           </div>
         </section>
 
+        {selectedFolder && (
+          <section className="folder-detail-view glass animate-in-up">
+            <header className="detail-header">
+              <button className="back-btn glass" onClick={() => setSelectedFolderId(null)}>
+                <ChevronLeft size={20} />
+              </button>
+              <div className="title-area">
+                <h2>{selectedFolder.name}</h2>
+                <p>{selectedFolderTracks.length} tracks prioritized</p>
+              </div>
+              <div className="detail-actions">
+                <button className="play-all-btn" onClick={() => selectedFolderTracks.length > 0 && loadTrack(selectedFolderTracks[0], false, true)}>
+                  <Play size={18} fill="currentColor" />
+                  <span>Play Program</span>
+                </button>
+                <button className="del-folder-btn glass" onClick={() => { removeFinalFolder(selectedFolder.id); setSelectedFolderId(null); }}>
+                   <Trash2 size={18} />
+                </button>
+              </div>
+            </header>
+
+            <div className="detail-tracks-list">
+               {selectedFolderTracks.length > 0 ? selectedFolderTracks.map((track, i) => (
+                 <div key={track.id} className="detail-track-row glass" onClick={() => loadTrack(track, false, true)}>
+                   <span className="idx">{i+1}</span>
+                   <div className="meta">
+                      <span className="name truncate">{track.title}</span>
+                      <span className="style-badge">{track.style}</span>
+                   </div>
+                   <div className="actions">
+                     <span className="duration text-secondary text-xs">{getMPMFromBPM(Number(track.bpm), track.style)} MPM</span>
+                   </div>
+                 </div>
+               )) : <p className="empty-msg">Drag tracks from the queue below to add to this folder.</p>}
+            </div>
+          </section>
+        )}
+
         <section className="track-queue-section glass">
-          <div className="queue-header">
+          <header className="queue-header">
              <div className="title-area">
-                <h3>Program Queue (All Final Tracks)</h3>
-                <p className="text-secondary text-xs">Drag and reorder to plan your competition sequence</p>
+                <h3>Finals Queue</h3>
+                <p className="description">Tracks flagged for finals. Drag to folders to organize.</p>
              </div>
-          </div>
+          </header>
 
           <div className="tracks-list queue-list">
             {finalTracks.length > 0 ? finalTracks.map((track: Track, i: number) => (
@@ -237,11 +246,8 @@ const FinalsPage = () => {
                   <GripVertical size={16} className="drag-handle-icon" />
                   <div className="track-meta">
                     <span className="title truncate">{track.title}</span>
-                    <span className="artist truncate">
+                    <span className="artist truncate info-mobile-hide">
                       {track.artist}
-                      {track.bpm && (
-                        <span className="text-primary font-bold ml-1 info-mobile-hide">• {getMPMFromBPM(Number(track.bpm), track.style)} Bars/Min</span>
-                      )}
                     </span>
                     <span className="style-mini">{track.style}</span>
                   </div>
@@ -252,7 +258,7 @@ const FinalsPage = () => {
                   </button>
                 </div>
               </div>
-            )) : <p className="empty-msg">No tracks in queue. Flag tracks from the library to add them here.</p>}
+            )) : <p className="empty-msg">Add tracks from the library to see them here.</p>}
           </div>
         </section>
       </div>
@@ -273,109 +279,122 @@ const FinalsPage = () => {
         onClose={() => setDuplicateCheck(null)}
         onConfirm={confirmDuplicateAdd}
         title="Duplicate Style"
-        message={`This folder already contains a ${duplicateCheck?.style}. Do you still want to add another one?`}
-        confirmText="Add Anyway"
+        message={`This folder already contains a ${duplicateCheck?.style}. Add anyway?`}
+        confirmText="Yes, Add"
         variant="primary"
       />
 
       <style jsx>{`
         .finals-container {
-          display: flex;
-          flex-direction: column;
-          gap: 32px;
           padding: 32px;
           padding-bottom: 140px;
+          display: flex;
+          flex-direction: column;
+          gap: 24px;
         }
 
-        .folders-section { display: flex; flex-direction: column; gap: 24px; }
+        .folders-section { display: flex; flex-direction: column; gap: 16px; min-height: 120px; }
         .section-header { display: flex; justify-content: space-between; align-items: center; }
+        .section-header h3 { font-size: 1rem; font-weight: 800; opacity: 0.6; text-transform: uppercase; letter-spacing: 0.5px; }
 
         .folders-grid {
           display: grid;
-          grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
-          gap: 20px;
+          grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+          gap: 12px;
         }
 
-        .final-folder-block {
-          padding: 24px;
-          border-radius: 24px;
+        .compact-folder-card {
+          padding: 16px;
+          border-radius: 20px;
+          display: flex;
+          align-items: center;
+          justify-content: space-between;
+          border: 1px solid rgba(255, 255, 255, 0.05);
+          cursor: pointer;
+          transition: all 0.2s;
+        }
+        .compact-folder-card:hover { transform: translateY(-2px); border-color: rgba(29, 185, 84, 0.3); }
+        .compact-folder-card.is-active { border-color: var(--primary); background: rgba(29, 185, 84, 0.05); }
+
+        .folder-info { display: flex; flex-direction: column; gap: 2px; }
+        .folder-name { font-weight: 800; font-size: 14px; color: white; }
+        .folder-meta { font-size: 10px; opacity: 0.4; font-weight: 600; }
+
+        .quick-play-btn {
+          width: 32px; height: 32px; border-radius: 50%; display: flex; align-items: center; justify-content: center;
+          color: var(--primary); transition: all 0.2s;
+        }
+        .quick-play-btn:hover { transform: scale(1.1); background: var(--primary); color: black; }
+
+        /* Detail View */
+        .folder-detail-view {
+          padding: 32px;
+          border-radius: 32px;
           display: flex;
           flex-direction: column;
-          gap: 20px;
-          border: 1px solid rgba(255, 255, 255, 0.05);
-          transition: all 0.3s ease;
+          gap: 24px;
+          border: 1px solid var(--primary);
+          background: rgba(0,0,0,0.4);
+          box-shadow: 0 20px 80px rgba(0,0,0,0.8);
         }
-        .final-folder-block:hover { transform: translateY(-4px); border-color: rgba(29, 185, 84, 0.2); }
-
-        .folder-header { display: flex; justify-content: space-between; align-items: center; }
-        .header-info { display: flex; flex-direction: column; gap: 2px; }
-        .folder-name { font-size: 1.1rem !important; font-weight: 800; color: white; }
-        .track-count { font-size: 11px; opacity: 0.5; font-weight: 600; }
+        .detail-header { display: flex; align-items: center; gap: 24px; }
+        .detail-header h2 { font-size: 1.8rem; font-weight: 900; margin: 0; }
+        .detail-header p { font-size: 12px; opacity: 0.5; margin-top: 4px; }
+        .back-btn { width: 44px; height: 44px; border-radius: 50%; display: flex; align-items: center; justify-content: center; }
+        .detail-actions { display: flex; gap: 12px; margin-left: auto; }
         
-        .folder-actions { display: flex; gap: 8px; }
-        .folder-play-btn, .folder-del-btn {
-          width: 36px; height: 36px; border-radius: 10px; display: flex; align-items: center; justify-content: center;
-          cursor: pointer; transition: all 0.2s; border: 1px solid rgba(255,255,255,0.05);
+        .play-all-btn {
+          display: flex; align-items: center; gap: 10px; padding: 12px 24px; border-radius: 16px;
+          background: var(--primary); color: black; font-weight: 900; border: none; cursor: pointer;
+          transition: all 0.2s;
         }
-        .folder-play-btn { color: var(--primary); }
-        .folder-play-btn:hover { background: rgba(29, 185, 84, 0.1); transform: scale(1.05); }
-        .folder-del-btn:hover { color: #ef4444; background: rgba(239, 68, 68, 0.1); }
-
-        .folder-tracks-list-compact { display: flex; flex-direction: column; gap: 8px; }
-        .mini-track-row { 
-          padding: 10px 14px; border-radius: 12px; display: flex; align-items: center; gap: 10px; font-size: 13px;
-          background: rgba(255,255,255,0.02); cursor: pointer;
-        }
-        .mini-track-row:hover { background: rgba(255,255,255,0.06); }
-        .track-name { font-weight: 600; flex: 1; color: #eee; }
-        .track-style-badge { 
-          font-size: 9px; font-weight: 800; text-transform: uppercase; padding: 2px 6px; 
-          border-radius: 4px; background: rgba(29, 185, 84, 0.1); color: var(--primary);
-        }
-        .more-indicator { font-size: 11px; opacity: 0.4; text-align: center; margin-top: 4px; font-weight: 600; }
-
-        .simulation-actions { display: flex; gap: 12px; align-items: center; }
-        .sim-btn {
-          display: flex; align-items: center; gap: 8px; padding: 10px 16px; border-radius: 12px;
-          font-weight: 800; font-size: 12px; cursor: pointer; transition: all 0.2s;
-        }
-        .sim-btn.latin { color: #ff4b2b; border: 1px solid rgba(255, 75, 43, 0.2); }
-        .sim-btn.standard { color: #00d2ff; border: 1px solid rgba(0, 210, 255, 0.2); }
-        .sim-btn:hover { transform: translateY(-2px); background: rgba(255,255,255,0.05); }
-
-        .add-folder-icon-btn {
-          width: 36px; height: 36px; border-radius: 10px; display: flex; align-items: center; justify-content: center;
-          color: var(--primary); border: 1px solid rgba(29, 185, 84, 0.2); cursor: pointer;
+        .del-folder-btn {
+          width: 44px; height: 44px; border-radius: 12px; display: flex; align-items: center; justify-content: center;
+          color: #ff4b2b;
         }
 
-        .track-queue-section { padding: 24px; border-radius: 24px; background: rgba(255,255,255,0.01); }
+        .detail-tracks-list { display: flex; flex-direction: column; gap: 8px; }
+        .detail-track-row {
+          padding: 12px 20px; border-radius: 16px; display: flex; align-items: center; gap: 16px;
+          cursor: pointer; transition: all 0.2s;
+        }
+        .detail-track-row:hover { background: rgba(255,255,255,0.05); }
+        .detail-track-row .meta { flex: 1; display: flex; align-items: center; gap: 12px; }
+        .detail-track-row .name { font-weight: 700; font-size: 14px; }
+        .style-badge { font-size: 9px; font-weight: 800; text-transform: uppercase; padding: 2px 6px; border-radius: 4px; background: rgba(255,255,255,0.05); }
+
+        /* Queue Section */
+        .track-queue-section { padding: 24px; border-radius: 24px; }
+        .queue-header { margin-bottom: 20px; }
         .queue-header h3 { font-size: 1.2rem; font-weight: 800; margin-bottom: 4px; }
-        .queue-list { display: flex; flex-direction: column; gap: 8px; margin-top: 20px; }
-        
+        .queue-header .description { font-size: 12px; opacity: 0.5; }
+
+        .tracks-list { display: flex; flex-direction: column; gap: 8px; }
         .final-row {
           display: flex; align-items: center; justify-content: space-between; padding: 12px 20px;
           border-radius: 16px; background: rgba(255,255,255,0.02); cursor: grab; transition: all 0.2s;
         }
-        .final-row:active { cursor: grabbing; }
-        .final-row:hover { background: rgba(255,255,255,0.05); }
-        .final-row.is-playing { border: 1px solid var(--primary); background: rgba(29, 185, 84, 0.05); }
-
         .track-info { display: flex; align-items: center; gap: 16px; flex: 1; }
         .track-meta { display: flex; align-items: center; gap: 12px; flex: 1; }
-        .track-meta .title { font-weight: 700; color: white; }
-        .track-meta .artist { font-size: 11px; opacity: 0.5; display: flex; align-items: center; gap: 8px; }
+        .track-meta .title { font-weight: 700; color: white; font-size: 14px; }
         .style-mini { font-size: 10px; font-weight: 800; text-transform: uppercase; color: var(--primary); }
 
-        .drop-placeholder { padding: 30px; text-align: center; border: 2px dashed rgba(255,255,255,0.05); border-radius: 16px; font-size: 13px; opacity: 0.3; }
+        .simulation-actions { display: flex; gap: 8px; align-items: center; }
+        .sim-btn {
+          display: flex; align-items: center; gap: 6px; padding: 8px 12px; border-radius: 10px;
+          font-weight: 800; font-size: 11px; cursor: pointer; transition: all 0.2s;
+        }
+        .sim-btn.latin { color: #ff4b2b; }
+        .sim-btn.standard { color: #00d2ff; }
+        .add-folder-icon-btn { width: 32px; height: 32px; border-radius: 8px; display: flex; align-items: center; justify-content: center; }
 
         @media (max-width: 768px) {
           .finals-container { padding: 16px; padding-bottom: 120px; }
-          .folders-grid { grid-template-columns: 1fr; }
-          .track-meta .artist { display: none; }
-          .track-meta .info-mobile-hide { display: none !important; }
-          .final-row { padding: 12px 16px; }
-          .sim-btn span { display: none; }
-          .sim-btn { padding: 10px; }
+          .folders-grid { grid-template-columns: repeat(2, 1fr); }
+          .detail-header h2 { font-size: 1.4rem; }
+          .play-all-btn span, .sim-btn span { display: none; }
+          .play-all-btn { padding: 12px; width: 44px; height: 44px; justify-content: center; }
+          .info-mobile-hide { display: none !important; }
         }
 
         .folder-modal-overlay {
@@ -384,7 +403,7 @@ const FinalsPage = () => {
         }
         .folder-modal-content {
           background: #111; padding: 32px; border-radius: 24px; border: 1px solid #222;
-          width: 90%; max-width: 400px; display: flex; flex-direction: column; gap: 20px;
+          width: 90%; max-width: 320px; display: flex; flex-direction: column; gap: 20px;
         }
         .modal-t-input {
           background: #1a1a1a; border: 1px solid #333; border-radius: 12px; padding: 14px; color: white; outline: none;
@@ -392,6 +411,10 @@ const FinalsPage = () => {
         .modal-actions { display: flex; gap: 12px; justify-content: flex-end; }
         .btn-confirm { background: var(--primary); color: black; font-weight: 800; padding: 10px 20px; border-radius: 10px; border: none; cursor: pointer; }
         .btn-cancel { background: transparent; color: #555; border: none; font-weight: 700; cursor: pointer; }
+
+        .idx { font-size: 12px; font-weight: 800; opacity: 0.3; width: 20px; text-align: center; }
+        .animate-in-up { animation: fadeInUp 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275); }
+        @keyframes fadeInUp { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: translateY(0); } }
       `}</style>
     </div>
   );

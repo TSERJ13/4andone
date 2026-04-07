@@ -227,11 +227,14 @@ const MobileFullPlayer = ({ isOpen, onClose }: MobileFullPlayerProps) => {
       </div>
 
       {showSpeed && (
-        <div className="speed-overlay glass animate-in">
-          <div className="speed-modal glass">
+        <div className="speed-overlay animate-in" onClick={() => setShowSpeed(false)}>
+          <div className="speed-modal glass" onClick={(e) => e.stopPropagation()}>
             <div className="modal-header">
-              <h3>Playback Speed</h3>
-              <button onClick={() => setShowSpeed(false)}><X size={20} /></button>
+              <div className="modal-title">
+                <Gauge size={20} className="text-primary" />
+                <h3>Playback Speed</h3>
+              </div>
+              <button className="close-btn" onClick={() => setShowSpeed(false)}><X size={20} /></button>
             </div>
             <SpeedSelector 
               currentBpm={bpm} 
@@ -487,16 +490,31 @@ const MobileFullPlayer = ({ isOpen, onClose }: MobileFullPlayerProps) => {
           z-index: 6000;
           display: flex;
           align-items: flex-end;
+          background: rgba(0, 0, 0, 0.6);
+          backdrop-filter: blur(8px);
+          padding: 10px;
         }
 
         .speed-modal {
           width: 100%;
-          border-radius: 30px 30px 0 0;
-          padding: 20px;
-          padding-bottom: max(20px, env(safe-area-inset-bottom));
+          border-radius: 24px;
+          padding: 24px;
+          padding-bottom: max(24px, env(safe-area-inset-bottom));
           background: #121212;
-          max-height: 50vh;
-          overflow-y: auto;
+          border: 1px solid rgba(255, 255, 255, 0.1);
+          box-shadow: 0 -10px 40px rgba(0, 0, 0, 0.5);
+          margin-bottom: 5px;
+        }
+
+        .modal-title {
+          display: flex;
+          align-items: center;
+          gap: 10px;
+        }
+
+        .close-btn {
+          color: #71717a;
+          padding: 4px;
         }
 
         .modal-header {

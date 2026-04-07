@@ -101,7 +101,7 @@ const PlayerBar = () => {
   };
 
   return (
-    <footer className="player-bar glass">
+    <footer className={`player-bar glass ${!isLoaded ? 'is-hidden' : ''}`}>
       {/* Track Info */}
       <div className="track-info">
         <div className="album-art glass">
@@ -234,6 +234,15 @@ const PlayerBar = () => {
       </div>
 
       <style jsx>{`
+        .player-bar {
+           transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+        .player-bar.is-hidden {
+           transform: translateY(100%);
+           opacity: 0;
+           pointer-events: none;
+        }
+
         .track-info {
           display: flex;
           align-items: center;

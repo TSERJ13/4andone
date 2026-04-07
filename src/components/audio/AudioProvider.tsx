@@ -172,10 +172,11 @@ export const AudioProvider: React.FC<{ children: React.ReactNode }> = ({ childre
             const audio = new Audio(url);
             audio.oncanplay = () => resolve(audio);
             audio.onerror = (e) => {
-              console.error("[PLAYER-NATIVE-FAIL] Even HTML5 Audio failed.", e);
-              reject(new Error("File Unreachable or Corrupted"));
+              console.error(`[PLAYER-NATIVE-FAIL] URL: ${url}`, e);
+              reject(new Error(`Unreachable: ${url.substring(0, 40)}...`));
             };
             // Set some properties
+            audio.crossOrigin = "anonymous";
             audio.volume = volume;
             audio.loop = !isFinalMode;
             nativePlayerRef.current = audio;
@@ -187,8 +188,8 @@ export const AudioProvider: React.FC<{ children: React.ReactNode }> = ({ childre
                 url,
                 onload: () => resolve(player),
                 onerror: (e) => {
-                  console.warn("[PLAYER-GRAIN-FAIL] Granular synthesis failed.", e);
-                  reject(e);
+                  console.warn(`[PLAYER-GRAIN-FAIL] URL: ${url}`, e);
+                  reject(new Error(`Decode Failed: ${url.substring(0, 40)}...`));
                 },
                 loop: !isFinalMode
               })
@@ -196,8 +197,8 @@ export const AudioProvider: React.FC<{ children: React.ReactNode }> = ({ childre
                 url,
                 onload: () => resolve(player),
                 onerror: (e) => {
-                  console.error("[PLAYER-STANDARD-FAIL] Standard player failed.", e);
-                  reject(e);
+                  console.error(`[PLAYER-STANDARD-FAIL] URL: ${url}`, e);
+                  reject(new Error(`Standard Load Failed: ${url.substring(0, 40)}...`));
                 },
                 loop: !isFinalMode
               });
@@ -218,7 +219,7 @@ export const AudioProvider: React.FC<{ children: React.ReactNode }> = ({ childre
           player.start();
           setIsPlaying(true);
         }
-      } catch (e) {
+      } catch (e: any) {
         console.warn("[AUDIO-RETRY] GrainPlayer failed. Attempting Standard Player...");
         
         try {
@@ -243,11 +244,11 @@ export const AudioProvider: React.FC<{ children: React.ReactNode }> = ({ childre
             
             audio.play().catch(e => console.error("Native play failed", e));
             setIsPlaying(true);
-            setError("Running in Safe Mode (Basic Player)");
+            setError(null); 
             console.log("[AUDIO-SAFE-MODE] Success. Using native browser engine.");
           } catch (e3: any) {
             console.error("[AUDIO-CRITICAL] Global failure.", e3);
-            setError(e3.message || "File Unreachable (404/CORS)");
+            setError(e3.message || "File Unreachable (Check Connection)");
             setIsLoaded(false);
           }
         }

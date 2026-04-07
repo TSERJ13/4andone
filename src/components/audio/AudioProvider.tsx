@@ -152,21 +152,8 @@ export const AudioProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         throw new Error("Missing Audio Source");
       }
 
-      // 3. SECURE PRE-FETCH (Bypass Tone.js loading issues for remote R2 buckets)
-      if (isRemote) {
-        try {
-          console.log(`[AUDIO-FETCH] Pre-loading binary data for: ${track.title}`);
-          const fetchRes = await fetch(finalUrl);
-          if (!fetchRes.ok) throw new Error(`Fetch failed: ${fetchRes.statusText}`);
-          const blob = await fetchRes.blob();
-          finalUrl = URL.createObjectURL(blob);
-          activeBlobUrlRef.current = finalUrl; // Ensure cleanup on next track
-          console.log(`[AUDIO-FETCH] Ready.`);
-        } catch (e: any) {
-          console.error("[AUDIO-FETCH] Error:", e);
-          throw new Error("Network error while pre-fetching audio data.");
-        }
-      }
+      // 3. SECURE PRE-FETCH (REMOVED BLOCKING FETCO TO SPEED UP START)
+      // We pass the finalUrl (usually signed) directly to Tone loader.
 
       const player = new Tone.GrainPlayer({
         url: finalUrl,

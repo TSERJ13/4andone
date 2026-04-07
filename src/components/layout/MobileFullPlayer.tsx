@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState } from 'react';
+import React, { useState, useRef, useCallback, useEffect } from 'react';
 import { 
   Play, 
   Pause, 
@@ -38,6 +38,7 @@ const MobileFullPlayer = ({ isOpen, onClose }: MobileFullPlayerProps) => {
     duration,
     isFinalMode,
     toggleFinalMode,
+    seek,
     seekRelative,
     isShuffle,
     isRepeat,
@@ -48,14 +49,65 @@ const MobileFullPlayer = ({ isOpen, onClose }: MobileFullPlayerProps) => {
   const { tracks, finalTracks, addToFinal, removeFromFinal, toggleFavorite } = useStudio();
 
   const [showSpeed, setShowSpeed] = useState(false);
+  const [isDragging, setIsDragging] = useState(false);
+  const [dragProgress, setDragProgress] = useState(0);
+  const progressRef = useRef<HTMLDivElement>(null);
 
   if (!isOpen) return null;
+
+  const handleSeek = (clientX: number) => {
+    if (!progressRef.current || !duration) return;
+    const rect = progressRef.current.getBoundingClientRect();
+    const x = Math.max(0, Math.min(clientX - rect.left, rect.width));
+    const percentage = x / rect.width;
+    const newTime = percentage * duration;
+    setDragProgress(percentage * 100);
+    return newTime;
+  };
+
+  const handleInteractionStart = (e: React.MouseEvent | React.TouchEvent) => {
+    setIsDragging(true);
+    const clientX = 'touches' in e ? e.touches[0].clientX : e.clientX;
+    handleSeek(clientX);
+  };
+
+  const handleInteractionMove = (e: MouseEvent | TouchEvent) => {
+    if (!isDragging) return;
+    const clientX = 'touches' in e ? e.touches[0].clientX : e.clientX;
+    handleSeek(clientX);
+  };
+
+  const handleInteractionEnd = (e: MouseEvent | TouchEvent) => {
+    if (!isDragging) return;
+    const clientX = 'touches' in e ? (e.changedTouches[0]?.clientX || 0) : e.clientX;
+    const newTime = handleSeek(clientX);
+    if (newTime !== undefined) {
+      seek(newTime); // Jump to absolute time
+    }
+    setIsDragging(false);
+  };
+
+  // Add global listeners for dragging outside the element
+  useEffect(() => {
+    if (isDragging) {
+      window.addEventListener('mousemove', handleInteractionMove);
+      window.addEventListener('mouseup', handleInteractionEnd);
+      window.addEventListener('touchmove', handleInteractionMove);
+      window.addEventListener('touchend', handleInteractionEnd);
+    }
+    return () => {
+      window.removeEventListener('mousemove', handleInteractionMove);
+      window.removeEventListener('mouseup', handleInteractionEnd);
+      window.removeEventListener('touchmove', handleInteractionMove);
+      window.removeEventListener('touchend', handleInteractionEnd);
+    };
+  }, [isDragging]);
+
+  const displayProgress = isDragging ? dragProgress : (currentTime / (duration || 1)) * 100;
 
   const formatTime = (time: number) => {
     return formatDuration(time);
   };
-
-  const progress = (currentTime / (duration || 1)) * 100;
 
   return (
     <div className="full-player-overlay">
@@ -113,12 +165,17 @@ const MobileFullPlayer = ({ isOpen, onClose }: MobileFullPlayerProps) => {
         </div>
 
         <div className="progress-section">
-          <div className="progress-bar-container">
-            <div className="progress-fill" style={{ width: `${progress}%` }}></div>
-            <div className="progress-knob" style={{ left: `${progress}%` }}></div>
+          <div 
+            className="progress-bar-container" 
+            ref={progressRef}
+            onMouseDown={handleInteractionStart}
+            onTouchStart={handleInteractionStart}
+          >
+            <div className="progress-fill" style={{ width: `${displayProgress}%` }}></div>
+            <div className={`progress-knob ${isDragging ? 'active' : ''}`} style={{ left: `${displayProgress}%` }}></div>
           </div>
           <div className="time-labels">
-            <span>{formatTime(currentTime)}</span>
+            <span>{formatTime(isDragging ? (dragProgress / 100) * duration : currentTime)}</span>
             <span>{formatTime(duration)}</span>
           </div>
         </div>
@@ -313,25 +370,33 @@ const MobileFullPlayer = ({ isOpen, onClose }: MobileFullPlayerProps) => {
 
         .progress-section { width: 100%; margin-top: 10px; }
         .progress-bar-container {
-          height: 4px;
-          background: #333;
-          border-radius: 2px;
+          height: 6px;
+          background: rgba(255,255,255,0.1);
+          border-radius: 3px;
           position: relative;
           margin-bottom: 12px;
+          cursor: pointer;
+          touch-action: none;
         }
         .progress-fill {
           height: 100%;
-          background: white;
-          border-radius: 2px;
+          background: var(--primary, #1db954);
+          border-radius: 3px;
         }
         .progress-knob {
-          width: 12px;
-          height: 12px;
+          width: 14px;
+          height: 14px;
           background: white;
           border-radius: 50%;
           position: absolute;
           top: 50%;
           transform: translate(-50%, -50%);
+          transition: transform 0.1s;
+          box-shadow: 0 2px 6px rgba(0,0,0,0.3);
+        }
+        .progress-knob.active {
+          transform: translate(-50%, -50%) scale(1.5);
+          background: var(--primary);
         }
         .time-labels {
           display: flex;

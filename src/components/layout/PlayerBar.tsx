@@ -202,7 +202,7 @@ const PlayerBar = () => {
           <div className="speed-container">
             <button 
               className={`feature-btn glass ${bpm !== 100 ? 'active' : ''}`}
-              onClick={() => setShowSpeedSelector(true)}
+              onClick={() => setShowSpeedSelector(!showSpeedSelector)}
               title={`Playback Speed: ${bpm}%`}
             >
               <Gauge size={18} />
@@ -442,13 +442,13 @@ const PlayerBar = () => {
           bottom: calc(100% + 20px);
           right: 0;
           width: 280px;
-          background: #181818;
-          border: 1px solid rgba(255,255,255,0.1);
+          background: #121212;
+          border: 1px solid rgba(29, 185, 84, 0.3);
           border-radius: 16px;
-          padding: 20px;
-          box-shadow: 0 10px 40px rgba(0,0,0,0.5);
-          z-index: 100;
-          animation: slideUpPopup 0.2s ease-out;
+          padding: 24px;
+          box-shadow: 0 20px 50px rgba(0,0,0,0.8);
+          z-index: 9999;
+          animation: slideUpPopup 0.2s cubic-bezier(0.4, 0, 0.2, 1);
         }
         @keyframes slideUpPopup {
           from { opacity: 0; transform: translateY(10px); }

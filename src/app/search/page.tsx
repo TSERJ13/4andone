@@ -227,7 +227,13 @@ const SearchPage = () => {
           background: rgba(255,255,255,0.02);
         }
         .search-row:hover { background: rgba(255,255,255,0.08); border-color: rgba(255,255,255,0.1); }
-        .search-row.is-playing { background: rgba(29, 185, 84, 0.05); border-color: rgba(29, 185, 84, 0.3); }
+        .search-row.is-playing { 
+          background: rgba(29, 185, 84, 0.12); 
+          border: 1px solid rgba(29, 185, 84, 0.4); 
+          transform: scale(1.01);
+        }
+        .search-row.is-playing .track-title { color: #1db954; }
+        .search-row.is-playing .play-btn-small { background: #1db954; color: black; }
         
         .track-title { font-weight: 700; font-size: 16px; margin: 0; }
         .track-artist { font-size: 13px; margin: 4px 0 0; opacity: 0.6; }

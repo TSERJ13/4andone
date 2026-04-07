@@ -242,6 +242,14 @@ export default function LibraryPage() {
 
         .collection-card:hover { transform: translateY(-8px); background: rgba(255, 255, 255, 0.08); border-color: rgba(255,255,255,0.1); }
 
+        .playlist-row.is-playing {
+          background: rgba(29, 185, 84, 0.1);
+          border: 1px solid rgba(29, 185, 84, 0.3);
+          transition: all 0.3s ease;
+        }
+        .playlist-row.is-playing .row-title { color: #1db954; }
+        .playlist-row.is-playing .play-row-btn { background: #1db954; color: black; }
+
         .card-visual { position: absolute; inset: 0; pointer-events: none; }
 
         .card-icon { 

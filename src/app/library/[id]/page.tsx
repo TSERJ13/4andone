@@ -185,7 +185,13 @@ const PlaylistPage = () => {
         .track-row:hover .drag-handle { opacity: 0.3; }
         .drag-handle:hover { opacity: 1 !important; color: var(--primary); }
         .track-row:hover { background: rgba(255,255,255,0.08); }
-        .track-row.is-playing .track-name { color: var(--primary); }
+        .track-row.is-playing { 
+          background: rgba(29, 185, 84, 0.12); 
+          border: 1px solid rgba(29, 185, 84, 0.4); 
+          transform: scale(1.01);
+        }
+        .track-row.is-playing .track-name { color: #1db954; }
+        .track-row.is-playing .track-num { color: #1db954; }
         .track-num { color: #b3b3b3; display: flex; align-items: center; font-size: 14px; }
         .track-info { display: flex; flex-direction: column; }
         .track-name { font-weight: 600; font-size: 15px; }

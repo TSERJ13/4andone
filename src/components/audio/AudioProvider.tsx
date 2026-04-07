@@ -59,7 +59,6 @@ export const AudioProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   const trackIdRef = useRef<string | null>(null);
   const loadingTokenRef = useRef<number>(0); // Guard for race conditions
   const limiterRef = useRef<Tone.Limiter | null>(null);
-  const compressorRef = useRef<Tone.Compressor | null>(null);
   const masterGainRef = useRef<Tone.Gain | null>(null);
 
   // Refs to avoid circular re-renders on every tick
@@ -76,20 +75,13 @@ export const AudioProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       // 1. Create Main Gain for volume control
       masterGainRef.current = new Tone.Gain(volume);
       
-      // 2. Create Compressor to stabilize dynamics and prevent 'pumping'
-      compressorRef.current = new Tone.Compressor({
-        threshold: -12,
-        ratio: 1.5, // Low ratio for natural smoothing
-        attack: 0.003,
-        release: 0.25
-      });
+      // 2. Create Limiter to prevent clipping (crucial for time-stretching stabilization)
+      // Set to -0.5dB for maximum headroom with zero digital distortion
+      limiterRef.current = new Tone.Limiter(-0.5);
 
-      // 3. Create Limiter to prevent clipping (crucial for time-stretching stabilization)
-      limiterRef.current = new Tone.Limiter(-1.5);
-
-      // 4. Connect Chain: [Player] -> MasterGain -> Compressor -> Limiter -> Destination
-      masterGainRef.current.connect(compressorRef.current);
-      compressorRef.current.connect(limiterRef.current);
+      // 3. Connect Chain: [Player] -> MasterGain -> Limiter -> Destination
+      // Removed Compressor to prevent unwanted volume 'pumping' on mastered music
+      masterGainRef.current.connect(limiterRef.current);
       limiterRef.current.toDestination();
     }
     
@@ -238,8 +230,8 @@ export const AudioProvider: React.FC<{ children: React.ReactNode }> = ({ childre
           const player = type === 'grain' 
             ? new Tone.GrainPlayer({
                 url,
-                overlap: 0.08,   // SM-OPT: Reduced for significantly fewer phasing artifacts
-                grainSize: 0.12, // SM-OPT: Better for music preservation in high-tempo Latin tracks
+                overlap: 0.05,   // SM-OPT: Lower overlap reduces phasing volume dips
+                grainSize: 0.1,  // SM-OPT: Smaller grains for better time-resolution
                 onload: () => {
                   if (currentToken !== loadingTokenRef.current) {
                     player.dispose();

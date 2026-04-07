@@ -51,6 +51,7 @@ export const AudioProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   const [pauseTime, setPauseTime] = useState(15);
 
   const playerRef = useRef<Tone.GrainPlayer | null>(null);
+  const nativePlayerRef = useRef<HTMLAudioElement | null>(null);
   const timerRef = useRef<NodeJS.Timeout | null>(null);
   const activeBlobUrlRef = useRef<string | null>(null);
   const trackIdRef = useRef<string | null>(null);
@@ -103,6 +104,12 @@ export const AudioProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         playerRef.current.stop();
         playerRef.current.dispose();
         playerRef.current = null;
+      }
+      if (nativePlayerRef.current) {
+        nativePlayerRef.current.pause();
+        nativePlayerRef.current.src = "";
+        nativePlayerRef.current.load();
+        nativePlayerRef.current = null;
       }
 
       if (!isRetry && activeBlobUrlRef.current) {
@@ -157,16 +164,30 @@ export const AudioProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       // We only use Blob pre-fetch if there's a specific CORS issue, but for Tone.js signed URLs are usually fine.
       // However, on mobile, we want to watch out for OOM (Out of Memory) crashes.
       
-      const setupPlayer = (url: string, type: 'grain' | 'standard' = 'grain') => {
-        return new Promise<Tone.GrainPlayer | Tone.Player>((resolve, reject) => {
-          console.log(`[AUDIO-LOAD] Initializing ${type} player for: ${track.title}`);
+      const setupPlayer = (url: string, type: 'grain' | 'standard' | 'native' = 'grain') => {
+        return new Promise<Tone.GrainPlayer | Tone.Player | HTMLAudioElement>((resolve, reject) => {
+          console.log(`[AUDIO-LOAD] Attempting ${type} playback for: ${track.title}`);
           
+          if (type === 'native') {
+            const audio = new Audio(url);
+            audio.oncanplay = () => resolve(audio);
+            audio.onerror = (e) => {
+              console.error("[PLAYER-NATIVE-FAIL] Even HTML5 Audio failed.", e);
+              reject(new Error("File Unreachable or Corrupted"));
+            };
+            // Set some properties
+            audio.volume = volume;
+            audio.loop = !isFinalMode;
+            nativePlayerRef.current = audio;
+            return;
+          }
+
           const player = type === 'grain' 
             ? new Tone.GrainPlayer({
                 url,
                 onload: () => resolve(player),
                 onerror: (e) => {
-                  console.warn("[PLAYER-GRAIN-FAIL] Granular synthesis failed, likely Memory OOM. Falling back.", e);
+                  console.warn("[PLAYER-GRAIN-FAIL] Granular synthesis failed.", e);
                   reject(e);
                 },
                 loop: !isFinalMode
@@ -175,7 +196,7 @@ export const AudioProvider: React.FC<{ children: React.ReactNode }> = ({ childre
                 url,
                 onload: () => resolve(player),
                 onerror: (e) => {
-                  console.error("[PLAYER-STANDARD-FAIL] Standard player also failed.", e);
+                  console.error("[PLAYER-STANDARD-FAIL] Standard player failed.", e);
                   reject(e);
                 },
                 loop: !isFinalMode
@@ -188,7 +209,7 @@ export const AudioProvider: React.FC<{ children: React.ReactNode }> = ({ childre
 
       try {
         // Attempt 1: High Quality Granular Synthesis (Pitch Preserved)
-        const player = await setupPlayer(finalUrl, 'grain');
+        const player = await setupPlayer(finalUrl, 'grain') as Tone.GrainPlayer;
         setDuration(player.buffer.duration);
         setIsLoaded(true);
         player.playbackRate = bpm / 100;
@@ -198,11 +219,11 @@ export const AudioProvider: React.FC<{ children: React.ReactNode }> = ({ childre
           setIsPlaying(true);
         }
       } catch (e) {
-        console.warn("[AUDIO-RETRY] GrainPlayer failed. Attempting Standard Player fallback...");
+        console.warn("[AUDIO-RETRY] GrainPlayer failed. Attempting Standard Player...");
         
         try {
-          // Attempt 2: Standard Player (Pitch changes with speed, but works on low-memory devices)
-          const player = await setupPlayer(finalUrl, 'standard');
+          // Attempt 2: Standard Player (Pitch changes with speed)
+          const player = await setupPlayer(finalUrl, 'standard') as Tone.Player;
           setDuration(player.buffer.duration);
           setIsLoaded(true);
           player.playbackRate = bpm / 100;
@@ -211,12 +232,24 @@ export const AudioProvider: React.FC<{ children: React.ReactNode }> = ({ childre
             player.start();
             setIsPlaying(true);
           }
-          // Notify user slightly if possible or just log
-          console.log("[AUDIO-FALLBACK] Success using Standard Player.");
         } catch (e2) {
-          console.error("[AUDIO-CRITICAL] All Tone.js players failed.", e2);
-          setError("Codec or Memory Error (Incompatible file)");
-          setIsLoaded(false);
+          console.warn("[AUDIO-RETRY] Tone.js failed completely. Attempting ULTIMATE NATIVE FALLBACK...");
+          try {
+            // Attempt 3: Native HTML5 Audio (Most compatible, but changes pitch)
+            const audio = await setupPlayer(finalUrl, 'native') as HTMLAudioElement;
+            setDuration(audio.duration || 0);
+            setIsLoaded(true);
+            audio.playbackRate = bpm / 100;
+            
+            audio.play().catch(e => console.error("Native play failed", e));
+            setIsPlaying(true);
+            setError("Running in Safe Mode (Basic Player)");
+            console.log("[AUDIO-SAFE-MODE] Success. Using native browser engine.");
+          } catch (e3: any) {
+            console.error("[AUDIO-CRITICAL] Global failure.", e3);
+            setError(e3.message || "File Unreachable (404/CORS)");
+            setIsLoaded(false);
+          }
         }
       }
 
@@ -316,15 +349,21 @@ export const AudioProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       await Tone.getContext().resume();
     }
 
-    if (!isLoaded || !playerRef.current) return;
+    if (!isLoaded) return;
 
     if (isPlaying) {
-      playerRef.current.stop();
+      if (playerRef.current) playerRef.current.stop();
+      if (nativePlayerRef.current) nativePlayerRef.current.pause();
       setIsPlaying(false);
     } else {
-      // Resume from last position (currentTime)
       const startTime = currentTimeRef.current >= duration ? 0 : currentTimeRef.current;
-      playerRef.current.start(undefined, startTime);
+      
+      if (playerRef.current) {
+        playerRef.current.start(undefined, startTime);
+      } else if (nativePlayerRef.current) {
+        nativePlayerRef.current.currentTime = startTime;
+        nativePlayerRef.current.play().catch(e => console.error("Native play failed", e));
+      }
       setIsPlaying(true);
     }
   };
@@ -335,19 +374,32 @@ export const AudioProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     if (playerRef.current) {
       playerRef.current.playbackRate = newBpm / 100;
     }
+    if (nativePlayerRef.current) {
+      nativePlayerRef.current.playbackRate = newBpm / 100;
+    }
   };
 
   const seek = (time: number) => {
-    if (playerRef.current && isLoaded) {
+    if (isLoaded) {
       const isWasPlaying = isPlayingRef.current;
-      playerRef.current.stop();
       const safeTime = Math.max(0, Math.min(time, duration));
-      playerRef.current.start(undefined, safeTime);
-      setCurrentTime(safeTime);
-      if (!isWasPlaying) {
+
+      if (playerRef.current) {
         playerRef.current.stop();
+        playerRef.current.start(undefined, safeTime);
+      } else if (nativePlayerRef.current) {
+        nativePlayerRef.current.pause();
+        nativePlayerRef.current.currentTime = safeTime;
+      }
+
+      setCurrentTime(safeTime);
+      
+      if (!isWasPlaying) {
+        if (playerRef.current) playerRef.current.stop();
+        if (nativePlayerRef.current) nativePlayerRef.current.pause();
         setIsPlaying(false);
       } else {
+        if (nativePlayerRef.current) nativePlayerRef.current.play().catch(e => console.error("Native play failed", e));
         setIsPlaying(true);
       }
     }
@@ -375,10 +427,9 @@ export const AudioProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   const toggleFinalMode = () => setIsFinalMode(!isFinalMode);
 
   const stop = () => {
-    if (playerRef.current) {
-      playerRef.current.stop();
-      setIsPlaying(false);
-    }
+    if (playerRef.current) playerRef.current.stop();
+    if (nativePlayerRef.current) nativePlayerRef.current.pause();
+    setIsPlaying(false);
   };
 
   // REGISTER MEDIA SESSION ACTIONS

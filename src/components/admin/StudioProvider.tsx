@@ -30,6 +30,7 @@ export interface Track {
   tags?: string[];
   duration?: number;
   globalOrder?: number;
+  isFavorite?: boolean;
 }
 
 export interface Folder {
@@ -58,6 +59,7 @@ interface StudioContextType {
   addTrack: (track: Partial<Track>) => void;
   removeTrack: (id: string) => void;
   updateTrack: (id: string, updates: Partial<Track>) => void;
+  toggleFavorite: (id: string) => Promise<void>;
   
   // Folders
   addFolder: (name: string, color: string) => void;
@@ -118,7 +120,8 @@ export const StudioProvider: React.FC<{ children: React.ReactNode }> = ({ childr
           audioUrl: t.audio_url,
           folderId: t.folder_id,
           globalOrder: t.global_order || 0,
-          duration: t.duration || 0
+          duration: t.duration || 0,
+          isFavorite: t.is_favorite || false
         })));
       }
 
@@ -149,7 +152,7 @@ export const StudioProvider: React.FC<{ children: React.ReactNode }> = ({ childr
             setTracks(prev => [{ ...nt, audioUrl: nt.audio_url, folderId: nt.folder_id }, ...prev]);
           } else if (payload.eventType === 'UPDATE') {
             const ut = payload.new as any;
-            setTracks(prev => prev.map(t => t.id === ut.id ? { ...ut, audioUrl: ut.audio_url, folderId: ut.folder_id } : t));
+            setTracks(prev => prev.map(t => t.id === ut.id ? { ...ut, audioUrl: ut.audio_url, folderId: ut.folder_id, isFavorite: ut.is_favorite } : t));
           } else if (payload.eventType === 'DELETE') {
             setTracks(prev => prev.filter(t => t.id !== payload.old.id));
           }
@@ -214,6 +217,23 @@ export const StudioProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       alert("Changes were NOT saved to cloud. Refresh and try again.");
     } else {
       console.log(`[SYNC-OK] Track ${id} updated on cloud.`);
+    }
+  };
+
+  const toggleFavorite = async (id: string) => {
+    const track = tracks.find(t => t.id === id);
+    if (!track) return;
+
+    const newVal = !track.isFavorite;
+    
+    // Optimistic update
+    setTracks(prev => prev.map(t => t.id === id ? { ...t, isFavorite: newVal } : t));
+
+    const { error } = await supabase.from('tracks').update({ is_favorite: newVal }).eq('id', id);
+    if (error) {
+      console.error("[SYNC-ERROR] Toggle favorite failed:", error);
+      // Rollback on error
+      setTracks(prev => prev.map(t => t.id === id ? { ...t, isFavorite: !newVal } : t));
     }
   };
 
@@ -351,7 +371,7 @@ export const StudioProvider: React.FC<{ children: React.ReactNode }> = ({ childr
   return (
     <StudioContext.Provider value={{ 
       tracks, folders, styles, tags,
-      addTrack, removeTrack, updateTrack, 
+      addTrack, removeTrack, updateTrack, toggleFavorite,
       addFolder, updateFolder, removeFolder, assignToFolder,
       addStyle, updateStyle, removeStyle,
       addTag, updateTag, removeTag,

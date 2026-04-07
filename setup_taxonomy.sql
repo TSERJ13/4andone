@@ -11,6 +11,7 @@ CREATE TABLE IF NOT EXISTS public.tracks (
   audio_url text,
   folder_id uuid,
   tags text[] DEFAULT '{}',
+  is_favorite boolean DEFAULT false,
   created_at timestamp with time zone DEFAULT timezone('utc'::text, now()) NOT NULL
 );
 

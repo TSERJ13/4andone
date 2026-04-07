@@ -53,7 +53,8 @@ const SearchPage = () => {
                     backgroundColor: `${style.color}15`,
                     borderColor: `${style.color}30`,
                     color: style.color,
-                    borderRadius: '12px'
+                    borderRadius: '16px',
+                    padding: '40px 28px'
                   }}
                 >
                   <div className="genre-info">
@@ -129,15 +130,15 @@ const SearchPage = () => {
           gap: 24px;
         }
         .genre-card {
-          padding: 48px 36px; border-radius: 12px; min-height: 180px;
+          padding: 40px 28px; border-radius: 16px; min-height: 160px;
           position: relative; overflow: hidden; cursor: pointer;
           transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
           border: 1px solid;
           display: flex;
           flex-direction: column;
           justify-content: center;
-          align-items: center;
-          text-align: center;
+          align-items: flex-start;
+          text-align: left;
           text-decoration: none;
         }
         .genre-card:hover { 
@@ -145,10 +146,10 @@ const SearchPage = () => {
           box-shadow: 0 16px 32px rgba(0,0,0,0.4);
           background-color: rgba(255, 255, 255, 0.1) !important;
         }
-        .genre-info { position: relative; z-index: 2; width: 100%; display: flex; flex-direction: column; align-items: center; }
+        .genre-info { position: relative; z-index: 2; width: 100%; display: flex; flex-direction: column; align-items: flex-start; }
         .genre-card h3 { 
           font-size: 22px; font-weight: 900; letter-spacing: -0.5px; margin: 0; line-height: 1.2; 
-          word-break: break-word; overflow-wrap: break-word; max-width: 100%; padding: 0 8px;
+          word-break: break-word; overflow-wrap: break-word; max-width: 100%;
         }
         .track-count { font-size: 13px; font-weight: 700; opacity: 0.8; margin-top: 6px; }
         

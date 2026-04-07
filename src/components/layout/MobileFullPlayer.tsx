@@ -5,13 +5,18 @@ import {
   Play, 
   Pause, 
   X, 
-  Settings, 
   Gauge, 
   Timer,
   Flag,
-  ChevronDown
+  ChevronDown,
+  SkipBack,
+  SkipForward,
+  Shuffle,
+  Repeat,
+  Heart
 } from 'lucide-react';
 import { useAudio } from '@/components/audio/AudioProvider';
+import { useStudio } from '@/components/admin/StudioProvider';
 import SpeedSelector from '@/components/audio/SpeedSelector';
 import { formatDuration } from '@/utils/format';
 
@@ -32,8 +37,15 @@ const MobileFullPlayer = ({ isOpen, onClose }: MobileFullPlayerProps) => {
     currentTime,
     duration,
     isFinalMode,
-    toggleFinalMode
+    toggleFinalMode,
+    seekRelative,
+    isShuffle,
+    isRepeat,
+    toggleShuffle,
+    toggleRepeat
   } = useAudio();
+
+  const { tracks, finalTracks, addToFinal, removeFromFinal, toggleFavorite } = useStudio();
 
   const [showSpeed, setShowSpeed] = useState(false);
 
@@ -50,7 +62,7 @@ const MobileFullPlayer = ({ isOpen, onClose }: MobileFullPlayerProps) => {
       <div className="player-header">
         <button onClick={onClose} className="header-btn"><ChevronDown size={32} /></button>
         <span className="now-playing-label">Now Playing</span>
-        <button className="header-btn"><Settings size={24} /></button>
+        <div className="header-btn-placeholder" />
       </div>
 
       <div className="player-content">
@@ -61,8 +73,43 @@ const MobileFullPlayer = ({ isOpen, onClose }: MobileFullPlayerProps) => {
         </div>
 
         <div className="track-meta">
-          <h2 className="title truncate">{title}</h2>
-          <p className="artist truncate">{artist}</p>
+          <div className="meta-top">
+            <button 
+              className={`meta-btn favorite ${tracks.find(t => t.title === title)?.isFavorite ? 'active' : ''}`}
+              onClick={() => {
+                const track = tracks.find(t => t.title === title);
+                if (track) toggleFavorite(track.id);
+              }}
+            >
+              <Heart size={28} fill={tracks.find(t => t.title === title)?.isFavorite ? "currentColor" : "none"} />
+            </button>
+
+            <div className="text-center">
+              <h2 className="title truncate">{title}</h2>
+              <p className="artist truncate">{artist}</p>
+            </div>
+
+            <button 
+              className={`meta-btn flag ${finalTracks.find(t => t.title === title) ? 'active' : ''}`}
+              onClick={() => {
+                const track = tracks.find(t => t.title === title);
+                if (track) {
+                  if (finalTracks.find(t => t.id === track.id)) removeFromFinal(track.id);
+                  else addToFinal(track);
+                }
+              }}
+            >
+              <Flag size={28} fill={finalTracks.find(t => t.title === title) ? "currentColor" : "none"} />
+            </button>
+          </div>
+
+          <button 
+            className={`speed-tag ${bpm !== 100 ? 'active' : ''}`}
+            onClick={() => setShowSpeed(true)}
+          >
+            <Gauge size={14} />
+            <span>{bpm}% Speed</span>
+          </button>
         </div>
 
         <div className="progress-section">
@@ -77,42 +124,45 @@ const MobileFullPlayer = ({ isOpen, onClose }: MobileFullPlayerProps) => {
         </div>
 
         <div className="main-controls">
-          <button className="secondary-ctrl"><Flag size={24} /></button>
+          <button 
+            className={`secondary-ctrl ${isShuffle ? 'active' : ''}`} 
+            onClick={toggleShuffle}
+          >
+            <Shuffle size={24} />
+          </button>
+
+          <button className="secondary-ctrl" onClick={() => seekRelative(-10)}>
+            <SkipBack size={32} fill="currentColor" />
+          </button>
+          
           <button 
             className="play-pause-btn" 
             onClick={togglePlay}
           >
-            {isPlaying ? <Pause size={48} fill="currentColor" /> : <Play size={48} fill="currentColor" style={{marginLeft: 4}} />}
+            {isPlaying ? <Pause size={42} fill="currentColor" /> : <Play size={42} fill="currentColor" style={{marginLeft: 4}} />}
           </button>
-          <button className="secondary-ctrl"><Settings size={24} /></button>
+
+          <button className="secondary-ctrl" onClick={() => seekRelative(10)}>
+            <SkipForward size={32} fill="currentColor" />
+          </button>
+
+          <button 
+            className={`secondary-ctrl ${isRepeat ? 'active' : ''}`} 
+            onClick={toggleRepeat}
+          >
+            <Repeat size={24} />
+          </button>
         </div>
 
-        <div className="player-settings glass">
-          <div className="setting-item">
-            <div className="setting-info">
-              <Gauge size={20} />
-              <span>Speed Control</span>
-            </div>
-            <div className="setting-action">
-              <button 
-                className={`speed-pill ${bpm !== 100 ? 'active' : ''}`}
-                onClick={() => setShowSpeed(true)}
-              >
-                {bpm}%
-              </button>
-            </div>
+        <div className="practice-mode glass">
+          <div className="practice-info">
+            <Timer size={20} />
+            <span>Final Mode Practice</span>
           </div>
-
-          <div className="setting-item">
-            <div className="setting-info">
-              <Timer size={20} />
-              <span>Final Mode Practice</span>
-            </div>
-            <label className="switch">
-              <input type="checkbox" checked={isFinalMode} onChange={toggleFinalMode} />
-              <span className="slider round"></span>
-            </label>
-          </div>
+          <label className="switch">
+            <input type="checkbox" checked={isFinalMode} onChange={toggleFinalMode} />
+            <span className="slider round"></span>
+          </label>
         </div>
       </div>
 
@@ -164,19 +214,21 @@ const MobileFullPlayer = ({ isOpen, onClose }: MobileFullPlayerProps) => {
         }
 
         .header-btn { color: white; opacity: 0.8; }
+        .header-btn-placeholder { width: 32px; }
 
         .player-content {
           flex: 1;
           display: flex;
           flex-direction: column;
           align-items: center;
-          gap: 30px;
+          gap: 20px;
+          justify-content: center;
         }
 
         .album-art-container {
-          width: 280px;
-          height: 280px;
-          margin-bottom: 20px;
+          width: 220px;
+          height: 220px;
+          margin-bottom: 10px;
         }
 
         .disc-art {
@@ -208,12 +260,58 @@ const MobileFullPlayer = ({ isOpen, onClose }: MobileFullPlayerProps) => {
         .track-meta {
           text-align: center;
           width: 100%;
+          display: flex;
+          flex-direction: column;
+          align-items: center;
         }
 
-        .title { font-size: 24px; font-weight: 900; margin-bottom: 8px; }
-        .artist { font-size: 16px; color: #b3b3b3; font-weight: 500; }
+        .meta-top {
+          display: flex;
+          align-items: center;
+          justify-content: space-between;
+          width: 100%;
+          margin-bottom: 8px;
+        }
 
-        .progress-section { width: 100%; margin-top: 20px; }
+        .text-center {
+          flex: 1;
+          min-width: 0;
+          padding: 0 12px;
+        }
+
+        .meta-btn { 
+          color: rgba(255,255,255,0.4); 
+          transition: all 0.2s; 
+          padding: 8px;
+        }
+        .meta-btn.favorite.active { color: #f43f5e; }
+        .meta-btn.flag.active { color: #1db954; }
+        .meta-btn:active { transform: scale(1.2); }
+
+        .title { font-size: 22px; font-weight: 900; margin-bottom: 2px; }
+        .artist { font-size: 15px; color: #b3b3b3; font-weight: 500; margin-bottom: 8px; }
+
+        .speed-tag {
+          display: inline-flex;
+          align-items: center;
+          gap: 6px;
+          background: rgba(255,255,255,0.1);
+          padding: 6px 12px;
+          border-radius: 20px;
+          font-size: 12px;
+          font-weight: 700;
+          color: white;
+          margin-bottom: 16px;
+          border: 1px solid rgba(255,255,255,0.1);
+        }
+
+        .speed-tag.active {
+          background: #1db954;
+          color: black;
+          border-color: #1db954;
+        }
+
+        .progress-section { width: 100%; margin-top: 10px; }
         .progress-bar-container {
           height: 4px;
           background: #333;
@@ -246,42 +344,40 @@ const MobileFullPlayer = ({ isOpen, onClose }: MobileFullPlayerProps) => {
         .main-controls {
           display: flex;
           align-items: center;
-          gap: 40px;
+          justify-content: space-between;
+          width: 100%;
+          padding: 0 10px;
           margin: 10px 0;
         }
 
         .play-pause-btn {
-          width: 80px;
-          height: 80px;
+          width: 72px;
+          height: 72px;
           background: white;
           color: black;
           border-radius: 50%;
           display: flex;
           align-items: center;
           justify-content: center;
+          box-shadow: 0 4px 12px rgba(255,255,255,0.2);
         }
 
-        .secondary-ctrl { color: #b3b3b3; transition: color 0.2s; }
-        .secondary-ctrl:active { color: white; }
+        .secondary-ctrl { color: white; opacity: 0.5; transition: all 0.2s; }
+        .secondary-ctrl.active { color: #1db954; opacity: 1; }
+        .secondary-ctrl:active { transform: scale(1.1); }
 
-        .player-settings {
+        .practice-mode {
           width: 100%;
           border-radius: 20px;
-          padding: 10px;
-          display: flex;
-          flex-direction: column;
-        }
-
-        .setting-item {
+          padding: 16px;
           display: flex;
           justify-content: space-between;
           align-items: center;
-          padding: 16px;
-          border-bottom: 1px solid rgba(255,255,255,0.05);
+          background: rgba(255,255,255,0.03);
+          border: 1px solid rgba(255,255,255,0.05);
         }
-        .setting-item:last-child { border-bottom: none; }
 
-        .setting-info { display: flex; align-items: center; gap: 12px; font-weight: 600; font-size: 14px; }
+        .practice-info { display: flex; align-items: center; gap: 12px; font-weight: 600; font-size: 14px; }
 
         .speed-pill {
           background: #333;

@@ -25,6 +25,7 @@ interface AudioContextType {
   toggleShuffle: () => void;
   toggleFinalMode: () => void;
   seek: (time: number) => void;
+  seekRelative: (seconds: number) => void;
   stop: () => void;
 }
 
@@ -151,6 +152,22 @@ export const AudioProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         throw new Error("Missing Audio Source");
       }
 
+      // 3. SECURE PRE-FETCH (Bypass Tone.js loading issues for remote R2 buckets)
+      if (isRemote) {
+        try {
+          console.log(`[AUDIO-FETCH] Pre-loading binary data for: ${track.title}`);
+          const fetchRes = await fetch(finalUrl);
+          if (!fetchRes.ok) throw new Error(`Fetch failed: ${fetchRes.statusText}`);
+          const blob = await fetchRes.blob();
+          finalUrl = URL.createObjectURL(blob);
+          activeBlobUrlRef.current = finalUrl; // Ensure cleanup on next track
+          console.log(`[AUDIO-FETCH] Ready.`);
+        } catch (e: any) {
+          console.error("[AUDIO-FETCH] Error:", e);
+          throw new Error("Network error while pre-fetching audio data.");
+        }
+      }
+
       const player = new Tone.GrainPlayer({
         url: finalUrl,
         onload: () => {
@@ -163,13 +180,26 @@ export const AudioProvider: React.FC<{ children: React.ReactNode }> = ({ childre
             setIsPlaying(true);
           }
           setError(null);
+
+          // MEDIA SESSION SETUP
+          if ('mediaSession' in navigator) {
+            navigator.mediaSession.metadata = new MediaMetadata({
+              title: track.title,
+              artist: track.artist,
+              album: track.album || '4and.one Music',
+              artwork: [
+                { src: '/icons/icon-192x192.png', sizes: '192x192', type: 'image/png' },
+                { src: '/icons/icon-512x512.png', sizes: '512x512', type: 'image/png' },
+              ]
+            });
+          }
         },
         onerror: (err) => {
           console.error("[PLAYER-ERROR]", err);
-          setError("Stream Error (CORS or Network)");
+          setError("Codec or Memory Error (Incompatible file)");
           setIsLoaded(false);
         },
-        loop: true
+        loop: !isFinalMode // Loop in practice, not in final
       });
 
       player.connect(output);
@@ -234,6 +264,15 @@ export const AudioProvider: React.FC<{ children: React.ReactNode }> = ({ childre
           }
         }
       }, 100);
+
+      // Update Media Session Position State
+      if ('mediaSession' in navigator && duration > 0) {
+        navigator.mediaSession.setPositionState({
+          duration: duration,
+          playbackRate: bpm / 100,
+          position: currentTime
+        });
+      }
     } else {
       if (timerRef.current) clearInterval(timerRef.current);
     }
@@ -255,7 +294,9 @@ export const AudioProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       playerRef.current.stop();
       setIsPlaying(false);
     } else {
-      playerRef.current.start();
+      // Resume from last position (currentTime)
+      const startTime = currentTimeRef.current >= duration ? 0 : currentTimeRef.current;
+      playerRef.current.start(undefined, startTime);
       setIsPlaying(true);
     }
   };
@@ -270,9 +311,24 @@ export const AudioProvider: React.FC<{ children: React.ReactNode }> = ({ childre
 
   const seek = (time: number) => {
     if (playerRef.current && isLoaded) {
+      const isWasPlaying = isPlayingRef.current;
       playerRef.current.stop();
-      playerRef.current.start(undefined, time);
-      setCurrentTime(time);
+      const safeTime = Math.max(0, Math.min(time, duration));
+      playerRef.current.start(undefined, safeTime);
+      setCurrentTime(safeTime);
+      if (!isWasPlaying) {
+        playerRef.current.stop();
+        setIsPlaying(false);
+      } else {
+        setIsPlaying(true);
+      }
+    }
+  };
+
+  const seekRelative = (seconds: number) => {
+    if (playerRef.current && isLoaded) {
+      const newTime = Math.max(0, Math.min(currentTimeRef.current + seconds, duration));
+      seek(newTime);
     }
   };
 
@@ -297,6 +353,24 @@ export const AudioProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     }
   };
 
+  // REGISTER MEDIA SESSION ACTIONS
+  useEffect(() => {
+    if ('mediaSession' in navigator) {
+      navigator.mediaSession.setActionHandler('play', () => togglePlay());
+      navigator.mediaSession.setActionHandler('pause', () => togglePlay());
+      navigator.mediaSession.setActionHandler('seekbackward', () => seekRelative(-10));
+      navigator.mediaSession.setActionHandler('seekforward', () => seekRelative(10));
+      navigator.mediaSession.setActionHandler('previoustrack', () => seekRelative(-30));
+      navigator.mediaSession.setActionHandler('nexttrack', () => {
+          // Future: Logic for next song in playlist
+          seekRelative(30);
+      });
+      navigator.mediaSession.setActionHandler('seekto', (details) => {
+        if (details.seekTime !== undefined) seek(details.seekTime);
+      });
+    }
+  }, [togglePlay, seek, seekRelative]);
+
   return (
     <AudioContext.Provider value={{
       isPlaying,
@@ -319,6 +393,7 @@ export const AudioProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       toggleShuffle,
       toggleFinalMode,
       seek,
+      seekRelative,
       stop
     }}>
       {children}

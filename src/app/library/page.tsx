@@ -43,7 +43,7 @@ export default function LibraryPage() {
           <Link 
             href="/library/favorites" 
             className="collection-card glass"
-            style={{ borderRadius: '12px' }}
+            style={{ borderRadius: '16px', padding: '32px 28px' }}
           >
             <div className="card-visual" style={{ background: 'linear-gradient(135deg, #ff0000, transparent)', opacity: 0.1 }} />
             <div className="card-icon" style={{ color: '#ff0000' }}>
@@ -60,7 +60,7 @@ export default function LibraryPage() {
               key={folder.id} 
               href={`/library/${folder.id}`} 
               className="collection-card glass"
-              style={{ borderRadius: '12px' }}
+              style={{ borderRadius: '16px', padding: '32px 28px' }}
             >
               <div className="card-visual" style={{ 
                 background: `linear-gradient(135deg, ${folder.color}, transparent)`,
@@ -134,9 +134,9 @@ export default function LibraryPage() {
         .library-container {
           display: flex;
           flex-direction: column;
-          gap: 40px;
-          padding: 40px;
-          margin: 0 20px 20px 0;
+          gap: 32px;
+          padding: 32px;
+          margin: 0 16px 16px 0;
           padding-bottom: 140px;
           background: rgba(255, 255, 255, 0.02);
           border-radius: 12px;
@@ -181,13 +181,13 @@ export default function LibraryPage() {
         }
 
         .collection-card {
-          padding: 24px 48px;
-          border-radius: 12px;
+          padding: 32px 28px;
+          border-radius: 16px;
           display: flex;
           align-items: center;
           gap: 24px;
           width: fit-content;
-          min-width: 200px;
+          min-width: 220px;
           position: relative;
           overflow: hidden;
           transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);

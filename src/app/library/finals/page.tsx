@@ -123,8 +123,9 @@ const FinalsPage = () => {
               <button 
                 className="sim-btn add-folder-btn glass big-btn" 
                 onClick={() => setShowFolderForm(!showFolderForm)}
+                title="Add Folder"
               >
-                <span>Add Folder</span>
+                <FolderPlus size={28} strokeWidth={1.5} />
               </button>
               
               {isEditMode && (

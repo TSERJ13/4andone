@@ -72,21 +72,21 @@ export const AudioProvider: React.FC<{ children: React.ReactNode }> = ({ childre
 
   const initAudioChain = () => {
     if (!masterGainRef.current) {
-      // 1. Create Main Gain for volume control
-      masterGainRef.current = new Tone.Gain(volume);
+      // 1. Create Main Gain for volume control + Headroom
+      // We start with a lower internal gain (-3dB) to provide headroom for granular synthesis peaks
+      masterGainRef.current = new Tone.Gain(volume * 0.707); 
       
       // 2. Create Limiter to prevent clipping (crucial for time-stretching stabilization)
-      // Set to -0.5dB for maximum headroom with zero digital distortion
-      limiterRef.current = new Tone.Limiter(-0.5);
+      // Set to -1.0dB for a safer ceiling that doesn't 'pump' as aggressively
+      limiterRef.current = new Tone.Limiter(-1.0);
 
       // 3. Connect Chain: [Player] -> MasterGain -> Limiter -> Destination
-      // Removed Compressor to prevent unwanted volume 'pumping' on mastered music
       masterGainRef.current.connect(limiterRef.current);
       limiterRef.current.toDestination();
     }
     
-    // Smoothly apply volume changes to the persistent node
-    masterGainRef.current.gain.rampTo(volume, 0.05);
+    // Smoothly apply volume changes with the 0.707 (-3dB) headroom factor
+    masterGainRef.current.gain.rampTo(volume * 0.707, 0.05);
     
     return masterGainRef.current;
   };
@@ -230,8 +230,8 @@ export const AudioProvider: React.FC<{ children: React.ReactNode }> = ({ childre
           const player = type === 'grain' 
             ? new Tone.GrainPlayer({
                 url,
-                overlap: 0.1,    // SM-OPT: Increased overlap for a Much smoother amplitude envelope
-                grainSize: 0.2,  // SM-OPT: Larger grains provide better physical stability for dance music
+                overlap: 0.5,    // STABILITY: 50% overlap ensures smooth amplitude summing across grains
+                grainSize: 0.2,  // STABILITY: Larger grains provide better physical stability for rhythms
                 onload: () => {
                   if (currentToken !== loadingTokenRef.current) {
                     player.dispose();
@@ -476,7 +476,8 @@ export const AudioProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     setVolumeState(v);
     localStorage.setItem('4andone-volume', v.toString());
     if (masterGainRef.current) {
-      masterGainRef.current.gain.rampTo(v, 0.1);
+      // Apply the -3dB headroom logic here too
+      masterGainRef.current.gain.rampTo(v * 0.707, 0.1);
     }
   };
 

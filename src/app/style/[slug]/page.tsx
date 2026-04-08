@@ -5,13 +5,26 @@ import { useParams } from 'next/navigation';
 import { Play, Clock, Music2, MoreHorizontal, Heart, Disc, Filter } from 'lucide-react';
 import { useStudio } from '@/components/admin/StudioProvider';
 import { useAudio } from '@/components/audio/AudioProvider';
+import { useAuth } from '@/context/AuthContext';
+import ConfirmModal from '@/components/admin/ConfirmModal';
 import { formatDuration } from '@/utils/format';
 
 const StylePage = () => {
   const { slug } = useParams();
-  const { tracks, tags, styles } = useStudio();
+  const { tracks, tags, styles, toggleFavorite, finalTracks, addToFinal, removeFromFinal } = useStudio();
   const { isPlaying, title: playingTitle, loadTrack } = useAudio();
+  const { isAuthenticated, setIsAuthModalOpen } = useAuth();
   const [activeTag, setActiveTag] = useState<string | null>(null);
+
+  const [authPrompt, setAuthPrompt] = useState({ isOpen: false, action: '' });
+
+  const checkAuthAndExecute = (action: () => void, actionName: string) => {
+    if (!isAuthenticated) {
+      setAuthPrompt({ isOpen: true, action: actionName });
+      return;
+    }
+    action();
+  };
 
   const styleName = (slug as string).charAt(0).toUpperCase() + (slug as string).slice(1).replace('-', ' ');
   
@@ -48,7 +61,16 @@ const StylePage = () => {
           <button className="play-btn-large" style={{ background: styleColor }} onClick={() => filteredTracks[0] && loadTrack(filteredTracks[0])}>
             {isPlaying && filteredTracks.some(t => t.title === playingTitle) ? <span className="pause-icon">||</span> : <Play fill="currentColor" size={24} />}
           </button>
-          <button className="action-btn-circle glass"><Heart size={24} /></button>
+          <button 
+            className="action-btn-circle glass"
+            onClick={(e) => {
+              e.stopPropagation();
+              // This is a style-level favorite, but we'll apply it to the logic needed
+              // For now, let's keep it simple or implement if needed
+            }}
+          >
+            <Heart size={24} />
+          </button>
           <button className="action-btn-circle glass"><MoreHorizontal size={24} /></button>
         </div>
 
@@ -107,7 +129,20 @@ const StylePage = () => {
                 ) : track.style}
               </div>
               <div className="col-bpm text-secondary">{track.bpm || '-'}</div>
-              <div className="col-duration text-secondary">{formatDuration(track.duration)}</div>
+              <div className="col-duration text-secondary">
+                <div className="row-actions-mini">
+                  <button
+                    className={`feature-icon-mini ${track.isFavorite ? 'active-heart' : ''}`}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      checkAuthAndExecute(() => toggleFavorite?.(track.id), 'favorite tracks');
+                    }}
+                  >
+                    <Heart size={14} fill={track.isFavorite ? "#ff4b2b" : "none"} color={track.isFavorite ? "#ff4b2b" : "currentColor"} />
+                  </button>
+                  {formatDuration(track.duration)}
+                </div>
+              </div>
             </div>
           )) : (
             <div className="empty-style-state glass">
@@ -117,6 +152,19 @@ const StylePage = () => {
           )}
         </div>
       </div>
+
+      <ConfirmModal 
+        isOpen={authPrompt.isOpen}
+        title="Authentication Required"
+        message={`Please log in with Telegram to ${authPrompt.action} and sync your studio data.`}
+        confirmText="Login Now"
+        variant="primary"
+        onClose={() => setAuthPrompt(prev => ({ ...prev, isOpen: false }))}
+        onConfirm={() => {
+          setAuthPrompt(prev => ({ ...prev, isOpen: false }));
+          setIsAuthModalOpen(true);
+        }}
+      />
 
       <style jsx>{`
         .style-page {
@@ -337,6 +385,26 @@ const StylePage = () => {
         .animate-in {
           animation: slideUp 0.5s cubic-bezier(0.16, 1, 0.3, 1) both;
         }
+
+        .row-actions-mini {
+          display: flex;
+          align-items: center;
+          gap: 12px;
+          justify-content: flex-end;
+        }
+
+        .feature-icon-mini {
+          color: #555;
+          background: transparent;
+          border: none;
+          cursor: pointer;
+          padding: 4px;
+          display: flex;
+          align-items: center;
+          transition: all 0.2s;
+        }
+        .feature-icon-mini:hover { color: white; transform: scale(1.2); }
+        .feature-icon-mini.active-heart { color: #ff4b2b; }
 
         @keyframes slideUp {
           from { opacity: 0; transform: translateY(20px); }

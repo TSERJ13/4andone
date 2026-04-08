@@ -38,12 +38,20 @@ export const TelegramLogin: React.FC = () => {
 
   return (
     <div className="telegram-login-wrapper">
-      <div ref={scriptContainerRef} id="telegram-script-container" />
+      <div ref={scriptContainerRef} id="telegram-script-container" className="centered-widget" />
       <style jsx>{`
         .telegram-login-wrapper {
           display: flex;
           justify-content: center;
           align-items: center;
+          width: 100%;
+          min-height: 44px;
+        }
+        .centered-widget {
+          display: flex;
+          justify-content: center;
+          min-width: 200px;
+          min-height: 40px;
         }
       `}</style>
     </div>

@@ -90,32 +90,49 @@ export const UserBadge: React.FC<{ textColor?: string }> = ({ textColor = 'white
           position: absolute;
           top: calc(100% + 12px);
           right: 0;
-          width: 240px;
-          padding: 24px;
+          width: 280px;
+          padding: 32px 24px;
           border-radius: 24px;
           display: flex;
           flex-direction: column;
           gap: 20px;
-          background: #0a0a0a;
+          background: rgba(10, 10, 10, 0.9);
+          backdrop-filter: blur(24px);
           box-shadow: 0 40px 100px rgba(0,0,0,0.9), 0 0 0 1px rgba(255,255,255,0.1);
           color: white;
+          z-index: 2000;
         }
         .popup-header { display: flex; justify-content: space-between; align-items: center; }
-        .user-name { font-weight: 800; font-size: 14px; margin-bottom: 2px; }
-        .user-meta { font-size: 11px; opacity: 0.6; }
+        .user-name { font-weight: 900; font-size: 16px; margin-bottom: 2px; }
+        .user-meta { font-size: 12px; opacity: 0.6; font-weight: 600; }
 
-        .popup-actions { display: flex; flex-direction: column; gap: 12px; }
-        .sync-status { font-size: 10px; font-weight: 700; color: #1db954; opacity: 0.8; }
+        .popup-actions { display: flex; flex-direction: column; gap: 16px; }
+        .sync-status { font-size: 11px; font-weight: 700; color: #1db954; opacity: 0.9; }
         .logout-btn {
-          display: flex; align-items: center; gap: 8px;
-          padding: 10px; border-radius: 10px; background: rgba(255, 75, 43, 0.1);
-          color: #ff4b2b; border: none; font-weight: 700; font-size: 12px; cursor: pointer;
+          display: flex; align-items: center; justify-content: center; gap: 10px;
+          padding: 14px; border-radius: 14px; background: rgba(255, 75, 43, 0.1);
+          color: #ff4b2b; border: 1px solid rgba(255, 75, 43, 0.2); 
+          font-weight: 800; font-size: 13px; cursor: pointer;
           transition: all 0.2s;
         }
-        .logout-btn:hover { background: rgba(255, 75, 43, 0.2); }
+        .logout-btn:hover { background: rgba(255, 75, 43, 0.2); transform: scale(1.02); }
 
-        @keyframes popupFade { from { opacity: 0; transform: scale(0.95); } to { opacity: 1; transform: scale(1); } }
-        .animate-in-popup { animation: popupFade 0.2s cubic-bezier(0.175, 0.885, 0.32, 1.275); }
+        @keyframes popupFade { from { opacity: 0; transform: scale(0.95) translateY(10px); } to { opacity: 1; transform: scale(1) translateY(0); } }
+        .animate-in-popup { animation: popupFade 0.3s cubic-bezier(0.19, 1, 0.22, 1); }
+
+        @media (max-width: 768px) {
+          .user-popup {
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            width: 90%;
+            max-width: 320px;
+            box-shadow: 0 0 0 100vh rgba(0,0,0,0.8), 0 40px 100px rgba(0,0,0,0.9);
+          }
+          @keyframes popupFadeMobile { from { opacity: 0; transform: translate(-50%, -40%) scale(0.9); } to { opacity: 1; transform: translate(-50%, -50%) scale(1); } }
+          .animate-in-popup { animation: popupFadeMobile 0.4s cubic-bezier(0.19, 1, 0.22, 1); }
+        }
       `}</style>
     </div>
   );

@@ -18,6 +18,8 @@ import {
 import { useAudio } from '@/components/audio/AudioProvider';
 import SpeedSelector from '@/components/audio/SpeedSelector';
 import { useStudio } from '@/components/admin/StudioProvider';
+import { useAuth } from '@/context/AuthContext';
+import ConfirmModal from '@/components/admin/ConfirmModal';
 import { getMPMFromBPM } from '@/utils/audio';
 
 const PlayerBar = () => {
@@ -50,6 +52,17 @@ const PlayerBar = () => {
   const [isDragging, setIsDragging] = useState(false);
   const [dragProgress, setDragProgress] = useState(0);
   const progressRef = useRef<HTMLDivElement>(null);
+  
+  const { isAuthenticated, setIsAuthModalOpen } = useAuth();
+  const [authPrompt, setAuthPrompt] = useState({ isOpen: false, action: '' });
+
+  const checkAuthAndExecute = (action: () => void, actionName: string) => {
+    if (!isAuthenticated) {
+      setAuthPrompt({ isOpen: true, action: actionName });
+      return;
+    }
+    action();
+  };
 
   const handleSeekUpdate = (clientX: number) => {
     if (!progressRef.current || !duration) return;
@@ -89,7 +102,7 @@ const PlayerBar = () => {
 
   const displayProgress = isDragging ? dragProgress : (currentTime / (duration || 1)) * 100;
   
-  const { finalTracks, addToFinal, removeFromFinal, tracks } = useStudio();
+  const { finalTracks, addToFinal, removeFromFinal, tracks, toggleFavorite } = useStudio();
   const currentTrack = tracks.find(t => t.title === title) || finalTracks.find(t => t.title === title);
 
   if (isAdmin) return null;
@@ -133,16 +146,29 @@ const PlayerBar = () => {
             <button 
               className={`action-btn-large ${finalTracks.some(t => t.title === title) ? 'active-flag' : ''}`}
               onClick={() => {
-                const currentTrack = tracks.find(t => t.title === title);
-                if (currentTrack) {
-                  finalTracks.some(t => t.id === currentTrack.id) ? (removeFromFinal(currentTrack.id)) : (addToFinal(currentTrack));
-                }
+                checkAuthAndExecute(() => {
+                  const currentTrack = tracks.find(t => t.title === title);
+                  if (currentTrack) {
+                    finalTracks.some(t => t.id === currentTrack.id) ? (removeFromFinal(currentTrack.id)) : (addToFinal(currentTrack));
+                  }
+                }, 'manage competition folders');
               }}
               title="Add to Final Mode"
             >
               <Flag size={20} fill={finalTracks.some(t => t.title === title) ? "currentColor" : "none"} />
             </button>
-            <button className="action-btn-large" title="Add to Favorites">
+            <button 
+              className="action-btn-large" 
+              title="Add to Favorites"
+              onClick={() => {
+                checkAuthAndExecute(() => {
+                   const currentTrack = tracks.find(t => t.title === title);
+                   if (currentTrack && typeof toggleFavorite === 'function') {
+                      toggleFavorite(currentTrack.id);
+                   }
+                }, 'favorite tracks');
+              }}
+            >
               <Heart size={20} />
             </button>
           </div>
@@ -232,6 +258,19 @@ const PlayerBar = () => {
           />
         </div>
       </div>
+
+      <ConfirmModal 
+        isOpen={authPrompt.isOpen}
+        title="Authentication Required"
+        message={`Please log in with Telegram to ${authPrompt.action} and sync your studio data.`}
+        confirmText="Login Now"
+        variant="primary"
+        onClose={() => setAuthPrompt(prev => ({ ...prev, isOpen: false }))}
+        onConfirm={() => {
+          setAuthPrompt(prev => ({ ...prev, isOpen: false }));
+          setIsAuthModalOpen(true);
+        }}
+      />
 
       <style jsx>{`
         .player-bar {

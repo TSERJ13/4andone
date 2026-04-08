@@ -13,11 +13,27 @@ import {
   Flag
 } from 'lucide-react';
 import { useStudio } from "@/components/admin/StudioProvider";
+import { useAuth } from '@/context/AuthContext';
+import ConfirmModal from '@/components/admin/ConfirmModal';
+import { useRouter } from 'next/navigation';
 
 const Sidebar = () => {
   const pathname = usePathname();
+  const router = useRouter();
   const isAdmin = pathname.startsWith('/admin');
   const { folders } = useStudio();
+  const { isAuthenticated, setIsAuthModalOpen } = useAuth();
+  const [showAuthPrompt, setShowAuthPrompt] = React.useState(false);
+
+  const handleCreatePlaylist = () => {
+    if (!isAuthenticated) {
+      setShowAuthPrompt(true);
+      return;
+    }
+    // If authenticated, we redirect to library where they can manage folders
+    // or trigger a specific folder creation logic if we add it globally
+    router.push('/library');
+  };
 
   if (isAdmin) return null;
 
@@ -71,11 +87,27 @@ const Sidebar = () => {
       </nav>
 
       <div className="sidebar-footer">
-        <button className="create-playlist-btn glass">
+        <button 
+          className="create-playlist-btn glass"
+          onClick={handleCreatePlaylist}
+        >
           <PlusSquare size={20} />
           <span>Create Playlist</span>
         </button>
       </div>
+
+      <ConfirmModal 
+        isOpen={showAuthPrompt}
+        title="Connect Telegram"
+        message="Please sign in with Telegram to create playlists and sync your dance library across all your devices."
+        confirmText="Login with Telegram"
+        variant="primary"
+        onClose={() => setShowAuthPrompt(false)}
+        onConfirm={() => {
+          setShowAuthPrompt(false);
+          setIsAuthModalOpen(true);
+        }}
+      />
 
       <style jsx>{`
         .sidebar {

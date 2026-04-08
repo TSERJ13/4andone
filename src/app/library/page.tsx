@@ -107,27 +107,26 @@ export default function LibraryPage() {
           <TrendingUp size={18} className="text-secondary" />
           <h2>Recent Practice</h2>
         </div>
-        <div className="playlist-rows">
-          {tracks.length > 0 ? tracks.slice(0, 10).map((track) => (
+        <div className="tracks-list">
+          {tracks.length > 0 ? tracks.slice(0, 10).map((track, i) => (
             <div
               key={track.id}
-              className={`playlist-row glass ${isPlaying && playingTitle === track.title ? 'is-playing' : ''}`}
+              className={`track-row glass ${isPlaying && playingTitle === track.title ? 'is-playing' : ''}`}
               onClick={() => loadTrack(track)}
               style={{ cursor: 'pointer' }}
             >
-              <div className="row-image glass-item">
-                <Music size={20} />
+              <div className="track-number">{i + 1}</div>
+              <div className="track-meta">
+                <Music size={20} className="text-secondary" />
+                <div>
+                  <p className="track-name">{track.title}</p>
+                  <p className="track-artist text-secondary">{track.artist}</p>
+                </div>
               </div>
-              <div className="row-content">
-                <p className="row-title">{track.title}</p>
-                <p className="row-artist text-secondary">
-                  {track.artist}
-                  {track.bpm && (
-                    <span className="text-primary font-bold ml-2">• {getMPMFromBPM(Number(track.bpm), track.style)} Bars/Min</span>
-                  )}
-                </p>
+              <div className="track-duration text-secondary">
+                {track.bpm ? `${getMPMFromBPM(Number(track.bpm), track.style)} Bars/Min` : '—'}
               </div>
-              <div className="row-actions">
+              <div className="track-actions">
                 <button
                   className={`feature-icon ${track.isFavorite ? 'active-heart' : ''}`}
                   onClick={(e) => {
@@ -148,11 +147,11 @@ export default function LibraryPage() {
                 >
                   <Flag size={18} fill={finalTracks.some(t => t.id === track.id) ? "currentColor" : "none"} />
                 </button>
-                <div className="play-row-btn glass">
+                <div className="btn-play-row">
                   {isPlaying && playingTitle === track.title ? (
                     <div className="playing-bars"><span></span><span></span><span></span></div>
                   ) : (
-                    <Play size={18} fill="currentColor" />
+                    <Play size={20} fill="currentColor" />
                   )}
                 </div>
               </div>
@@ -242,13 +241,12 @@ export default function LibraryPage() {
 
         .collection-card:hover { transform: translateY(-8px); background: rgba(255, 255, 255, 0.08); border-color: rgba(255,255,255,0.1); }
 
-        .playlist-row.is-playing {
-          background: rgba(29, 185, 84, 0.1);
-          border: 1px solid rgba(29, 185, 84, 0.3);
+        .track-row.is-playing {
+          background: rgba(29, 185, 84, 0.08);
+          border-left: 3px solid #1db954;
           transition: all 0.3s ease;
         }
-        .playlist-row.is-playing .row-title { color: #1db954; }
-        .playlist-row.is-playing .play-row-btn { background: #1db954; color: black; }
+        .track-row.is-playing .track-name { color: #1db954; }
 
         .card-visual { position: absolute; inset: 0; pointer-events: none; }
 
@@ -260,44 +258,23 @@ export default function LibraryPage() {
         .card-info h3 { font-size: 1.2rem; font-weight: 800; margin-bottom: 4px; letter-spacing: -0.5px; }
         .card-info .meta { font-size: 12px; opacity: 0.8; }
 
-        .playlist-rows {
-          display: flex;
-          flex-direction: column;
-          gap: 12px;
-        }
-
-        .playlist-row {
-          padding: 12px 20px;
-          border-radius: 16px;
-          display: flex;
+        .tracks-list { display: flex; flex-direction: column; gap: 8px; }
+        .track-row {
+          display: grid;
+          grid-template-columns: 40px 1fr 140px 100px;
           align-items: center;
-          gap: 16px;
-        }
-
-        .row-image {
-          width: 48px;
-          height: 48px;
+          padding: 12px 16px;
           border-radius: 12px;
-          display: flex;
-          align-items: center;
-          justify-content: center;
+          transition: background 0.2s;
         }
-
-        .row-title {
-          font-weight: 600;
-          font-size: 15px;
-        }
-
-        .row-artist {
-          font-size: 13px;
-        }
-
-        .row-actions {
-          margin-left: auto;
-          display: flex;
-          align-items: center;
-          gap: 16px;
-        }
+        .track-row:hover { background: rgba(255,255,255,0.08); }
+        .track-number { font-size: 12px; font-weight: 800; opacity: 0.3; width: 40px; text-align: center; }
+        .track-meta { display: flex; align-items: center; gap: 16px; }
+        .track-name { font-weight: 600; font-size: 14px; }
+        .track-artist { font-size: 12px; }
+        .track-duration { font-size: 13px; font-weight: 500; }
+        .track-actions { display: flex; align-items: center; justify-content: flex-end; gap: 16px; }
+        .btn-play-row { color: var(--primary); }
 
         .feature-icon {
           color: #555;
@@ -346,18 +323,28 @@ export default function LibraryPage() {
             gap: 20px;
           }
           .collection-grid {
-            grid-template-columns: 1fr;
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 12px;
           }
           .collection-card {
-            padding: 16px;
+            padding: 12px;
             min-width: 100%;
+            gap: 12px;
           }
           .card-icon {
-            width: 44px;
-            height: 44px;
-            border-radius: 12px;
+            width: 32px;
+            height: 32px;
+            border-radius: 10px;
           }
-          .card-info h3 { font-size: 1rem; }
+          .card-info h3 { font-size: 0.85rem; }
+          .card-info .meta { display: none; }
+
+          .track-row {
+            grid-template-columns: 32px 1fr 48px;
+            padding: 8px 12px;
+          }
+          .track-duration { display: none; }
         }
       `}</style>
     </div>

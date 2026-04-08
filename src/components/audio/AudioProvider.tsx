@@ -17,6 +17,7 @@ interface AudioContextType {
   volume: number;
   isRepeat: boolean;
   isShuffle: boolean;
+  isLoading: boolean;
   togglePlay: () => void;
   loadTrack: (track: any, isRetry?: boolean, forceFinalMode?: boolean) => void;
   setBpm: (bpm: number) => void;
@@ -58,8 +59,8 @@ export const AudioProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   const activeBlobUrlRef = useRef<string | null>(null);
   const trackIdRef = useRef<string | null>(null);
   const loadingTokenRef = useRef<number>(0); // Guard for race conditions
-  const limiterRef = useRef<Tone.Limiter | null>(null);
   const masterGainRef = useRef<Tone.Gain | null>(null);
+  const [isLoading, setIsLoading] = useState(false);
 
   // Refs to avoid circular re-renders on every tick
   const isPlayingRef = useRef(isPlaying);
@@ -72,22 +73,14 @@ export const AudioProvider: React.FC<{ children: React.ReactNode }> = ({ childre
 
   const initAudioChain = () => {
     if (!masterGainRef.current) {
-      // 1. Create Main Gain for volume control + Headroom
-      // We start with a lower internal gain (-3dB) to provide headroom for granular synthesis peaks
-      masterGainRef.current = new Tone.Gain(volume * 0.707); 
-      
-      // 2. Create Limiter to prevent clipping (crucial for time-stretching stabilization)
-      // Set to -1.0dB for a safer ceiling that doesn't 'pump' as aggressively
-      limiterRef.current = new Tone.Limiter(-1.0);
-
-      // 3. Connect Chain: [Player] -> MasterGain -> Limiter -> Destination
-      masterGainRef.current.connect(limiterRef.current);
-      limiterRef.current.toDestination();
+      // 1. Create Main Gain for volume control with Safe Headroom (-4dB)
+      // We use a fixed multiplier (0.65) instead of a Limiter to ensure volume NEVER 'pumps' or 'dances'.
+      masterGainRef.current = new Tone.Gain(volume * 0.65); 
+      masterGainRef.current.toDestination();
     }
     
-    // Smoothly apply volume changes with the 0.707 (-3dB) headroom factor
-    masterGainRef.current.gain.rampTo(volume * 0.707, 0.05);
-    
+    // Smoothly apply volume changes with the 0.65 headroom factor
+    masterGainRef.current.gain.rampTo(volume * 0.65, 0.1);
     return masterGainRef.current;
   };
 
@@ -144,8 +137,10 @@ export const AudioProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         activeBlobUrlRef.current = null;
       }
 
+      // INSTANT FEEDBACK: Update UI info immediately so the PlayerBar pops up right away
       setIsPlaying(false);
       setIsLoaded(false);
+      setIsLoading(true);
       setError(null);
       setCurrentTime(0);
       setTitle(track.title);
@@ -195,122 +190,57 @@ export const AudioProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         throw new Error("Missing Audio Source (File not found in storage)");
       }
 
-      const setupPlayer = (url: string, type: 'grain' | 'standard' | 'native' = 'grain') => {
-        return new Promise<Tone.GrainPlayer | Tone.Player | HTMLAudioElement>((resolve, reject) => {
-          // Check if we are still the relevant loading operation
+      const setupPlayer = (url: string, type: 'streaming' | 'grain' | 'native' = 'streaming') => {
+        return new Promise<Tone.Player | HTMLAudioElement>((resolve, reject) => {
           if (currentToken !== loadingTokenRef.current) {
              reject(new Error("Loading cancelled by new request"));
              return;
           }
 
-          console.log(`[AUDIO-LOAD] Attempting ${type} playback for: ${track.title}`);
+          console.log(`[AUDIO-STREAM] Opening stream for: ${track.title}`);
           
-          if (type === 'native') {
-            const audio = new Audio(url);
-            audio.oncanplay = () => {
-              if (currentToken !== loadingTokenRef.current) {
-                audio.pause();
-                audio.src = "";
-                return;
-              }
-              resolve(audio);
-            };
-            audio.onerror = (e) => {
-              console.error(`[PLAYER-NATIVE-FAIL] URL: ${url}`, e);
-              reject(new Error(`Unreachable: ${url.substring(0, 40)}...`));
-            };
-            // Set some properties
-            audio.crossOrigin = "anonymous";
-            audio.volume = volume;
-            audio.loop = !isFinalMode;
-            nativePlayerRef.current = audio;
-            return;
-          }
+          // Create Native Audio Element for Streaming
+          const audio = new Audio(url);
+          audio.crossOrigin = "anonymous";
+          audio.autoplay = false;
+          audio.loop = !isFinalMode;
+          nativePlayerRef.current = audio;
 
-          const player = type === 'grain' 
-            ? new Tone.GrainPlayer({
-                url,
-                overlap: 0.5,    // STABILITY: 50% overlap ensures smooth amplitude summing across grains
-                grainSize: 0.2,  // STABILITY: Larger grains provide better physical stability for rhythms
-                onload: () => {
-                  if (currentToken !== loadingTokenRef.current) {
-                    player.dispose();
-                    return;
-                  }
-                  resolve(player);
-                },
-                onerror: (e) => {
-                  console.warn(`[PLAYER-GRAIN-FAIL] URL: ${url}`, e);
-                  reject(new Error(`Decode Failed: ${url.substring(0, 40)}...`));
-                },
-                loop: !isFinalMode
-              })
-            : new Tone.Player({
-                url,
-                onload: () => {
-                  if (currentToken !== loadingTokenRef.current) {
-                    player.dispose();
-                    return;
-                  }
-                  resolve(player);
-                },
-                onerror: (e) => {
-                  console.error(`[PLAYER-STANDARD-FAIL] URL: ${url}`, e);
-                  reject(new Error(`Standard Load Failed: ${url.substring(0, 40)}...`));
-                },
-                loop: !isFinalMode
-              });
-          
+          // Connect to Tone.js for Gain/Pan control
+          const node = Tone.getContext().createMediaElementSource(audio);
           const output = initAudioChain();
-          player.connect(output);
-          playerRef.current = player as any;
+          Tone.connect(node, output);
+
+          // Spotify-style: Start as soon as we have enough data to play without stuttering
+          audio.oncanplay = () => {
+            if (currentToken !== loadingTokenRef.current) return;
+            console.log(`[AUDIO-READY] Stream buffered. Starting ${track.title}`);
+            setDuration(audio.duration || 0);
+            setIsLoaded(true);
+            setIsLoading(false);
+            resolve(audio);
+          };
+
+          audio.onerror = (e) => reject(new Error(`Stream error: ${track.title}`));
+          
+          // Set initial speed
+          audio.playbackRate = bpm / 100;
         });
       };
 
       try {
-        // Attempt 1: High Quality Granular Synthesis (Pitch Preserved)
-        const player = await setupPlayer(finalUrl, 'grain') as Tone.GrainPlayer;
-        setDuration(player.buffer.duration);
-        setIsLoaded(true);
-        player.playbackRate = bpm / 100;
-
+        // ATTEMPT 1: INSTANT STREAMING (Spotify Method)
+        const audio = await setupPlayer(finalUrl, 'streaming') as HTMLAudioElement;
+        
         if (Tone.getContext().state === 'running') {
-          player.start();
+          audio.play().catch(e => console.error("Play prevented", e));
           setIsPlaying(true);
         }
       } catch (e: any) {
-        console.warn("[AUDIO-RETRY] GrainPlayer failed. Attempting Standard Player...");
-        
-        try {
-          // Attempt 2: Standard Player (Pitch changes with speed)
-          const player = await setupPlayer(finalUrl, 'standard') as Tone.Player;
-          setDuration(player.buffer.duration);
-          setIsLoaded(true);
-          player.playbackRate = bpm / 100;
-
-          if (Tone.getContext().state === 'running') {
-            player.start();
-            setIsPlaying(true);
-          }
-        } catch (e2) {
-          console.warn("[AUDIO-RETRY] Tone.js failed completely. Attempting ULTIMATE NATIVE FALLBACK...");
-          try {
-            // Attempt 3: Native HTML5 Audio (Most compatible, but changes pitch)
-            const audio = await setupPlayer(finalUrl, 'native') as HTMLAudioElement;
-            setDuration(audio.duration || 0);
-            setIsLoaded(true);
-            audio.playbackRate = bpm / 100;
-            
-            audio.play().catch(e => console.error("Native play failed", e));
-            setIsPlaying(true);
-            setError(null); 
-            console.log("[AUDIO-SAFE-MODE] Success. Using native browser engine.");
-          } catch (e3: any) {
-            console.error("[AUDIO-CRITICAL] Global failure.", e3);
-            setError(e3.message || "File Unreachable (Check Connection)");
-            setIsLoaded(false);
-          }
-        }
+        console.error("[AUDIO-CRITICAL] Global failure.", e);
+        setError(e.message || "File Unreachable (Check Connection)");
+        setIsLoaded(false);
+        setIsLoading(false);
       }
 
       // MEDIA SESSION SETUP
@@ -344,14 +274,15 @@ export const AudioProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   useEffect(() => {
     if (isPlaying) {
       timerRef.current = setInterval(() => {
-        if (playerRef.current) {
-          const nextVal = currentTime + 0.1 * (bpm / 100);
-          setCurrentTime(nextVal);
+        if (nativePlayerRef.current) {
+          const currentTimeVal = nativePlayerRef.current.currentTime;
+          setCurrentTime(currentTimeVal);
           
-          if (isFinalMode && nextVal >= 105) {
-            if (playerRef.current) playerRef.current.stop();
+          if (isFinalMode && currentTimeVal >= 105) {
+            nativePlayerRef.current.pause();
             setIsPlaying(false);
             setCurrentTime(0);
+            nativePlayerRef.current.currentTime = 0;
             
             // Start 15s Pause Countdown for Final Mode
             setIsPauseCountdown(true);
@@ -374,12 +305,14 @@ export const AudioProvider: React.FC<{ children: React.ReactNode }> = ({ childre
                 return p - 1;
               });
             }, 1000);
-          } else if (!isFinalMode && duration > 0 && nextVal >= duration) {
+          } else if (!isFinalMode && duration > 0 && currentTimeVal >= duration) {
             if (!isRepeat) {
-              if (playerRef.current) playerRef.current.stop();
+              nativePlayerRef.current.pause();
               setIsPlaying(false);
               setCurrentTime(0);
+              nativePlayerRef.current.currentTime = 0;
             } else {
+              nativePlayerRef.current.currentTime = 0;
               setCurrentTime(0);
             }
           }
@@ -455,7 +388,6 @@ export const AudioProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       setCurrentTime(safeTime);
       
       if (!isWasPlaying) {
-        if (playerRef.current) playerRef.current.stop();
         if (nativePlayerRef.current) nativePlayerRef.current.pause();
         setIsPlaying(false);
       } else {
@@ -476,8 +408,8 @@ export const AudioProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     setVolumeState(v);
     localStorage.setItem('4andone-volume', v.toString());
     if (masterGainRef.current) {
-      // Apply the -3dB headroom logic here too
-      masterGainRef.current.gain.rampTo(v * 0.707, 0.1);
+      // Apply the 0.65 headroom logic
+      masterGainRef.current.gain.rampTo(v * 0.65, 0.1);
     }
   };
 
@@ -550,6 +482,7 @@ export const AudioProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       volume,
       isRepeat,
       isShuffle,
+      isLoading,
       togglePlay,
       loadTrack,
       setBpm,

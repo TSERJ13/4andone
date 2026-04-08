@@ -8,7 +8,7 @@ const inter = Inter({ subsets: ['latin'] });
 
 export const metadata: Metadata = {
   title: "4and.one Music | Dancesport Player",
-  description: "The ultimate training tool for dancers and coaches. BPM control, AI vocal removal, and professional practice modes.",
+  description: "The ultimate tool for dancers and coaches. High-fidelity BPM control and professional practice modes.",
   manifest: "/manifest.json?v=3",
   icons: {
     icon: "/icon.png?v=3",

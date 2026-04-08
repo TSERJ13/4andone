@@ -55,6 +55,7 @@ interface StudioContextType {
   folders: Folder[];
   styles: Style[];
   tags: Tag[];
+  isLoading: boolean;
   
   // Tracks
   addTrack: (track: Partial<Track>) => void;
@@ -124,57 +125,59 @@ export const StudioProvider: React.FC<{ children: React.ReactNode }> = ({ childr
   const [finalTracks, setFinalTracks] = useState<Track[]>([]);
   const [finalFolders, setFinalFolders] = useState<FinalFolder[]>([]);
   const [finalFolderTracksMap, setFinalFolderTracksMap] = useState<Record<string, string[]>>({}); // folderId -> [trackIds]
-  const [isLoaded, setIsLoaded] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
 
   // Load from Supabase and Subscribe to Real-Time Updates
   useEffect(() => {
     const fetchData = async () => {
-      // 1. Fetch Global Tracks (Shared for now)
-      const { data: tracksData } = await supabase.from('tracks').select('*').order('created_at', { ascending: false });
-      
-      // 2. Fetch User Specific Collections
-      let foldersData = [];
-      let finalFoldersData = [];
-      let favoritesData: string[] = [];
-
-      if (isAuthenticated && user) {
-        const { data: fData } = await supabase.from('folders').select('*').eq('user_id', user.id).order('name');
-        if (fData) foldersData = fData;
-
-        const { data: ffData } = await supabase.from('final_folders').select('*').eq('user_id', user.id);
-        if (ffData) finalFoldersData = ffData;
+      setIsLoading(true);
+      try {
+        // 1. Fetch Global Tracks (Shared for now)
+        const { data: tracksData } = await supabase.from('tracks').select('*').order('created_at', { ascending: false });
         
-        // Final Tracks Queue
-        const { data: ftData } = await supabase.from('final_tracks').select('track_id').eq('user_id', user.id);
-        if (ftData) {
-           const ftIds = ftData.map(f => f.track_id);
-           const ftTracks = tracksData?.filter(t => ftIds.includes(t.id)) || [];
-           setFinalTracks(ftTracks);
+        // 2. Fetch User Specific Collections
+        let foldersData = [];
+        let finalFoldersData = [];
+
+        if (isAuthenticated && user) {
+          const { data: fData } = await supabase.from('folders').select('*').eq('user_id', user.id).order('name');
+          if (fData) foldersData = fData;
+
+          const { data: ffData } = await supabase.from('final_folders').select('*').eq('user_id', user.id);
+          if (ffData) finalFoldersData = ffData;
+          
+          // Final Tracks Queue
+          const { data: ftData } = await supabase.from('final_tracks').select('track_id').eq('user_id', user.id);
+          if (ftData) {
+             const ftIds = ftData.map(f => f.track_id);
+             const ftTracks = tracksData?.filter(t => ftIds.includes(t.id)) || [];
+             setFinalTracks(ftTracks);
+          }
         }
+
+        if (tracksData) {
+          setTracks(tracksData.map(t => ({
+            ...t,
+            audioUrl: t.audio_url,
+            folderId: t.folder_id,
+            globalOrder: t.global_order || 0,
+            duration: t.duration || 0,
+            isFavorite: t.is_favorite || false
+          })));
+        }
+
+        // Fetch Folders, Styles, Tags (same as before)
+        setFolders(foldersData);
+        setFinalFolders(finalFoldersData);
+
+        const { data: stylesData } = await supabase.from('styles').select('*').order('order');
+        if (stylesData) setStyles(stylesData);
+
+        const { data: tagsData } = await supabase.from('tags').select('*').order('name');
+        if (tagsData) setTags(tagsData);
+      } finally {
+        setIsLoading(false);
       }
-
-      if (tracksData) {
-        setTracks(tracksData.map(t => ({
-          ...t,
-          audioUrl: t.audio_url,
-          folderId: t.folder_id,
-          globalOrder: t.global_order || 0,
-          duration: t.duration || 0,
-          isFavorite: t.is_favorite || false
-        })));
-      }
-
-      // Fetch Folders, Styles, Tags (same as before)
-      setFolders(foldersData);
-      setFinalFolders(finalFoldersData);
-
-      const { data: stylesData } = await supabase.from('styles').select('*').order('order');
-      if (stylesData) setStyles(stylesData);
-
-      const { data: tagsData } = await supabase.from('tags').select('*').order('name');
-      if (tagsData) setTags(tagsData);
-
-      setIsLoaded(true);
     };
 
     fetchData();
@@ -200,7 +203,7 @@ export const StudioProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       .subscribe();
 
     return () => { supabase.removeChannel(channel); };
-  }, []);
+  }, [isAuthenticated, user]);
 
   const addTrack = async (trackData: Partial<Track>) => {
     const { data, error } = await supabase
@@ -223,7 +226,6 @@ export const StudioProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       console.error("[SYNC-ERROR] Add failed:", error);
       alert("Failed to save to cloud: " + error.message);
     }
-    // State is updated by Real-Time listener or manually here if needed
   };
 
   const removeTrack = async (id: string) => {
@@ -246,7 +248,6 @@ export const StudioProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     if (updates.folderId !== undefined) dbUpdates.folder_id = updates.folderId;
     if (updates.globalOrder !== undefined) dbUpdates.global_order = updates.globalOrder;
 
-    // Clean undefined fields
     Object.keys(dbUpdates).forEach(key => dbUpdates[key] === undefined && delete dbUpdates[key]);
 
     const { error } = await supabase.from('tracks').update(dbUpdates).eq('id', id);
@@ -254,8 +255,6 @@ export const StudioProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     if (error) {
       console.error("[SYNC-ERROR] Update failed:", error);
       alert("Changes were NOT saved to cloud. Refresh and try again.");
-    } else {
-      console.log(`[SYNC-OK] Track ${id} updated on cloud.`);
     }
   };
 
@@ -265,13 +264,11 @@ export const StudioProvider: React.FC<{ children: React.ReactNode }> = ({ childr
 
     const newVal = !track.isFavorite;
     
-    // Optimistic update
     setTracks(prev => prev.map(t => t.id === id ? { ...t, isFavorite: newVal } : t));
 
     const { error } = await supabase.from('tracks').update({ is_favorite: newVal }).eq('id', id);
     if (error) {
       console.error("[SYNC-ERROR] Toggle favorite failed:", error);
-      // Rollback on error
       setTracks(prev => prev.map(t => t.id === id ? { ...t, isFavorite: !newVal } : t));
     }
   };
@@ -298,7 +295,6 @@ export const StudioProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     setTracks(prev => prev.map(t => t.id === trackId ? { ...t, folderId } : t));
   };
 
-  // Taxonomy CRUD methods
   const addStyle = async (styleData: Partial<Style>) => {
     const { data, error } = await supabase.from('styles').insert([styleData]).select();
     if (error) alert("Error adding style: " + error.message);
@@ -409,23 +405,19 @@ export const StudioProvider: React.FC<{ children: React.ReactNode }> = ({ childr
 
     const currentTracks = getTracksForFinalFolder(finalFolderId);
     
-    // Check for duplicate style
     if (!force && currentTracks.some(t => t.style === track.style)) {
       return { success: false, duplicate: track.style };
     }
 
-    // Add to DB
     await supabase.from('final_folder_tracks').insert([{
       final_folder_id: finalFolderId,
       track_id: trackId,
       order: currentTracks.length
     }]);
 
-    // Update Local Map
     setFinalFolderTracksMap(prev => {
       const newIds = [...(prev[finalFolderId] || []), trackId];
       
-      // AUTO-SORT: Apply competition sequence logic
       const sortedIds = newIds
         .map(id => tracks.find(t => t.id === id))
         .filter(Boolean)
@@ -479,7 +471,8 @@ export const StudioProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       finalTracks, finalFolders, addFinalFolder, removeFinalFolder,
       addToFinal, removeFromFinal, reorderFinalTracks, setFinalTracks,
       reorderGlobalTracks, addTrackToFinalFolder, getTracksForFinalFolder,
-      stats 
+      stats,
+      isLoading
     }}>
       {children}
     </StudioContext.Provider>

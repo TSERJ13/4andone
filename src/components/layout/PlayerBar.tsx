@@ -45,7 +45,8 @@ const PlayerBar = () => {
     isShuffle,
     toggleRepeat,
     toggleShuffle,
-    seek
+    seek,
+    isLoading
   } = useAudio();
 
   const [showSpeedSelector, setShowSpeedSelector] = useState(false);
@@ -114,7 +115,7 @@ const PlayerBar = () => {
   };
 
   return (
-    <footer className={`player-bar glass ${!isLoaded ? 'is-hidden' : ''}`}>
+    <footer className={`player-bar glass ${!isLoaded && !isLoading ? 'is-hidden' : ''}`}>
       {/* Track Info */}
       <div className="track-info">
         <div className="album-art glass">

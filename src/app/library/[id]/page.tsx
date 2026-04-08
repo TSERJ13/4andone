@@ -101,49 +101,64 @@ const PlaylistPage = () => {
       </div>
 
       <div className="tracks-list">
-        {playlist.tracks.map((track, i) => (
-          <div 
-            key={track.id} 
-            className={`track-row ${isPlaying && playingTitle === track.title ? 'is-playing' : ''}`} 
-            draggable
-            onDragStart={(e) => handleDragStart(e, i)}
-            onDragOver={handleDragOver}
-            onDrop={(e) => handleDrop(e, i)}
-            onClick={() => loadTrack(track)}
-          >
-            <div className="track-num-wrap">
-              <div className="track-num">{i + 1}</div>
-              <GripVertical size={14} className="drag-handle" />
+        {playlist.tracks.length > 0 ? (
+          playlist.tracks.map((track, i) => (
+            <div 
+              key={track.id} 
+              className={`track-row glass ${isPlaying && playingTitle === track.title ? 'is-playing' : ''}`} 
+              draggable
+              onDragStart={(e) => handleDragStart(e, i)}
+              onDragOver={handleDragOver}
+              onDrop={(e) => handleDrop(e, i)}
+              onClick={() => loadTrack(track)}
+            >
+              <div className="track-number">{i + 1}</div>
+              <div className="track-meta">
+                <Music2 size={20} className="text-secondary" />
+                <div>
+                  <p className="track-name">{track.title}</p>
+                  <p className="track-artist text-secondary">{track.artist}</p>
+                </div>
+              </div>
+              <div className="track-duration text-secondary">
+                {formatDuration(track.duration)}
+              </div>
+              <div className="track-actions">
+                <button
+                  className={`feature-icon ${track.isFavorite ? 'active-heart' : ''}`}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    checkAuthAndExecute(() => toggleFavorite?.(track.id), 'favorite tracks');
+                  }}
+                >
+                  <Heart size={18} fill={track.isFavorite ? "#ff4b2b" : "none"} color={track.isFavorite ? "#ff4b2b" : "currentColor"} />
+                </button>
+                <button
+                  className={`feature-icon ${finalTracks.some(t => t.id === track.id) ? 'active-flag' : ''}`}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    checkAuthAndExecute(() => {
+                      finalTracks.some(t => t.id === track.id) ? removeFromFinal(track.id) : addToFinal(track);
+                    }, 'manage competition folders');
+                  }}
+                >
+                  <Flag size={18} fill={finalTracks.some(t => t.id === track.id) ? "currentColor" : "none"} />
+                </button>
+                <div className="btn-play-row">
+                  {isPlaying && playingTitle === track.title ? (
+                    <div className="playing-bars"><span></span><span></span><span></span></div>
+                  ) : (
+                    <Play size={20} fill="currentColor" />
+                  )}
+                </div>
+              </div>
             </div>
-            <div className="track-info">
-              <span className="track-name">{track.title}</span>
-              <span className="track-artist text-secondary">{track.artist}</span>
-            </div>
-            <div className="track-actions">
-              <button
-                className={`feature-icon ${track.isFavorite ? 'active-heart' : ''}`}
-                onClick={(e) => {
-                  e.stopPropagation();
-                  checkAuthAndExecute(() => toggleFavorite?.(track.id), 'favorite tracks');
-                }}
-              >
-                <Heart size={16} fill={track.isFavorite ? "#ff4b2b" : "none"} color={track.isFavorite ? "#ff4b2b" : "currentColor"} />
-              </button>
-              <button
-                className={`feature-icon ${finalTracks.some(t => t.id === track.id) ? 'active-flag' : ''}`}
-                onClick={(e) => {
-                  e.stopPropagation();
-                  checkAuthAndExecute(() => {
-                    finalTracks.some(t => t.id === track.id) ? removeFromFinal(track.id) : addToFinal(track);
-                  }, 'manage competition folders');
-                }}
-              >
-                <Flag size={16} fill={finalTracks.some(t => t.id === track.id) ? "currentColor" : "none"} />
-              </button>
-            </div>
-            <div className="track-duration text-secondary">{formatDuration(track.duration)}</div>
+          ))
+        ) : (
+          <div className="empty-state">
+            <p>No tracks in this folder.</p>
           </div>
-        ))}
+        )}
       </div>
 
       <ConfirmModal 
@@ -170,49 +185,45 @@ const PlaylistPage = () => {
         .play-btn-large { 
           width: 56px; height: 56px; border-radius: 50%; background: var(--primary); 
           color: black; display: flex; align-items: center; justify-content: center; 
-          transition: transform 0.2s;
+          transition: transform 0.2s; margin-bottom: 24px;
         }
         .play-btn-large:hover { transform: scale(1.05); }
+        
         .tracks-list { display: flex; flex-direction: column; gap: 8px; }
-        .track-row { 
-          display: grid; grid-template-columns: 60px 1fr auto 100px; 
-          padding: 12px 24px; border-radius: 12px; cursor: pointer;
-          transition: background 0.2s;
+        .track-row {
+          display: grid;
+          grid-template-columns: 40px 1fr 140px 100px;
           align-items: center;
+          padding: 12px 16px;
+          border-radius: 12px;
+          transition: background 0.2s;
         }
-        .track-num-wrap { display: flex; align-items: center; gap: 8px; color: #b3b3b3; }
-        .drag-handle { opacity: 0; transition: opacity 0.2s; }
-        .track-row:hover .drag-handle { opacity: 0.3; }
-        .drag-handle:hover { opacity: 1 !important; color: var(--primary); }
         .track-row:hover { background: rgba(255,255,255,0.08); }
-        .track-row.is-playing { 
-          background: rgba(29, 185, 84, 0.12); 
-          border: 1px solid rgba(29, 185, 84, 0.4); 
-          transform: scale(1.01);
+        .track-number { font-size: 12px; font-weight: 800; opacity: 0.3; width: 40px; text-align: center; }
+        .track-meta { display: flex; align-items: center; gap: 16px; }
+        .track-name { font-weight: 600; font-size: 14px; }
+        .track-artist { font-size: 12px; }
+        .track-duration { font-size: 13px; font-weight: 500; }
+        .track-actions { display: flex; align-items: center; justify-content: flex-end; gap: 16px; }
+        .btn-play-row { color: var(--primary); }
+
+        .track-row.is-playing {
+          background: rgba(29, 185, 84, 0.08);
+          border-left: 3px solid #1db954;
         }
         .track-row.is-playing .track-name { color: #1db954; }
-        .track-row.is-playing .track-num { color: #1db954; }
-        .track-num { color: #b3b3b3; display: flex; align-items: center; font-size: 14px; }
-        .track-info { display: flex; flex-direction: column; }
-        .track-name { font-weight: 600; font-size: 15px; }
-        .track-artist { font-size: 13px; }
-        
-        .track-actions { display: flex; align-items: center; gap: 16px; margin-right: 16px; }
-        .feature-icon {
-          color: #555;
-          transition: all 0.2s;
-          background: transparent;
-          border: none;
-          cursor: pointer;
-          display: flex;
-          align-items: center;
-          justify-content: center;
-        }
+
+        .feature-icon { color: #555; transition: all 0.2s; background: none; border: none; cursor: pointer; }
         .feature-icon:hover { color: white; transform: scale(1.1); }
         .feature-icon.active-flag { color: #1db954; }
         .feature-icon.active-heart { color: #ff4b2b; }
 
-        .track-duration { display: flex; align-items: center; justify-content: flex-end; font-size: 14px; }
+        .playing-bars { display: flex; align-items: flex-end; gap: 2px; width: 16px; height: 16px; }
+        .playing-bars span { width: 2px; background: var(--primary); animation: dance 1s infinite ease-in-out; }
+        .playing-bars span:nth-child(1) { height: 60%; animation-delay: -0.4s; }
+        .playing-bars span:nth-child(2) { height: 100%; animation-delay: -0.2s; }
+        .playing-bars span:nth-child(3) { height: 80%; animation-delay: 0s; }
+        
         .text-secondary { color: var(--text-secondary); }
         .text-primary { color: var(--primary); }
 
@@ -226,11 +237,12 @@ const PlaylistPage = () => {
             margin-bottom: 24px;
           }
           .icon-large { width: 160px; height: 160px; }
-          .icon-large :global(svg) { width: 48px; height: 48px; }
           .title { font-size: 2.5rem; letter-spacing: -1px; }
-          .description { font-size: 0.9rem; line-height: 1.4; }
-          .track-row { grid-template-columns: 32px 1fr 60px; padding: 10px; }
-          .track-duration { font-size: 12px; }
+          .track-row {
+            grid-template-columns: 32px 1fr 60px;
+            padding: 10px;
+          }
+          .track-duration { display: none; }
         }
       `}</style>
     </div>

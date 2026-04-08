@@ -21,16 +21,55 @@ export default function Home() {
     styles,
     finalTracks,
     addToFinal,
-    removeFromFinal
+    removeFromFinal,
+    isLoading
   } = useStudio();
-
-  const getStyleTrackCount = (styleName: string) => {
-    return tracks.filter(t => t.style?.toLowerCase() === styleName.toLowerCase()).length;
-  };
 
   const handlePlay = (track: any) => {
     loadTrack(track);
   };
+
+  const SkeletonCard = ({ color }: { color: string }) => (
+    <div className="style-card skeleton glass" style={{ 
+      height: '56px', 
+      padding: '6px 10px', 
+      position: 'relative',
+      backgroundColor: `${color}10`,
+      border: '1px solid rgba(255, 255, 255, 0.03)',
+      borderRadius: '10px'
+    }}>
+      <div className="card-inner-box" style={{ display: 'grid', gridTemplateColumns: '36px 1fr', alignItems: 'center', height: '100%', gap: '10px' }}>
+        <div className="style-icon skeleton-shimmer" style={{ 
+          width: '36px', 
+          height: '36px', 
+          borderRadius: '8px',
+          backgroundColor: 'rgba(255, 255, 255, 0.05)'
+        }}></div>
+        <div className="style-info" style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start', width: '100%' }}>
+          <div className="skeleton-line skeleton-shimmer" style={{ height: '10px', width: '50px', marginBottom: '3px', borderRadius: '3px' }}></div>
+          <div className="skeleton-line skeleton-shimmer" style={{ height: '6px', width: '25px', borderRadius: '2px', opacity: 0.3 }}></div>
+        </div>
+      </div>
+    </div>
+  );
+
+  const SkeletonRow = () => (
+    <div className="track-row glass skeleton" style={{ padding: '12px 16px', borderRadius: '12px', display: 'grid', gridTemplateColumns: '40px 1fr 60px 100px', alignItems: 'center' }}>
+      <div className="track-number skeleton-shimmer" style={{ width: '12px', height: '14px', margin: '0 auto', opacity: 0.1 }}></div>
+      <div className="track-meta" style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
+        <div className="skeleton-shimmer" style={{ width: '20px', height: '20px', borderRadius: '4px', opacity: 0.2 }}></div>
+        <div style={{ flex: 1 }}>
+          <div className="skeleton-line full skeleton-shimmer" style={{ height: '14px', width: '120px', marginBottom: '4px' }}></div>
+          <div className="skeleton-line half skeleton-shimmer" style={{ height: '10px', width: '80px' }}></div>
+        </div>
+      </div>
+      <div className="track-duration skeleton-shimmer" style={{ width: '60px', height: '12px', opacity: 0.2 }}></div>
+      <div className="track-actions" style={{ display: 'flex', justifyContent: 'flex-end', gap: '12px' }}>
+        <div className="skeleton-shimmer" style={{ width: '18px', height: '18px', borderRadius: '4px', opacity: 0.2 }}></div>
+        <div className="skeleton-shimmer-circle" style={{ width: '20px', height: '20px', opacity: 0.2 }}></div>
+      </div>
+    </div>
+  );
 
   return (
     <div className="home-container">
@@ -67,30 +106,34 @@ export default function Home() {
           </div>
         </div>
         <div className="styles-grid">
-          {styles.filter(s => s.program === 'Latin').map((style) => {
-            const count = getStyleTrackCount(style.title);
-            return (
-              <Link
-                key={style.id}
-                href={`/style/${style.title.toLowerCase().replace(/\s+/g, '-')}`}
-                className="style-card glass"
-                style={{ backgroundColor: `${style.color}15`, borderRadius: '16px' }}
-              >
-                <div className="card-inner-box">
-                  <div className="style-icon">
-                    <Music2 size={24} color={style.color} />
+          {isLoading ? (
+            Array(5).fill(0).map((_, i) => <SkeletonCard key={i} color="#f7971e" />)
+          ) : (
+            styles.filter(s => s.program === 'Latin').map((style) => {
+              const count = tracks.filter(t => t.style?.toLowerCase() === style.title.toLowerCase()).length;
+              return (
+                <Link
+                  key={style.id}
+                  href={`/style/${style.title.toLowerCase().replace(/\s+/g, '-')}`}
+                  className="style-card glass"
+                  style={{ backgroundColor: `${style.color}15`, borderRadius: '16px' }}
+                >
+                  <div className="card-inner-box">
+                    <div className="style-icon">
+                      <Music2 size={24} color={style.color} />
+                    </div>
+                    <div className="style-info">
+                      <h3>{style.title}</h3>
+                      <p>{count} {count === 1 ? 'Track' : 'Tracks'}</p>
+                    </div>
                   </div>
-                  <div className="style-info">
-                    <h3>{style.title}</h3>
-                    <p>{count} {count === 1 ? 'Track' : 'Tracks'}</p>
-                  </div>
-                </div>
-                <button className="play-button-small">
-                  <Play size={16} fill="currentColor" />
-                </button>
-              </Link>
-            );
-          })}
+                  <button className="play-button-small">
+                    <Play size={16} fill="currentColor" />
+                  </button>
+                </Link>
+              );
+            })
+          )}
         </div>
       </section>
 
@@ -101,37 +144,43 @@ export default function Home() {
           </div>
         </div>
         <div className="styles-grid">
-          {styles.filter(s => s.program === 'Standard').map((style) => {
-            const count = getStyleTrackCount(style.title);
-            return (
-              <Link
-                key={style.id}
-                href={`/style/${style.title.toLowerCase().replace(/\s+/g, '-')}`}
-                className="style-card glass"
-                style={{ backgroundColor: `${style.color}15`, borderRadius: '16px' }}
-              >
-                <div className="card-inner-box">
-                  <div className="style-icon">
-                    <Music2 size={24} color={style.color} />
+          {isLoading ? (
+            Array(5).fill(0).map((_, i) => <SkeletonCard key={i} color="#2193b0" />)
+          ) : (
+            styles.filter(s => s.program === 'Standard').map((style) => {
+              const count = tracks.filter(t => t.style?.toLowerCase() === style.title.toLowerCase()).length;
+              return (
+                <Link
+                  key={style.id}
+                  href={`/style/${style.title.toLowerCase().replace(/\s+/g, '-')}`}
+                  className="style-card glass"
+                  style={{ backgroundColor: `${style.color}15`, borderRadius: '16px' }}
+                >
+                  <div className="card-inner-box">
+                    <div className="style-icon">
+                      <Music2 size={24} color={style.color} />
+                    </div>
+                    <div className="style-info">
+                      <h3>{style.title}</h3>
+                      <p>{count} {count === 1 ? 'Track' : 'Tracks'}</p>
+                    </div>
                   </div>
-                  <div className="style-info">
-                    <h3>{style.title}</h3>
-                    <p>{count} {count === 1 ? 'Track' : 'Tracks'}</p>
-                  </div>
-                </div>
-                <button className="play-button-small">
-                  <Play size={16} fill="currentColor" />
-                </button>
-              </Link>
-            );
-          })}
+                  <button className="play-button-small">
+                    <Play size={16} fill="currentColor" />
+                  </button>
+                </Link>
+              );
+            })
+          )}
         </div>
       </section>
 
       <section className="section">
         <h2 className="section-title">New Arrivals</h2>
         <div className="tracks-list">
-          {tracks.length > 0 ? tracks.map((track, i) => (
+          {isLoading ? (
+            Array(5).fill(0).map((_, i) => <SkeletonRow key={i} />)
+          ) : tracks.length > 0 ? tracks.map((track, i) => (
             <div
               key={track.id}
               className={`track-row glass ${isPlaying && playingTitle === track.title ? 'is-active' : ''}`}
@@ -419,6 +468,11 @@ export default function Home() {
           background: rgba(255,255,255,0.08);
         }
 
+        .track-row.is-active {
+          background: rgba(29, 185, 84, 0.08);
+          border-left: 3px solid #1db954;
+        }
+
         .track-meta {
           display: flex;
           align-items: center;
@@ -428,6 +482,10 @@ export default function Home() {
         .track-name {
           font-weight: 600;
           font-size: 14px;
+        }
+
+        .track-row.is-active .track-name {
+          color: #1db954;
         }
 
         .track-artist {
@@ -601,6 +659,30 @@ export default function Home() {
         }
 
         .text-secondary { color: var(--text-secondary); }
+
+        /* Skeletons */
+        .skeleton { pointer-events: none; border-color: rgba(255,255,255,0.05) !important; }
+        .skeleton-shimmer {
+          background: linear-gradient(90deg, rgba(255,255,255,0.03) 25%, rgba(255,255,255,0.08) 50%, rgba(255,255,255,0.03) 75%);
+          background-size: 200% 100%;
+          animation: shimmer 1.5s infinite;
+          border-radius: 4px;
+        }
+        .skeleton-shimmer-circle {
+          background: linear-gradient(90deg, rgba(255,255,255,0.03) 25%, rgba(255,255,255,0.08) 50%, rgba(255,255,255,0.03) 75%);
+          background-size: 200% 100%;
+          animation: shimmer 1.5s infinite;
+          border-radius: 50%;
+          width: 32px; height: 32px;
+        }
+        .skeleton-line { height: 12px; margin-bottom: 8px; border-radius: 4px; }
+        .skeleton-line.full { width: 100%; }
+        .skeleton-line.half { width: 50%; }
+
+        @keyframes shimmer {
+          0% { background-position: 200% 0; }
+          100% { background-position: -200% 0; }
+        }
       `}</style>
     </div>
   );

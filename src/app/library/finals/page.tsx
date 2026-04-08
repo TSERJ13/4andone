@@ -10,7 +10,8 @@ import {
   Disc,
   FolderPlus,
   ChevronLeft,
-  Settings
+  Settings,
+  Plus
 } from 'lucide-react';
 import { useAudio } from '@/components/audio/AudioProvider';
 import { useStudio, Track } from '@/components/admin/StudioProvider';
@@ -107,22 +108,22 @@ const FinalsPage = () => {
 
         <section className="folders-section">
           <header className="section-header">
-            <h3>Comp. Folders</h3>
             <div className="simulation-actions">
               <button className="sim-btn latin glass" onClick={() => handleProgramShuffle('Latin')}>
                 <Play size={14} fill="currentColor" />
-                <span className="btn-label">Shuffle Latin</span>
+                <span>Shuffle Latin</span>
               </button>
               <button className="sim-btn standard glass" onClick={() => handleProgramShuffle('Standard')}>
                 <Play size={14} fill="currentColor" />
-                <span className="btn-label">Shuffle Standard</span>
+                <span>Shuffle Standard</span>
               </button>
               
               <button 
-                className="add-folder-icon-btn glass"
+                className="sim-btn add-folder-btn glass"
                 onClick={() => setShowFolderForm(!showFolderForm)}
               >
-                {showFolderForm ? <span style={{fontSize: '16px'}}>✕</span> : <FolderPlus size={16} />}
+                <Plus size={16} />
+                <span>Add Folder</span>
               </button>
               
               {isEditMode && (
@@ -439,9 +440,18 @@ const FinalsPage = () => {
 
         .folder-mini-list { 
           display: flex; 
-          flex-wrap: wrap; 
-          gap: 3px; 
-          margin-top: 4px;
+          .collection-card {
+            padding: 12px;
+            min-width: 100%;
+            gap: 12px;
+          }
+          .card-icon {
+            width: 36px;
+            height: 36px;
+            border-radius: 10px;
+          }
+          .card-info h3 { font-size: 0.9rem; }
+          .card-info .meta { font-size: 10px; }
         }
         .mini-track-pill { 
           font-size: 8px; 
@@ -513,22 +523,33 @@ const FinalsPage = () => {
         .track-info { display: flex; align-items: center; gap: 16px; flex: 1; }
         .track-meta { display: flex; align-items: center; gap: 12px; flex: 1; }
 
-        .simulation-actions { display: flex; gap: 8px; align-items: center; }
+        .simulation-actions { display: flex; gap: 12px; align-items: center; width: 100%; transition: all 0.3s; }
         .sim-btn {
-          display: flex; align-items: center; gap: 6px; padding: 8px 12px; border-radius: 10px;
-          font-weight: 800; font-size: 11px; cursor: pointer; transition: all 0.2s;
+          display: flex; align-items: center; gap: 8px; padding: 12px 20px; border-radius: 14px;
+          font-weight: 800; font-size: 13px; cursor: pointer; transition: all 0.2s;
+          white-space: nowrap;
         }
-        .sim-btn.latin { color: #ff4b2b; }
-        .sim-btn.standard { color: #00d2ff; }
-        .add-folder-icon-btn { width: 32px; height: 32px; border-radius: 8px; display: flex; align-items: center; justify-content: center; }
+        .sim-btn.latin { color: #f7971e; border-color: rgba(247, 151, 30, 0.3); }
+        .sim-btn.standard { color: #00d2ff; border-color: rgba(0, 210, 255, 0.3); }
+        .sim-btn.add-folder-btn { color: white; background: rgba(255,255,255,0.05); }
+        .sim-btn:hover { transform: translateY(-2px); background: rgba(255,255,255,0.1); }
 
         @media (max-width: 768px) {
           .finals-container { padding: 16px; padding-bottom: 120px; }
           .folders-grid { grid-template-columns: repeat(2, 1fr); }
           .detail-header h2 { font-size: 1.4rem; }
-          .play-all-btn span, .sim-btn span { display: none; }
           .play-all-btn { padding: 12px; width: 44px; height: 44px; justify-content: center; }
+          .play-all-btn span { display: none; }
+          .sim-btn span { display: inline !important; }
           .info-mobile-hide { display: none !important; }
+          
+          .simulation-actions { 
+            overflow-x: auto; 
+            padding-bottom: 8px;
+            scrollbar-width: none;
+            -webkit-overflow-scrolling: touch;
+          }
+          .simulation-actions::-webkit-scrollbar { display: none; }
         }
 
         .folder-modal-overlay {

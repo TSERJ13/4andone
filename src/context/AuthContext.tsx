@@ -1,6 +1,7 @@
 "use client";
 
 import React, { createContext, useContext, useState, useEffect } from 'react';
+import { supabase } from '@/utils/supabase';
 
 export interface TelegramUser {
   id: number;
@@ -29,19 +30,45 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [isLoading, setIsLoading] = useState(true);
   const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
 
+  const syncWithSupabase = async (userData: TelegramUser) => {
+    try {
+      const email = `tg_${userData.id}@4and.one`;
+      const password = `tg_pass_${userData.id}_secure_99`; 
+      
+      const { data, error } = await supabase.auth.signInWithPassword({
+        email,
+        password,
+      });
+
+      if (error && error.message.includes('Invalid login credentials')) {
+        await supabase.auth.signUp({
+          email,
+          password,
+          options: {
+            data: { telegram_id: userData.id, first_name: userData.first_name }
+          }
+        });
+      }
+    } catch (err) {
+      console.error("[AUTH-SYNC-ERROR]", err);
+    }
+  };
+
   useEffect(() => {
-    // Load from localStorage
     const savedUser = localStorage.getItem('4andone-user');
     if (savedUser) {
-      setUser(JSON.parse(savedUser));
+      const parsedUser = JSON.parse(savedUser);
+      setUser(parsedUser);
+      syncWithSupabase(parsedUser);
     }
     setIsLoading(false);
   }, []);
 
-  const login = (userData: TelegramUser) => {
+  const login = async (userData: TelegramUser) => {
     setUser(userData);
     localStorage.setItem('4andone-user', JSON.stringify(userData));
-    setIsAuthModalOpen(false); // Close on successful login
+    setIsAuthModalOpen(false);
+    await syncWithSupabase(userData);
   };
 
   const logout = () => {

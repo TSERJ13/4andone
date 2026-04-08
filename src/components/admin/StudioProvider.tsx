@@ -274,7 +274,7 @@ export const StudioProvider: React.FC<{ children: React.ReactNode }> = ({ childr
   };
 
   const addFolder = async (name: string, color: string) => {
-    // Ensure we have a valid UUID for Supabase
+    // Silent get user for UUID
     const { data: { user: authUser } } = await supabase.auth.getUser();
     const userId = authUser?.id || null;
 
@@ -389,13 +389,13 @@ export const StudioProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     const userId = authUser?.id;
 
     if (!userId) {
-      alert("Session expired. Please login again.");
-      return;
+      console.warn("[STUDIO-WARN] No Supabase session found for addFinalFolder");
+      // Fallback to anonymous if RLS allows, but we expect sync to resolve this
     }
 
     const { data, error } = await supabase
       .from('final_folders')
-      .insert([{ name, color, user_id: userId }])
+      .insert([{ name, color, user_id: userId || null }])
       .select();
 
     if (error) {

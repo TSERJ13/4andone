@@ -125,7 +125,7 @@ const FinalsPage = () => {
                 onClick={() => setShowFolderForm(!showFolderForm)}
                 title="Add Folder"
               >
-                <FolderPlus size={28} strokeWidth={1.5} />
+                <FolderPlus size={36} strokeWidth={1.5} />
               </button>
               
               {isEditMode && (

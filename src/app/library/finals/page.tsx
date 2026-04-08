@@ -109,20 +109,21 @@ const FinalsPage = () => {
         <section className="folders-section">
           <header className="section-header">
             <div className="simulation-actions">
-              <button className="sim-btn latin glass" onClick={() => handleProgramShuffle('Latin')}>
-                <Play size={14} fill="currentColor" />
-                <span>Shuffle Latin</span>
-              </button>
-              <button className="sim-btn standard glass" onClick={() => handleProgramShuffle('Standard')}>
-                <Play size={14} fill="currentColor" />
-                <span>Shuffle Standard</span>
-              </button>
+              <div className="shuffle-stack">
+                <button className="sim-btn latin glass" onClick={() => handleProgramShuffle('Latin')}>
+                  <Play size={14} fill="currentColor" />
+                  <span>Shuffle Latin</span>
+                </button>
+                <button className="sim-btn standard glass" onClick={() => handleProgramShuffle('Standard')}>
+                  <Play size={14} fill="currentColor" />
+                  <span>Shuffle Standard</span>
+                </button>
+              </div>
               
               <button 
-                className="sim-btn add-folder-btn glass"
+                className="sim-btn add-folder-btn glass big-btn" 
                 onClick={() => setShowFolderForm(!showFolderForm)}
               >
-                <Plus size={16} />
                 <span>Add Folder</span>
               </button>
               
@@ -524,6 +525,7 @@ const FinalsPage = () => {
         .track-meta { display: flex; align-items: center; gap: 12px; flex: 1; }
 
         .simulation-actions { display: flex; gap: 12px; align-items: center; width: 100%; transition: all 0.3s; }
+        .shuffle-stack { display: flex; gap: 12px; align-items: center; }
         .sim-btn {
           display: flex; align-items: center; gap: 8px; padding: 12px 20px; border-radius: 14px;
           font-weight: 800; font-size: 13px; cursor: pointer; transition: all 0.2s;
@@ -536,7 +538,7 @@ const FinalsPage = () => {
 
         @media (max-width: 768px) {
           .finals-container { padding: 16px; padding-bottom: 120px; }
-          .folders-grid { grid-template-columns: repeat(2, 1fr); }
+          .page-header { flex-direction: column; align-items: center; text-align: center; gap: 16px; }
           .detail-header h2 { font-size: 1.4rem; }
           .play-all-btn { padding: 12px; width: 44px; height: 44px; justify-content: center; }
           .play-all-btn span { display: none; }
@@ -544,12 +546,32 @@ const FinalsPage = () => {
           .info-mobile-hide { display: none !important; }
           
           .simulation-actions { 
-            overflow-x: auto; 
-            padding-bottom: 8px;
-            scrollbar-width: none;
-            -webkit-overflow-scrolling: touch;
+            display: flex;
+            justify-content: space-between;
+            align-items: stretch;
+            gap: 16px;
           }
-          .simulation-actions::-webkit-scrollbar { display: none; }
+          .shuffle-stack {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+            flex: 1;
+          }
+          .sim-btn {
+            width: 100%;
+            padding: 10px 12px;
+            font-size: 11px;
+            justify-content: center;
+          }
+          .sim-btn.big-btn {
+            height: auto;
+            flex: 0.8;
+            padding: 0;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 12px;
+          }
         }
 
         .folder-modal-overlay {

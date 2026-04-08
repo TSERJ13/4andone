@@ -127,8 +127,18 @@ export const UserBadge: React.FC<{ textColor?: string }> = ({ textColor = 'white
             left: 50%;
             transform: translate(-50%, -50%);
             width: 90%;
-            max-width: 320px;
-            box-shadow: 0 0 0 100vh rgba(0,0,0,0.8), 0 40px 100px rgba(0,0,0,0.9);
+            max-width: 300px;
+            background: #0a0a0a;
+            backdrop-filter: none;
+            padding: 32px 20px;
+            box-shadow: 0 0 0 100vh rgba(0,0,0,0.85), 0 40px 100px rgba(0,0,0,1);
+            border: 1px solid rgba(255,255,255,0.15);
+          }
+          .logout-btn {
+            background: #ff4b2b;
+            color: white;
+            border: none;
+            box-shadow: 0 10px 20px rgba(255, 75, 43, 0.2);
           }
           @keyframes popupFadeMobile { from { opacity: 0; transform: translate(-50%, -40%) scale(0.9); } to { opacity: 1; transform: translate(-50%, -50%) scale(1); } }
           .animate-in-popup { animation: popupFadeMobile 0.4s cubic-bezier(0.19, 1, 0.22, 1); }

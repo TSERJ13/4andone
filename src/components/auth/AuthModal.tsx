@@ -49,7 +49,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose }) => {
         .auth-modal-content {
           width: 92%;
           max-width: 400px;
-          background: rgba(18, 18, 18, 0.8);
+          background: rgba(18, 18, 18, 0.95);
           backdrop-filter: blur(32px);
           border: 1px solid rgba(255, 255, 255, 0.1);
           border-radius: 40px;
@@ -120,12 +120,24 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose }) => {
 
         @media (max-width: 480px) {
           .auth-modal-content {
-             padding: 56px 24px 40px;
-             gap: 24px;
+             width: 90%;
+             max-width: 320px;
+             padding: 40px 20px 32px;
+             gap: 20px;
+             border-radius: 32px;
           }
-          h2 { font-size: 1.75rem; }
-          p { font-size: 14px; }
-          .login-widget-container { transform: scale(1.05); }
+          .icon-badge {
+            width: 56px;
+            height: 56px;
+            border-radius: 18px;
+          }
+          .icon-badge :global(svg) {
+            width: 20px;
+            height: 20px;
+          }
+          h2 { font-size: 1.5rem; letter-spacing: -0.5px; }
+          p { font-size: 13px; opacity: 0.8; }
+          .login-widget-container { transform: scale(1); margin-top: 5px; }
         }
       `}</style>
     </div>

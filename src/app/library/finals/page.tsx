@@ -383,10 +383,16 @@ const FinalsPage = () => {
           padding-bottom: 140px;
           display: flex;
           flex-direction: column;
-          gap: 24px;
+          gap: 40px;
         }
 
-        .folders-section { display: flex; flex-direction: column; gap: 16px; min-height: 120px; }
+        .folders-section { 
+          display: flex; 
+          flex-direction: column; 
+          gap: 20px; 
+          min-height: 120px; 
+          margin-bottom: 30px;
+        }
         .section-header { display: flex; justify-content: space-between; align-items: center; }
         .section-header h3 { font-size: 1rem; font-weight: 800; opacity: 0.6; text-transform: uppercase; letter-spacing: 0.5px; }
 
@@ -397,15 +403,17 @@ const FinalsPage = () => {
         }
 
         .compact-folder-card {
-          padding: 12px 16px;
-          border-radius: 12px;
+          padding: 16px 20px;
+          min-height: 90px;
+          border-radius: 20px;
           display: flex;
           align-items: center;
           justify-content: space-between;
           position: relative;
           cursor: pointer;
           transition: all 0.2s;
-          border: 1px solid rgba(255, 255, 255, 0.05);
+          border: 1px solid rgba(255, 255, 255, 0.08);
+          background: rgba(255, 255, 255, 0.03);
         }
 
         .jiggle {
@@ -538,14 +546,29 @@ const FinalsPage = () => {
         .sim-btn:hover { transform: translateY(-2px); background: rgba(255,255,255,0.1); }
 
         @media (max-width: 768px) {
-          .finals-container { padding: 16px; padding-bottom: 120px; }
+          .finals-container { padding: 16px; padding-bottom: 120px; gap: 24px; }
           .page-header { flex-direction: column; align-items: center; text-align: center; gap: 16px; }
           .detail-header h2 { font-size: 1.4rem; }
           .play-all-btn { padding: 12px; width: 44px; height: 44px; justify-content: center; }
           .play-all-btn span { display: none; }
           .sim-btn span { display: inline !important; }
           .info-mobile-hide { display: none !important; }
+
+          .folders-section { margin-bottom: 20px; }
+          .track-queue-section { padding: 16px; border-radius: 20px; }
+          .queue-header h3 { font-size: 1.1rem; }
+          .queue-header .description { display: none; }
+          .final-row { padding: 10px 14px; border-radius: 12px; }
           
+          .folder-detail-view {
+            position: fixed;
+            inset: 0;
+            z-index: 4000;
+            border-radius: 0;
+            padding: 20px;
+            background: #0d0d0d;
+          }
+
           .simulation-actions { 
             display: flex;
             justify-content: space-between;

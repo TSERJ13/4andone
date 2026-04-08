@@ -1,6 +1,4 @@
-"use client";
-
-import React from 'react';
+import React, { useRef, useEffect } from 'react';
 import { X, Send } from 'lucide-react';
 import { TelegramLogin } from './TelegramLogin';
 
@@ -10,11 +8,27 @@ interface AuthModalProps {
 }
 
 export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose }) => {
+  const modalRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (modalRef.current && !modalRef.current.contains(event.target as Node)) {
+        onClose();
+      }
+    };
+    if (isOpen) {
+      document.addEventListener('mousedown', handleClickOutside);
+    }
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, [isOpen, onClose]);
+
   if (!isOpen) return null;
 
   return (
-    <div className="auth-modal-overlay" onClick={onClose}>
-      <div className="auth-modal-content animate-in-popup" onClick={(e) => e.stopPropagation()}>
+    <div className="auth-modal-overlay">
+      <div className="auth-modal-content animate-in-popup" ref={modalRef}>
         <button className="close-btn" onClick={onClose}>
           <X size={20} />
         </button>
@@ -23,7 +37,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose }) => {
           <div className="icon-badge">
             <Send size={24} className="text-primary" />
           </div>
-          <h2>Sign In</h2>
+          <h2>SIGN IN</h2>
           <p>Connect with Telegram to sync your studio data and music across devices.</p>
         </div>
 
@@ -38,29 +52,31 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose }) => {
         .auth-modal-overlay {
           position: fixed;
           inset: 0;
-          background: rgba(0, 0, 0, 0.85);
-          backdrop-filter: blur(12px);
+          background: rgba(0, 0, 0, 0.95);
+          backdrop-filter: blur(16px);
           display: flex;
           align-items: center;
           justify-content: center;
-          z-index: 2000;
+          z-index: 5000;
+          cursor: pointer;
         }
 
         .auth-modal-content {
-          width: 92%;
+          background: #0d0d0d;
+          width: 90%;
           max-width: 400px;
-          background: rgba(18, 18, 18, 0.95);
-          backdrop-filter: blur(32px);
-          border: 1px solid rgba(255, 255, 255, 0.1);
-          border-radius: 40px;
-          padding: 48px 32px;
+          padding: 32px;
+          border-radius: 24px;
           position: relative;
+          border: 1px solid rgba(255, 255, 255, 0.1);
+          color: white;
+          text-align: center;
+          cursor: default;
           box-shadow: 0 50px 100px rgba(0, 0, 0, 0.9), 0 0 0 1px rgba(255, 255, 255, 0.05);
           display: flex;
           flex-direction: column;
           align-items: center;
           gap: 28px;
-          text-align: center;
         }
 
         .close-btn {

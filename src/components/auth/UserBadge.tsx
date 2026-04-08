@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { User, LogOut, ShieldCheck } from 'lucide-react';
 import { useAuth } from '@/context/AuthContext';
 import { AuthModal } from '@/components/auth/AuthModal';
@@ -8,6 +8,22 @@ import { AuthModal } from '@/components/auth/AuthModal';
 export const UserBadge: React.FC<{ textColor?: string }> = ({ textColor = 'white' }) => {
   const { user, logout, isAuthenticated, isAuthModalOpen, setIsAuthModalOpen } = useAuth();
   const [showPopup, setShowPopup] = useState(false);
+  const popupRef = useRef<HTMLDivElement>(null);
+
+  // Close popup when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (popupRef.current && !popupRef.current.contains(event.target as Node)) {
+        setShowPopup(false);
+      }
+    };
+    if (showPopup) {
+      document.addEventListener('mousedown', handleClickOutside);
+    }
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, [showPopup]);
 
   return (
     <div className="user-badge-wrapper">
@@ -30,22 +46,22 @@ export const UserBadge: React.FC<{ textColor?: string }> = ({ textColor = 'white
           )}
           
           {showPopup && (
-            <div className="user-popup glass animate-in-popup" onClick={(e) => e.stopPropagation()}>
+            <div className="user-popup glass animate-in-popup" ref={popupRef}>
               <div className="popup-header">
-                <div className="user-info">
-                  <p className="user-name">{user?.first_name} {user?.last_name}</p>
-                  <p className="user-meta">@{user?.username || 'user'}</p>
+                  <div className="user-info">
+                    <p className="user-name">{user?.first_name} {user?.last_name}</p>
+                    <p className="user-meta">@{user?.username || 'user'}</p>
+                  </div>
+                  <ShieldCheck size={20} className="text-primary" />
                 </div>
-                <ShieldCheck size={20} className="text-primary" />
+                <div className="popup-actions">
+                  <p className="sync-status">✓ Cloud Synced</p>
+                  <button className="logout-btn" onClick={logout}>
+                    <LogOut size={16} />
+                    <span>Logout</span>
+                  </button>
+                </div>
               </div>
-              <div className="popup-actions">
-                <p className="sync-status">✓ Cloud Synced</p>
-                <button className="logout-btn" onClick={logout}>
-                  <LogOut size={16} />
-                  <span>Logout</span>
-                </button>
-              </div>
-            </div>
           )}
         </div>
       )}
@@ -96,8 +112,7 @@ export const UserBadge: React.FC<{ textColor?: string }> = ({ textColor = 'white
           display: flex;
           flex-direction: column;
           gap: 20px;
-          background: rgba(10, 10, 10, 0.9);
-          backdrop-filter: blur(24px);
+          background: #0d0d0d;
           box-shadow: 0 40px 100px rgba(0,0,0,0.9), 0 0 0 1px rgba(255,255,255,0.1);
           color: white;
           z-index: 2000;

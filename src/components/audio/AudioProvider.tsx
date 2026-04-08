@@ -109,6 +109,12 @@ export const AudioProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   }, []);
 
   const loadTrack = async (track: any, isRetry = false, forceFinalMode?: boolean) => {
+    // If the same track is clicked and it's already loaded, toggle play/pause instead of reloading
+    if (trackIdRef.current === track.id && isLoaded) {
+      togglePlay();
+      return;
+    }
+
     const currentToken = ++loadingTokenRef.current;
     
     try {
@@ -300,7 +306,6 @@ export const AudioProvider: React.FC<{ children: React.ReactNode }> = ({ childre
                     const nextTrack = finalTracks[currentIndex + 1];
                     loadTrack(nextTrack, false, true);
                   }
-                  return 15;
                 }
                 return p - 1;
               });

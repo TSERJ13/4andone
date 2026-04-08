@@ -274,7 +274,11 @@ export const StudioProvider: React.FC<{ children: React.ReactNode }> = ({ childr
   };
 
   const addFolder = async (name: string, color: string) => {
-    const folderObj = { name, color, user_id: user?.id || null };
+    // Ensure we have a valid UUID for Supabase
+    const { data: { user: authUser } } = await supabase.auth.getUser();
+    const userId = authUser?.id || null;
+
+    const folderObj = { name, color, user_id: userId };
     const { data } = await supabase.from('folders').insert([folderObj]).select();
     if (data) setFolders(prev => [...prev, data[0]]);
   };
@@ -332,9 +336,12 @@ export const StudioProvider: React.FC<{ children: React.ReactNode }> = ({ childr
   };
 
   const addToFinal = async (track: Track) => {
+    const { data: { user: authUser } } = await supabase.auth.getUser();
+    const userId = authUser?.id || null;
+
     const { error } = await supabase.from('final_tracks').insert([{ 
       track_id: track.id, 
-      user_id: user?.id || null 
+      user_id: userId
     }]);
 
     if (error) {
@@ -378,9 +385,17 @@ export const StudioProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       return;
     }
 
+    const { data: { user: authUser } } = await supabase.auth.getUser();
+    const userId = authUser?.id;
+
+    if (!userId) {
+      alert("Session expired. Please login again.");
+      return;
+    }
+
     const { data, error } = await supabase
       .from('final_folders')
-      .insert([{ name, color, user_id: user.id }])
+      .insert([{ name, color, user_id: userId }])
       .select();
 
     if (error) {

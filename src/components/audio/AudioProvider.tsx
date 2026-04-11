@@ -156,34 +156,13 @@ export const AudioProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       limiterRef.current = new Tone.Limiter(-1).toDestination();
     }
     if (!masterGainRef.current) {
-      // 1. Create Main Gain for volume control with Safe Headroom (-4dB)
+      // Create Main Gain for volume control with Safe Headroom (-4dB)
       masterGainRef.current = new Tone.Gain(volume * 0.65).connect(limiterRef.current);
     }
 
-    if (!compressorRef.current) {
-      // 2. Add a High-Quality Compressor for better transients when slowed
-      compressorRef.current = new Tone.Compressor({
-        threshold: -20,
-        ratio: 2,
-        attack: 0.003,
-        release: 0.25
-      }).connect(masterGainRef.current);
-    }
-
-    if (!eqRef.current) {
-      // 3. Add a specialized EQ to boost "warmth" and reduce "fizz" during time-stretches
-      eqRef.current = new Tone.EQ3({
-        low: 1.5,
-        mid: 0,
-        high: -1.5,
-        lowFrequency: 250,
-        highFrequency: 2500
-      }).connect(compressorRef.current);
-    }
-
-    // Smoothly apply volume changes with the 0.65 headroom factor
+    // Smoothly apply volume changes
     masterGainRef.current.gain.rampTo(volume * 0.65, 0.1);
-    return eqRef.current;
+    return masterGainRef.current;
   };
 
   useEffect(() => {
@@ -223,8 +202,13 @@ export const AudioProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     const unlockAudio = async () => {
       // PRO-TIP: "playback" latency hint is much more stable on iOS/Safari 
       // as it uses larger buffers, preventing "choppy" audio artifacts.
-      if (Tone.getContext().lookAhead < 0.1) {
-        Tone.getContext().lookAhead = 0.1;
+      if (Tone.getContext().lookAhead < 0.2) {
+        Tone.getContext().lookAhead = 0.2;
+      }
+      // @ts-ignore
+      if (Tone.getContext().latencyHint !== 'playback') {
+        // @ts-ignore
+        Tone.getContext().latencyHint = 'playback';
       }
 
       if (Tone.getContext().state !== 'running') {

@@ -775,13 +775,14 @@ const PlayerBar = () => {
         @media (max-width: 1400px) and (orientation: landscape) {
           .player-bar {
             grid-template-columns: 1fr 2fr 1fr; /* SYMMETRIC: Center column is 2/4 = dead center */
-            padding: 0 32px;
-            height: 106px; /* Increased from 96px to prevent overlap and "ceiling" hit */
-            bottom: 8px;
-            left: 8px;
-            right: 8px;
-            border-radius: 24px;
+            padding: 0 40px;
+            height: 140px; /* Increased by 40px+ for plenty of vertical room */
+            bottom: 24px; /* More space from the bottom of the screen */
+            left: 24px;
+            right: 24px;
+            border-radius: 40px;
           }
+          .play-btn-wrapper { padding-bottom: 0px !important; } /* Neutralized as height is now sufficient */
           .track-info { justify-self: start; gap: 16px; min-width: 0; }
           .player-controls { justify-self: center; } /* ABSOLUTE CENTER */
           .album-art { width: 48px; height: 48px; }

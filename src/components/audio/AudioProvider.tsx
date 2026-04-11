@@ -93,11 +93,17 @@ export const AudioProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   const currentTimeRef = useRef(currentTime);
   const isPauseCountdownRef = useRef(isPauseCountdown);
   const pauseTimeRef = useRef(pauseTime);
+  const isFinalModeRef = useRef(isFinalMode);
+  const sessionTracksRef = useRef(sessionTracks);
+  const isFitnessRef = useRef(isFitness);
 
   useEffect(() => { isPlayingRef.current = isPlaying; }, [isPlaying]);
   useEffect(() => { currentTimeRef.current = currentTime; }, [currentTime]);
   useEffect(() => { isPauseCountdownRef.current = isPauseCountdown; }, [isPauseCountdown]);
   useEffect(() => { pauseTimeRef.current = pauseTime; }, [pauseTime]);
+  useEffect(() => { isFinalModeRef.current = isFinalMode; }, [isFinalMode]);
+  useEffect(() => { sessionTracksRef.current = sessionTracks; }, [sessionTracks]);
+  useEffect(() => { isFitnessRef.current = isFitness; }, [isFitness]);
 
   // Reactive Session Duration Calculation
   // This ensures the total time is known immediately when sessionTracks changes,
@@ -254,7 +260,10 @@ export const AudioProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     const currentToken = ++loadingTokenRef.current;
 
     try {
-      if (forceFinalMode !== undefined) setIsFinalMode(forceFinalMode);
+      if (forceFinalMode !== undefined) {
+        setIsFinalMode(forceFinalMode);
+        isFinalModeRef.current = forceFinalMode; // IMMEDIATE SYNC for closure
+      }
       if (Tone.getContext().state !== 'running') await Tone.start();
 
       // Cleanup previous state immediately
@@ -395,7 +404,8 @@ export const AudioProvider: React.FC<{ children: React.ReactNode }> = ({ childre
             const currentTimeVal = audio.currentTime;
             
             // 1. FINAL MODE LIMIT CHECK (1:45 / 1:25)
-            if (isFinalMode && !isPauseCountdownRef.current && isPlayingRef.current) {
+            // Using REFS ensures that even if Mode is toggled, it's captured in the closure
+            if (isFinalModeRef.current && !isPauseCountdownRef.current && isPlayingRef.current) {
               const style = playingTrackRef.current?.style?.toLowerCase() || '';
               const isPasoDoble = style.includes('paso');
               const isViennese = style.includes('viennese');
@@ -403,12 +413,13 @@ export const AudioProvider: React.FC<{ children: React.ReactNode }> = ({ childre
 
               // FADE-OUT Logic (3 seconds before limit)
               if (masterGainRef.current) {
-                  const isNearLimit = !isPasoDoble && (timeLimit - currentTimeVal <= 3) && (timeLimit - currentTimeVal > 0);
-                  const isNearSongEnd = isPasoDoble && (audio.duration - currentTimeVal <= 3) && (audio.duration - currentTimeVal > 0);
-                  if (isNearLimit) {
-                    masterGainRef.current.gain.rampTo(0, timeLimit - currentTimeVal);
-                  } else if (isNearSongEnd) {
-                    masterGainRef.current.gain.rampTo(0, audio.duration - currentTimeVal);
+                  const isNearLimit = !isPasoDoble && (timeLimit - currentTimeVal <= 3.5) && (timeLimit - currentTimeVal > 0);
+                  const isNearSongEnd = isPasoDoble && (audio.duration - currentTimeVal <= 3.5) && (audio.duration - currentTimeVal > 0);
+                  
+                  if (isNearLimit || isNearSongEnd) {
+                    const remaining = isNearLimit ? (timeLimit - currentTimeVal) : (audio.duration - currentTimeVal);
+                    // Pro-Tip: rampTo(0, remaining) is better for preventing abrupt cuts
+                    masterGainRef.current.gain.rampTo(0, Math.max(0.1, remaining));
                   }
               }
 
@@ -418,18 +429,23 @@ export const AudioProvider: React.FC<{ children: React.ReactNode }> = ({ childre
                 setIsPlaying(false);
                 isPlayingRef.current = false;
 
-                const currentIdx = sessionTracks.findIndex(t => t.id === trackIdRef.current || t.title === title);
-                const isLastTrack = currentIdx === sessionTracks.length - 1;
+                const currentIdx = sessionTracksRef.current.findIndex(t => t.id === trackIdRef.current || t.title === title);
+                const isLastTrack = currentIdx === sessionTracksRef.current.length - 1;
 
-                if (isLastTrack) { stop(); return; }
-                if (isFitness) { playNext(); return; }
+                if (isLastTrack) { 
+                  // NEW RULE: Final Mode just ends after the last track, no rest period
+                  stop(); 
+                  return; 
+                }
+                
+                if (isFitnessRef.current) { playNext(); return; }
 
                 setIsPauseCountdown(true);
                 isPauseCountdownRef.current = true;
                 setPauseTime(15);
                 pauseTimeRef.current = 15;
               }
-            } else if (!isFinalMode && audio.duration > 0 && currentTimeVal >= audio.duration) {
+            } else if (!isFinalModeRef.current && audio.duration > 0 && currentTimeVal >= audio.duration) {
                 // NORMAL MODE Loop handling
                 if (!isRepeat) {
                   audio.pause();
@@ -767,7 +783,9 @@ export const AudioProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     setCurrentTime(0);
     setTrackCurrentTime(0);
     setIsPauseCountdown(false);
+    isPauseCountdownRef.current = false;
     setPauseTime(15);
+    pauseTimeRef.current = 15;
     setActiveMode(null);
     setSessionTracks([]);
   };

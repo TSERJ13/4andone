@@ -949,14 +949,14 @@ const FinalsPage = () => {
 
         .empty-msg { padding: 40px; text-align: center; opacity: 0.3; font-weight: 700; font-size: 14px; }
 
-        @media (max-width: 1024px) {
+        @media (max-width: 1200px) {
           .track-row { 
-            grid-template-columns: 40px 1fr 180px 80px; 
-            gap: 20px;
+            grid-template-columns: 40px 1fr 200px 80px; 
+            gap: 24px;
           }
           .track-meta { gap: 12px; min-width: 0; }
           .track-name { font-size: 13px; }
-          .track-duration { font-size: 13px; text-align: right; white-space: nowrap; }
+          .track-duration { font-size: 13px; text-align: right; white-space: nowrap; font-weight: 600; }
         }
 
         @media (max-width: 768px) {

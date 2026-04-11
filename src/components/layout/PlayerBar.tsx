@@ -289,12 +289,15 @@ const PlayerBar = () => {
           <div className="special-features">
             <div className="speed-control-wrapper">
               <button
-                className={`feature-btn glass ${bpm !== 100 ? 'active' : ''}`}
+                className={`action-btn-speed icon-only ${bpm !== 100 ? 'active' : ''}`}
                 onClick={() => setShowSpeedSelector(!showSpeedSelector)}
                 title={`Playback Speed: ${bpm}%`}
               >
-                <Gauge size={18} />
-                <span className="label" data-bpm={bpm}>Speed: {bpm}%</span>
+                <div className="flex flex-col items-center">
+                  <Gauge size={28} strokeWidth={2.5} />
+                  <span style={{ fontSize: '9px', marginTop: '-15px', lineHeight: 1, color: '#ff4444' }} className="font-bold opacity-90 tracking-wide uppercase">SPEED</span>
+                </div>
+                {bpm !== 100 && <span className="speed-badge">{bpm}%</span>}
               </button>
 
               {showSpeedSelector && (
@@ -688,8 +691,47 @@ const PlayerBar = () => {
           transform: scale(1.1);
         }
 
-        .action-btn-large.active-flag {
-          color: var(--primary);
+        .extra-controls {
+          display: flex;
+          align-items: center;
+          justify-content: flex-end;
+          gap: 20px;
+          margin-right: 60px !important; /* PERFECT BALANCE: No hitting wall or player */
+        }
+
+        .action-btn-speed.icon-only {
+          width: 52px;
+          height: 52px;
+          padding: 0;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          border-radius: 50%;
+          position: relative;
+        }
+
+        .speed-badge {
+          position: absolute;
+          top: -4px;
+          right: -4px;
+          background: rgb(34, 197, 94);
+          color: black;
+          font-size: 9px;
+          font-weight: 800;
+          padding: 2px 4px;
+          border-radius: 6px;
+          line-height: 1;
+        }
+
+        .action-btn-speed.active {
+          background: rgba(34, 197, 94, 0.15);
+          border-color: rgba(34, 197, 94, 0.5);
+          color: rgb(34, 197, 94) !important;
+        }
+
+        .action-btn-speed:hover {
+          background: rgba(255, 255, 255, 0.1);
+          transform: translateY(-1px);
         }
 
         .volume-control {
@@ -730,9 +772,9 @@ const PlayerBar = () => {
           border-radius: 2px;
         }
         .text-primary { color: var(--primary); }
-        @media (max-width: 1024px) and (orientation: landscape) {
+        @media (max-width: 1400px) and (orientation: landscape) {
           .player-bar {
-            grid-template-columns: 1fr 1.5fr 1fr;
+            grid-template-columns: 1fr 2fr 1fr; /* SYMMETRIC: Center column is 2/4 = dead center */
             padding: 0 32px;
             height: 96px; /* Increased from 84px to prevent "ceiling" hit */
             bottom: 8px;
@@ -740,16 +782,18 @@ const PlayerBar = () => {
             right: 8px;
             border-radius: 24px;
           }
-          .track-info { gap: 16px; min-width: 0; }
+          .track-info { justify-self: start; gap: 16px; min-width: 0; }
+          .player-controls { justify-self: center; } /* ABSOLUTE CENTER */
           .album-art { width: 48px; height: 48px; }
           .track-title { font-size: 14px; }
           .track-artist { font-size: 11px; }
           .progress-container { max-width: 450px; }
           .control-buttons { gap: 20px; }
           .play-btn { width: 52px; height: 52px; } /* Restoring full size for reach */
-          .extra-controls { gap: 32px; }
-          .volume-control { width: 140px; }
-          .feature-btn { padding: 8px 12px; }
+          .extra-controls { gap: 12px; margin-right: 80px; } /* Move whole block even further left */
+          .volume-control { width: 100px; gap: 8px; }
+          .volume-control span { font-size: 11px; min-width: 32px; } 
+          .feature-btn { padding: 8px 10px; }
         }
 
         @media (max-width: 768px) {

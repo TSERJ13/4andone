@@ -688,10 +688,10 @@ export const AudioProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         playerRef.current.stop();
         playerRef.current.start(undefined, safeTime);
       } else if (nativePlayerRef.current) {
-        // SMOOTH SCRUBBING: 
-        // If we are actively scrubbing and already playing, just update currentTime
-        // without calling pause/play. This prevents "micro-pauses" and stutter.
-        if (isScrubbing && isWasPlaying) {
+        // PRO-LEVEL SMOOTH SEEKING:
+        // We never call pause() if we are already playing. This allows the browser
+        // to jump the time marker instantly without breaking the audio stream.
+        if (isWasPlaying) {
           nativePlayerRef.current.currentTime = safeTime;
         } else {
           nativePlayerRef.current.pause();
@@ -701,16 +701,17 @@ export const AudioProvider: React.FC<{ children: React.ReactNode }> = ({ childre
 
       setCurrentTime(safeTime);
       
-      // If we finished scrubbing or are doing a regular seek, restore state
+      // Post-seek state restoration (only if NOT scrubbing)
       if (!isScrubbing) {
         if (!isWasPlaying) {
           if (nativePlayerRef.current) nativePlayerRef.current.pause();
           setIsPlaying(false);
         } else {
-          if (nativePlayerRef.current) {
+          // Ensure we are playing if we were supposed to be
+          if (nativePlayerRef.current && nativePlayerRef.current.paused) {
             playPromiseRef.current = nativePlayerRef.current.play();
             playPromiseRef.current.catch(e => {
-              if (e.name !== 'AbortError') console.error("Native play failed during seek", e);
+              if (e.name !== 'AbortError') console.error("Native play failed", e);
             }).finally(() => {
               playPromiseRef.current = null;
             });

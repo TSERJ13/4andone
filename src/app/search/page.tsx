@@ -7,6 +7,7 @@ import { useAudio } from '@/components/audio/AudioProvider';
 import { useAuth } from '@/context/AuthContext';
 import Link from 'next/link';
 import { getMPMFromBPM } from '@/utils/audio';
+import { formatDuration } from '@/utils/format';
 import ConfirmModal from '@/components/admin/ConfirmModal';
 import { Marquee } from '@/components/layout/Marquee';
 
@@ -140,7 +141,7 @@ const SearchPage = () => {
                     </div>
                     
                     <div className="track-meta-col">
-                      {track.bpm ? `${getMPMFromBPM(Number(track.bpm), track.style)} BPM` : track.style}
+                      {track.bpm ? `${getMPMFromBPM(Number(track.bpm), track.style)} BPM` : formatDuration(track.duration)}
                     </div>
 
                     <div className="track-actions-col">

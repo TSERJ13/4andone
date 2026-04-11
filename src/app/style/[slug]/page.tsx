@@ -203,7 +203,7 @@ const StylePage = () => {
           }
           
           .track-row { 
-            gap: 4px; 
+            gap: 16px; 
           }
         }
       `}</style>

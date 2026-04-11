@@ -285,11 +285,13 @@ export default function LibraryPage() {
           background: rgba(29, 185, 84, 0.05);
         }
 
-        .collection-card:hover { 
-          transform: translateY(-8px); 
-          background: rgba(255, 255, 255, 0.08); 
-          border-color: rgba(255,255,255,0.15);
-          box-shadow: 0 15px 35px rgba(0,0,0,0.4);
+        @media (hover: hover) {
+          .collection-card:hover { 
+            transform: translateY(-8px); 
+            background: rgba(255, 255, 255, 0.08); 
+            border-color: rgba(255,255,255,0.15);
+            box-shadow: 0 15px 35px rgba(0,0,0,0.4);
+          }
         }
 
         .track-row.is-playing {

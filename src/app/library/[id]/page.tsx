@@ -213,7 +213,7 @@ const PlaylistPage = () => {
           .title { font-size: 2.2rem; letter-spacing: -1px; }
           .actions { justify-content: center; height: 80px; }
           .track-row { 
-            gap: 4px; 
+            gap: 16px; 
           }
         }
       `}</style>

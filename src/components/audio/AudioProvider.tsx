@@ -30,7 +30,7 @@ interface AudioContextType {
   toggleRepeat: () => void;
   toggleShuffle: () => void;
   toggleFinalMode: () => void;
-  seek: (time: number) => void;
+  seek: (time: number, isScrubbing?: boolean) => void;
   seekRelative: (seconds: number) => void;
   playNext: () => void;
   playPrevious: () => void;
@@ -128,6 +128,19 @@ export const AudioProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       masterGainRef.current = new Tone.Gain(volume * 0.65).connect(limiterRef.current);
     }
     
+    // MOBILE SAFARI OPTIMIZATION ("YouTube Mode"): 
+    // iOS Safari struggles with complex Web Audio graphs during speed-shifts.
+    // We bypass Compressor and EQ on mobile to ensure zero stuttering and responsive buttons.
+    const isMobileSafari = typeof navigator !== 'undefined' && (
+      /iPad|iPhone|iPod/.test(navigator.userAgent) || 
+      (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1)
+    );
+
+    if (isMobileSafari) {
+      console.log("[AUDIO-OPT] Mobile Safari detected. Running in Eco Mode (Bypass EQ/Compressor).");
+      return masterGainRef.current;
+    }
+
     if (!compressorRef.current) {
       // 2. Add a High-Quality Compressor for better transients when slowed
       compressorRef.current = new Tone.Compressor({
@@ -170,11 +183,10 @@ export const AudioProvider: React.FC<{ children: React.ReactNode }> = ({ childre
 
     // Global "Unlock" for mobile audio + Safari Optimizations
     const unlockAudio = async () => {
-      // PRO-TIP: "playback" latency hint is much more stable on iOS/Safari 
-      // as it uses larger buffers, preventing "choppy" audio artifacts.
-      if (Tone.getContext().latencyHint !== 'playback') {
-        Tone.getContext().lookAhead = 0.08;
-        Tone.getContext().latencyHint = 'playback';
+      // PRO-TIP: We use a larger lookAhead for mobile stability to prevent "choppy" audio.
+      // Note: latencyHint is read-only in Tone.js after creation, so we adjust lookAhead instead.
+      if (Tone.getContext().lookAhead < 0.1) {
+        Tone.getContext().lookAhead = 0.1;
       }
 
       if (Tone.getContext().state !== 'running') {
@@ -667,7 +679,7 @@ export const AudioProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     }
   };
 
-  const seek = (time: number) => {
+  const seek = (time: number, isScrubbing: boolean = false) => {
     if (isLoaded) {
       const isWasPlaying = isPlayingRef.current;
       const safeTime = Math.max(0, Math.min(time, duration));
@@ -676,26 +688,36 @@ export const AudioProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         playerRef.current.stop();
         playerRef.current.start(undefined, safeTime);
       } else if (nativePlayerRef.current) {
-        nativePlayerRef.current.pause();
-        nativePlayerRef.current.currentTime = safeTime;
+        // SMOOTH SCRUBBING: 
+        // If we are actively scrubbing and already playing, just update currentTime
+        // without calling pause/play. This prevents "micro-pauses" and stutter.
+        if (isScrubbing && isWasPlaying) {
+          nativePlayerRef.current.currentTime = safeTime;
+        } else {
+          nativePlayerRef.current.pause();
+          nativePlayerRef.current.currentTime = safeTime;
+        }
       }
 
       setCurrentTime(safeTime);
       
-      if (!isWasPlaying) {
-        if (nativePlayerRef.current) nativePlayerRef.current.pause();
-        setIsPlaying(false);
-      } else {
-        if (nativePlayerRef.current) {
-          playPromiseRef.current = nativePlayerRef.current.play();
-          playPromiseRef.current.catch(e => {
-            if (e.name !== 'AbortError') console.error("Native play failed during seek", e);
-          }).finally(() => {
-            playPromiseRef.current = null;
-          });
+      // If we finished scrubbing or are doing a regular seek, restore state
+      if (!isScrubbing) {
+        if (!isWasPlaying) {
+          if (nativePlayerRef.current) nativePlayerRef.current.pause();
+          setIsPlaying(false);
+        } else {
+          if (nativePlayerRef.current) {
+            playPromiseRef.current = nativePlayerRef.current.play();
+            playPromiseRef.current.catch(e => {
+              if (e.name !== 'AbortError') console.error("Native play failed during seek", e);
+            }).finally(() => {
+              playPromiseRef.current = null;
+            });
+          }
+          setIsPlaying(true);
+          notifyOtherTabs();
         }
-        setIsPlaying(true);
-        notifyOtherTabs();
       }
     }
   };

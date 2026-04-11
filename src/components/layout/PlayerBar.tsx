@@ -112,8 +112,8 @@ const PlayerBar = () => {
       // LIVE SCRUBBING: If playing, update position in real-time but with throttling for Safari stability
       if (isPlaying && newTime !== undefined) {
         const now = Date.now();
-        if (now - lastSeekRef.current > 150) { // Throttle to ~6.6fps for audio engine safety on iPad
-          seek(newTime);
+        if (now - lastSeekRef.current > 200) { // Increased throttle to 200ms for extra stability on iPad
+          seek(newTime, true); // Use 'true' for smooth scrubbing (no pause/play)
           lastSeekRef.current = now;
         }
       }
@@ -357,6 +357,7 @@ const PlayerBar = () => {
         .player-bar {
           display: grid;
           grid-template-columns: 1fr 2.2fr 1fr;
+          grid-template-areas: "track-info main-controls extra-controls";
           align-items: center;
           padding: 0 60px; /* Symmetrical padding for balanced look */
           height: 106px; /* Slightly increased "ceiling" for more room */
@@ -379,6 +380,7 @@ const PlayerBar = () => {
         }
 
         .track-info {
+          grid-area: track-info;
           display: flex;
           align-items: center;
           gap: 20px;
@@ -421,6 +423,7 @@ const PlayerBar = () => {
         }
 
         .player-controls {
+          grid-area: main-controls;
           display: flex;
           flex-direction: column;
           align-items: center;
@@ -572,12 +575,46 @@ const PlayerBar = () => {
         }
 
         .extra-controls {
+          grid-area: extra-controls;
           display: flex;
           align-items: center;
           justify-content: flex-end; /* Volume stays at the right edge */
           gap: 64px; /* Significantly increased gap to shift Speed further left */
           padding-left: 0;
           margin-left: 0;
+        }
+
+        /* RESPONSIVE IPAD OVERHAUL */
+        @media (max-width: 1024px) {
+          .player-bar {
+            grid-template-columns: 1fr 1fr;
+            grid-template-areas: 
+              "track-info extra-controls"
+              "main-controls main-controls";
+            height: auto;
+            min-height: 160px;
+            padding: 24px 32px 16px;
+            gap: 20px;
+            border-radius: 32px 32px 0 0;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            margin: 0;
+          }
+
+          .extra-controls {
+            gap: 32px; /* Tighter gap for iPad row */
+          }
+
+          .player-controls {
+            width: 100%;
+            padding-top: 8px;
+            border-top: 1px solid rgba(255, 255, 255, 0.05);
+          }
+
+          .progress-container {
+            max-width: 100% !important;
+          }
         }
         .special-features {
           display: flex;

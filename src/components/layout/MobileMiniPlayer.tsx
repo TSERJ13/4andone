@@ -27,7 +27,8 @@ const MobileMiniPlayer = () => {
     sessionTracks,
     isFinalMode,
     isExpanded,
-    setIsExpanded
+    setIsExpanded,
+    isLoading
   } = useAudio();
 
   const { tracks, finalTracks, toggleFavorite } = useStudio();
@@ -65,7 +66,7 @@ const MobileMiniPlayer = () => {
            style={{ pointerEvents: isLoaded ? 'auto' : 'none' }} 
            onClick={() => setIsExpanded(true)}
       >
-        {isLoaded && (
+        {(isLoaded || isLoading) && (
           <div className="mini-player-wrapper animate-in">
             <div className="mini-player glass">
               <div className="track-info">

@@ -175,7 +175,7 @@ const PlayerBar = () => {
 
   return (
     <>
-      <footer className={`player-bar glass ${!isLoaded && !isLoading ? 'is-hidden' : ''}`}>
+      <footer className={`player-bar glass ${title === "No Track Selected" ? 'is-hidden' : ''}`}>
         {/* Track Info */}
         <div className="track-info">
           <div className="album-art glass">

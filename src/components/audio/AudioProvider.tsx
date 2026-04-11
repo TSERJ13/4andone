@@ -185,6 +185,8 @@ export const AudioProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       // Start heartbeat on first interaction
       if (heartbeatRef.current && heartbeatRef.current.paused) {
         heartbeatRef.current.play().catch(() => { });
+        // Set to loop and never stop for session persistence
+        heartbeatRef.current.loop = true;
       }
 
       // Remove listeners once unlocked
@@ -632,7 +634,11 @@ export const AudioProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     if (isPlaying) {
       if (playerRef.current) playerRef.current.stop();
       if (nativePlayerRef.current) nativePlayerRef.current.pause();
-      if (heartbeatRef.current) heartbeatRef.current.pause();
+      
+      // LOGIC FIX: Do NOT pause the heartbeat on iPad/mobile. 
+      // Keeping it playing (silently) ensures the browser doesn't suspend 
+      // the audio session during the pause, allowing a smooth resume.
+      // if (heartbeatRef.current) heartbeatRef.current.pause();
 
       // Release Wake Lock
       if (wakeLockRef.current) {

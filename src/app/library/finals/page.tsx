@@ -949,6 +949,16 @@ const FinalsPage = () => {
 
         .empty-msg { padding: 40px; text-align: center; opacity: 0.3; font-weight: 700; font-size: 14px; }
 
+        @media (max-width: 1024px) {
+          .track-row { 
+            grid-template-columns: 40px 1fr 120px 80px; 
+            gap: 12px;
+          }
+          .track-meta { gap: 12px; }
+          .track-name { font-size: 13px; }
+          .track-duration { font-size: 12px; text-align: right; }
+        }
+
         @media (max-width: 768px) {
           .finals-container { padding: 16px; padding-bottom: 120px; }
           .programs-grid { 
@@ -965,7 +975,7 @@ const FinalsPage = () => {
              height: 36px;
           }
           .card-info h4 { font-size: 13px; font-weight: 700; }
-          .track-row { grid-template-columns: 32px 1fr 48px; }
+          .track-row { grid-template-columns: 32px 1fr 48px; gap: 8px; }
           .track-duration { display: none; }
           .track-queue-section { padding: 20px; border-radius: 24px; }
         }

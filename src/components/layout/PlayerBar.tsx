@@ -732,19 +732,24 @@ const PlayerBar = () => {
         .text-primary { color: var(--primary); }
         @media (max-width: 1024px) and (orientation: landscape) {
           .player-bar {
-            grid-template-columns: 1fr 1.2fr 1fr;
-            padding: 0 24px;
-            height: 84px;
+            grid-template-columns: 1fr 1.5fr 1fr;
+            padding: 0 32px;
+            height: 96px; /* Increased from 84px to prevent "ceiling" hit */
+            bottom: 8px;
+            left: 8px;
+            right: 8px;
+            border-radius: 24px;
           }
-          .track-info { gap: 12px; }
-          .album-art { width: 44px; height: 44px; }
-          .track-title { font-size: 13px; }
+          .track-info { gap: 16px; min-width: 0; }
+          .album-art { width: 48px; height: 48px; }
+          .track-title { font-size: 14px; }
           .track-artist { font-size: 11px; }
-          .progress-container { max-width: 400px; }
-          .control-buttons { gap: 16px; }
-          .play-btn { width: 48px; height: 48px; }
-          .extra-controls { gap: 20px; }
-          .volume-control { width: 160px; }
+          .progress-container { max-width: 450px; }
+          .control-buttons { gap: 20px; }
+          .play-btn { width: 52px; height: 52px; } /* Restoring full size for reach */
+          .extra-controls { gap: 24px; }
+          .volume-control { width: 180px; }
+          .feature-btn { padding: 8px 12px; }
         }
 
         @media (max-width: 768px) {

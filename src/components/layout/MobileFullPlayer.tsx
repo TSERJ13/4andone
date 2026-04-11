@@ -133,12 +133,12 @@ const MobileFullPlayer = ({ isOpen, onClose }: MobileFullPlayerProps) => {
   if (!isOpen) return null;
 
   const getTimeLimit = useCallback(() => {
-    const track = tracks.find(t => t.title === title);
+    const track = tracks?.find(t => t.title === title) || finalTracks?.find(t => t.title === title);
     const style = track?.style?.toLowerCase() || '';
-    if (style.includes('paso')) return track?.duration || 240;
+    if (style.includes('paso')) return track?.duration || 210;
     if (style.includes('viennese')) return 85;
     return 105; // 1:45
-  }, [tracks, title]);
+  }, [tracks, finalTracks, title]);
 
   const effectiveDuration = isFinalMode ? getTimeLimit() : duration;
   const displayProgress = isDragging ? dragProgress : (currentTime / (effectiveDuration || 1)) * 100;
@@ -170,15 +170,15 @@ const MobileFullPlayer = ({ isOpen, onClose }: MobileFullPlayerProps) => {
               <p className="artist truncate">{artist}</p>
             </div>
             <button 
-              className={`meta-btn favorite ${tracks.find(t => t.title === title)?.isFavorite ? 'active' : ''}`}
+              className={`meta-btn favorite ${tracks?.find(t => t.title === title)?.isFavorite ? 'active' : ''}`}
               onClick={() => {
                 checkAuthAndExecute(() => {
-                  const track = tracks.find(t => t.title === title);
+                  const track = tracks?.find(t => t.title === title);
                   if (track) toggleFavorite(track.id);
                 }, 'favorite tracks');
               }}
             >
-              <Heart size={32} fill={tracks.find(t => t.title === title)?.isFavorite ? "currentColor" : "none"} />
+              <Heart size={32} fill={tracks?.find(t => t.title === title)?.isFavorite ? "currentColor" : "none"} />
             </button>
           </div>
 

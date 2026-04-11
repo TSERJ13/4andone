@@ -42,7 +42,7 @@ const MobileMiniPlayer = () => {
   // We no longer return null here to prevent unmounting the expanded player
   // if (!isLoaded) return null;
 
-  const currentTrack = tracks.find(t => t.title === title) || finalTracks.find(t => t.title === title);
+  const currentTrack = tracks?.find(t => t.title === title) || finalTracks?.find(t => t.title === title);
 
   const handleFavoriteToggle = (e: React.MouseEvent) => {
     e.stopPropagation();

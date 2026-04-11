@@ -122,7 +122,16 @@ const AdminLibrary = () => {
         </div>
       )}
 
-        <div className="header-buttons">
+        <div className="library-header-row">
+          <div className="search-bar glass">
+            <Search size={18} />
+            <input 
+              type="text" 
+              placeholder="Search tracks..." 
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+            />
+          </div>
           <button className="btn-primary" onClick={() => {
             setSelectedTrack(null);
             setIsAddModalOpen(true);
@@ -130,15 +139,6 @@ const AdminLibrary = () => {
             <Plus size={18} />
             Add Track
           </button>
-        </div>
-        <div className="search-bar glass">
-          <Search size={18} />
-          <input 
-            type="text" 
-            placeholder="Search tracks..." 
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-          />
         </div>
         <div className="breadcrumb-nav glass">
           <button 
@@ -394,11 +394,12 @@ const AdminLibrary = () => {
           box-shadow: 0 8px 24px rgba(29, 185, 84, 0.4);
         }
 
-        .library-header-actions {
+        .library-header-row {
           display: flex;
-          justify-content: space-between;
           align-items: center;
+          justify-content: space-between;
           gap: 20px;
+          margin-bottom: 8px;
         }
 
         .header-buttons { display: flex; gap: 20px; align-items: center; }

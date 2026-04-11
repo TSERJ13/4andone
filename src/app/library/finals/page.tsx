@@ -696,55 +696,7 @@ const FinalsPage = () => {
           </div>
         </section>
 
-        <section className="track-queue-section glass">
-          <header className="queue-header">
-          </header>
 
-          <div className="tracks-list queue-list">
-            {finalTracks.length > 0 ? finalTracks.map((track: Track, i: number) => (
-              <div
-                key={track.id}
-                className={`track-row glass ${isPlaying && playingTitle === track.title ? 'is-active' : ''}`}
-                draggable
-                onDragStart={(e) => handleDragStart(e, track.id)}
-                onClick={() => loadTrack(track, false, true)}
-                onDragOver={handleDragOver}
-                onDrop={(e) => {
-                  e.preventDefault();
-                  const dragId = e.dataTransfer.getData('trackId');
-                  if (dragId) {
-                    const dragIdx = finalTracks.findIndex((t: Track) => t.id === dragId);
-                    if (dragIdx !== -1) reorderFinalTracks(dragIdx, i);
-                  }
-                }}
-              >
-                <div className="track-number">{i + 1}</div>
-                <div className="track-meta">
-                  <Disc size={20} className="text-secondary" />
-                  <div>
-                    <p className="track-name">{track.title}</p>
-                    <p className="track-artist">{track.artist}</p>
-                  </div>
-                </div>
-                <div className="track-duration text-secondary">
-                  {track.bpm ? `${getMPMFromBPM(Number(track.bpm), track.style)} BPM` : track.style}
-                </div>
-                <div className="track-actions">
-                  <button className="remove-btn" onClick={(e) => { e.stopPropagation(); removeFromFinal(track.id); }}>
-                    <Trash2 size={18} />
-                  </button>
-                  <div className="btn-play-row">
-                    {isPlaying && playingTitle === track.title ? (
-                      <Pause size={20} fill="currentColor" />
-                    ) : (
-                      <Play size={20} fill="currentColor" />
-                    )}
-                  </div>
-                </div>
-              </div>
-            )) : <p className="empty-msg"></p>}
-          </div>
-        </section>
 
       </div>
     </div>

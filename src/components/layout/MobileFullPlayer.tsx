@@ -132,7 +132,15 @@ const MobileFullPlayer = ({ isOpen, onClose }: MobileFullPlayerProps) => {
 
   if (!isOpen) return null;
 
-  const effectiveDuration = isFinalMode ? sessionDuration : duration;
+  const getTimeLimit = useCallback(() => {
+    const track = tracks.find(t => t.title === title);
+    const style = track?.style?.toLowerCase() || '';
+    if (style.includes('paso')) return track?.duration || 240;
+    if (style.includes('viennese')) return 85;
+    return 105; // 1:45
+  }, [tracks, title]);
+
+  const effectiveDuration = isFinalMode ? getTimeLimit() : duration;
   const displayProgress = isDragging ? dragProgress : (currentTime / (effectiveDuration || 1)) * 100;
 
   const formatTime = (time: number) => {
@@ -149,7 +157,7 @@ const MobileFullPlayer = ({ isOpen, onClose }: MobileFullPlayerProps) => {
 
       <div className="player-content">
         <div className="album-art-container">
-          <div className="disc-art glass">
+          <div className={`disc-art glass ${isFinalMode ? 'final-active' : ''}`}>
             <div className="disc-center"></div>
           </div>
         </div>
@@ -195,8 +203,8 @@ const MobileFullPlayer = ({ isOpen, onClose }: MobileFullPlayerProps) => {
                pointerEvents: isFinalMode ? 'none' : 'auto'
             }}
           >
-            <div className="progress-fill" style={{ width: `${displayProgress}%` }}></div>
-            <div className={`progress-knob ${isDragging ? 'active' : ''}`} style={{ left: `${displayProgress}%` }}></div>
+            <div className={`progress-fill ${isFinalMode ? 'final-active' : ''}`} style={{ width: `${displayProgress}%` }}></div>
+            <div className={`progress-knob ${isDragging ? 'active' : ''} ${isFinalMode ? 'final-active' : ''}`} style={{ left: `${displayProgress}%` }}></div>
           </div>
           <div className="time-labels">
             <span>{formatTime(isDragging ? (dragProgress / 100) * (effectiveDuration || 0) : currentTime)}</span>
@@ -358,8 +366,22 @@ const MobileFullPlayer = ({ isOpen, onClose }: MobileFullPlayerProps) => {
           align-items: center;
           justify-content: center;
           border: 4px solid rgba(255,255,255,0.1);
-          animation: ${isPlaying && !isFinalMode ? 'rotate 10s linear infinite' : 'none'};
+          animation: ${isPlaying ? 'rotate 10s linear infinite' : 'none'};
           box-shadow: 0 20px 40px rgba(0,0,0,0.5);
+          transition: all 0.5s ease;
+        }
+
+        .disc-art.final-active {
+          background: linear-gradient(135deg, #f43f5e 0%, #000 100%);
+          border-color: rgba(244, 63, 94, 0.4);
+          box-shadow: 0 0 40px rgba(244, 63, 94, 0.3);
+          animation: rotate 10s linear infinite, pulseRed 2s infinite ease-in-out;
+        }
+
+        @keyframes pulseRed {
+          0% { box-shadow: 0 0 20px rgba(244, 63, 94, 0.3); }
+          50% { box-shadow: 0 0 50px rgba(244, 63, 94, 0.6); }
+          100% { box-shadow: 0 0 20px rgba(244, 63, 94, 0.3); }
         }
 
         @keyframes rotate {
@@ -452,26 +474,8 @@ const MobileFullPlayer = ({ isOpen, onClose }: MobileFullPlayerProps) => {
           cursor: pointer;
           touch-action: none;
         }
-        .progress-fill {
-          height: 100%;
-          background: var(--primary, #1db954);
-          border-radius: 3px;
-        }
-        .progress-knob {
-          width: 14px;
-          height: 14px;
-          background: white;
-          border-radius: 50%;
-          position: absolute;
-          top: 50%;
-          transform: translate(-50%, -50%);
-          transition: transform 0.1s;
-          box-shadow: 0 2px 6px rgba(0,0,0,0.3);
-        }
-        .progress-knob.active {
-          transform: translate(-50%, -50%) scale(1.5);
-          background: var(--primary);
-        }
+        .progress-fill.final-active { background: #f43f5e; box-shadow: 0 0 10px rgba(244, 63, 94, 0.5); }
+        .progress-knob.final-active { background: #f43f5e; border: 2px solid white; }
         .time-labels {
           display: flex;
           justify-content: space-between;

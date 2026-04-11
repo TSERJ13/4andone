@@ -145,7 +145,7 @@ const PlayerBar = () => {
       if (speedSelectorRef.current && !speedSelectorRef.current.contains(event.target as Node)) {
         // Also check if trigger button was clicked (it has its own toggle)
         const target = event.target as HTMLElement;
-        if (!target.closest('.feature-btn')) {
+        if (!target.closest('.action-btn-speed') && !target.closest('.feature-btn')) {
           setShowSpeedSelector(false);
         }
       }
@@ -295,7 +295,7 @@ const PlayerBar = () => {
               >
                 <div className="flex flex-col items-center">
                   <Gauge size={28} strokeWidth={2.5} />
-                  <span style={{ fontSize: '9px', marginTop: '-15px', lineHeight: 1, color: '#ff4444' }} className="font-bold opacity-90 tracking-wide uppercase">SPEED</span>
+                  <span style={{ fontSize: '9px', marginTop: '-15px', lineHeight: 1, color: 'white' }} className="font-bold opacity-90 tracking-wide uppercase">SPEED</span>
                 </div>
                 {bpm !== 100 && <span className="speed-badge">{bpm}%</span>}
               </button>
@@ -776,7 +776,7 @@ const PlayerBar = () => {
           .player-bar {
             grid-template-columns: 1fr 2fr 1fr; /* SYMMETRIC: Center column is 2/4 = dead center */
             padding: 0 32px;
-            height: 96px; /* Increased from 84px to prevent "ceiling" hit */
+            height: 106px; /* Increased from 96px to prevent overlap and "ceiling" hit */
             bottom: 8px;
             left: 8px;
             right: 8px;
@@ -790,6 +790,7 @@ const PlayerBar = () => {
           .progress-container { max-width: 450px; }
           .control-buttons { gap: 20px; }
           .play-btn { width: 52px; height: 52px; } /* Restoring full size for reach */
+          .play-btn-wrapper { padding-bottom: 12px !important; }
           .extra-controls { gap: 12px; margin-right: 80px; } /* Move whole block even further left */
           .volume-control { width: 100px; gap: 8px; }
           .volume-control span { font-size: 11px; min-width: 32px; } 

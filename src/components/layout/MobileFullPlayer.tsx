@@ -464,7 +464,7 @@ const MobileFullPlayer = ({ isOpen, onClose }: MobileFullPlayerProps) => {
 
         .speed-tag.active {
           background: #1db954;
-          color: black;
+          color: white;
           border-color: #1db954;
         }
 

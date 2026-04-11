@@ -276,9 +276,9 @@ export const StudioProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       setTracks(prev => prev.map(t => t.id === id ? { ...t, isFavorite: !newVal } : t));
       
       if (error.code === '42501') {
-        alert("Permission denied: only the record owner can favorite this track globally.");
+        alert("Permission denied (42501): Only the record owner can favorite this track globally.");
       } else {
-        alert("Sync error: could not save favorite status.");
+        alert(`Sync error (${error.code || 'unknown'}): ${error.message || 'Could not save favorite status.'}`);
       }
     }
   };

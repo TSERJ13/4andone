@@ -4,6 +4,8 @@ import React from 'react';
 import { Heart, Play, Clock, MoreHorizontal, Disc, Flag } from 'lucide-react';
 import { useAudio } from '@/components/audio/AudioProvider';
 import { useStudio } from '@/components/admin/StudioProvider';
+import { useAuth } from '@/context/AuthContext';
+import ConfirmModal from '@/components/admin/ConfirmModal';
 import { formatDuration } from '@/utils/format';
 import { getMPMFromBPM } from '@/utils/audio';
 import { Marquee } from '@/components/layout/Marquee';
@@ -11,8 +13,19 @@ import { Marquee } from '@/components/layout/Marquee';
 const FavoritesPage = () => {
   const { togglePlay, isPlaying, title: playingTitle, loadTrack } = useAudio();
   const { tracks, toggleFavorite } = useStudio();
+  const { isAuthenticated, setIsAuthModalOpen } = useAuth();
+  
+  const [authPrompt, setAuthPrompt] = React.useState({ isOpen: false, action: '' });
 
   const likedTracks = tracks.filter(t => t.isFavorite && !t.tags?.some(tag => tag.toLowerCase() === 'closed' || tag === 'დახურული'));
+
+  const checkAuthAndExecute = (action: () => void, actionName: string) => {
+    if (!isAuthenticated) {
+      setAuthPrompt({ isOpen: true, action: actionName });
+      return;
+    }
+    action();
+  };
 
   const handlePlayAll = () => {
     if (likedTracks.length > 0) {
@@ -72,7 +85,17 @@ const FavoritesPage = () => {
                     className={`fav-action active-heart`}
                     onClick={(e) => {
                       e.stopPropagation();
-                      toggleFavorite(track.id);
+                      checkAuthAndExecute(async () => {
+                        try {
+                          await toggleFavorite(track.id);
+                        } catch (error: any) {
+                          if (error.code === '42501') {
+                            alert("Permission denied (42501): Only the record owner can favorite this track globally.");
+                          } else {
+                            alert(`Sync error (${error.code || 'unknown'}): ${error.message || 'Could not save favorite status.'}`);
+                          }
+                        }
+                      }, 'favorite tracks');
                     }}
                     title="Unlike"
                   >
@@ -97,6 +120,19 @@ const FavoritesPage = () => {
           <p>Save tracks by clicking the heart icon while listening.</p>
         </div>
       )}
+
+      <ConfirmModal 
+        isOpen={authPrompt.isOpen}
+        title="Authentication Required"
+        message={`Please log in with Telegram to ${authPrompt.action} and sync your studio data.`}
+        confirmText="Login Now"
+        variant="primary"
+        onClose={() => setAuthPrompt(prev => ({ ...prev, isOpen: false }))}
+        onConfirm={() => {
+          setAuthPrompt(prev => ({ ...prev, isOpen: false }));
+          setIsAuthModalOpen(true);
+        }}
+      />
 
       <style jsx>{`
         .favorites-page { padding: 40px; padding-bottom: 120px; }

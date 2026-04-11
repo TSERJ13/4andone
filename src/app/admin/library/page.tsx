@@ -402,6 +402,25 @@ const AdminLibrary = () => {
           margin-bottom: 8px;
         }
 
+        .btn-primary {
+          background: #1db954;
+          color: black;
+          font-weight: 700;
+          padding: 10px 24px;
+          border-radius: 12px;
+          display: flex;
+          align-items: center;
+          gap: 10px;
+          transition: all 0.2s;
+          border: none;
+          cursor: pointer;
+        }
+
+        .btn-primary:hover {
+          background: #1ed760;
+          transform: scale(1.02);
+        }
+
         .header-buttons { display: flex; gap: 20px; align-items: center; }
 
         .view-toggle { display: flex; padding: 4px; border-radius: 12px; }

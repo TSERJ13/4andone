@@ -34,10 +34,6 @@ export const UserBadge: React.FC<{ textColor?: string }> = ({ textColor = 'white
               <User size={20} />
             </div>
           </div>
-          <AuthModal 
-            isOpen={isAuthModalOpen} 
-            onClose={() => setIsAuthModalOpen(false)} 
-          />
         </>
       ) : (
         <div className="user-profile-trigger" onClick={() => setShowPopup(!showPopup)}>

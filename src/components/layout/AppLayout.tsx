@@ -10,6 +10,7 @@ import { useAudio } from '@/components/audio/AudioProvider';
 import { TelegramLogin } from '@/components/auth/TelegramLogin';
 import { User, LogOut, ShieldCheck } from 'lucide-react';
 import { useVisitTracker } from '@/hooks/useVisitTracker';
+import { AuthModal } from '@/components/auth/AuthModal';
 
 export default function AppLayout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
@@ -22,6 +23,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
   useVisitTracker(); // Track one visit per session
 
   const { isLoaded } = useAudio();
+  const { isAuthModalOpen, setIsAuthModalOpen } = useAuth();
 
   const isNoLayout = pathname?.startsWith('/admin') || pathname === '/sa-login';
 
@@ -44,6 +46,10 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
       </main>
       <PlayerBar />
       <MobileNav />
+      <AuthModal 
+        isOpen={isAuthModalOpen} 
+        onClose={() => setIsAuthModalOpen(false)} 
+      />
     </div>
   );
 }

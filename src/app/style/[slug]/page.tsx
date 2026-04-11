@@ -101,24 +101,23 @@ const StylePage = () => {
         {filteredTracks.length > 0 ? filteredTracks.map((track, i) => (
           <div
             key={track.id}
-            className={`track-row glass ${isPlaying && playingTitle === track.title ? 'is-playing' : ''}`}
+            className={`track-row ${isPlaying && (playingTitle === track.title || playingTitle === track.id) ? 'is-active' : ''}`}
             onClick={() => loadTrack(track)}
-            style={{ cursor: 'pointer' }}
           >
-            <div className="track-number">{i + 1}</div>
-            <div className="track-meta">
-              <Music2 size={20} className="text-secondary" />
-              <div className="title-stack">
-                <p className="track-name">{track.title}</p>
-                <p className="track-artist text-secondary">{track.artist}</p>
-              </div>
+            <div className="track-index">{i + 1}</div>
+            <div className="track-icon-col">
+              <Disc size={18} />
             </div>
-            <div className="track-duration text-secondary">
+            <div className="track-info-col">
+              <p className="track-name">{track.title}</p>
+              <p className="track-artist">{track.artist}</p>
+            </div>
+            <div className="track-meta-col">
               {track.bpm ? `${getMPMFromBPM(Number(track.bpm), track.style)} BPM` : '—'}
             </div>
-            <div className="track-actions">
+            <div className="track-actions-col">
               <button
-                className={`feature-icon ${track.isFavorite ? 'active-heart' : ''}`}
+                className={`fav-action ${track.isFavorite ? 'active-heart' : ''}`}
                 onClick={(e) => {
                   e.stopPropagation();
                   checkAuthAndExecute(() => toggleFavorite?.(track.id), 'favorite tracks');
@@ -126,8 +125,8 @@ const StylePage = () => {
               >
                 <Heart size={18} fill={track.isFavorite ? "#ff4b2b" : "none"} color={track.isFavorite ? "#ff4b2b" : "currentColor"} />
               </button>
-              <div className="btn-play-row">
-                {isPlaying && playingTitle === track.title ? (
+              <div className="play-action">
+                {isPlaying && (playingTitle === track.title || playingTitle === track.id) ? (
                   <div className="playing-bars"><span></span><span></span><span></span></div>
                 ) : (
                   <Play size={20} fill="currentColor" />
@@ -177,22 +176,9 @@ const StylePage = () => {
         .tag-btn:hover { background: rgba(255,255,255,0.08); color: white; }
         .tag-btn.active { background: white; color: black; }
         .tag-dot { width: 8px; height: 8px; border-radius: 50%; }
-        .tracks-list { display: flex; flex-direction: column; gap: 8px; }
-        .track-row { display: grid; grid-template-columns: 40px 1fr 140px 100px; align-items: center; padding: 12px 16px; border-radius: 12px; transition: background 0.2s; }
-        .track-row:hover { background: rgba(255,255,255,0.08); }
-        .track-number { font-size: 12px; font-weight: 800; opacity: 0.3; width: 40px; text-align: center; }
-        .track-meta { display: flex; align-items: center; gap: 16px; }
-        .title-stack { display: flex; flex-direction: column; gap: 4px; }
-        .track-name { font-weight: 600; font-size: 14px; }
-        .track-artist { font-size: 12px; }
-        .track-duration { font-size: 13px; font-weight: 500; }
-        .track-actions { display: flex; align-items: center; justify-content: flex-end; gap: 16px; }
-        .btn-play-row { color: var(--primary); }
-        .track-row.is-playing { background: rgba(29, 185, 84, 0.08); border-left: 3px solid #1db954; }
-        .track-row.is-playing .track-name { color: #1db954; }
-        .feature-icon { background: none; border: none; color: #555; cursor: pointer; transition: 0.2s; }
-        .feature-icon:hover { color: white; }
-        .feature-icon.active-heart { color: #f43f5e; }
+        .fav-action { opacity: 0.4; transition: all 0.2s; }
+        .fav-action:hover, .fav-action.active-heart { opacity: 1; transform: scale(1.1); }
+        .fav-action.active-heart { color: #f43f5e; }
         .empty-style-state { padding: 80px 20px; text-align: center; display: flex; flex-direction: column; align-items: center; gap: 16px; border-radius: 24px; margin-top: 20px; }
         .animate-in { animation: slideUp 0.5s cubic-bezier(0.16, 1, 0.3, 1) both; }
         @keyframes slideUp { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: translateY(0); } }
@@ -209,10 +195,8 @@ const StylePage = () => {
           }
           
           .track-row { 
-            grid-template-columns: 32px 1fr 48px; 
-            gap: 12px;
+            gap: 16px; 
           }
-          .track-duration { display: none; }
         }
       `}</style>
     </div>

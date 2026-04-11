@@ -19,6 +19,7 @@ import { useAudio } from '@/components/audio/AudioProvider';
 import { useAuth } from '@/context/AuthContext';
 import { getMPMFromBPM } from '@/utils/audio';
 import ConfirmModal from '@/components/admin/ConfirmModal';
+import { Marquee } from '@/components/layout/Marquee';
 
 export default function LibraryPage() {
   const router = useRouter();
@@ -131,36 +132,42 @@ export default function LibraryPage() {
           ).slice(0, 10).map((track, i) => (
             <div
               key={track.id}
-              className={`track-row glass ${isPlaying && playingTitle === track.title ? 'is-playing' : ''}`}
+              className={`track-row ${isPlaying && playingTitle === track.title ? 'is-active' : ''}`}
               onClick={() => loadTrack(track)}
               style={{ cursor: 'pointer' }}
             >
-              <div className="track-number">{i + 1}</div>
-              <div className="track-meta">
-                <Music size={20} className="text-secondary" />
-                <div>
-                  <p className="track-name">{track.title}</p>
-                  <p className="track-artist text-secondary">{track.artist}</p>
-                </div>
+              <div className="track-index">{i + 1}</div>
+              <div className="track-icon-col">
+                <Disc size={18} />
               </div>
-              <div className="track-duration text-secondary">
-                {track.bpm ? `${getMPMFromBPM(Number(track.bpm), track.style)} BPM` : '—'}
+              <div className="track-info-col">
+                <Marquee 
+                  text={track.title} 
+                  className="track-name" 
+                  isActive={isPlaying && (playingTitle === track.title || playingTitle === track.id)}
+                />
+                <p className="track-artist">{track.artist}</p>
               </div>
-              <div className="track-actions">
+              
+              <div className="track-meta-col">
+                {track.bpm ? `${getMPMFromBPM(Number(track.bpm), track.style)} BPM` : track.style}
+              </div>
+
+              <div className="track-actions-col">
                 <button
-                  className={`feature-icon ${track.isFavorite ? 'active-heart' : ''}`}
+                  className={`fav-action ${track.isFavorite ? 'active-heart' : ''}`}
                   onClick={(e) => {
                     e.stopPropagation();
                     checkAuthAndExecute(() => toggleFavorite?.(track.id), 'favorite tracks');
                   }}
                 >
-                  <Heart size={18} fill={track.isFavorite ? "#ff4b2b" : "none"} color={track.isFavorite ? "#ff4b2b" : "currentColor"} />
+                  <Heart size={16} fill={track.isFavorite ? "#ff4b2b" : "none"} color={track.isFavorite ? "#ff4b2b" : "currentColor"} />
                 </button>
-                <div className="btn-play-row">
+                <div className="play-action">
                   {isPlaying && playingTitle === track.title ? (
-                    <Pause size={20} fill="currentColor" />
+                     <div className="playing-bars"><span></span><span></span><span></span></div>
                   ) : (
-                    <Play size={20} fill="currentColor" />
+                    <Play size={18} fill="currentColor" />
                   )}
                 </div>
               </div>
@@ -304,22 +311,28 @@ export default function LibraryPage() {
         .card-info .meta { font-size: 9px; opacity: 0.4; display: block; }
 
         .tracks-list { display: flex; flex-direction: column; gap: 8px; }
-        .track-row {
-          display: grid;
-          grid-template-columns: 40px 1fr 140px 100px;
+          .track-row { 
+            gap: 16px; 
+          }
+
+        .track-index { font-size: 13px; font-weight: 800; opacity: 0.3; text-align: left; }
+        .track-icon-col { display: flex; align-items: center; justify-content: flex-start; }
+        .track-info-col { min-width: 0; overflow: hidden; }
+        .track-name { font-weight: 600; font-size: 15px; }
+        .track-artist { font-size: 12px; opacity: 0.5; margin-top: 2px; }
+        
+        .track-meta-col { font-size: 13px; font-weight: 600; }
+        
+        .track-actions-col {
+          display: flex;
           align-items: center;
-          padding: 12px 16px;
-          border-radius: 12px;
-          transition: background 0.2s;
+          justify-content: flex-end;
+          gap: 20px;
         }
-        .track-row:hover { background: rgba(255,255,255,0.08); }
-        .track-number { font-size: 12px; font-weight: 800; opacity: 0.3; width: 40px; text-align: center; }
-        .track-meta { display: flex; align-items: center; gap: 16px; }
-        .track-name { font-weight: 600; font-size: 14px; }
-        .track-artist { font-size: 12px; }
-        .track-duration { font-size: 13px; font-weight: 500; }
-        .track-actions { display: flex; align-items: center; justify-content: flex-end; gap: 24px; padding-right: 12px; }
-        .btn-play-row { color: var(--primary); }
+
+        .fav-action { opacity: 0.4; transition: all 0.2s; }
+        .fav-action:hover, .fav-action.active-heart { opacity: 1; transform: scale(1.1); }
+        .play-action { color: var(--primary); }
 
         .feature-icon {
           color: #555;
@@ -398,11 +411,9 @@ export default function LibraryPage() {
           .card-info h3 { font-size: 0.8rem; letter-spacing: -0.5px; } /* Slightly smaller for mobile */
           .card-info .meta { display: none; }
 
-          .track-row {
-            grid-template-columns: 32px 1fr 48px;
-            padding: 8px 12px;
+          .track-row { 
+            gap: 16px; 
           }
-          .track-duration { display: none; }
         }
       `}</style>
     </div>

@@ -8,6 +8,7 @@ import { useAuth } from '@/context/AuthContext';
 import Link from 'next/link';
 import { getMPMFromBPM } from '@/utils/audio';
 import ConfirmModal from '@/components/admin/ConfirmModal';
+import { Marquee } from '@/components/layout/Marquee';
 
 const SearchPage = () => {
   const [query, setQuery] = useState('');
@@ -122,35 +123,41 @@ const SearchPage = () => {
                 searchResults.map((track, i) => (
                   <div
                     key={track.id}
-                    className={`track-row glass ${isPlaying && playingTitle === track.title ? 'is-active' : ''}`}
+                    className={`track-row ${isPlaying && (playingTitle === track.title || playingTitle === track.id) ? 'is-active' : ''}`}
                     onClick={() => loadTrack(track)}
                   >
-                    <div className="track-number">{i + 1}</div>
-                    <div className="track-meta">
-                      <Disc size={20} className="text-secondary" />
-                      <div>
-                        <p className="track-name">{track.title}</p>
-                        <p className="track-artist text-secondary">{track.artist} • {track.style}</p>
-                      </div>
+                    <div className="track-index">{i + 1}</div>
+                    <div className="track-icon-col">
+                      <Disc size={18} />
                     </div>
-                    <div className="track-duration text-secondary">
+                    <div className="track-info-col">
+                      <Marquee 
+                        text={track.title} 
+                        className="track-name" 
+                        isActive={isPlaying && (playingTitle === track.title || playingTitle === track.id)}
+                      />
+                      <p className="track-artist">{track.artist} • {track.style}</p>
+                    </div>
+                    
+                    <div className="track-meta-col">
                       {track.bpm ? `${getMPMFromBPM(Number(track.bpm), track.style)} BPM` : track.style}
                     </div>
-                    <div className="track-actions">
+
+                    <div className="track-actions-col">
                       <button
-                        className={`feature-icon ${track.isFavorite ? 'active-heart' : ''}`}
+                        className={`fav-action ${track.isFavorite ? 'active-heart' : ''}`}
                         onClick={(e) => {
                           e.stopPropagation();
                           checkAuthAndExecute(() => toggleFavorite?.(track.id), 'favorite tracks');
                         }}
                       >
-                        <Heart size={18} fill={track.isFavorite ? "#ff4b2b" : "none"} color={track.isFavorite ? "#ff4b2b" : "currentColor"} />
+                        <Heart size={16} fill={track.isFavorite ? "#ff4b2b" : "none"} color={track.isFavorite ? "#ff4b2b" : "currentColor"} />
                       </button>
-                      <div className="btn-play-row">
-                        {isPlaying && playingTitle === track.title ? (
-                          <Pause size={20} fill="currentColor" />
+                      <div className="play-action">
+                        {isPlaying && (playingTitle === track.title || playingTitle === track.id) ? (
+                          <div className="playing-bars"><span></span><span></span><span></span></div>
                         ) : (
-                          <Play size={20} fill="currentColor" />
+                          <Play size={18} fill="currentColor" />
                         )}
                       </div>
                     </div>
@@ -259,43 +266,9 @@ const SearchPage = () => {
         
         .track-count { font-size: 13px; opacity: 0.7; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px; }
         
-        .results-container { display: flex; flex-direction: column; gap: 8px; }
-        
-        .track-row {
-          display: grid;
-          grid-template-columns: 40px 1fr 140px 100px;
-          align-items: center;
-          padding: 12px 16px;
-          border-radius: 12px;
-          transition: background 0.2s;
-          cursor: pointer;
-        }
-
-        .track-row:hover { background: rgba(255,255,255,0.08); }
-        .track-row.is-active {
-          background: rgba(29, 185, 84, 0.08);
-          border-left: 3px solid #1db954;
-        }
-        .track-row.is-active .track-name { color: #1db954; }
-
-        .track-number { font-size: 12px; font-weight: 800; opacity: 0.3; width: 40px; text-align: center; }
-        .track-meta { display: flex; align-items: center; gap: 16px; min-width: 0; }
-        .track-name { font-weight: 600; font-size: 14px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-        .track-artist { font-size: 12px; opacity: 0.5; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-        .track-duration { font-size: 13px; font-weight: 600; }
-        .track-actions { display: flex; align-items: center; justify-content: flex-end; gap: 16px; }
-        .btn-play-row { color: var(--primary); }
-
-        .feature-icon { color: #555; transition: all 0.2s; background: none; border: none; cursor: pointer; }
-        .feature-icon:hover { color: white; transform: scale(1.1); }
-        .feature-icon.active-flag { color: #1db954; }
-        .feature-icon.active-heart { color: #ff4b2b; }
-
-        .playing-bars { display: flex; align-items: flex-end; gap: 2px; width: 16px; height: 16px; }
-        .playing-bars span { width: 2px; background: var(--primary); animation: dance 1s infinite ease-in-out; }
-        .playing-bars span:nth-child(1) { height: 60%; animation-delay: -0.4s; }
-        .playing-bars span:nth-child(2) { height: 100%; animation-delay: -0.2s; }
-        .playing-bars span:nth-child(3) { height: 80%; animation-delay: 0s; }
+        .fav-action { opacity: 0.4; transition: all 0.2s; }
+        .fav-action:hover, .fav-action.active-heart { opacity: 1; transform: scale(1.1); }
+        .fav-action.active-heart { color: #ff4b2b; }
         @keyframes dance {
           0%, 100% { transform: scaleY(0.5); }
           50% { transform: scaleY(1); }
@@ -313,8 +286,9 @@ const SearchPage = () => {
           .search-header { max-width: 100%; margin-bottom: 0; }
           .genre-grid { grid-template-columns: repeat(2, 1fr); gap: 12px; }
           .genre-card { padding: 48px 16px; border-radius: 8px; }
-          .track-row { grid-template-columns: 32px 1fr 48px; }
-          .track-duration { display: none; }
+          .track-row { 
+            gap: 16px; 
+          }
         }
       `}</style>
     </div>

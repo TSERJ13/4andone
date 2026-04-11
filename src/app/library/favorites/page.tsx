@@ -45,23 +45,23 @@ const FavoritesPage = () => {
             {likedTracks.map((track, i) => (
               <div
                 key={track.id}
-                className={`track-row glass ${isPlaying && playingTitle === track.title ? 'is-active' : ''}`}
+                className={`track-row ${isPlaying && (playingTitle === track.title || playingTitle === track.id) ? 'is-active' : ''}`}
                 onClick={() => loadTrack(track)}
               >
-                <div className="track-number">{i + 1}</div>
-                <div className="track-meta">
-                  <Disc size={20} className="text-secondary" />
-                  <div>
-                    <p className="track-name">{track.title}</p>
-                    <p className="track-artist text-secondary">{track.artist}</p>
-                  </div>
+                <div className="track-index">{i + 1}</div>
+                <div className="track-icon-col">
+                  <Disc size={18} />
                 </div>
-                <div className="track-duration text-secondary">
+                <div className="track-info-col">
+                  <p className="track-name">{track.title}</p>
+                  <p className="track-artist">{track.artist}</p>
+                </div>
+                <div className="track-meta-col">
                   {track.bpm ? `${getMPMFromBPM(Number(track.bpm), track.style)} MPM` : track.style}
                 </div>
-                <div className="track-actions">
+                <div className="track-actions-col">
                   <button
-                    className={`feature-icon ${finalTracks.some(t => t.id === track.id) ? 'active-flag' : ''}`}
+                    className={`fav-action ${finalTracks.some(t => t.id === track.id) ? 'active-flag' : ''}`}
                     onClick={(e) => {
                       e.stopPropagation();
                       finalTracks.some(t => t.id === track.id) ? removeFromFinal(track.id) : addToFinal(track);
@@ -69,8 +69,8 @@ const FavoritesPage = () => {
                   >
                     <Flag size={18} fill={finalTracks.some(t => t.id === track.id) ? "currentColor" : "none"} />
                   </button>
-                  <div className="btn-play-row">
-                    {isPlaying && playingTitle === track.title ? (
+                  <div className="play-action">
+                    {isPlaying && (playingTitle === track.title || playingTitle === track.id) ? (
                       <div className="playing-bars"><span></span><span></span><span></span></div>
                     ) : (
                       <Play size={20} fill="currentColor" />
@@ -113,42 +113,9 @@ const FavoritesPage = () => {
         }
         .play-btn-large:hover { transform: scale(1.05); }
 
-        .tracks-list { display: flex; flex-direction: column; gap: 8px; }
-        
-        .track-row {
-          display: grid;
-          grid-template-columns: 40px 1fr 140px 100px;
-          align-items: center;
-          padding: 12px 16px;
-          border-radius: 12px;
-          transition: background 0.2s;
-          cursor: pointer;
-        }
-
-        .track-row:hover { background: rgba(255,255,255,0.08); }
-        .track-row.is-active {
-          background: rgba(29, 185, 84, 0.08);
-          border-left: 3px solid #1db954;
-        }
-        .track-row.is-active .track-name { color: #1db954; }
-
-        .track-number { font-size: 12px; font-weight: 800; opacity: 0.3; width: 40px; text-align: center; }
-        .track-meta { display: flex; align-items: center; gap: 16px; min-width: 0; }
-        .track-name { font-weight: 600; font-size: 14px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-        .track-artist { font-size: 12px; opacity: 0.5; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-        .track-duration { font-size: 13px; font-weight: 600; }
-        .track-actions { display: flex; align-items: center; justify-content: flex-end; gap: 16px; }
-        
-        .btn-play-row { color: var(--primary); }
-        .feature-icon { color: #555; transition: all 0.2s; background: none; border: none; cursor: pointer; }
-        .feature-icon:hover { color: white; transform: scale(1.1); }
-        .feature-icon.active-flag { color: #1db954; }
-
-        .playing-bars { display: flex; align-items: flex-end; gap: 2px; width: 16px; height: 16px; }
-        .playing-bars span { width: 2px; background: var(--primary); animation: dance 1s infinite ease-in-out; }
-        .playing-bars span:nth-child(1) { height: 60%; animation-delay: -0.4s; }
-        .playing-bars span:nth-child(2) { height: 100%; animation-delay: -0.2s; }
-        .playing-bars span:nth-child(3) { height: 80%; animation-delay: 0s; }
+        .fav-action { color: #555; transition: all 0.2s; background: none; border: none; cursor: pointer; }
+        .fav-action:hover { color: white; transform: scale(1.1); }
+        .fav-action.active-flag { color: #1db954; }
         @keyframes dance {
           0%, 100% { transform: scaleY(0.5); }
           50% { transform: scaleY(1); }
@@ -167,8 +134,9 @@ const FavoritesPage = () => {
           .heart-icon-large { width: 140px; height: 140px; border-radius: 20px; }
           .title { font-size: 2.2rem; letter-spacing: -1px; }
           .actions { justify-content: center; height: 80px; }
-          .track-row { grid-template-columns: 32px 1fr 48px; }
-          .track-duration { display: none; }
+          .track-row { 
+            gap: 16px; 
+          }
         }
       `}</style>
     </div>

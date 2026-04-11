@@ -12,6 +12,7 @@ import ConfirmModal from '@/components/admin/ConfirmModal';
 import { useState } from 'react';
 import { UserBadge } from '@/components/auth/UserBadge';
 import { useRouter } from 'next/navigation';
+import { Marquee } from '@/components/layout/Marquee';
 
 export default function Home() {
   const {
@@ -84,17 +85,17 @@ export default function Home() {
   );
 
   const SkeletonRow = () => (
-    <div className="track-row glass skeleton" style={{ padding: '12px 16px', borderRadius: '12px', display: 'grid', gridTemplateColumns: '40px 1fr 60px 100px', alignItems: 'center' }}>
-      <div className="track-number skeleton-shimmer" style={{ width: '12px', height: '14px', margin: '0 auto', opacity: 0.1 }}></div>
-      <div className="track-meta" style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
+    <div className="track-row skeleton" style={{ pointerEvents: 'none' }}>
+      <div className="track-index skeleton-shimmer" style={{ width: '12px', height: '14px', margin: '0 auto', opacity: 0.1 }}></div>
+      <div className="track-icon-col">
         <div className="skeleton-shimmer" style={{ width: '20px', height: '20px', borderRadius: '4px', opacity: 0.2 }}></div>
-        <div style={{ flex: 1 }}>
-          <div className="skeleton-line full skeleton-shimmer" style={{ height: '14px', width: '120px', marginBottom: '4px' }}></div>
-          <div className="skeleton-line half skeleton-shimmer" style={{ height: '10px', width: '80px' }}></div>
-        </div>
       </div>
-      <div className="track-duration skeleton-shimmer" style={{ width: '60px', height: '12px', opacity: 0.2 }}></div>
-      <div className="track-actions" style={{ display: 'flex', justifyContent: 'flex-end', gap: '12px' }}>
+      <div className="track-info-col">
+        <div className="skeleton-line full skeleton-shimmer" style={{ height: '14px', width: '120px', marginBottom: '4px' }}></div>
+        <div className="skeleton-line half skeleton-shimmer" style={{ height: '10px', width: '80px' }}></div>
+      </div>
+      <div className="track-meta-col skeleton-shimmer" style={{ width: '60px', height: '12px', opacity: 0.2, marginLeft: 'auto' }}></div>
+      <div className="track-actions-col">
         <div className="skeleton-shimmer" style={{ width: '18px', height: '18px', borderRadius: '4px', opacity: 0.2 }}></div>
         <div className="skeleton-shimmer-circle" style={{ width: '20px', height: '20px', opacity: 0.2 }}></div>
       </div>
@@ -228,32 +229,43 @@ export default function Home() {
             ).slice(0, 10).map((track, i) => (
               <div
                 key={track.id}
-                className={`track-row glass ${isPlaying && playingTitle === track.title ? 'is-active' : ''}`}
+                className={`track-row ${isPlaying && (playingTitle === track.title || playingTitle === track.id) ? 'is-active' : ''}`}
                 onClick={() => handlePlay(track)}
-                style={{ cursor: 'pointer' }}
               >
-                <div className="track-number">{i + 1}</div>
-                <div className="track-meta">
-                  <Disc size={20} className="text-secondary" />
-                  <div>
-                    <p className="track-name">{track.title}</p>
-                    <p className="track-artist">{track.artist}</p>
-                  </div>
+                <div className="track-index">{i + 1}</div>
+                <div className="track-icon-col">
+                  <Disc size={18} />
                 </div>
-                <div className="track-duration text-secondary">{track.bpm ? `${getMPMFromBPM(Number(track.bpm), track.style)} BPM` : formatDuration(track.duration)}</div>
-                <div className="track-actions">
+                <div className="track-info-col">
+                  <Marquee 
+                    text={track.title} 
+                    className="track-name" 
+                    isActive={isPlaying && (playingTitle === track.title || playingTitle === track.id)}
+                  />
+                  <p className="track-artist">{track.artist}</p>
+                </div>
+                
+                <div className="track-meta-col">
+                  {track.bpm ? `${getMPMFromBPM(Number(track.bpm), track.style)} BPM` : formatDuration(track.duration)}
+                </div>
+
+                <div className="track-actions-col">
                   <button
-                    className={`feature-icon ${track.isFavorite ? 'active-heart' : ''}`}
+                    className={`fav-action ${track.isFavorite ? 'active-heart' : ''}`}
                     onClick={(e) => {
                       e.stopPropagation();
                       checkAuthAndExecute(() => toggleFavorite?.(track.id), 'favorite tracks');
                     }}
                     title="Like Song"
                   >
-                    <Heart size={18} fill={track.isFavorite ? "#ff4b2b" : "none"} color={track.isFavorite ? "#ff4b2b" : "currentColor"} />
+                    <Heart size={16} fill={track.isFavorite ? "#ff4b2b" : "none"} color={track.isFavorite ? "#ff4b2b" : "currentColor"} />
                   </button>
-                  <div className="btn-play-row">
-                    {isPlaying && playingTitle === track.title ? <div className="playing-bars"><span></span><span></span><span></span></div> : <Play size={20} fill="currentColor" />}
+                  <div className="play-action">
+                    {isPlaying && (playingTitle === track.title || playingTitle === track.id) ? (
+                      <div className="playing-bars"><span></span><span></span><span></span></div>
+                    ) : (
+                      <Play size={18} fill="currentColor" />
+                    )}
                   </div>
                 </div>
               </div>
@@ -511,59 +523,9 @@ export default function Home() {
           gap: 8px;
         }
 
-        .track-row {
-          display: grid;
-          grid-template-columns: 40px 1fr 60px 100px;
-          align-items: center;
-          padding: 12px 16px;
-          border-radius: 12px;
-          transition: background 0.2s;
-        }
-
-        .track-row:hover {
-          background: rgba(255,255,255,0.08);
-        }
-
-        .track-row.is-active {
-          background: rgba(29, 185, 84, 0.08);
-          border-left: 3px solid #1db954;
-        }
-
-        .track-meta {
-          display: flex;
-          align-items: center;
-          gap: 16px;
-        }
-
-        .track-name {
-          font-weight: 600;
-          font-size: 14px;
-        }
-
-        .track-row.is-active .track-name {
-          color: #1db954;
-        }
-
-        .track-artist {
-          font-size: 12px;
-          color: var(--text-secondary);
-        }
-
-        .track-actions {
-          display: flex;
-          align-items: center;
-          justify-content: flex-end;
-          gap: 12px;
-        }
-
-        .feature-indicator {
-          color: var(--text-secondary);
-          opacity: 0.5;
-        }
-
-        .btn-play-row {
-          color: white;
-        }
+          .track-row { 
+            gap: 16px; 
+          }
 
         @media (max-width: 1024px) and (orientation: landscape) {
           .hero-section {
@@ -651,13 +613,8 @@ export default function Home() {
             padding: 16px;
           }
 
-          .track-row {
-            grid-template-columns: 32px 1fr 48px;
-            padding: 8px 12px;
-          }
-
-          .track-duration, .feature-indicator {
-            display: none;
+          .track-row { 
+            gap: 16px; 
           }
 
           .track-meta {

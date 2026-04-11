@@ -13,7 +13,9 @@ import {
   MicOff,
   Dumbbell,
   Info,
-  ArrowRight
+  ArrowRight,
+  Heart,
+  MoreHorizontal
 } from 'lucide-react';
 import Link from 'next/link';
 import { useAudio } from '@/components/audio/AudioProvider';
@@ -22,6 +24,7 @@ import { useAuth } from '@/context/AuthContext';
 import { getMPMFromBPM } from '@/utils/audio';
 import ConfirmModal from '@/components/admin/ConfirmModal';
 import { formatDuration } from '@/utils/format';
+import { Marquee } from '@/components/layout/Marquee';
 
 const FinalsPage = () => {
   const { 
@@ -29,7 +32,8 @@ const FinalsPage = () => {
     finalTracks, 
     removeFromFinal, 
     reorderFinalTracks,
-    setFinalTracks
+    setFinalTracks,
+    toggleFavorite
   } = useStudio();
   const { 
     loadTrack, isPlaying, title: playingTitle, currentTime, trackCurrentTime, duration, 
@@ -43,6 +47,14 @@ const FinalsPage = () => {
   const [showFitnessModal, setShowFitnessModal] = useState(false);
   const [fitnessDuration, setFitnessDuration] = useState(10); // Minutes
   const [fitnessDurationSecs, setFitnessDurationSecs] = useState(0); // Seconds
+
+  const checkAuthAndExecute = (action: () => void, actionName: string) => {
+    if (!isAuthenticated) {
+      setIsAuthModalOpen(true);
+      return;
+    }
+    action();
+  };
 
   useEffect(() => {
     if (!activeCardRef.current) return;
@@ -696,28 +708,34 @@ const FinalsPage = () => {
             {sessionList.map((track, i) => (
               <div 
                 key={`${track.id}-${i}`} 
-                className={`track-row glass ${isPlaying && (playingTitle === track.title || playingTitle === track.id) ? 'is-active' : ''}`}
+                className={`track-row ${isPlaying && (playingTitle === track.title || playingTitle === track.id) ? 'is-active' : ''}`}
                 onClick={() => loadTrack(track)}
               >
-                <div className="track-number">{i + 1}</div>
-                <div className="track-meta">
-                  {isPlaying && (playingTitle === track.title || playingTitle === track.id) ? (
-                    <div className="playing-bars"><span></span><span></span><span></span></div>
-                  ) : (
-                    <Disc size={20} className="text-secondary" />
-                  )}
-                  <div>
-                    <p className="track-name">{track.title}</p>
-                    <p className="track-artist">{track.artist}</p>
+                <div className="track-index">{i + 1}</div>
+                <div className="track-icon-col">
+                  <Disc size={18} />
+                </div>
+                <div className="track-info-col">
+                  <Marquee 
+                    text={track.title} 
+                    className="track-name" 
+                    isActive={isPlaying && (playingTitle === track.title || playingTitle === track.id)} 
+                  />
+                  <p className="track-artist">{track.artist}</p>
+                </div>
+                
+                <div className="track-meta-col">
+                  {track.bpm ? `${getMPMFromBPM(Number(track.bpm), track.style)} BPM` : track.style}
+                </div>
+
+                <div className="track-actions-col">
+                  <div className="play-action">
+                    {isPlaying && (playingTitle === track.title || playingTitle === track.id) ? (
+                      <div className="playing-bars"><span></span><span></span><span></span></div>
+                    ) : (
+                      <Play size={18} fill="currentColor" />
+                    )}
                   </div>
-                </div>
-                <div className="track-duration text-secondary">
-                  {track.bpm ? `${getMPMFromBPM(Number(track.bpm), track.style)} BPM` : formatTime(track.duration || 0)}
-                </div>
-                <div className="track-actions">
-                  <button className="btn-play-row">
-                    <Play size={20} fill="currentColor" />
-                  </button>
                 </div>
               </div>
             ))}
@@ -907,57 +925,9 @@ const FinalsPage = () => {
 
         .tracks-list { display: flex; flex-direction: column; gap: 8px; }
         
-        /* Unified List Style */
-        .track-row {
-          display: grid;
-          grid-template-columns: 40px 1fr 140px 100px;
-          align-items: center;
-          padding: 12px 16px;
-          border-radius: 12px;
-          transition: background 0.2s;
-          cursor: pointer;
-        }
-
-        .track-row:hover { background: rgba(255,255,255,0.08); }
-        .track-row.is-active {
-          background: rgba(29, 185, 84, 0.08);
-          border-left: 3px solid #1db954;
-        }
-        .track-row.is-active .track-name { color: #1db954; }
-
-        .track-number { font-size: 12px; font-weight: 800; opacity: 0.3; text-align: center; }
-        .track-meta { display: flex; align-items: center; gap: 16px; min-width: 0; }
-        .track-name { font-weight: 600; font-size: 14px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-        .track-artist { font-size: 12px; opacity: 0.5; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-        .track-duration { font-size: 13px; font-weight: 600; }
-        .track-actions { display: flex; align-items: center; justify-content: flex-end; gap: 16px; }
-        
-        .remove-btn { color: #555; transition: color 0.2s; }
-        .remove-btn:hover { color: #ff4b2b; }
-        
-        .btn-play-row { color: var(--primary); }
-
-        .playing-bars { display: flex; align-items: flex-end; gap: 2px; width: 16px; height: 16px; }
-        .playing-bars span { width: 2px; background: var(--primary); animation: dance 1s infinite ease-in-out; }
-        .playing-bars span:nth-child(1) { height: 60%; animation-delay: -0.4s; }
-        .playing-bars span:nth-child(2) { height: 100%; animation-delay: -0.2s; }
-        .playing-bars span:nth-child(3) { height: 80%; animation-delay: 0s; }
-        @keyframes dance {
-          0%, 100% { transform: scaleY(0.5); }
-          50% { transform: scaleY(1); }
-        }
-
-        .empty-msg { padding: 40px; text-align: center; opacity: 0.3; font-weight: 700; font-size: 14px; }
-
-        @media (max-width: 1200px) {
           .track-row { 
-            grid-template-columns: 40px 1fr 200px 80px; 
-            gap: 24px;
+            gap: 16px; 
           }
-          .track-meta { gap: 12px; min-width: 0; }
-          .track-name { font-size: 13px; }
-          .track-duration { font-size: 13px; text-align: right; white-space: nowrap; font-weight: 600; }
-        }
 
         @media (max-width: 768px) {
           .finals-container { padding: 16px; padding-bottom: 120px; }
@@ -975,9 +945,16 @@ const FinalsPage = () => {
              height: 36px;
           }
           .card-info h4 { font-size: 13px; font-weight: 700; }
-          .track-row { grid-template-columns: 32px 1fr 48px; gap: 8px; }
-          .track-duration { display: none; }
+          .track-row { 
+            gap: 16px; 
+          }
           .track-queue-section { padding: 20px; border-radius: 24px; }
+          .learn-finals-btn { 
+            padding: 8px 14px; 
+            font-size: 11px; 
+          }
+          .learn-finals-btn span { display: none; } /* Show only icon and "How it works" if needed, or just shrink padding */
+          .learn-finals-btn::after { content: 'Info'; font-weight: 800; margin-left: 4px; }
         }
       `}</style>
       <style jsx>{`

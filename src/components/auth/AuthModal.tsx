@@ -57,7 +57,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose }) => {
           display: flex;
           align-items: center;
           justify-content: center;
-          z-index: 5001;
+          z-index: 6001;
           cursor: pointer;
         }
 

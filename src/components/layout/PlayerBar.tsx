@@ -2,15 +2,15 @@
 
 import React, { useState, useRef, useEffect } from 'react';
 import { usePathname } from 'next/navigation';
-import { 
-  Play, 
-  Pause, 
-  SkipBack, 
-  SkipForward, 
-  Repeat, 
-  Shuffle, 
-  Volume2, 
-  Tally3, 
+import {
+  Play,
+  Pause,
+  SkipBack,
+  SkipForward,
+  Repeat,
+  Shuffle,
+  Volume2,
+  Tally3,
   Gauge,
   Heart,
   VolumeX,
@@ -27,7 +27,7 @@ const PlayerBar = () => {
   const pathname = usePathname();
   const isAdmin = pathname.startsWith('/admin');
 
-  const { 
+  const {
     currentTime,
     duration,
     isPlaying,
@@ -48,7 +48,8 @@ const PlayerBar = () => {
     toggleShuffle,
     seek,
     isLoading,
-    isFinalMode
+    isFinalMode,
+    sessionDuration
   } = useAudio();
 
   const [showSpeedSelector, setShowSpeedSelector] = useState(false);
@@ -59,7 +60,7 @@ const PlayerBar = () => {
   const [dragProgress, setDragProgress] = useState(0);
   const progressRef = useRef<HTMLDivElement>(null);
   const lastSeekRef = useRef<number>(0);
-  
+
   const { isAuthenticated, setIsAuthModalOpen } = useAuth();
   const [authPrompt, setAuthPrompt] = useState({ isOpen: false, action: '' });
 
@@ -108,12 +109,12 @@ const PlayerBar = () => {
     const handleMove = (e: MouseEvent | TouchEvent) => {
       if (!isDragging || isFinalMode) return;
       const newTime = handleSeekUpdate(getClientX(e));
-      
+
       // LIVE SCRUBBING: If playing, update position in real-time but with throttling for Safari stability
       if (isPlaying && newTime !== undefined) {
         const now = Date.now();
-        if (now - lastSeekRef.current > 200) { // Increased throttle to 200ms for extra stability on iPad
-          seek(newTime, true); // Use 'true' for smooth scrubbing (no pause/play)
+        if (now - lastSeekRef.current > 150) { // Throttle to ~6.6fps for audio engine safety on iPad
+          seek(newTime);
           lastSeekRef.current = now;
         }
       }
@@ -158,8 +159,9 @@ const PlayerBar = () => {
     };
   }, [showSpeedSelector]);
 
-  const displayProgress = isDragging ? dragProgress : (currentTime / (duration || 1)) * 100;
-  
+  const totalDur = isFinalMode ? sessionDuration : duration;
+  const displayProgress = isDragging ? dragProgress : (currentTime / (totalDur || 1)) * 100;
+
   const { finalTracks, addToFinal, removeFromFinal, tracks, toggleFavorite } = useStudio();
   const currentTrack = tracks.find(t => t.title === title) || finalTracks.find(t => t.title === title);
 
@@ -175,172 +177,172 @@ const PlayerBar = () => {
     <>
       <footer className={`player-bar glass ${!isLoaded && !isLoading ? 'is-hidden' : ''}`}>
         {/* Track Info */}
-      <div className="track-info">
-        <div className="album-art glass">
-          <Tally3 size={24} className="text-primary" />
-        </div>
-        <div className="track-details">
-          <div className="track-row-header">
-            <p className="track-title truncate">
-              {title}
+        <div className="track-info">
+          <div className="album-art glass">
+            <Tally3 size={24} className="text-primary" />
+          </div>
+          <div className="track-details">
+            <div className="track-row-header">
+              <p className="track-title truncate">
+                {title}
+              </p>
+            </div>
+            <p className="track-artist truncate">
+              {error ? (
+                <span className="error-text text-red-500 font-bold">{error}</span>
+              ) : (
+                artist
+              )}
+              {currentTrack && currentTrack.bpm && (
+                <span className="track-tempo-inline ml-2 text-primary font-bold">
+                  • {getMPMFromBPM(Number(currentTrack.bpm), currentTrack.style)} BPM
+                </span>
+              )}
             </p>
           </div>
-          <p className="track-artist truncate">
-            {error ? (
-              <span className="error-text text-red-500 font-bold">{error}</span>
-            ) : (
-              artist
-            )}
-            {currentTrack && currentTrack.bpm && (
-              <span className="track-tempo-inline ml-2 text-primary font-bold">
-                • {getMPMFromBPM(Number(currentTrack.bpm), currentTrack.style)} BPM
-              </span>
-            )}
-          </p>
         </div>
-      </div>
 
-      {/* Main Controls */}
-      <div className="player-controls">
-        <div className="control-buttons">
-          {/* Heart/Favorite - Pro Glass Style */}
-          <button 
-            className={`feature-btn glass ${tracks.find(t => t.title === title)?.isFavorite ? 'active active-heart' : ''}`} 
-            onClick={() => {
-              checkAuthAndExecute(() => {
+        {/* Main Controls */}
+        <div className="player-controls">
+          <div className="control-buttons">
+            {/* Heart/Favorite - Pro Glass Style */}
+            <button
+              className={`feature-btn glass ${tracks.find(t => t.title === title)?.isFavorite ? 'active active-heart' : ''}`}
+              onClick={() => {
+                checkAuthAndExecute(() => {
                   const currTrack = tracks.find(t => t.title === title);
                   if (currTrack && typeof toggleFavorite === 'function') {
                     toggleFavorite(currTrack.id);
                   }
-              }, 'favorite tracks');
-            }}
-            style={{ marginRight: '48px' }} /* Increased distance to the triplet */
-          >
-            <Heart size={18} fill={tracks.find(t => t.title === title)?.isFavorite ? "currentColor" : "none"} />
-          </button>
+                }, 'favorite tracks');
+              }}
+              style={{ marginRight: '48px' }} /* Increased distance to the triplet */
+            >
+              <Heart size={18} fill={tracks.find(t => t.title === title)?.isFavorite ? "currentColor" : "none"} />
+            </button>
 
-          <button 
-            className="control-btn" 
-            onClick={playPrevious}
-            disabled={isFinalMode}
-            style={{ opacity: isFinalMode ? 0.3 : 1, cursor: isFinalMode ? 'not-allowed' : 'pointer', marginRight: '4px' }}
-          ><SkipBack size={24} fill="currentColor" /></button>
-          
-          <div className="play-btn-wrapper">
-            <div className={`play-btn ${error ? 'error' : ''}`} onClick={togglePlay}>
-              {!isLoaded && !isFinalMode ? (
-                <div className="loading-spinner"></div>
-              ) : isPlaying ? (
-                <Pause fill="currentColor" size={28} />
-              ) : (
-                <Play fill="currentColor" size={28} className="play-icon-offset" />
-              )}
+            <button
+              className="control-btn"
+              onClick={playPrevious}
+              disabled={isFinalMode}
+              style={{ opacity: isFinalMode ? 0.3 : 1, cursor: isFinalMode ? 'not-allowed' : 'pointer', marginRight: '4px' }}
+            ><SkipBack size={24} fill="currentColor" /></button>
+
+            <div className="play-btn-wrapper">
+              <div className={`play-btn ${error ? 'error' : ''}`} onClick={togglePlay}>
+                {!isLoaded && !isFinalMode ? (
+                  <div className="loading-spinner"></div>
+                ) : isPlaying ? (
+                  <Pause fill="currentColor" size={28} />
+                ) : (
+                  <Play fill="currentColor" size={28} className="play-icon-offset" />
+                )}
+              </div>
             </div>
+
+            <button
+              className="control-btn"
+              onClick={playNext}
+              disabled={isFinalMode}
+              style={{ opacity: isFinalMode ? 0.3 : 1, cursor: isFinalMode ? 'not-allowed' : 'pointer', marginLeft: '4px' }}
+            ><SkipForward size={24} fill="currentColor" /></button>
+
+            {/* Universal Mode Toggle - Pro Glass Style */}
+            <button
+              className={`feature-btn glass ${isShuffle || isRepeat ? 'active' : ''}`}
+              onClick={togglePlaybackMode}
+              title={isShuffle ? "Shuffle" : isRepeat ? "Repeat One" : "List Order"}
+              style={{ marginLeft: '48px' }} /* Increased distance from the triplet */
+            >
+              {isShuffle ? <Shuffle size={18} /> : isRepeat ? <Repeat size={18} /> : <ListMusic size={18} />}
+            </button>
           </div>
 
-          <button 
-            className="control-btn" 
-            onClick={playNext}
-            disabled={isFinalMode}
-            style={{ opacity: isFinalMode ? 0.3 : 1, cursor: isFinalMode ? 'not-allowed' : 'pointer', marginLeft: '4px' }}
-          ><SkipForward size={24} fill="currentColor" /></button>
-
-          {/* Universal Mode Toggle - Pro Glass Style */}
-          <button 
-            className={`feature-btn glass ${isShuffle || isRepeat ? 'active' : ''}`}
-            onClick={togglePlaybackMode}
-            title={isShuffle ? "Shuffle" : isRepeat ? "Repeat One" : "List Order"}
-            style={{ marginLeft: '48px' }} /* Increased distance from the triplet */
-          >
-            {isShuffle ? <Shuffle size={18} /> : isRepeat ? <Repeat size={18} /> : <ListMusic size={18} />}
-          </button>
-        </div>
-
-        <div className="progress-container">
-          <span className="time-text">{formatTime(isDragging ? (dragProgress / 100) * (duration || 0) : currentTime)}</span>
-            <div 
-              className={`progress-bar-bg ${isDragging ? 'is-dragging' : ''}`} 
+          <div className="progress-container">
+            <span className="time-text">{formatTime(isDragging ? (dragProgress / 100) * (totalDur || 0) : currentTime)}</span>
+            <div
+              className={`progress-bar-bg ${isDragging ? 'is-dragging' : ''}`}
               ref={progressRef}
               onMouseDown={handleInteractionStart}
               onTouchStart={handleInteractionStart}
-              style={{ 
+              style={{
                 cursor: isFinalMode ? 'not-allowed' : 'pointer',
                 opacity: isFinalMode ? 0.7 : 1,
                 pointerEvents: isFinalMode ? 'none' : 'auto',
                 touchAction: 'none'
               }}
             >
-            <div 
-              className={`progress-bar-fill ${error ? 'error' : ''}`} 
-              style={{ width: `${displayProgress}%` }}
-            ></div>
-            <div 
-              className={`progress-knob ${isDragging ? 'active' : ''}`}
-              style={{ left: `${displayProgress}%` }}
-            ></div>
+              <div
+                className={`progress-bar-fill ${error ? 'error' : ''}`}
+                style={{ width: `${displayProgress}%` }}
+              ></div>
+              <div
+                className={`progress-knob ${isDragging ? 'active' : ''}`}
+                style={{ left: `${displayProgress}%` }}
+              ></div>
+            </div>
+            <span className="time-text">{formatTime(totalDur)}</span>
           </div>
-          <span className="time-text">{formatTime(duration)}</span>
         </div>
-      </div>
 
-      <div className="extra-controls">
-        <div className="special-features">
-          <div className="speed-control-wrapper">
-            <button 
-              className={`feature-btn glass ${bpm !== 100 ? 'active' : ''}`}
-              onClick={() => setShowSpeedSelector(!showSpeedSelector)}
-              title={`Playback Speed: ${bpm}%`}
+        <div className="extra-controls">
+          <div className="special-features">
+            <div className="speed-control-wrapper">
+              <button
+                className={`feature-btn glass ${bpm !== 100 ? 'active' : ''}`}
+                onClick={() => setShowSpeedSelector(!showSpeedSelector)}
+                title={`Playback Speed: ${bpm}%`}
+              >
+                <Gauge size={18} />
+                <span className="label" data-bpm={bpm}>Speed: {bpm}%</span>
+              </button>
+
+              {showSpeedSelector && (
+                <div ref={speedSelectorRef}>
+                  <SpeedSelector
+                    currentBpm={bpm}
+                    onSelect={setBpm}
+                    onClose={() => (setShowSpeedSelector(false))}
+                  />
+                </div>
+              )}
+            </div>
+          </div>
+
+          <div className="volume-control">
+            <button
+              className="mute-toggle-btn"
+              onClick={() => {
+                if (isMuted) {
+                  setVolume(lastVolume);
+                  setIsMuted(false);
+                } else {
+                  setLastVolume(volume);
+                  setVolume(0);
+                  setIsMuted(true);
+                }
+              }}
             >
-              <Gauge size={18} />
-              <span className="label" data-bpm={bpm}>Speed: {bpm}%</span>
+              {isMuted || volume === 0 ? <VolumeX size={18} /> : <Volume2 size={18} />}
             </button>
-
-            {showSpeedSelector && (
-              <div ref={speedSelectorRef}>
-                <SpeedSelector 
-                  currentBpm={bpm} 
-                  onSelect={setBpm} 
-                  onClose={() => (setShowSpeedSelector(false))} 
-                />
-              </div>
-            )}
+            <input
+              type="range"
+              min="0"
+              max="1"
+              step="0.01"
+              value={volume}
+              onChange={(e) => {
+                const newVol = parseFloat(e.target.value);
+                setVolume(newVol);
+                if (newVol > 0) setIsMuted(false);
+              }}
+              className="volume-slider"
+            />
           </div>
         </div>
-
-        <div className="volume-control">
-          <button 
-            className="mute-toggle-btn"
-            onClick={() => {
-              if (isMuted) {
-                setVolume(lastVolume);
-                setIsMuted(false);
-              } else {
-                setLastVolume(volume);
-                setVolume(0);
-                setIsMuted(true);
-              }
-            }}
-          >
-            {isMuted || volume === 0 ? <VolumeX size={18} /> : <Volume2 size={18} />}
-          </button>
-          <input 
-            type="range" 
-            min="0" 
-            max="1" 
-            step="0.01" 
-            value={volume}
-            onChange={(e) => {
-              const newVol = parseFloat(e.target.value);
-              setVolume(newVol);
-              if (newVol > 0) setIsMuted(false);
-            }}
-            className="volume-slider"
-          />
-        </div>
-      </div>
       </footer>
 
-      <ConfirmModal 
+      <ConfirmModal
         isOpen={authPrompt.isOpen}
         title="Authentication Required"
         message={`Please log in with Telegram to ${authPrompt.action} and sync your studio data.`}
@@ -357,7 +359,6 @@ const PlayerBar = () => {
         .player-bar {
           display: grid;
           grid-template-columns: 1fr 2.2fr 1fr;
-          grid-template-areas: "track-info main-controls extra-controls";
           align-items: center;
           padding: 0 60px; /* Symmetrical padding for balanced look */
           height: 106px; /* Slightly increased "ceiling" for more room */
@@ -380,7 +381,6 @@ const PlayerBar = () => {
         }
 
         .track-info {
-          grid-area: track-info;
           display: flex;
           align-items: center;
           gap: 20px;
@@ -423,7 +423,6 @@ const PlayerBar = () => {
         }
 
         .player-controls {
-          grid-area: main-controls;
           display: flex;
           flex-direction: column;
           align-items: center;
@@ -575,46 +574,12 @@ const PlayerBar = () => {
         }
 
         .extra-controls {
-          grid-area: extra-controls;
           display: flex;
           align-items: center;
           justify-content: flex-end; /* Volume stays at the right edge */
           gap: 64px; /* Significantly increased gap to shift Speed further left */
           padding-left: 0;
           margin-left: 0;
-        }
-
-        /* RESPONSIVE IPAD OVERHAUL */
-        @media (max-width: 1024px) {
-          .player-bar {
-            grid-template-columns: 1fr 1fr;
-            grid-template-areas: 
-              "track-info extra-controls"
-              "main-controls main-controls";
-            height: auto;
-            min-height: 160px;
-            padding: 24px 32px 16px;
-            gap: 20px;
-            border-radius: 32px 32px 0 0;
-            bottom: 0;
-            left: 0;
-            right: 0;
-            margin: 0;
-          }
-
-          .extra-controls {
-            gap: 32px; /* Tighter gap for iPad row */
-          }
-
-          .player-controls {
-            width: 100%;
-            padding-top: 8px;
-            border-top: 1px solid rgba(255, 255, 255, 0.05);
-          }
-
-          .progress-container {
-            max-width: 100% !important;
-          }
         }
         .special-features {
           display: flex;
@@ -766,15 +731,20 @@ const PlayerBar = () => {
         }
         .text-primary { color: var(--primary); }
         @media (max-width: 1024px) and (orientation: landscape) {
-          .player-grid {
-            grid-template-columns: 200px 1fr 200px;
-            padding: 0 20px;
-            height: 70px;
+          .player-bar {
+            grid-template-columns: 1fr 1.2fr 1fr;
+            padding: 0 24px;
+            height: 84px;
           }
-          .play-btn { width: 44px; height: 44px; }
-          .track-info-mini h3 { font-size: 13px; }
-          .extra-controls { gap: 16px; }
-          .feature-btn { padding: 4px 8px; font-size: 10px; }
+          .track-info { gap: 12px; }
+          .album-art { width: 44px; height: 44px; }
+          .track-title { font-size: 13px; }
+          .track-artist { font-size: 11px; }
+          .progress-container { max-width: 400px; }
+          .control-buttons { gap: 16px; }
+          .play-btn { width: 48px; height: 48px; }
+          .extra-controls { gap: 20px; }
+          .volume-control { width: 160px; }
         }
 
         @media (max-width: 768px) {
@@ -852,7 +822,9 @@ const PlayerBar = () => {
           .extra-controls { gap: 12px; }
           .feature-btn .label { font-size: 0; }
           .feature-btn .label::after { content: attr(data-bpm) "%"; font-size: 11px; }
-          .volume-control { width: 100px; margin-left: 8px; gap: 8px; }
+          .volume-control { width: 120px; margin-left: 8px; gap: 10px; }
+          .volume-slider { height: 6px; }
+          .volume-slider::-webkit-slider-thumb { width: 16px; height: 16px; }
         }
       `}</style>
     </>

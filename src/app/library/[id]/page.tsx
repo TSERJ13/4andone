@@ -21,7 +21,7 @@ const PlaylistPage = () => {
     isOpen: false,
     title: '',
     message: '',
-    onConfirm: () => {}
+    onConfirm: () => { }
   });
 
   const checkAuthAndExecute = (action: () => void, actionName: string) => {
@@ -56,8 +56,8 @@ const PlaylistPage = () => {
   };
 
   const folder = folders.find(f => f.id === id);
-  const playlistTracks = tracks.filter(t => 
-    t.folderId === id && 
+  const playlistTracks = tracks.filter(t =>
+    t.folderId === id &&
     !t.tags?.some(tag => tag.toLowerCase() === 'closed' || tag === 'დახურული')
   );
 
@@ -96,8 +96,8 @@ const PlaylistPage = () => {
       </header>
 
       <div className="actions">
-        <button 
-          className="play-btn-large" 
+        <button
+          className="play-btn-large"
           onClick={() => playlist.tracks[0] && loadTrack(playlist.tracks[0])}
         >
           {isPlaying && playlist.tracks.some(t => t.title === playingTitle) ? <div className="playing-bars"><span></span><span></span><span></span></div> : <Play fill="currentColor" size={24} />}
@@ -107,9 +107,9 @@ const PlaylistPage = () => {
       <div className="tracks-list">
         {playlist.tracks.length > 0 ? (
           playlist.tracks.map((track, i) => (
-            <div 
-              key={track.id} 
-              className={`track-row glass ${isPlaying && playingTitle === track.title ? 'is-active' : ''}`} 
+            <div
+              key={track.id}
+              className={`track-row glass ${isPlaying && playingTitle === track.title ? 'is-active' : ''}`}
               draggable
               onDragStart={(e) => handleDragStart(e, i)}
               onDragOver={handleDragOver}
@@ -154,7 +154,7 @@ const PlaylistPage = () => {
         )}
       </div>
 
-      <ConfirmModal 
+      <ConfirmModal
         isOpen={infoModal.isOpen}
         title={infoModal.title}
         message={infoModal.message}

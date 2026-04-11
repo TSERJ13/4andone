@@ -28,7 +28,7 @@ const StylePage = () => {
   };
 
   const styleName = (slug as string).charAt(0).toUpperCase() + (slug as string).slice(1).replace('-', ' ');
-  
+
   // Find style color if it exists
   const activeStyle = styles.find(s => s.title.toLowerCase().replace(/\s+/g, '-') === slug);
   const styleColor = activeStyle?.color || 'var(--primary)';
@@ -62,7 +62,7 @@ const StylePage = () => {
           <button className="play-btn-large" style={{ background: styleColor }} onClick={() => filteredTracks[0] && loadTrack(filteredTracks[0])}>
             {isPlaying && filteredTracks.some(t => t.title === playingTitle) ? <span className="pause-icon">||</span> : <Play fill="currentColor" size={24} />}
           </button>
-          <button 
+          <button
             className="action-btn-circle glass"
             onClick={(e) => {
               e.stopPropagation();
@@ -76,14 +76,14 @@ const StylePage = () => {
         {tags.length > 0 && (
           <div className="tags-scroll-container">
             <div className="tags-row">
-              <button 
+              <button
                 className={`tag-btn glass ${activeTag === null ? 'active' : ''}`}
                 onClick={() => setActiveTag(null)}
               >
                 All Mixes
               </button>
               {tags.map((tag) => (
-                <button 
+                <button
                   key={tag.id}
                   className={`tag-btn glass ${activeTag === tag.name ? 'active' : ''}`}
                   onClick={() => setActiveTag(activeTag === tag.name ? null : tag.name)}
@@ -99,8 +99,8 @@ const StylePage = () => {
 
       <div className="tracks-list animate-in" style={{ animationDelay: '0.2s' }}>
         {filteredTracks.length > 0 ? filteredTracks.map((track, i) => (
-          <div 
-            key={track.id} 
+          <div
+            key={track.id}
             className={`track-row glass ${isPlaying && playingTitle === track.title ? 'is-playing' : ''}`}
             onClick={() => loadTrack(track)}
             style={{ cursor: 'pointer' }}
@@ -143,7 +143,7 @@ const StylePage = () => {
         )}
       </div>
 
-      <ConfirmModal 
+      <ConfirmModal
         isOpen={authPrompt.isOpen}
         title="Authentication Required"
         message={`Please log in with Telegram to ${authPrompt.action} and sync your studio data.`}

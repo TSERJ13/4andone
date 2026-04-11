@@ -3,6 +3,8 @@ import "./globals.css";
 import { Inter } from 'next/font/google';
 import { AudioProvider } from "@/components/audio/AudioProvider";
 import AppLayout from "@/components/layout/AppLayout";
+import AnalyticsTracker from "@/components/analytics/AnalyticsTracker";
+import Script from "next/script";
 
 const inter = Inter({ subsets: ['latin'] });
 
@@ -43,13 +45,18 @@ export default function RootLayout({
         <AuthProvider>
           <StudioProvider>
             <AudioProvider>
+              <AnalyticsTracker />
               <AppLayout>
                 {children}
               </AppLayout>
             </AudioProvider>
           </StudioProvider>
         </AuthProvider>
-    </body>
-  </html>
+        <Script
+          src="https://telegram.org/js/telegram-web-app.js"
+          strategy="beforeInteractive"
+        />
+      </body>
+    </html>
 );
 }

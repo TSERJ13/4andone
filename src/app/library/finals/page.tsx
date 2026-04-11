@@ -688,11 +688,41 @@ const FinalsPage = () => {
                 </div>
               </div>
             </div>
+            </div>
+          </section>
+        
+        {sessionList.length > 0 && (
+          <div className="tracks-list animate-in" style={{ animationDelay: '0.2s', marginTop: '20px' }}>
+            {sessionList.map((track, i) => (
+              <div 
+                key={`${track.id}-${i}`} 
+                className={`track-row glass ${isPlaying && (playingTitle === track.title || playingTitle === track.id) ? 'is-active' : ''}`}
+                onClick={() => loadTrack(track)}
+              >
+                <div className="track-number">{i + 1}</div>
+                <div className="track-meta">
+                  {isPlaying && (playingTitle === track.title || playingTitle === track.id) ? (
+                    <div className="playing-bars"><span></span><span></span><span></span></div>
+                  ) : (
+                    <Disc size={20} className="text-secondary" />
+                  )}
+                  <div>
+                    <p className="track-name">{track.title}</p>
+                    <p className="track-artist">{track.artist}</p>
+                  </div>
+                </div>
+                <div className="track-duration text-secondary">
+                  {track.bpm ? `${getMPMFromBPM(Number(track.bpm), track.style)} BPM` : formatTime(track.duration || 0)}
+                </div>
+                <div className="track-actions">
+                  <button className="btn-play-row">
+                    <Play size={20} fill="currentColor" />
+                  </button>
+                </div>
+              </div>
+            ))}
           </div>
-        </section>
-
-
-
+        )}
       </div>
     </div>
 

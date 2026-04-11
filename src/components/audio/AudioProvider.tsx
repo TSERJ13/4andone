@@ -10,7 +10,7 @@ interface AudioContextType {
   bpm: number;
   isFinalMode: boolean;
   currentTime: number;
-  trackCurrentTime: number; 
+  trackCurrentTime: number;
   duration: number;
   title: string;
   artist: string;
@@ -30,7 +30,7 @@ interface AudioContextType {
   toggleRepeat: () => void;
   toggleShuffle: () => void;
   toggleFinalMode: () => void;
-  seek: (time: number, isScrubbing?: boolean) => void;
+  seek: (time: number) => void;
   seekRelative: (seconds: number) => void;
   playNext: () => void;
   playPrevious: () => void;
@@ -83,6 +83,7 @@ export const AudioProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   const heartbeatRef = useRef<HTMLAudioElement | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const playingTrackRef = useRef<any>(null);
+  const trackLogIdRef = useRef<string | null>(null);
   const playPromiseRef = useRef<Promise<void> | null>(null);
   const compressorRef = useRef<Tone.Compressor | null>(null);
   const eqRef = useRef<Tone.EQ3 | null>(null);
@@ -127,19 +128,6 @@ export const AudioProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       // 1. Create Main Gain for volume control with Safe Headroom (-4dB)
       masterGainRef.current = new Tone.Gain(volume * 0.65).connect(limiterRef.current);
     }
-    
-    // MOBILE SAFARI OPTIMIZATION ("YouTube Mode"): 
-    // iOS Safari struggles with complex Web Audio graphs during speed-shifts.
-    // We bypass Compressor and EQ on mobile to ensure zero stuttering and responsive buttons.
-    const isMobileSafari = typeof navigator !== 'undefined' && (
-      /iPad|iPhone|iPod/.test(navigator.userAgent) || 
-      (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1)
-    );
-
-    if (isMobileSafari) {
-      console.log("[AUDIO-OPT] Mobile Safari detected. Running in Eco Mode (Bypass EQ/Compressor).");
-      return masterGainRef.current;
-    }
 
     if (!compressorRef.current) {
       // 2. Add a High-Quality Compressor for better transients when slowed
@@ -161,7 +149,7 @@ export const AudioProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         highFrequency: 2500
       }).connect(compressorRef.current);
     }
-    
+
     // Smoothly apply volume changes with the 0.65 headroom factor
     masterGainRef.current.gain.rampTo(volume * 0.65, 0.1);
     return eqRef.current;
@@ -183,8 +171,8 @@ export const AudioProvider: React.FC<{ children: React.ReactNode }> = ({ childre
 
     // Global "Unlock" for mobile audio + Safari Optimizations
     const unlockAudio = async () => {
-      // PRO-TIP: We use a larger lookAhead for mobile stability to prevent "choppy" audio.
-      // Note: latencyHint is read-only in Tone.js after creation, so we adjust lookAhead instead.
+      // PRO-TIP: "playback" latency hint is much more stable on iOS/Safari 
+      // as it uses larger buffers, preventing "choppy" audio artifacts.
       if (Tone.getContext().lookAhead < 0.1) {
         Tone.getContext().lookAhead = 0.1;
       }
@@ -193,10 +181,10 @@ export const AudioProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         await Tone.start();
         await Tone.getContext().resume();
       }
-      
+
       // Start heartbeat on first interaction
       if (heartbeatRef.current && heartbeatRef.current.paused) {
-        heartbeatRef.current.play().catch(() => {});
+        heartbeatRef.current.play().catch(() => { });
       }
 
       // Remove listeners once unlocked
@@ -221,11 +209,11 @@ export const AudioProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     }
 
     const currentToken = ++loadingTokenRef.current;
-    
+
     try {
       if (forceFinalMode !== undefined) setIsFinalMode(forceFinalMode);
       if (Tone.getContext().state !== 'running') await Tone.start();
-      
+
       // Cleanup previous player immediately
       const stopAndDispose = () => {
         if (playerRef.current) {
@@ -265,7 +253,7 @@ export const AudioProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       playingTrackRef.current = track;
 
       let finalUrl = track.audioUrl;
-      
+
       // AUTO-HEALING: If track was saved with "undefined/" due to missing env vars
       if (finalUrl?.startsWith('undefined/')) {
         const R2_FALLBACK = process.env.NEXT_PUBLIC_R2_PUBLIC_URL || 'https://pub-c41b1121b311f676bdc114d143278d18.r2.dev';
@@ -279,10 +267,10 @@ export const AudioProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       if (isRemote && finalUrl) {
         try {
           console.log(`[AUDIO-SIGN] Requesting playback pass for: ${track.title}`);
-          const fileName = finalUrl.split('/').pop(); 
+          const fileName = finalUrl.split('/').pop();
           if (!fileName) throw new Error("Invalid remote URL");
           const signRes = await fetch(`/api/upload?key=${fileName}`);
-          
+
           if (signRes.ok) {
             const { url } = await signRes.json();
             finalUrl = url;
@@ -296,7 +284,7 @@ export const AudioProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         } catch (e) {
           console.error("[AUDIO-SIGN] Error during signing, using original link:", e);
         }
-      } 
+      }
       // 2. Legacy Fallback (IndexedDB)
       else if (track.id) {
         const file = await getAudioFile(track.id);
@@ -313,18 +301,18 @@ export const AudioProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       const setupPlayer = (url: string, type: 'streaming' | 'grain' | 'native' = 'streaming') => {
         return new Promise<Tone.Player | HTMLAudioElement>((resolve, reject) => {
           if (currentToken !== loadingTokenRef.current) {
-             reject(new Error("Loading cancelled by new request"));
-             return;
+            reject(new Error("Loading cancelled by new request"));
+            return;
           }
 
           // RESET VOLUME: Ensure any previous fade-out is reversed
           if (masterGainRef.current) {
-             masterGainRef.current.gain.cancelScheduledValues(0);
-             masterGainRef.current.gain.rampTo(volume * 0.65, 0.1);
+            masterGainRef.current.gain.cancelScheduledValues(0);
+            masterGainRef.current.gain.rampTo(volume * 0.65, 0.1);
           }
 
           console.log(`[AUDIO-STREAM] Opening stream for: ${track.title}`);
-          
+
           // Create Native Audio Element for Streaming
           const audio = new Audio(url);
           audio.crossOrigin = "anonymous";
@@ -338,7 +326,7 @@ export const AudioProvider: React.FC<{ children: React.ReactNode }> = ({ childre
           audio.mozPreservesPitch = true;
           // @ts-ignore
           audio.webkitPreservesPitch = true;
-          
+
           nativePlayerRef.current = audio;
 
           // Connect to Tone.js for Gain/Pan control
@@ -350,20 +338,20 @@ export const AudioProvider: React.FC<{ children: React.ReactNode }> = ({ childre
           audio.oncanplay = () => {
             if (currentToken !== loadingTokenRef.current) return;
             console.log(`[AUDIO-READY] Stream buffered. Starting ${track.title}`);
-            
+
             // Adjust duration for Final Mode reporting
             const realDuration = audio.duration || 0;
             setDuration(realDuration);
 
             if (isFinalMode) {
-               const total = finalTracks.reduce((acc: number, t: Track, idx: number) => {
-                 const style = t.style?.toLowerCase() || '';
-                 const limit = style.includes('paso') ? (t.duration || realDuration || 240) : (style.includes('viennese') ? 85 : 105);
-                 return acc + limit + (idx < finalTracks.length - 1 ? 15 : 0);
-               }, 0);
-               setSessionDuration(total);
+              const total = finalTracks.reduce((acc: number, t: Track, idx: number) => {
+                const style = t.style?.toLowerCase() || '';
+                const limit = style.includes('paso') ? (t.duration || realDuration || 240) : (style.includes('viennese') ? 85 : 105);
+                return acc + limit + (idx < finalTracks.length - 1 ? 15 : 0);
+              }, 0);
+              setSessionDuration(total);
             } else {
-               setSessionDuration(realDuration);
+              setSessionDuration(realDuration);
             }
             setIsLoaded(true);
             setIsLoading(false);
@@ -373,7 +361,7 @@ export const AudioProvider: React.FC<{ children: React.ReactNode }> = ({ childre
           audio.onerror = (e) => {
             const err = audio.error;
             let msg = `Stream error: ${track.title}`;
-            
+
             if (err) {
               const errorTypes = {
                 1: 'MEDIA_ERR_ABORTED',
@@ -383,22 +371,22 @@ export const AudioProvider: React.FC<{ children: React.ReactNode }> = ({ childre
               };
               const errorType = errorTypes[err.code as keyof typeof errorTypes] || 'UNKNOWN';
               console.error(`[AUDIO-ERROR] Mode: ${isRetry ? 'Retry' : 'Initial'}, Code: ${err.code} (${errorType}), Message: ${err.message || 'No specific metadata'}`);
-              
+
               if (!isRetry) {
                 // ROBUST AUTO-HEALING: Extract fileName from complex R2 URLs
                 // Handles: ...r2.cloudflarestorage.com/BUCKET/FILENAME?Signature...
                 const urlObj = new URL(url);
                 const pathParts = urlObj.pathname.split('/');
                 const fileName = pathParts.pop(); // The last part is always the file
-                
+
                 if (fileName) {
                   const R2_PUBLIC = process.env.NEXT_PUBLIC_R2_PUBLIC_URL || 'https://pub-c41b1121b311f676bdc114d143278d18.r2.dev';
                   // Some R2 dev URLs require the bucket name in path, some don't. 
                   // We'll try the most standard: root + filename
                   const fallbackUrl = `${R2_PUBLIC}/${fileName}`;
-                  
+
                   console.warn(`[AUDIO-STREAM-HEAL] Playback failure. Instantly falling back to public CDN: ${fallbackUrl}`);
-                  loadTrack({...track, audioUrl: fallbackUrl}, true);
+                  loadTrack({ ...track, audioUrl: fallbackUrl }, true);
                   return;
                 }
               }
@@ -407,7 +395,7 @@ export const AudioProvider: React.FC<{ children: React.ReactNode }> = ({ childre
             console.error(`[AUDIO-STREAM-FAIL] URL: ${url}`, err);
             reject(new Error(msg));
           };
-          
+
           // Set initial speed
           audio.playbackRate = bpm / 100;
         });
@@ -416,7 +404,7 @@ export const AudioProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       try {
         // ATTEMPT 1: INSTANT STREAMING (Spotify Method)
         const audio = await setupPlayer(finalUrl, 'streaming') as HTMLAudioElement;
-        
+
         if (currentToken !== loadingTokenRef.current) {
           audio.pause();
           return;
@@ -454,15 +442,25 @@ export const AudioProvider: React.FC<{ children: React.ReactNode }> = ({ childre
 
       // ANALYTICS: Log track play event
       try {
+        const sessionId = typeof window !== 'undefined' ? sessionStorage.getItem('4andone_session_id') : null;
+        const tgUser = typeof window !== 'undefined' ? (window as any).Telegram?.WebApp?.initDataUnsafe?.user : null;
+        const userRef = user?.id?.toString() || tgUser?.id?.toString() || null;
+
         supabase.from('track_plays').insert({
           track_id: track.id,
-          user_ref: user?.id?.toString() || null,
+          user_ref: userRef,
+          session_id: sessionId,
           style: track.style || 'Unknown',
-          bpm: track.bpm?.toString() || '0'
-        }).then(({ error }) => {
+          bpm: track.bpm?.toString() || '0',
+          duration_seconds: 0
+        })
+        .select('id')
+        .single()
+        .then(({ data, error }) => {
           if (error) console.warn("[ANALYTICS-ERROR] Failed to log track play:", error);
+          if (data) trackLogIdRef.current = data.id;
         });
-      } catch (e) {}
+      } catch (e) { }
 
     } catch (err: any) {
       console.error("[LOAD-ERROR]", err);
@@ -503,11 +501,11 @@ export const AudioProvider: React.FC<{ children: React.ReactNode }> = ({ childre
 
         if (nativePlayerRef.current) {
           const currentTimeVal = nativePlayerRef.current.currentTime;
-          
+
           const isPasoDoble = playingTrackRef.current?.style?.toLowerCase().includes('paso');
           const isViennese = playingTrackRef.current?.style?.toLowerCase().includes('viennese');
           // Standard: 1:45 (105s). Viennese: 1:25 (85s). Paso plays to end.
-          const timeLimit = isPasoDoble ? Infinity : (isViennese ? 85 : 105); 
+          const timeLimit = isPasoDoble ? Infinity : (isViennese ? 85 : 105);
 
           if (isFinalMode) {
             // Calculate Session-wide metrics
@@ -517,17 +515,17 @@ export const AudioProvider: React.FC<{ children: React.ReactNode }> = ({ childre
                 const style = track.style?.toLowerCase() || '';
                 if (style.includes('paso')) return track.duration || 120;
                 if (style.includes('viennese')) return 85;
-                return 105; 
+                return 105;
               };
 
               let sessionElapsed = 0;
               for (let i = 0; i < currentIdx; i++) {
                 sessionElapsed += getLimitForTrack(sessionTracks[i]) + (isFitness ? 0 : 15);
               }
-              
+
               const currentTrackLimit = getLimitForTrack(sessionTracks[currentIdx]);
               sessionElapsed += isPauseCountdown ? (currentTrackLimit + (15 - pauseTime)) : currentTimeVal;
-              
+
               setCurrentTime(sessionElapsed);
               setTrackCurrentTime(currentTimeVal);
 
@@ -546,7 +544,7 @@ export const AudioProvider: React.FC<{ children: React.ReactNode }> = ({ childre
           if (isFinalMode && masterGainRef.current) {
             const isNearLimit = !isPasoDoble && (timeLimit - currentTimeVal <= 3) && (timeLimit - currentTimeVal > 0);
             const isNearSongEnd = isPasoDoble && (duration - currentTimeVal <= 3) && (duration - currentTimeVal > 0);
-            
+
             if (isNearLimit) {
               masterGainRef.current.gain.rampTo(0, timeLimit - currentTimeVal);
             } else if (isNearSongEnd) {
@@ -554,36 +552,36 @@ export const AudioProvider: React.FC<{ children: React.ReactNode }> = ({ childre
             }
           }
 
-            // TRIGGER NEXT TRACK: If reached limit OR if Paso Doble reached song end
-            const reachedFinalLimit = isFinalMode && isPlaying && !isPauseCountdownRef.current && (
-              (currentTimeVal >= timeLimit) || 
-              (isPasoDoble && duration > 0 && currentTimeVal >= duration - 0.5)
-            );
+          // TRIGGER NEXT TRACK: If reached limit OR if Paso Doble reached song end
+          const reachedFinalLimit = isFinalMode && isPlaying && !isPauseCountdownRef.current && (
+            (currentTimeVal >= timeLimit) ||
+            (isPasoDoble && duration > 0 && currentTimeVal >= duration - 0.5)
+          );
 
-            if (reachedFinalLimit) {
-              nativePlayerRef.current.pause();
-              setIsPlaying(false);
-              isPlayingRef.current = false;
-              
-              // End of session logic
-              const currentIdx = sessionTracks.findIndex(t => t.id === trackIdRef.current || t.title === title);
-              const isLastTrack = currentIdx === sessionTracks.length - 1;
+          if (reachedFinalLimit) {
+            nativePlayerRef.current.pause();
+            setIsPlaying(false);
+            isPlayingRef.current = false;
 
-              if (isLastTrack) {
-                stop();
-                return;
-              }
+            // End of session logic
+            const currentIdx = sessionTracks.findIndex(t => t.id === trackIdRef.current || t.title === title);
+            const isLastTrack = currentIdx === sessionTracks.length - 1;
 
-              if (isFitness) {
-                playNext();
-                return;
-              }
+            if (isLastTrack) {
+              stop();
+              return;
+            }
 
-              setIsPauseCountdown(true);
-              isPauseCountdownRef.current = true;
-              setPauseTime(15);
-              pauseTimeRef.current = 15;
-            } else if (!isFinalMode && duration > 0 && currentTimeVal >= duration) {
+            if (isFitness) {
+              playNext();
+              return;
+            }
+
+            setIsPauseCountdown(true);
+            isPauseCountdownRef.current = true;
+            setPauseTime(15);
+            pauseTimeRef.current = 15;
+          } else if (!isFinalMode && duration > 0 && currentTimeVal >= duration) {
             if (!isRepeat) {
               nativePlayerRef.current.pause();
               setIsPlaying(false);
@@ -602,6 +600,15 @@ export const AudioProvider: React.FC<{ children: React.ReactNode }> = ({ childre
               playbackRate: bpm / 100,
               position: currentTime
             });
+          }
+
+          // PERIODIC ANALYTICS UPDATE: Update track play duration
+          if (trackLogIdRef.current && Math.floor(currentTimeVal) % 10 === 0) {
+            supabase
+              .from('track_plays')
+              .update({ duration_seconds: Math.floor(currentTimeVal) })
+              .eq('id', trackLogIdRef.current)
+              .then(() => {});
           }
         }
       }, 100);
@@ -626,7 +633,7 @@ export const AudioProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       if (playerRef.current) playerRef.current.stop();
       if (nativePlayerRef.current) nativePlayerRef.current.pause();
       if (heartbeatRef.current) heartbeatRef.current.pause();
-      
+
       // Release Wake Lock
       if (wakeLockRef.current) {
         wakeLockRef.current.release().then(() => { wakeLockRef.current = null; });
@@ -636,7 +643,7 @@ export const AudioProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       if ('mediaSession' in navigator) navigator.mediaSession.playbackState = 'paused';
     } else {
       const startTime = currentTimeRef.current >= duration ? 0 : currentTimeRef.current;
-      
+
       if (playerRef.current) {
         playerRef.current.start(undefined, startTime);
       } else if (nativePlayerRef.current) {
@@ -651,12 +658,12 @@ export const AudioProvider: React.FC<{ children: React.ReactNode }> = ({ childre
 
       // Start Heartbeat & Wake Lock
       if (heartbeatRef.current) {
-        heartbeatRef.current.play().catch(() => {});
+        heartbeatRef.current.play().catch(() => { });
       }
       if ('wakeLock' in navigator) {
         (navigator as any).wakeLock.request('screen').then((lock: any) => {
           wakeLockRef.current = lock;
-        }).catch(() => {});
+        }).catch(() => { });
       }
 
       setIsPlaying(true);
@@ -679,7 +686,7 @@ export const AudioProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     }
   };
 
-  const seek = (time: number, isScrubbing: boolean = false) => {
+  const seek = (time: number) => {
     if (isLoaded) {
       const isWasPlaying = isPlayingRef.current;
       const safeTime = Math.max(0, Math.min(time, duration));
@@ -688,37 +695,26 @@ export const AudioProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         playerRef.current.stop();
         playerRef.current.start(undefined, safeTime);
       } else if (nativePlayerRef.current) {
-        // PRO-LEVEL SMOOTH SEEKING:
-        // We never call pause() if we are already playing. This allows the browser
-        // to jump the time marker instantly without breaking the audio stream.
-        if (isWasPlaying) {
-          nativePlayerRef.current.currentTime = safeTime;
-        } else {
-          nativePlayerRef.current.pause();
-          nativePlayerRef.current.currentTime = safeTime;
-        }
+        nativePlayerRef.current.pause();
+        nativePlayerRef.current.currentTime = safeTime;
       }
 
       setCurrentTime(safeTime);
-      
-      // Post-seek state restoration (only if NOT scrubbing)
-      if (!isScrubbing) {
-        if (!isWasPlaying) {
-          if (nativePlayerRef.current) nativePlayerRef.current.pause();
-          setIsPlaying(false);
-        } else {
-          // Ensure we are playing if we were supposed to be
-          if (nativePlayerRef.current && nativePlayerRef.current.paused) {
-            playPromiseRef.current = nativePlayerRef.current.play();
-            playPromiseRef.current.catch(e => {
-              if (e.name !== 'AbortError') console.error("Native play failed", e);
-            }).finally(() => {
-              playPromiseRef.current = null;
-            });
-          }
-          setIsPlaying(true);
-          notifyOtherTabs();
+
+      if (!isWasPlaying) {
+        if (nativePlayerRef.current) nativePlayerRef.current.pause();
+        setIsPlaying(false);
+      } else {
+        if (nativePlayerRef.current) {
+          playPromiseRef.current = nativePlayerRef.current.play();
+          playPromiseRef.current.catch(e => {
+            if (e.name !== 'AbortError') console.error("Native play failed during seek", e);
+          }).finally(() => {
+            playPromiseRef.current = null;
+          });
         }
+        setIsPlaying(true);
+        notifyOtherTabs();
       }
     }
   };
@@ -746,9 +742,9 @@ export const AudioProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   const playNext = () => {
     const list = isFinalMode ? sessionTracks : tracks;
     if (list.length === 0) return;
-    
+
     let currentIndex = list.findIndex(t => t.id === trackIdRef.current || t.title === title);
-    
+
     // Handle shuffle
     if (isShuffle) {
       let nextIndex = Math.floor(Math.random() * list.length);

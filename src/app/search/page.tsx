@@ -19,7 +19,7 @@ const SearchPage = () => {
     isOpen: false,
     title: '',
     message: '',
-    onConfirm: () => {}
+    onConfirm: () => { }
   });
 
   const checkAuthAndExecute = (action: () => void, actionName: string) => {
@@ -38,7 +38,7 @@ const SearchPage = () => {
     action();
   };
 
-  const stylesWithTracks = styles.filter(s => 
+  const stylesWithTracks = styles.filter(s =>
     s.title.toLowerCase() !== 'fitness' &&
     tracks.some(t => t.style?.toLowerCase() === s.title.toLowerCase())
   );
@@ -47,16 +47,16 @@ const SearchPage = () => {
     const matchesQuery = track.title.toLowerCase().includes(query.toLowerCase()) ||
       track.artist.toLowerCase().includes(query.toLowerCase()) ||
       (track.style && track.style.toLowerCase().includes(query.toLowerCase()));
-    
-    const isHidden = 
+
+    const isHidden =
       track.style?.toLowerCase() === 'fitness' ||
       track.tags?.some(tag => tag.toLowerCase() === 'closed' || tag === 'დახურული');
-    
+
     return matchesQuery && !isHidden;
   });
 
   const getStyleTrackCount = (styleName: string) => {
-    return tracks.filter(t => 
+    return tracks.filter(t =>
       t.style?.toLowerCase() === styleName.toLowerCase() &&
       !t.tags?.some(tag => tag.toLowerCase() === 'closed' || tag === 'დახურული')
     ).length;
@@ -67,9 +67,9 @@ const SearchPage = () => {
       <div className="search-header-container">
         <div className="search-header glass">
           <Search size={22} className="search-icon" />
-          <input 
-            type="text" 
-            placeholder="Search for tracks, artists, or styles..." 
+          <input
+            type="text"
+            placeholder="Search for tracks, artists, or styles..."
             value={query}
             onChange={(e) => setQuery(e.target.value)}
             className="search-input"
@@ -84,11 +84,11 @@ const SearchPage = () => {
             <h2 className="section-title">Browse Styles</h2>
             <div className="genre-grid">
               {stylesWithTracks.length > 0 ? stylesWithTracks.map((style) => (
-                <Link 
-                  key={style.id} 
+                <Link
+                  key={style.id}
                   href={`/style/${style.title.toLowerCase().replace(/\s+/g, '-')}`}
                   className="genre-card"
-                  style={{ 
+                  style={{
                     background: `linear-gradient(135deg, ${style.color || '#1db954'}, rgba(18, 18, 18, 0.4))`,
                     height: '80px',
                     borderRadius: '8px',
@@ -120,8 +120,8 @@ const SearchPage = () => {
             <div className="results-container">
               {searchResults.length > 0 ? (
                 searchResults.map((track, i) => (
-                  <div 
-                    key={track.id} 
+                  <div
+                    key={track.id}
                     className={`track-row glass ${isPlaying && playingTitle === track.title ? 'is-active' : ''}`}
                     onClick={() => loadTrack(track)}
                   >
@@ -166,7 +166,7 @@ const SearchPage = () => {
         )}
       </div>
 
-      <ConfirmModal 
+      <ConfirmModal
         isOpen={infoModal.isOpen}
         title={infoModal.title}
         message={infoModal.message}

@@ -36,7 +36,7 @@ export default function Home() {
     isOpen: false,
     title: '',
     message: '',
-    onConfirm: () => {}
+    onConfirm: () => { }
   });
 
   const checkAuthAndExecute = (action: () => void, actionName: string) => {
@@ -60,18 +60,18 @@ export default function Home() {
   };
 
   const SkeletonCard = ({ color }: { color: string }) => (
-    <div className="style-card skeleton glass" style={{ 
-      height: '56px', 
-      padding: '6px 10px', 
+    <div className="style-card skeleton glass" style={{
+      height: '56px',
+      padding: '6px 10px',
       position: 'relative',
       backgroundColor: `${color}10`,
       border: '1px solid rgba(255, 255, 255, 0.03)',
       borderRadius: '10px'
     }}>
       <div className="card-inner-box" style={{ display: 'grid', gridTemplateColumns: '36px 1fr', alignItems: 'center', height: '100%', gap: '10px' }}>
-        <div className="style-icon skeleton-shimmer" style={{ 
-          width: '36px', 
-          height: '36px', 
+        <div className="style-icon skeleton-shimmer" style={{
+          width: '36px',
+          height: '36px',
           borderRadius: '8px',
           backgroundColor: 'rgba(255, 255, 255, 0.05)'
         }}></div>
@@ -103,170 +103,170 @@ export default function Home() {
 
   return (
     <div className="page-wrapper">
-    <div className="home-container">
-      {/* ... Hero Section remains ... */}
-      <header className="hero-section glass">
-        <div className="hero-top-right">
-          <UserBadge />
-        </div>
-        <div className="hero-content">
-          <span className="badge">Featured: Final Mode Practice</span>
-          <h1 className="hero-title text-gradient">Master Your Dance<br />with AI & BPM Control</h1>
-          <p className="hero-desc">
-            The ultimate tool for Dancesport. Isolate beats, remove vocals,
-            and practice with professional-grade speed control.
-          </p>
-          <div className="hero-actions">
-            <button className="btn-primary" onClick={() => router.push('/library/finals')}>
-              Start Practice
-            </button>
-            <button className="btn-outline glass" onClick={() => router.push('/learn-final-mode')}>Learn Final Mode</button>
+      <div className="home-container">
+        {/* ... Hero Section remains ... */}
+        <header className="hero-section glass">
+          <div className="hero-top-right">
+            <UserBadge />
           </div>
-        </div>
-        <div className="hero-visual">
-          <div className="visual-circle glass">
-            <Flame size={48} className="pulse-icon" />
+          <div className="hero-content">
+            <span className="badge">Featured: Final Mode Practice</span>
+            <h1 className="hero-title text-gradient">Master Your Dance<br />with AI & BPM Control</h1>
+            <p className="hero-desc">
+              The ultimate tool for Dancesport. Isolate beats, remove vocals,
+              and practice with professional-grade speed control.
+            </p>
+            <div className="hero-actions">
+              <button className="btn-primary" onClick={() => router.push('/library/finals')}>
+                Start Practice
+              </button>
+              <button className="btn-outline glass" onClick={() => router.push('/learn-final-mode')}>Learn Final Mode</button>
+            </div>
           </div>
-        </div>
-      </header>
+          <div className="hero-visual">
+            <div className="visual-circle glass">
+              <Flame size={48} className="pulse-icon" />
+            </div>
+          </div>
+        </header>
 
-      <section className="section">
-        <div className="section-header-flex">
-          <div className="section-title-group">
-            <span className="program-badge latin">International Latin</span>
+        <section className="section">
+          <div className="section-header-flex">
+            <div className="section-title-group">
+              <span className="program-badge latin">International Latin</span>
+            </div>
           </div>
-        </div>
-        <div className="styles-grid">
-          {isLoading ? (
-            Array(5).fill(0).map((_, i) => <SkeletonCard key={i} color="#f7971e" />)
-          ) : (
-            styles.filter(s => s.program === 'Latin' && s.title.toLowerCase() !== 'fitness').map((style) => {
-              const count = tracks.filter(t => 
-                t.style?.toLowerCase() === style.title.toLowerCase() &&
-                !t.tags?.some(tag => tag.toLowerCase() === 'closed' || tag === 'დახურული') &&
-                t.style?.toLowerCase() !== 'fitness'
-              ).length;
-              return (
-                <Link
-                  key={style.id}
-                  href={`/style/${style.title.toLowerCase().replace(/\s+/g, '-')}`}
-                  className="style-card glass"
-                  style={{ backgroundColor: `${style.color}15`, borderRadius: '16px' }}
-                >
-                  <div className="card-inner-box">
-                    <div className="style-icon">
-                      <Music2 size={24} color={style.color} />
+          <div className="styles-grid">
+            {isLoading ? (
+              Array(5).fill(0).map((_, i) => <SkeletonCard key={i} color="#f7971e" />)
+            ) : (
+              styles.filter(s => s.program === 'Latin' && s.title.toLowerCase() !== 'fitness').map((style) => {
+                const count = tracks.filter(t =>
+                  t.style?.toLowerCase() === style.title.toLowerCase() &&
+                  !t.tags?.some(tag => tag.toLowerCase() === 'closed' || tag === 'დახურული') &&
+                  t.style?.toLowerCase() !== 'fitness'
+                ).length;
+                return (
+                  <Link
+                    key={style.id}
+                    href={`/style/${style.title.toLowerCase().replace(/\s+/g, '-')}`}
+                    className="style-card glass"
+                    style={{ backgroundColor: `${style.color}15`, borderRadius: '16px' }}
+                  >
+                    <div className="card-inner-box">
+                      <div className="style-icon">
+                        <Music2 size={24} color={style.color} />
+                      </div>
+                      <div className="style-info">
+                        <h3>{style.title}</h3>
+                        <p>{count} {count === 1 ? 'Track' : 'Tracks'}</p>
+                      </div>
                     </div>
-                    <div className="style-info">
-                      <h3>{style.title}</h3>
-                      <p>{count} {count === 1 ? 'Track' : 'Tracks'}</p>
-                    </div>
-                  </div>
-                  <button className="play-button-small">
-                    <Play size={16} fill="currentColor" />
-                  </button>
-                </Link>
-              );
-            })
-          )}
-        </div>
-      </section>
-
-      <section className="section" style={{ marginTop: '40px' }}>
-        <div className="section-header-flex">
-          <div className="section-title-group">
-            <span className="program-badge standard">International Standard</span>
+                    <button className="play-button-small">
+                      <Play size={16} fill="currentColor" />
+                    </button>
+                  </Link>
+                );
+              })
+            )}
           </div>
-        </div>
-        <div className="styles-grid">
-          {isLoading ? (
-            Array(5).fill(0).map((_, i) => <SkeletonCard key={i} color="#2193b0" />)
-          ) : (
-            styles.filter(s => s.program === 'Standard' && s.title.toLowerCase() !== 'fitness').map((style) => {
-              const count = tracks.filter(t => 
-                t.style?.toLowerCase() === style.title.toLowerCase() &&
-                !t.tags?.some(tag => tag.toLowerCase() === 'closed' || tag === 'დახურული') &&
-                t.style?.toLowerCase() !== 'fitness'
-              ).length;
-              return (
-                <Link
-                  key={style.id}
-                  href={`/style/${style.title.toLowerCase().replace(/\s+/g, '-')}`}
-                  className="style-card glass"
-                  style={{ backgroundColor: `${style.color}15`, borderRadius: '16px' }}
-                >
-                  <div className="card-inner-box">
-                    <div className="style-icon">
-                      <Music2 size={24} color={style.color} />
-                    </div>
-                    <div className="style-info">
-                      <h3>{style.title}</h3>
-                      <p>{count} {count === 1 ? 'Track' : 'Tracks'}</p>
-                    </div>
-                  </div>
-                  <button className="play-button-small">
-                    <Play size={16} fill="currentColor" />
-                  </button>
-                </Link>
-              );
-            })
-          )}
-        </div>
-      </section>
+        </section>
 
-      <section className="section">
-        <h2 className="section-title">New Arrivals</h2>
-        <div className="tracks-list">
-          {isLoading ? (
-            Array(5).fill(0).map((_, i) => <SkeletonRow key={i} />)
-          ) : tracks.filter(t => 
-              t.style?.toLowerCase() !== 'fitness' && 
+        <section className="section" style={{ marginTop: '40px' }}>
+          <div className="section-header-flex">
+            <div className="section-title-group">
+              <span className="program-badge standard">International Standard</span>
+            </div>
+          </div>
+          <div className="styles-grid">
+            {isLoading ? (
+              Array(5).fill(0).map((_, i) => <SkeletonCard key={i} color="#2193b0" />)
+            ) : (
+              styles.filter(s => s.program === 'Standard' && s.title.toLowerCase() !== 'fitness').map((style) => {
+                const count = tracks.filter(t =>
+                  t.style?.toLowerCase() === style.title.toLowerCase() &&
+                  !t.tags?.some(tag => tag.toLowerCase() === 'closed' || tag === 'დახურული') &&
+                  t.style?.toLowerCase() !== 'fitness'
+                ).length;
+                return (
+                  <Link
+                    key={style.id}
+                    href={`/style/${style.title.toLowerCase().replace(/\s+/g, '-')}`}
+                    className="style-card glass"
+                    style={{ backgroundColor: `${style.color}15`, borderRadius: '16px' }}
+                  >
+                    <div className="card-inner-box">
+                      <div className="style-icon">
+                        <Music2 size={24} color={style.color} />
+                      </div>
+                      <div className="style-info">
+                        <h3>{style.title}</h3>
+                        <p>{count} {count === 1 ? 'Track' : 'Tracks'}</p>
+                      </div>
+                    </div>
+                    <button className="play-button-small">
+                      <Play size={16} fill="currentColor" />
+                    </button>
+                  </Link>
+                );
+              })
+            )}
+          </div>
+        </section>
+
+        <section className="section">
+          <h2 className="section-title">New Arrivals</h2>
+          <div className="tracks-list">
+            {isLoading ? (
+              Array(5).fill(0).map((_, i) => <SkeletonRow key={i} />)
+            ) : tracks.filter(t =>
+              t.style?.toLowerCase() !== 'fitness' &&
               !t.tags?.some(tag => tag.toLowerCase() === 'closed' || tag === 'დახურული')
-            ).length > 0 ? tracks.filter(t => 
-              t.style?.toLowerCase() !== 'fitness' && 
+            ).length > 0 ? tracks.filter(t =>
+              t.style?.toLowerCase() !== 'fitness' &&
               !t.tags?.some(tag => tag.toLowerCase() === 'closed' || tag === 'დახურული')
             ).slice(0, 10).map((track, i) => (
-            <div
-              key={track.id}
-              className={`track-row glass ${isPlaying && playingTitle === track.title ? 'is-active' : ''}`}
-              onClick={() => handlePlay(track)}
-              style={{ cursor: 'pointer' }}
-            >
-              <div className="track-number">{i + 1}</div>
-              <div className="track-meta">
-                <Disc size={20} className="text-secondary" />
-                <div>
-                  <p className="track-name">{track.title}</p>
-                  <p className="track-artist">{track.artist}</p>
+              <div
+                key={track.id}
+                className={`track-row glass ${isPlaying && playingTitle === track.title ? 'is-active' : ''}`}
+                onClick={() => handlePlay(track)}
+                style={{ cursor: 'pointer' }}
+              >
+                <div className="track-number">{i + 1}</div>
+                <div className="track-meta">
+                  <Disc size={20} className="text-secondary" />
+                  <div>
+                    <p className="track-name">{track.title}</p>
+                    <p className="track-artist">{track.artist}</p>
+                  </div>
+                </div>
+                <div className="track-duration text-secondary">{track.bpm ? `${getMPMFromBPM(Number(track.bpm), track.style)} BPM` : formatDuration(track.duration)}</div>
+                <div className="track-actions">
+                  <button
+                    className={`feature-icon ${track.isFavorite ? 'active-heart' : ''}`}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      checkAuthAndExecute(() => toggleFavorite?.(track.id), 'favorite tracks');
+                    }}
+                    title="Like Song"
+                  >
+                    <Heart size={18} fill={track.isFavorite ? "#ff4b2b" : "none"} color={track.isFavorite ? "#ff4b2b" : "currentColor"} />
+                  </button>
+                  <div className="btn-play-row">
+                    {isPlaying && playingTitle === track.title ? <div className="playing-bars"><span></span><span></span><span></span></div> : <Play size={20} fill="currentColor" />}
+                  </div>
                 </div>
               </div>
-              <div className="track-duration text-secondary">{track.bpm ? `${getMPMFromBPM(Number(track.bpm), track.style)} BPM` : formatDuration(track.duration)}</div>
-              <div className="track-actions">
-                <button
-                  className={`feature-icon ${track.isFavorite ? 'active-heart' : ''}`}
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    checkAuthAndExecute(() => toggleFavorite?.(track.id), 'favorite tracks');
-                  }}
-                  title="Like Song"
-                >
-                  <Heart size={18} fill={track.isFavorite ? "#ff4b2b" : "none"} color={track.isFavorite ? "#ff4b2b" : "currentColor"} />
-                </button>
-                <div className="btn-play-row">
-                  {isPlaying && playingTitle === track.title ? <div className="playing-bars"><span></span><span></span><span></span></div> : <Play size={20} fill="currentColor" />}
-                </div>
+            )) : (
+              <div className="empty-home-state glass">
+                <Music2 size={48} className="text-secondary" />
+                <p>Your studio library is currently empty.</p>
+                <p className="sub">Upload tracks in the Admin Panel to see them here.</p>
               </div>
-            </div>
-          )) : (
-            <div className="empty-home-state glass">
-              <Music2 size={48} className="text-secondary" />
-              <p>Your studio library is currently empty.</p>
-              <p className="sub">Upload tracks in the Admin Panel to see them here.</p>
-            </div>
-          )}
-        </div>
-      </section>
-    </div>
+            )}
+          </div>
+        </section>
+      </div>
 
       <ConfirmModal
         isOpen={infoModal.isOpen}

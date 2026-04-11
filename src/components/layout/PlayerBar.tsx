@@ -335,17 +335,18 @@ const PlayerBar = () => {
           height: 90px;
           background: rgba(18, 18, 18, 0.7);
           backdrop-filter: blur(20px);
-          border-top: 1px solid rgba(255, 255, 255, 0.08);
+          border: 1px solid rgba(255, 255, 255, 0.1);
+          border-radius: 20px;
           position: fixed;
-          bottom: 0;
-          left: 0;
-          right: 0;
+          bottom: 12px;
+          left: 12px;
+          right: 12px;
           z-index: 1000;
           transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
           padding-bottom: env(safe-area-inset-bottom);
         }
         .player-bar.is-hidden {
-           transform: translateY(100%);
+           transform: translateY(calc(100% + 24px));
            opacity: 0;
            pointer-events: none;
         }
@@ -676,6 +677,13 @@ const PlayerBar = () => {
             min-height: 80px;
             padding: 12px 16px;
             padding-bottom: calc(12px + env(safe-area-inset-bottom));
+            bottom: 0;
+            left: 0;
+            right: 0;
+            border-radius: 0;
+            border-left: none;
+            border-right: none;
+            border-bottom: none;
           }
           .track-info {
             flex: 1;

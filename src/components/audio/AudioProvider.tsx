@@ -178,13 +178,32 @@ export const AudioProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   };
 
   useEffect(() => {
-    // Initialize Heartbeat
+    // Initialize Persistent Player & Heartbeat
     if (typeof window !== 'undefined') {
-      // Tiny silent WAV (approx 1s) to keep iOS audio session alive
+      // 1. Create a single, persistent Audio element for the entire app lifecycle.
+      // Reusing this element is mandatory for reliable auto-play on iOS.
+      const audio = new Audio();
+      audio.crossOrigin = "anonymous";
+      audio.autoplay = false;
+      // @ts-ignore - Ensure high-quality pitch preservation on all platforms
+      audio.preservesPitch = true;
+      // @ts-ignore
+      audio.mozPreservesPitch = true;
+      // @ts-ignore
+      audio.webkitPreservesPitch = true;
+      
+      nativePlayerRef.current = audio;
+
+      // Connect to Tone.js for Gain/Pan control ONCE
+      const node = Tone.getContext().createMediaElementSource(audio);
+      const output = initAudioChain();
+      Tone.connect(node, output);
+
+      // 2. Tiny silent WAV to keep iOS audio session alive
       const silentWav = "data:audio/wav;base64,UklGRjIAAABXQVZFRm10IBAAAAABAAEAIlYAAESsAAACABAAZGF0YRAAAAAAAAAAAAAAAAAAAAAAAAAA";
       const hb = new Audio(silentWav);
       hb.loop = true;
-      hb.volume = 0.01; // Minimal volume to satisfy iOS "active" requirement
+      hb.volume = 0.01; 
       heartbeatRef.current = hb;
     }
 
@@ -238,8 +257,8 @@ export const AudioProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       if (forceFinalMode !== undefined) setIsFinalMode(forceFinalMode);
       if (Tone.getContext().state !== 'running') await Tone.start();
 
-      // Cleanup previous player immediately
-      const stopAndDispose = () => {
+      // Cleanup previous state immediately
+      const stopAndPrepare = () => {
         if (playerRef.current) {
           playerRef.current.stop();
           playerRef.current.dispose();
@@ -248,16 +267,15 @@ export const AudioProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         if (nativePlayerRef.current) {
           nativePlayerRef.current.onerror = null;
           nativePlayerRef.current.oncanplay = null;
+          nativePlayerRef.current.ontimeupdate = null;
+          nativePlayerRef.current.onended = null;
           nativePlayerRef.current.pause();
-          nativePlayerRef.current.src = "";
-          nativePlayerRef.current.load();
-          nativePlayerRef.current = null;
         }
         setIsPauseCountdown(false);
         setPauseTime(15);
       };
 
-      stopAndDispose();
+      stopAndPrepare();
 
       if (!isRetry && activeBlobUrlRef.current) {
         URL.revokeObjectURL(activeBlobUrlRef.current);
@@ -322,48 +340,26 @@ export const AudioProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         throw new Error("Missing Audio Source (File not found in storage)");
       }
 
-      const setupPlayer = (url: string, type: 'streaming' | 'grain' | 'native' = 'streaming') => {
-        return new Promise<Tone.Player | HTMLAudioElement>((resolve, reject) => {
-          if (currentToken !== loadingTokenRef.current) {
+      const setupPlayer = (url: string) => {
+        return new Promise<HTMLAudioElement>((resolve, reject) => {
+          if (currentToken !== loadingTokenRef.current || !nativePlayerRef.current) {
             reject(new Error("Loading cancelled by new request"));
             return;
           }
 
+          const audio = nativePlayerRef.current;
+          
           // RESET VOLUME: Ensure any previous fade-out is reversed
           if (masterGainRef.current) {
             masterGainRef.current.gain.cancelScheduledValues(0);
-            masterGainRef.current.gain.rampTo(volume * 0.65, 0.1);
+            masterGainRef.current.gain.setTargetAtTime(volume * 0.65, Tone.getContext().currentTime, 0.1);
           }
 
-          console.log(`[AUDIO-STREAM] Opening stream for: ${track.title}`);
+          console.log(`[AUDIO-STREAM] Loading ${track.title}`);
 
-          // Create Native Audio Element for Streaming
-          const audio = new Audio(url);
-          audio.crossOrigin = "anonymous";
-          audio.autoplay = false;
-          audio.loop = !isFinalMode;
-          // HIGH QUALITY SPEED CHANGE: Ensure pitch is preserved
-          // Always keep true to avoid algorithm switching clicks
-          // @ts-ignore
-          audio.preservesPitch = true;
-          // @ts-ignore
-          audio.mozPreservesPitch = true;
-          // @ts-ignore
-          audio.webkitPreservesPitch = true;
-
-          nativePlayerRef.current = audio;
-
-          // Connect to Tone.js for Gain/Pan control
-          const node = Tone.getContext().createMediaElementSource(audio);
-          const output = initAudioChain();
-          Tone.connect(node, output);
-
-          // Spotify-style: Start as soon as we have enough data to play without stuttering
           audio.oncanplay = () => {
             if (currentToken !== loadingTokenRef.current) return;
             console.log(`[AUDIO-READY] Stream buffered. Starting ${track.title}`);
-
-            // Adjust duration for Final Mode reporting
             const realDuration = audio.duration || 0;
             setDuration(realDuration);
             setIsLoaded(true);
@@ -374,49 +370,92 @@ export const AudioProvider: React.FC<{ children: React.ReactNode }> = ({ childre
           audio.onerror = (e) => {
             const err = audio.error;
             let msg = `Stream error: ${track.title}`;
-
             if (err) {
-              const errorTypes = {
-                1: 'MEDIA_ERR_ABORTED',
-                2: 'MEDIA_ERR_NETWORK',
-                3: 'MEDIA_ERR_DECODE',
-                4: 'MEDIA_ERR_SRC_NOT_SUPPORTED'
-              };
+              const errorTypes = { 1: 'ABORTED', 2: 'NETWORK', 3: 'DECODE', 4: 'NOT_SUPPORTED' };
               const errorType = errorTypes[err.code as keyof typeof errorTypes] || 'UNKNOWN';
-              console.error(`[AUDIO-ERROR] Mode: ${isRetry ? 'Retry' : 'Initial'}, Code: ${err.code} (${errorType}), Message: ${err.message || 'No specific metadata'}`);
-
+              console.error(`[AUDIO-ERROR] Code: ${err.code} (${errorType})`);
               if (!isRetry) {
-                // ROBUST AUTO-HEALING: Extract fileName from complex R2 URLs
-                // Handles: ...r2.cloudflarestorage.com/BUCKET/FILENAME?Signature...
                 const urlObj = new URL(url);
-                const pathParts = urlObj.pathname.split('/');
-                const fileName = pathParts.pop(); // The last part is always the file
-
+                const fileName = urlObj.pathname.split('/').pop();
                 if (fileName) {
                   const R2_PUBLIC = process.env.NEXT_PUBLIC_R2_PUBLIC_URL || 'https://pub-c41b1121b311f676bdc114d143278d18.r2.dev';
-                  // Some R2 dev URLs require the bucket name in path, some don't. 
-                  // We'll try the most standard: root + filename
                   const fallbackUrl = `${R2_PUBLIC}/${fileName}`;
-
-                  console.warn(`[AUDIO-STREAM-HEAL] Playback failure. Instantly falling back to public CDN: ${fallbackUrl}`);
                   loadTrack({ ...track, audioUrl: fallbackUrl }, true);
                   return;
                 }
               }
               msg += ` (${errorType})`;
             }
-            console.error(`[AUDIO-STREAM-FAIL] URL: ${url}`, err);
             reject(new Error(msg));
           };
 
-          // Set initial speed
+          // ATTACH EVENT-DRIVEN MONITORING (Frame-accurate limit checks)
+          audio.ontimeupdate = () => {
+            if (currentToken !== loadingTokenRef.current) return;
+            const currentTimeVal = audio.currentTime;
+            
+            // 1. FINAL MODE LIMIT CHECK (1:45 / 1:25)
+            if (isFinalMode && !isPauseCountdownRef.current && isPlayingRef.current) {
+              const style = playingTrackRef.current?.style?.toLowerCase() || '';
+              const isPasoDoble = style.includes('paso');
+              const isViennese = style.includes('viennese');
+              const timeLimit = isPasoDoble ? Infinity : (isViennese ? 85 : 105);
+
+              // FADE-OUT Logic (3 seconds before limit)
+              if (masterGainRef.current) {
+                  const isNearLimit = !isPasoDoble && (timeLimit - currentTimeVal <= 3) && (timeLimit - currentTimeVal > 0);
+                  const isNearSongEnd = isPasoDoble && (audio.duration - currentTimeVal <= 3) && (audio.duration - currentTimeVal > 0);
+                  if (isNearLimit) {
+                    masterGainRef.current.gain.rampTo(0, timeLimit - currentTimeVal);
+                  } else if (isNearSongEnd) {
+                    masterGainRef.current.gain.rampTo(0, audio.duration - currentTimeVal);
+                  }
+              }
+
+              // TRIGGER NEXT or END
+              if (currentTimeVal >= timeLimit || (isPasoDoble && audio.duration > 0 && currentTimeVal >= audio.duration - 0.5)) {
+                audio.pause();
+                setIsPlaying(false);
+                isPlayingRef.current = false;
+
+                const currentIdx = sessionTracks.findIndex(t => t.id === trackIdRef.current || t.title === title);
+                const isLastTrack = currentIdx === sessionTracks.length - 1;
+
+                if (isLastTrack) { stop(); return; }
+                if (isFitness) { playNext(); return; }
+
+                setIsPauseCountdown(true);
+                isPauseCountdownRef.current = true;
+                setPauseTime(15);
+                pauseTimeRef.current = 15;
+              }
+            } else if (!isFinalMode && audio.duration > 0 && currentTimeVal >= audio.duration) {
+                // NORMAL MODE Loop handling
+                if (!isRepeat) {
+                  audio.pause();
+                  setIsPlaying(false);
+                  setCurrentTime(0);
+                  audio.currentTime = 0;
+                } else {
+                  audio.currentTime = 0;
+                  setCurrentTime(0);
+                  audio.play().catch(() => {});
+                }
+            }
+          };
+
+          // Update speed
           audio.playbackRate = bpm / 100;
+          audio.loop = !isFinalMode;
+          // IMPORTANT: Changing src on persistent element
+          audio.src = url;
+          audio.load();
         });
       };
 
       try {
         // ATTEMPT 1: INSTANT STREAMING (Spotify Method)
-        const audio = await setupPlayer(finalUrl, 'streaming') as HTMLAudioElement;
+        const audio = await setupPlayer(finalUrl) as HTMLAudioElement;
 
         if (currentToken !== loadingTokenRef.current) {
           audio.pause();
@@ -515,13 +554,8 @@ export const AudioProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         if (nativePlayerRef.current) {
           const currentTimeVal = nativePlayerRef.current.currentTime;
 
-          const isPasoDoble = playingTrackRef.current?.style?.toLowerCase().includes('paso');
-          const isViennese = playingTrackRef.current?.style?.toLowerCase().includes('viennese');
-          // Standard: 1:45 (105s). Viennese: 1:25 (85s). Paso plays to end.
-          const timeLimit = isPasoDoble ? Infinity : (isViennese ? 85 : 105);
-
           if (isFinalMode) {
-            // Calculate Session-wide metrics
+            // Calculate Session-wide metrics for display
             const currentIdx = sessionTracks.findIndex(t => t.id === trackIdRef.current || t.title === title);
             if (currentIdx !== -1) {
               const getLimitForTrack = (track: Track) => {
@@ -544,59 +578,6 @@ export const AudioProvider: React.FC<{ children: React.ReactNode }> = ({ childre
             }
           } else {
             setCurrentTime(currentTimeVal);
-          }
-
-          // FINAL MODE: FADE-OUT logic (starts 3 seconds before limit or song end for Paso)
-          if (isFinalMode && masterGainRef.current) {
-            const isNearLimit = !isPasoDoble && (timeLimit - currentTimeVal <= 3) && (timeLimit - currentTimeVal > 0);
-            const isNearSongEnd = isPasoDoble && (duration - currentTimeVal <= 3) && (duration - currentTimeVal > 0);
-
-            if (isNearLimit) {
-              masterGainRef.current.gain.rampTo(0, timeLimit - currentTimeVal);
-            } else if (isNearSongEnd) {
-              masterGainRef.current.gain.rampTo(0, duration - currentTimeVal);
-            }
-          }
-
-          // TRIGGER NEXT TRACK: If reached limit OR if Paso Doble reached song end
-          const reachedFinalLimit = isFinalMode && isPlaying && !isPauseCountdownRef.current && (
-            (currentTimeVal >= timeLimit) ||
-            (isPasoDoble && duration > 0 && currentTimeVal >= duration - 0.5)
-          );
-
-          if (reachedFinalLimit) {
-            nativePlayerRef.current.pause();
-            setIsPlaying(false);
-            isPlayingRef.current = false;
-
-            // End of session logic
-            const currentIdx = sessionTracks.findIndex(t => t.id === trackIdRef.current || t.title === title);
-            const isLastTrack = currentIdx === sessionTracks.length - 1;
-
-            if (isLastTrack) {
-              stop();
-              return;
-            }
-
-            if (isFitness) {
-              playNext();
-              return;
-            }
-
-            setIsPauseCountdown(true);
-            isPauseCountdownRef.current = true;
-            setPauseTime(15);
-            pauseTimeRef.current = 15;
-          } else if (!isFinalMode && duration > 0 && currentTimeVal >= duration) {
-            if (!isRepeat) {
-              nativePlayerRef.current.pause();
-              setIsPlaying(false);
-              setCurrentTime(0);
-              nativePlayerRef.current.currentTime = 0;
-            } else {
-              nativePlayerRef.current.currentTime = 0;
-              setCurrentTime(0);
-            }
           }
 
           // Update Media Session Position State

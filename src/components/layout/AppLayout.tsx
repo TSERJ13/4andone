@@ -22,10 +22,11 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
 
   useVisitTracker(); // Track one visit per session
 
-  const { isLoaded } = useAudio();
+  const { title } = useAudio();
   const { isAuthModalOpen, setIsAuthModalOpen } = useAuth();
 
   const isNoLayout = pathname?.startsWith('/admin') || pathname === '/sa-login';
+  const isPlayerActive = title !== "No Track Selected";
 
   // Prevent hydration "jitter" - Restoring the beautiful loading sequence
   if (!mounted) {
@@ -39,7 +40,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
   }
 
   return (
-    <div className={`app-container ${mounted && isLoaded ? 'player-active' : ''}`}>
+    <div className={`app-container ${mounted && isPlayerActive ? 'player-active' : ''}`}>
       <Sidebar />
       <main className="main-content">
         {children}

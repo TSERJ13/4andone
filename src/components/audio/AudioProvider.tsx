@@ -78,9 +78,13 @@ export const AudioProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   // Refs to avoid circular re-renders on every tick
   const isPlayingRef = useRef(isPlaying);
   const currentTimeRef = useRef(currentTime);
+  const isPauseCountdownRef = useRef(isPauseCountdown);
+  const pauseTimeRef = useRef(pauseTime);
 
   useEffect(() => { isPlayingRef.current = isPlaying; }, [isPlaying]);
   useEffect(() => { currentTimeRef.current = currentTime; }, [currentTime]);
+  useEffect(() => { isPauseCountdownRef.current = isPauseCountdown; }, [isPauseCountdown]);
+  useEffect(() => { pauseTimeRef.current = pauseTime; }, [pauseTime]);
 
   // Tab synchronization for audio control
   useEffect(() => {
@@ -247,8 +251,8 @@ export const AudioProvider: React.FC<{ children: React.ReactNode }> = ({ childre
 
           // RESET VOLUME: Ensure any previous fade-out is reversed
           if (masterGainRef.current) {
-             // Ramp back to normal level instantly or subtly
-             masterGainRef.current.gain.rampTo(volume * 0.65, 0.5);
+             masterGainRef.current.gain.cancelScheduledValues(0);
+             masterGainRef.current.gain.rampTo(volume * 0.65, 0.1);
           }
 
           console.log(`[AUDIO-STREAM] Opening stream for: ${track.title}`);
@@ -408,6 +412,23 @@ export const AudioProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     // RUN DURING PLAYER ACTIVE OR LOADING OR COUNTDOWN
     if (isPlaying || isPauseCountdown || isLoading) {
       timerRef.current = setInterval(() => {
+        if (isPauseCountdownRef.current) {
+          const newPauseTime = Math.max(0, pauseTimeRef.current - 0.1);
+          pauseTimeRef.current = newPauseTime;
+          setPauseTime(Math.ceil(newPauseTime));
+
+          if (newPauseTime <= 0) {
+            isPauseCountdownRef.current = false;
+            setIsPauseCountdown(false);
+            const currentIndex = finalTracks.findIndex(t => t.id === trackIdRef.current || t.title === title);
+            if (currentIndex !== -1 && currentIndex < finalTracks.length - 1) {
+              const nextTrack = finalTracks[currentIndex + 1];
+              loadTrack(nextTrack, false, true);
+            }
+          }
+          return;
+        }
+
         if (nativePlayerRef.current) {
           const currentTimeVal = nativePlayerRef.current.currentTime;
           
@@ -436,7 +457,7 @@ export const AudioProvider: React.FC<{ children: React.ReactNode }> = ({ childre
               sessionElapsed += isPauseCountdown ? (currentTrackLimit + (15 - pauseTime)) : currentTimeVal;
               
               setCurrentTime(sessionElapsed);
-              setTrackCurrentTime(isPauseCountdown ? (15 - pauseTime) : currentTimeVal);
+              setTrackCurrentTime(currentTimeVal);
 
               const totalDuration = finalTracks.reduce((acc: number, t: Track, idx: number) => {
                 const rest = (idx < finalTracks.length - 1 && !isFitness) ? 15 : 0;
@@ -449,7 +470,7 @@ export const AudioProvider: React.FC<{ children: React.ReactNode }> = ({ childre
           }
 
           // FINAL MODE: FADE-OUT logic (starts 3 seconds before limit or song end for Paso)
-          if (isFinalMode && !isPauseCountdown && masterGainRef.current) {
+          if (isFinalMode && masterGainRef.current) {
             const isNearLimit = !isPasoDoble && (timeLimit - currentTimeVal <= 3) && (timeLimit - currentTimeVal > 0);
             const isNearSongEnd = isPasoDoble && (duration - currentTimeVal <= 3) && (duration - currentTimeVal > 0);
             
@@ -476,24 +497,10 @@ export const AudioProvider: React.FC<{ children: React.ReactNode }> = ({ childre
               }
 
               setIsPauseCountdown(true);
+              isPauseCountdownRef.current = true;
               setPauseTime(15);
-            
-            const breakTimer = setInterval(() => {
-              setPauseTime(p => {
-                if (p <= 1) {
-                  clearInterval(breakTimer);
-                  setIsPauseCountdown(false);
-                  
-                  const currentIndex = finalTracks.findIndex(t => t.id === trackIdRef.current || t.title === title);
-                  if (currentIndex !== -1 && currentIndex < finalTracks.length - 1) {
-                    const nextTrack = finalTracks[currentIndex + 1];
-                    loadTrack(nextTrack, false, true);
-                  }
-                }
-                return p - 1;
-              });
-            }, 1000);
-          } else if (!isFinalMode && duration > 0 && currentTimeVal >= duration) {
+              pauseTimeRef.current = 15;
+            } else if (!isFinalMode && duration > 0 && currentTimeVal >= duration) {
             if (!isRepeat) {
               nativePlayerRef.current.pause();
               setIsPlaying(false);

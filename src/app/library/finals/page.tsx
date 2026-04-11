@@ -950,10 +950,10 @@ const FinalsPage = () => {
           }
           .track-queue-section { padding: 20px; border-radius: 24px; }
           .learn-finals-btn { 
-            padding: 8px 14px; 
-            font-size: 11px; 
+            padding: 4px 8px; 
+            font-size: 9px; 
           }
-          .learn-finals-btn span { display: none; } /* Show only icon and "How it works" if needed, or just shrink padding */
+          .learn-finals-btn span { display: none; } 
           .learn-finals-btn::after { content: 'Info'; font-weight: 800; margin-left: 4px; }
         }
       `}</style>

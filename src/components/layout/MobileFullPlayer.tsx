@@ -130,8 +130,6 @@ const MobileFullPlayer = ({ isOpen, onClose }: MobileFullPlayerProps) => {
     }
   };
 
-  if (!isOpen) return null;
-
   const getTimeLimit = useCallback(() => {
     const track = tracks?.find(t => t.title === title) || finalTracks?.find(t => t.title === title);
     const style = track?.style?.toLowerCase() || '';
@@ -139,6 +137,8 @@ const MobileFullPlayer = ({ isOpen, onClose }: MobileFullPlayerProps) => {
     if (style.includes('viennese')) return 85;
     return 105; // 1:45
   }, [tracks, finalTracks, title]);
+
+  if (!isOpen) return null;
 
   const effectiveDuration = isFinalMode ? getTimeLimit() : duration;
   const displayProgress = isDragging ? dragProgress : (currentTime / (effectiveDuration || 1)) * 100;

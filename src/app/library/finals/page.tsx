@@ -31,9 +31,12 @@ const FinalsPage = () => {
     reorderFinalTracks,
     setFinalTracks
   } = useStudio();
-  const { loadTrack, isPlaying, title: playingTitle, currentTime, trackCurrentTime, duration, isPauseCountdown, pauseTime, stop, isFitness, setIsFitness } = useAudio();
+  const { 
+    loadTrack, isPlaying, title: playingTitle, currentTime, trackCurrentTime, duration, 
+    isPauseCountdown, pauseTime, stop, isFitness, setIsFitness,
+    activeMode, setActiveMode, sessionTracks, setSessionTracks, sessionDuration
+  } = useAudio();
   const { isAuthenticated, setIsAuthModalOpen } = useAuth();
-  const [activeMode, setActiveMode] = useState<string | null>(null);
   const [showStopConfirm, setShowStopConfirm] = useState(false);
   const [cardDim, setCardDim] = useState({ w: 0, h: 0 });
   const activeCardRef = useRef<HTMLDivElement>(null);
@@ -68,27 +71,21 @@ const FinalsPage = () => {
             L ${w/2} ${inset}`;
   };
   
-  // Calculate total session metrics
   const getTrackLimit = (t: Track) => t.style?.toLowerCase().includes('paso') ? (t.duration || 240) : 105;
-  
-  const totalSessionDuration = finalTracks.reduce((sum, t, i) => {
-    const limit = getTrackLimit(t);
-    const breakTime = (i < finalTracks.length - 1 && !isFitness) ? 15 : 0;
-    return sum + limit + breakTime;
-  }, 0);
-  const currentTrackIndex = finalTracks.findIndex(t => t.title === playingTitle);
-  
-  let sessionElapsedTime = 0;
-  if (currentTrackIndex !== -1) {
-    sessionElapsedTime = currentTime;
-  }
 
-  const currentTrack = currentTrackIndex !== -1 ? finalTracks[currentTrackIndex] : null;
+  // Use global sessionTracks instead of Studio's finalTracks for active session UI
+  const sessionList = (activeMode && sessionTracks.length > 0) ? sessionTracks : finalTracks;
+
+  const currentTrackIndex = sessionList.findIndex(t => (t.id === playingTitle || t.title === playingTitle));
+  const currentTrack = currentTrackIndex !== -1 ? sessionList[currentTrackIndex] : null;
   const currentTrackLimit = currentTrack ? getTrackLimit(currentTrack) : 100;
   const currentLimit = isPauseCountdown ? 15 : currentTrackLimit;
   const trackProgress = Math.min(trackCurrentTime / currentLimit, 1);
 
-  const totalProgress = totalSessionDuration > 0 ? Math.min(sessionElapsedTime / totalSessionDuration, 1) : 0;
+  // Source of truth for session progress is the AudioProvider
+  const displayElapsedTime = currentTime;
+  const displayTotalDuration = sessionDuration;
+  const totalProgress = displayTotalDuration > 0 ? Math.min(displayElapsedTime / displayTotalDuration, 1) : 0;
 
   const formatTime = (seconds: number) => {
     const mins = Math.floor(seconds / 60);
@@ -158,7 +155,7 @@ const FinalsPage = () => {
         }
         if (jiveLatinTracks.length) {
           setActiveMode('JiveLatin');
-          setFinalTracks(jiveLatinTracks);
+          setSessionTracks(jiveLatinTracks);
           loadTrack(jiveLatinTracks[0], false, true);
         }
         return;
@@ -192,7 +189,7 @@ const FinalsPage = () => {
         }
         if (qsStdTracks.length) {
           setActiveMode('QuickstepStandard');
-          setFinalTracks(qsStdTracks);
+          setSessionTracks(qsStdTracks);
           loadTrack(qsStdTracks[0], false, true);
         }
         return;
@@ -214,16 +211,14 @@ const FinalsPage = () => {
 
     if (selectedTracks.length) {
       setActiveMode(type);
-      setFinalTracks(selectedTracks);
+      setSessionTracks(selectedTracks);
       // Ensure we start playing
       loadTrack(selectedTracks[0], false, true);
     }
   };
 
   const handleStopProgram = () => {
-    setActiveMode(null);
-    stop();
-    setFinalTracks([]);
+    stop(); // stop() in context now handles setActiveMode(null) and setSessionTracks([])
     setShowStopConfirm(false);
     setIsFitness(false);
   };
@@ -257,7 +252,7 @@ const FinalsPage = () => {
     }
 
     setActiveMode('Fitness');
-    setFinalTracks(selectedTracks);
+    setSessionTracks(selectedTracks);
     setShowFitnessModal(false);
     setIsFitness(true);
     // Fitness acts as a continuous Final session, so we MUST enable isFinalMode to use the queue
@@ -329,7 +324,7 @@ const FinalsPage = () => {
                 <div className="card-icon"><Zap size={24} /></div>
                 <div className="card-info">
                   <h4>Latin</h4>
-                  {activeMode === 'Latin' && <p className="session-timer">{formatTime(sessionElapsedTime)} / {formatTime(totalSessionDuration)}</p>}
+                  {activeMode === 'Latin' && <p className="session-timer">{formatTime(displayElapsedTime)} / {formatTime(displayTotalDuration)}</p>}
                 </div>
               </div>
             </div>
@@ -369,7 +364,7 @@ const FinalsPage = () => {
                 <div className="card-icon"><Activity size={24} /></div>
                 <div className="card-info">
                   <h4>Standard</h4>
-                  {activeMode === 'Standard' && <p className="session-timer">{formatTime(sessionElapsedTime)} / {formatTime(totalSessionDuration)}</p>}
+                  {activeMode === 'Standard' && <p className="session-timer">{formatTime(displayElapsedTime)} / {formatTime(displayTotalDuration)}</p>}
                 </div>
               </div>
             </div>
@@ -409,7 +404,7 @@ const FinalsPage = () => {
                 <div className="card-icon"><Disc size={24} /></div>
                 <div className="card-info">
                   <h4>10-Dance</h4>
-                  {activeMode === '10Dance' && <p className="session-timer">{formatTime(sessionElapsedTime)} / {formatTime(totalSessionDuration)}</p>}
+                  {activeMode === '10Dance' && <p className="session-timer">{formatTime(displayElapsedTime)} / {formatTime(displayTotalDuration)}</p>}
                 </div>
               </div>
             </div>
@@ -449,7 +444,7 @@ const FinalsPage = () => {
                 <div className="card-icon"><Music2 size={24} /></div>
                 <div className="card-info">
                   <h4>8-Dance</h4>
-                  {activeMode === '8Dance' && <p className="session-timer">{formatTime(sessionElapsedTime)} / {formatTime(totalSessionDuration)}</p>}
+                  {activeMode === '8Dance' && <p className="session-timer">{formatTime(displayElapsedTime)} / {formatTime(displayTotalDuration)}</p>}
                 </div>
               </div>
             </div>
@@ -489,7 +484,7 @@ const FinalsPage = () => {
                 <div className="card-icon"><Zap size={20} /></div>
                 <div className="card-info">
                   <h4>6-Dance</h4>
-                  {activeMode === '6Dance' && <p className="session-timer">{formatTime(sessionElapsedTime)} / {formatTime(totalSessionDuration)}</p>}
+                  {activeMode === '6Dance' && <p className="session-timer">{formatTime(displayElapsedTime)} / {formatTime(displayTotalDuration)}</p>}
                 </div>
               </div>
             </div>
@@ -529,7 +524,7 @@ const FinalsPage = () => {
                 <div className="card-icon"><MicOff size={24} /></div>
                 <div className="card-info">
                   <h4>Inst. Latin</h4>
-                  {activeMode === 'InstLatin' && <p className="session-timer">{formatTime(sessionElapsedTime)} / {formatTime(totalSessionDuration)}</p>}
+                  {activeMode === 'InstLatin' && <p className="session-timer">{formatTime(displayElapsedTime)} / {formatTime(displayTotalDuration)}</p>}
                 </div>
               </div>
             </div>
@@ -569,7 +564,7 @@ const FinalsPage = () => {
                 <div className="card-icon"><MicOff size={24} /></div>
                 <div className="card-info">
                   <h4>Inst. Standard</h4>
-                  {activeMode === 'InstStandard' && <p className="session-timer">{formatTime(sessionElapsedTime)} / {formatTime(totalSessionDuration)}</p>}
+                  {activeMode === 'InstStandard' && <p className="session-timer">{formatTime(displayElapsedTime)} / {formatTime(displayTotalDuration)}</p>}
                 </div>
               </div>
             </div>
@@ -609,7 +604,7 @@ const FinalsPage = () => {
                 <div className="card-icon"><Zap size={24} /></div>
                 <div className="card-info">
                   <h4>Jive Mode</h4>
-                  {activeMode === 'JiveLatin' && <p className="session-timer">{formatTime(sessionElapsedTime)} / {formatTime(totalSessionDuration)}</p>}
+                  {activeMode === 'JiveLatin' && <p className="session-timer">{formatTime(displayElapsedTime)} / {formatTime(displayTotalDuration)}</p>}
                 </div>
               </div>
             </div>
@@ -649,7 +644,7 @@ const FinalsPage = () => {
                 <div className="card-icon"><Activity size={24} /></div>
                 <div className="card-info">
                   <h4>Quickstep Mode</h4>
-                  {activeMode === 'QuickstepStandard' && <p className="session-timer">{formatTime(sessionElapsedTime)} / {formatTime(totalSessionDuration)}</p>}
+                  {activeMode === 'QuickstepStandard' && <p className="session-timer">{formatTime(displayElapsedTime)} / {formatTime(displayTotalDuration)}</p>}
                 </div>
               </div>
             </div>
@@ -689,7 +684,7 @@ const FinalsPage = () => {
                 <div className="card-icon"><Dumbbell size={24} /></div>
                 <div className="card-info">
                   <h4>Fitness</h4>
-                  {activeMode === 'Fitness' && <p className="session-timer">{formatTime(sessionElapsedTime)} / {formatTime(totalSessionDuration)}</p>}
+                  {activeMode === 'Fitness' && <p className="session-timer">{formatTime(displayElapsedTime)} / {formatTime(displayTotalDuration)}</p>}
                 </div>
               </div>
             </div>
@@ -1056,7 +1051,7 @@ const FinalsPage = () => {
           onClose={() => setShowStopConfirm(false)}
           onConfirm={handleStopProgram}
           title="End Finals Practice?"
-          message={`You are on track ${currentTrackIndex + 1} of ${finalTracks.length}. Do you want to stop the practice session?`}
+          message={`You are on track ${currentTrackIndex + 1} of ${sessionList.length}. Do you want to stop the practice session?`}
           confirmText="Finish"
           variant="danger"
         />

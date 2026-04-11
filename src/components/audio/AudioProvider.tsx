@@ -36,6 +36,10 @@ interface AudioContextType {
   playPrevious: () => void;
   stop: () => void;
   sessionDuration: number;
+  activeMode: string | null;
+  setActiveMode: (mode: string | null) => void;
+  sessionTracks: Track[];
+  setSessionTracks: (tracks: Track[]) => void;
 }
 
 const AudioContext = createContext<AudioContextType | undefined>(undefined);
@@ -64,6 +68,8 @@ export const AudioProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   const [pauseTime, setPauseTime] = useState(15);
   const [isFitness, setIsFitness] = useState(false);
   const [sessionDuration, setSessionDuration] = useState(0);
+  const [activeMode, setActiveMode] = useState<string | null>(null);
+  const [sessionTracks, setSessionTracks] = useState<Track[]>([]);
 
   const playerRef = useRef<Tone.GrainPlayer | Tone.Player | null>(null);
   const nativePlayerRef = useRef<HTMLAudioElement | null>(null);
@@ -423,11 +429,11 @@ export const AudioProvider: React.FC<{ children: React.ReactNode }> = ({ childre
           setPauseTime(Math.ceil(newPauseTime));
 
           if (newPauseTime <= 0) {
-            isPauseCountdownRef.current = false;
-            setIsPauseCountdown(false);
-            const currentIndex = finalTracks.findIndex(t => t.id === trackIdRef.current || t.title === title);
-            if (currentIndex !== -1 && currentIndex < finalTracks.length - 1) {
-              const nextTrack = finalTracks[currentIndex + 1];
+            const tracksList = isFinalMode ? sessionTracks : tracks;
+            const currentIndex = tracksList.findIndex(t => t.id === trackIdRef.current || t.title === title);
+
+            if (currentIndex !== -1 && currentIndex < tracksList.length - 1) {
+              const nextTrack = tracksList[currentIndex + 1];
               loadTrack(nextTrack, false, true);
             }
           }
@@ -444,7 +450,7 @@ export const AudioProvider: React.FC<{ children: React.ReactNode }> = ({ childre
 
           if (isFinalMode) {
             // Calculate Session-wide metrics
-            const currentIdx = finalTracks.findIndex(t => t.id === trackIdRef.current || t.title === title);
+            const currentIdx = sessionTracks.findIndex(t => t.id === trackIdRef.current || t.title === title);
             if (currentIdx !== -1) {
               const getLimitForTrack = (track: Track) => {
                 const style = track.style?.toLowerCase() || '';
@@ -455,17 +461,17 @@ export const AudioProvider: React.FC<{ children: React.ReactNode }> = ({ childre
 
               let sessionElapsed = 0;
               for (let i = 0; i < currentIdx; i++) {
-                sessionElapsed += getLimitForTrack(finalTracks[i]) + (isFitness ? 0 : 15);
+                sessionElapsed += getLimitForTrack(sessionTracks[i]) + (isFitness ? 0 : 15);
               }
               
-              const currentTrackLimit = getLimitForTrack(finalTracks[currentIdx]);
+              const currentTrackLimit = getLimitForTrack(sessionTracks[currentIdx]);
               sessionElapsed += isPauseCountdown ? (currentTrackLimit + (15 - pauseTime)) : currentTimeVal;
               
               setCurrentTime(sessionElapsed);
               setTrackCurrentTime(currentTimeVal);
 
-              const totalDuration = finalTracks.reduce((acc: number, t: Track, idx: number) => {
-                const rest = (idx < finalTracks.length - 1 && !isFitness) ? 15 : 0;
+              const totalDuration = sessionTracks.reduce((acc: number, t: Track, idx: number) => {
+                const rest = (idx < sessionTracks.length - 1 && !isFitness) ? 15 : 0;
                 return acc + getLimitForTrack(t) + rest;
               }, 0);
               setSessionDuration(totalDuration);
@@ -498,6 +504,15 @@ export const AudioProvider: React.FC<{ children: React.ReactNode }> = ({ childre
               setIsPlaying(false);
               isPlayingRef.current = false;
               
+              // End of session logic
+              const currentIdx = sessionTracks.findIndex(t => t.id === trackIdRef.current || t.title === title);
+              const isLastTrack = currentIdx === sessionTracks.length - 1;
+
+              if (isLastTrack) {
+                stop();
+                return;
+              }
+
               if (isFitness) {
                 playNext();
                 return;
@@ -636,7 +651,7 @@ export const AudioProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   const toggleFinalMode = () => setIsFinalMode(!isFinalMode);
 
   const playNext = () => {
-    const list = isFinalMode ? finalTracks : tracks;
+    const list = isFinalMode ? sessionTracks : tracks;
     if (list.length === 0) return;
     
     let currentIndex = list.findIndex(t => t.id === trackIdRef.current || t.title === title);
@@ -656,7 +671,7 @@ export const AudioProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   };
 
   const playPrevious = () => {
-    const list = isFinalMode ? finalTracks : tracks;
+    const list = isFinalMode ? sessionTracks : tracks;
     if (list.length === 0) return;
 
     const currentIndex = list.findIndex(t => t.id === trackIdRef.current || t.title === title);
@@ -673,6 +688,8 @@ export const AudioProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     setTrackCurrentTime(0);
     setIsPauseCountdown(false);
     setPauseTime(15);
+    setActiveMode(null);
+    setSessionTracks([]);
   };
 
   // REGISTER MEDIA SESSION ACTIONS
@@ -722,7 +739,11 @@ export const AudioProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       playNext,
       playPrevious,
       stop,
-      sessionDuration
+      sessionDuration,
+      activeMode,
+      setActiveMode,
+      sessionTracks,
+      setSessionTracks
     }}>
       {children}
     </AudioContext.Provider>

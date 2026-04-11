@@ -85,17 +85,7 @@ const FavoritesPage = () => {
                     className={`fav-action active-heart`}
                     onClick={(e) => {
                       e.stopPropagation();
-                      checkAuthAndExecute(async () => {
-                        try {
-                          await toggleFavorite(track.id);
-                        } catch (error: any) {
-                          if (error.code === '42501') {
-                            alert("Permission denied (42501): Only the record owner can favorite this track globally.");
-                          } else {
-                            alert(`Sync error (${error.code || 'unknown'}): ${error.message || 'Could not save favorite status.'}`);
-                          }
-                        }
-                      }, 'favorite tracks');
+                      checkAuthAndExecute(() => toggleFavorite(track.id), 'favorite tracks');
                     }}
                     title="Unlike"
                   >

@@ -931,7 +931,14 @@ const FinalsPage = () => {
           }
 
         @media (max-width: 768px) {
-          .finals-container { padding: 16px; padding-bottom: 120px; }
+          .finals-container { padding: 16px; gap: 24px; }
+          .page-header-unified h1 { font-size: 24px !important; letter-spacing: 0px !important; }
+          .learn-finals-btn { 
+            padding: 8px 12px !important; 
+            font-size: 11px !important; 
+            transform: scale(0.85); 
+            transform-origin: right center;
+          }
           .programs-grid { 
              grid-template-columns: repeat(2, 1fr); 
              gap: 10px;

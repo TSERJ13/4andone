@@ -55,9 +55,12 @@ const MobileMiniPlayer = () => {
   const progress = (currentTime / (duration || 105)) * 100;
 
   return (
-    <>
+    <div className="mini-player-outer-wrapper" 
+         style={{ pointerEvents: isLoaded ? 'auto' : 'none' }} 
+         onClick={() => setIsExpanded(true)}
+    >
       {isLoaded && (
-        <div className="mini-player-wrapper animate-in" onClick={() => setIsExpanded(true)}>
+        <div className="mini-player-wrapper animate-in">
           <div className="mini-player glass">
             <div className="track-info">
               <div className="mini-art glass">
@@ -115,12 +118,16 @@ const MobileMiniPlayer = () => {
       />
 
       <style jsx>{`
-        .mini-player-wrapper {
+        .mini-player-outer-wrapper {
           position: fixed;
-          bottom: calc(80px + 12px + env(safe-area-inset-bottom)); /* Grounded nav (80px) + Gap (12px) + Safe Area */
+          bottom: calc(80px + 12px + env(safe-area-inset-bottom));
           left: 12px;
           right: 12px;
-          z-index: 999;
+          z-index: 1000;
+        }
+
+        .mini-player-wrapper {
+          cursor: pointer;
         }
 
         .mini-player {
@@ -195,7 +202,7 @@ const MobileMiniPlayer = () => {
 
         @media (min-width: 769px) { .mini-player-wrapper { display: none; } }
       `}</style>
-    </>
+    </div>
   );
 };
 

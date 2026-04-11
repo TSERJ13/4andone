@@ -482,7 +482,7 @@ export const AudioProvider: React.FC<{ children: React.ReactNode }> = ({ childre
           }
 
             // TRIGGER NEXT TRACK: If reached limit OR if Paso Doble reached song end
-            const reachedFinalLimit = isFinalMode && !isPauseCountdown && (
+            const reachedFinalLimit = isFinalMode && isPlaying && !isPauseCountdownRef.current && (
               (currentTimeVal >= timeLimit) || 
               (isPasoDoble && duration > 0 && currentTimeVal >= duration - 0.5)
             );
@@ -490,6 +490,7 @@ export const AudioProvider: React.FC<{ children: React.ReactNode }> = ({ childre
             if (reachedFinalLimit) {
               nativePlayerRef.current.pause();
               setIsPlaying(false);
+              isPlayingRef.current = false;
               
               if (isFitness) {
                 playNext();

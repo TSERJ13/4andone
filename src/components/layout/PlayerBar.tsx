@@ -51,6 +51,7 @@ const PlayerBar = () => {
   } = useAudio();
 
   const [showSpeedSelector, setShowSpeedSelector] = useState(false);
+  const speedSelectorRef = useRef<HTMLDivElement>(null);
   const [isMuted, setIsMuted] = useState(false);
   const [lastVolume, setLastVolume] = useState(1);
   const [isDragging, setIsDragging] = useState(false);
@@ -104,6 +105,25 @@ const PlayerBar = () => {
       window.removeEventListener('mouseup', handleUp);
     };
   }, [isDragging, duration, seek]);
+
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (speedSelectorRef.current && !speedSelectorRef.current.contains(event.target as Node)) {
+        // Also check if trigger button was clicked (it has its own toggle)
+        const target = event.target as HTMLElement;
+        if (!target.closest('.feature-btn')) {
+          setShowSpeedSelector(false);
+        }
+      }
+    };
+
+    if (showSpeedSelector) {
+      document.addEventListener('mousedown', handleClickOutside);
+    }
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, [showSpeedSelector]);
 
   const displayProgress = isDragging ? dragProgress : (currentTime / (duration || 1)) * 100;
   
@@ -249,11 +269,13 @@ const PlayerBar = () => {
             </button>
 
             {showSpeedSelector && (
-              <SpeedSelector 
-                currentBpm={bpm} 
-                onSelect={setBpm} 
-                onClose={() => (setShowSpeedSelector(false))} 
-              />
+              <div ref={speedSelectorRef}>
+                <SpeedSelector 
+                  currentBpm={bpm} 
+                  onSelect={setBpm} 
+                  onClose={() => (setShowSpeedSelector(false))} 
+                />
+              </div>
             )}
           </div>
         </div>

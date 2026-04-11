@@ -54,6 +54,7 @@ const MobileFullPlayer = ({ isOpen, onClose }: MobileFullPlayerProps) => {
   const { isAuthenticated, setIsAuthModalOpen } = useAuth();
 
   const [showSpeed, setShowSpeed] = useState(false);
+  const [isExitingSpeed, setIsExitingSpeed] = useState(false);
   const [isDragging, setIsDragging] = useState(false);
   const [dragProgress, setDragProgress] = useState(0);
   const [authPrompt, setAuthPrompt] = useState({ isOpen: false, action: '' });
@@ -116,6 +117,18 @@ const MobileFullPlayer = ({ isOpen, onClose }: MobileFullPlayerProps) => {
     };
   }, [isDragging, isFinalMode]);
 
+  const handleToggleSpeed = () => {
+    if (showSpeed) {
+      setIsExitingSpeed(true);
+      setTimeout(() => {
+        setShowSpeed(false);
+        setIsExitingSpeed(false);
+      }, 300);
+    } else {
+      setShowSpeed(true);
+    }
+  };
+
   if (!isOpen) return null;
 
   const displayProgress = isDragging ? dragProgress : (currentTime / (duration || 1)) * 100;
@@ -161,7 +174,7 @@ const MobileFullPlayer = ({ isOpen, onClose }: MobileFullPlayerProps) => {
 
           <button 
             className={`speed-tag ${bpm !== 100 ? 'active' : ''}`}
-            onClick={() => setShowSpeed(true)}
+            onClick={() => handleToggleSpeed()}
           >
             <Gauge size={14} />
             <span>{bpm}% BPM</span>
@@ -250,19 +263,19 @@ const MobileFullPlayer = ({ isOpen, onClose }: MobileFullPlayerProps) => {
       </div>
 
       {showSpeed && (
-        <div className="speed-overlay animate-in" onClick={() => setShowSpeed(false)}>
+        <div className={`speed-overlay ${isExitingSpeed ? 'exit' : 'animate-in'}`} onClick={handleToggleSpeed}>
           <div className="speed-modal glass" onClick={(e) => e.stopPropagation()}>
             <div className="modal-header">
               <div className="modal-title">
                 <Gauge size={20} className="text-primary" />
                 <h3>Playback Speed</h3>
               </div>
-              <button className="close-btn" onClick={() => setShowSpeed(false)}><X size={20} /></button>
+              <button className="close-btn" onClick={handleToggleSpeed}><X size={20} /></button>
             </div>
             <SpeedSelector 
               currentBpm={bpm} 
-              onSelect={(val) => { setBpm(val); setShowSpeed(false); }} 
-              onClose={() => setShowSpeed(false)} 
+              onSelect={(val) => { setBpm(val); handleToggleSpeed(); }} 
+              onClose={handleToggleSpeed} 
             />
           </div>
         </div>
@@ -561,7 +574,14 @@ const MobileFullPlayer = ({ isOpen, onClose }: MobileFullPlayerProps) => {
         }
 
         .animate-in { animation: fadeIn 0.3s ease; }
+        .speed-overlay.exit { animation: fadeOut 0.3s ease forwards; }
+        .speed-overlay.exit .speed-modal { animation: slideDown 0.3s cubic-bezier(0.4, 0, 0.2, 1) forwards; }
+        .speed-modal { animation: slideUpModal 0.3s cubic-bezier(0.4, 0, 0.2, 1); }
+
         @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+        @keyframes fadeOut { from { opacity: 1; } to { opacity: 0; } }
+        @keyframes slideUpModal { from { transform: translateY(100%); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
+        @keyframes slideDown { from { transform: translateY(0); opacity: 1; } to { transform: translateY(100%); opacity: 0; } }
       `}</style>
     </div>
   );

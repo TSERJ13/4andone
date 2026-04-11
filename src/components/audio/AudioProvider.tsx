@@ -205,11 +205,6 @@ export const AudioProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       if (Tone.getContext().lookAhead < 0.2) {
         Tone.getContext().lookAhead = 0.2;
       }
-      // @ts-ignore
-      if (Tone.getContext().latencyHint !== 'playback') {
-        // @ts-ignore
-        Tone.getContext().latencyHint = 'playback';
-      }
 
       if (Tone.getContext().state !== 'running') {
         await Tone.start();

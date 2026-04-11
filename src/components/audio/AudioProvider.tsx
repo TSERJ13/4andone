@@ -35,6 +35,7 @@ interface AudioContextType {
   playNext: () => void;
   playPrevious: () => void;
   stop: () => void;
+  sessionDuration: number;
 }
 
 const AudioContext = createContext<AudioContextType | undefined>(undefined);
@@ -62,6 +63,7 @@ export const AudioProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   const [isPauseCountdown, setIsPauseCountdown] = useState(false);
   const [pauseTime, setPauseTime] = useState(15);
   const [isFitness, setIsFitness] = useState(false);
+  const [sessionDuration, setSessionDuration] = useState(0);
 
   const playerRef = useRef<Tone.GrainPlayer | Tone.Player | null>(null);
   const nativePlayerRef = useRef<HTMLAudioElement | null>(null);
@@ -283,15 +285,18 @@ export const AudioProvider: React.FC<{ children: React.ReactNode }> = ({ childre
             console.log(`[AUDIO-READY] Stream buffered. Starting ${track.title}`);
             
             // Adjust duration for Final Mode reporting
+            const realDuration = audio.duration || 0;
+            setDuration(realDuration);
+
             if (isFinalMode) {
-               const totalDuration = finalTracks.reduce((acc: number, t: Track, idx: number) => {
+               const total = finalTracks.reduce((acc: number, t: Track, idx: number) => {
                  const style = t.style?.toLowerCase() || '';
-                 const limit = style.includes('paso') ? (t.duration || 240) : (style.includes('viennese') ? 85 : 105);
+                 const limit = style.includes('paso') ? (t.duration || realDuration || 240) : (style.includes('viennese') ? 85 : 105);
                  return acc + limit + (idx < finalTracks.length - 1 ? 15 : 0);
                }, 0);
-               setDuration(totalDuration);
+               setSessionDuration(total);
             } else {
-               setDuration(audio.duration || 0);
+               setSessionDuration(realDuration);
             }
             setIsLoaded(true);
             setIsLoading(false);
@@ -463,10 +468,11 @@ export const AudioProvider: React.FC<{ children: React.ReactNode }> = ({ childre
                 const rest = (idx < finalTracks.length - 1 && !isFitness) ? 15 : 0;
                 return acc + getLimitForTrack(t) + rest;
               }, 0);
-              setDuration(totalDuration);
+              setSessionDuration(totalDuration);
             }
           } else {
             setCurrentTime(currentTimeVal);
+            setSessionDuration(duration);
           }
 
           // FINAL MODE: FADE-OUT logic (starts 3 seconds before limit or song end for Paso)
@@ -514,11 +520,11 @@ export const AudioProvider: React.FC<{ children: React.ReactNode }> = ({ childre
           }
 
           // Update Media Session Position State
-          if ('mediaSession' in navigator && duration > 0) {
+          if ('mediaSession' in navigator && sessionDuration > 0) {
             navigator.mediaSession.setPositionState({
-              duration: duration,
+              duration: sessionDuration,
               playbackRate: bpm / 100,
-              position: currentTimeVal
+              position: currentTime
             });
           }
         }
@@ -715,7 +721,8 @@ export const AudioProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       seekRelative,
       playNext,
       playPrevious,
-      stop
+      stop,
+      sessionDuration
     }}>
       {children}
     </AudioContext.Provider>

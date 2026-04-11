@@ -4,11 +4,13 @@ import React from 'react';
 import { Heart, Play, Clock, MoreHorizontal, Disc, Flag } from 'lucide-react';
 import { useAudio } from '@/components/audio/AudioProvider';
 import { useStudio } from '@/components/admin/StudioProvider';
+import { formatDuration } from '@/utils/format';
 import { getMPMFromBPM } from '@/utils/audio';
+import { Marquee } from '@/components/layout/Marquee';
 
 const FavoritesPage = () => {
   const { togglePlay, isPlaying, title: playingTitle, loadTrack } = useAudio();
-  const { tracks, finalTracks, addToFinal, removeFromFinal } = useStudio();
+  const { tracks, toggleFavorite } = useStudio();
 
   const likedTracks = tracks.filter(t => t.isFavorite && !t.tags?.some(tag => tag.toLowerCase() === 'closed' || tag === 'დახურული'));
 
@@ -21,7 +23,7 @@ const FavoritesPage = () => {
   return (
     <div className="favorites-page animate-in">
       <header className="page-header">
-        <div className="heart-icon-large glass">
+        <div className="icon-large glass">
           <Heart size={64} fill="white" />
         </div>
         <div className="head-content">
@@ -53,27 +55,34 @@ const FavoritesPage = () => {
                   <Disc size={18} />
                 </div>
                 <div className="track-info-col">
-                  <p className="track-name">{track.title}</p>
+                  <Marquee 
+                    text={track.title} 
+                    className="track-name" 
+                    isActive={isPlaying && (playingTitle === track.title || playingTitle === track.id)}
+                  />
                   <p className="track-artist">{track.artist}</p>
                 </div>
+                
                 <div className="track-meta-col">
-                  {track.bpm ? `${getMPMFromBPM(Number(track.bpm), track.style)} MPM` : track.style}
+                  {track.bpm ? `${getMPMFromBPM(Number(track.bpm), track.style)} MPM` : formatDuration(track.duration)}
                 </div>
+
                 <div className="track-actions-col">
                   <button
-                    className={`fav-action ${finalTracks.some(t => t.id === track.id) ? 'active-flag' : ''}`}
+                    className={`fav-action active-heart`}
                     onClick={(e) => {
                       e.stopPropagation();
-                      finalTracks.some(t => t.id === track.id) ? removeFromFinal(track.id) : addToFinal(track);
+                      toggleFavorite(track.id);
                     }}
+                    title="Unlike"
                   >
-                    <Flag size={18} fill={finalTracks.some(t => t.id === track.id) ? "currentColor" : "none"} />
+                    <Heart size={16} fill="#ff4b2b" color="#ff4b2b" />
                   </button>
                   <div className="play-action">
                     {isPlaying && (playingTitle === track.title || playingTitle === track.id) ? (
                       <div className="playing-bars"><span></span><span></span><span></span></div>
                     ) : (
-                      <Play size={20} fill="currentColor" />
+                      <Play size={18} fill="currentColor" />
                     )}
                   </div>
                 </div>
@@ -92,7 +101,7 @@ const FavoritesPage = () => {
       <style jsx>{`
         .favorites-page { padding: 40px; padding-bottom: 120px; }
         .page-header { display: flex; align-items: flex-end; gap: 32px; margin-bottom: 40px; }
-        .heart-icon-large { 
+        .icon-large { 
           width: 232px; height: 232px; border-radius: 20px; 
           background: linear-gradient(135deg, var(--primary, #1db954), #191414);
           display: flex; align-items: center; justify-content: center;
@@ -113,9 +122,9 @@ const FavoritesPage = () => {
         }
         .play-btn-large:hover { transform: scale(1.05); }
 
-        .fav-action { color: #555; transition: all 0.2s; background: none; border: none; cursor: pointer; }
-        .fav-action:hover { color: white; transform: scale(1.1); }
-        .fav-action.active-flag { color: #1db954; }
+        .fav-action { opacity: 0.4; transition: all 0.2s; background: none; border: none; cursor: pointer; color: #555; }
+        .fav-action:hover, .fav-action.active-heart { opacity: 1; transform: scale(1.1); }
+        .fav-action.active-heart { color: #f43f5e; }
         @keyframes dance {
           0%, 100% { transform: scaleY(0.5); }
           50% { transform: scaleY(1); }
@@ -129,13 +138,13 @@ const FavoritesPage = () => {
         .empty-state p { max-width: 300px; line-height: 1.5; font-size: 14px; }
 
         @media (max-width: 768px) {
-          .favorites-page { padding: 20px; }
+          .playlist-page { padding: 20px; padding-bottom: 120px; }
           .page-header { flex-direction: column; align-items: center; text-align: center; gap: 24px; margin-top: 20px; }
-          .heart-icon-large { width: 140px; height: 140px; border-radius: 20px; }
+          .icon-large { width: 140px; height: 140px; border-radius: 20px; }
           .title { font-size: 2.2rem; letter-spacing: -1px; }
           .actions { justify-content: center; height: 80px; }
           .track-row { 
-            gap: 16px; 
+            gap: 4px; 
           }
         }
       `}</style>

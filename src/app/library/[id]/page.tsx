@@ -131,7 +131,7 @@ const PlaylistPage = () => {
               </div>
               
               <div className="track-meta-col">
-                {track.bpm ? `${getMPMFromBPM(Number(track.bpm), track.style)} BPM` : track.style}
+                {track.bpm ? `${getMPMFromBPM(Number(track.bpm), track.style)} BPM` : formatDuration(track.duration)}
               </div>
 
               <div className="track-actions-col">
@@ -141,6 +141,7 @@ const PlaylistPage = () => {
                     e.stopPropagation();
                     checkAuthAndExecute(() => toggleFavorite?.(track.id), 'favorite tracks');
                   }}
+                  title="Like Song"
                 >
                   <Heart size={16} fill={track.isFavorite ? "#ff4b2b" : "none"} color={track.isFavorite ? "#ff4b2b" : "currentColor"} />
                 </button>
@@ -212,7 +213,7 @@ const PlaylistPage = () => {
           .title { font-size: 2.2rem; letter-spacing: -1px; }
           .actions { justify-content: center; height: 80px; }
           .track-row { 
-            gap: 16px; 
+            gap: 4px; 
           }
         }
       `}</style>

@@ -265,12 +265,21 @@ export const StudioProvider: React.FC<{ children: React.ReactNode }> = ({ childr
 
     const newVal = !track.isFavorite;
     
+    // Optimistic Update
     setTracks(prev => prev.map(t => t.id === id ? { ...t, isFavorite: newVal } : t));
 
     const { error } = await supabase.from('tracks').update({ is_favorite: newVal }).eq('id', id);
+    
     if (error) {
       console.error("[SYNC-ERROR] Toggle favorite failed:", error);
+      // Revert Optimistic Update
       setTracks(prev => prev.map(t => t.id === id ? { ...t, isFavorite: !newVal } : t));
+      
+      if (error.code === '42501') {
+        alert("Permission denied: only the record owner can favorite this track globally.");
+      } else {
+        alert("Sync error: could not save favorite status.");
+      }
     }
   };
 

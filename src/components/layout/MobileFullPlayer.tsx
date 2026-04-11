@@ -47,7 +47,8 @@ const MobileFullPlayer = ({ isOpen, onClose }: MobileFullPlayerProps) => {
     isShuffle,
     isRepeat,
     toggleShuffle,
-    toggleRepeat
+    toggleRepeat,
+    sessionDuration
   } = useAudio();
 
   const { tracks, finalTracks, addToFinal, removeFromFinal, toggleFavorite } = useStudio();
@@ -131,7 +132,8 @@ const MobileFullPlayer = ({ isOpen, onClose }: MobileFullPlayerProps) => {
 
   if (!isOpen) return null;
 
-  const displayProgress = isDragging ? dragProgress : (currentTime / (duration || 1)) * 100;
+  const effectiveDuration = isFinalMode ? sessionDuration : duration;
+  const displayProgress = isDragging ? dragProgress : (currentTime / (effectiveDuration || 1)) * 100;
 
   const formatTime = (time: number) => {
     return formatDuration(time);
@@ -197,8 +199,8 @@ const MobileFullPlayer = ({ isOpen, onClose }: MobileFullPlayerProps) => {
             <div className={`progress-knob ${isDragging ? 'active' : ''}`} style={{ left: `${displayProgress}%` }}></div>
           </div>
           <div className="time-labels">
-            <span>{formatTime(isDragging ? (dragProgress / 100) * (duration || 0) : currentTime)}</span>
-            <span>{formatTime(duration)}</span>
+            <span>{formatTime(isDragging ? (dragProgress / 100) * (effectiveDuration || 0) : currentTime)}</span>
+            <span>{formatTime(effectiveDuration)}</span>
           </div>
         </div>
 

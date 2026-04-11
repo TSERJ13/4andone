@@ -9,6 +9,7 @@ import { useAuth } from '@/context/AuthContext';
 import ConfirmModal from '@/components/admin/ConfirmModal';
 import { formatDuration } from '@/utils/format';
 import { getMPMFromBPM } from '@/utils/audio';
+import { Marquee } from '@/components/layout/Marquee';
 
 const StylePage = () => {
   const { slug } = useParams();
@@ -109,12 +110,18 @@ const StylePage = () => {
               <Disc size={18} />
             </div>
             <div className="track-info-col">
-              <p className="track-name">{track.title}</p>
+              <Marquee 
+                text={track.title} 
+                className="track-name" 
+                isActive={isPlaying && (playingTitle === track.title || playingTitle === track.id)}
+              />
               <p className="track-artist">{track.artist}</p>
             </div>
+            
             <div className="track-meta-col">
-              {track.bpm ? `${getMPMFromBPM(Number(track.bpm), track.style)} BPM` : '—'}
+              {track.bpm ? `${getMPMFromBPM(Number(track.bpm), track.style)} BPM` : formatDuration(track.duration)}
             </div>
+
             <div className="track-actions-col">
               <button
                 className={`fav-action ${track.isFavorite ? 'active-heart' : ''}`}
@@ -122,14 +129,15 @@ const StylePage = () => {
                   e.stopPropagation();
                   checkAuthAndExecute(() => toggleFavorite?.(track.id), 'favorite tracks');
                 }}
+                title="Like Song"
               >
-                <Heart size={18} fill={track.isFavorite ? "#ff4b2b" : "none"} color={track.isFavorite ? "#ff4b2b" : "currentColor"} />
+                <Heart size={16} fill={track.isFavorite ? "#ff4b2b" : "none"} color={track.isFavorite ? "#ff4b2b" : "currentColor"} />
               </button>
               <div className="play-action">
                 {isPlaying && (playingTitle === track.title || playingTitle === track.id) ? (
                   <div className="playing-bars"><span></span><span></span><span></span></div>
                 ) : (
-                  <Play size={20} fill="currentColor" />
+                  <Play size={18} fill="currentColor" />
                 )}
               </div>
             </div>
@@ -195,7 +203,7 @@ const StylePage = () => {
           }
           
           .track-row { 
-            gap: 16px; 
+            gap: 4px; 
           }
         }
       `}</style>

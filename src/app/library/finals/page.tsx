@@ -38,7 +38,8 @@ const FinalsPage = () => {
   const { 
     loadTrack, isPlaying, title: playingTitle, currentTime, trackCurrentTime, duration, 
     isPauseCountdown, pauseTime, stop, isFitness, setIsFitness,
-    activeMode, setActiveMode, sessionTracks, setSessionTracks, sessionDuration
+    activeMode, setActiveMode, sessionTracks, setSessionTracks, sessionDuration,
+    isFinalMode
   } = useAudio();
   const { isAuthenticated, setIsAuthModalOpen } = useAuth();
   const [showStopConfirm, setShowStopConfirm] = useState(false);
@@ -950,11 +951,10 @@ const FinalsPage = () => {
           }
           .track-queue-section { padding: 20px; border-radius: 24px; }
           .learn-finals-btn { 
-            padding: 4px 8px; 
+            padding: 4px 6px; 
             font-size: 9px; 
           }
-          .learn-finals-btn span { display: none; } 
-          .learn-finals-btn::after { content: 'Info'; font-weight: 800; margin-left: 4px; }
+          .learn-finals-btn span { font-size: 8px; font-weight: 800; display: inline; }
         }
       `}</style>
       <style jsx>{`

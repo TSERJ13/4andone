@@ -265,7 +265,7 @@ const PlayerBar = () => {
               style={{ marginRight: '8px' }}
             >
               <Gauge size={18} />
-              <span className="label">Speed: {bpm}%</span>
+              <span className="label" data-bpm={bpm}>Speed: {bpm}%</span>
             </button>
 
             {showSpeedSelector && (
@@ -720,14 +720,23 @@ const PlayerBar = () => {
         /* iPad specific optimizations */
         @media (min-width: 769px) and (max-width: 1180px) {
           .player-bar {
-            padding: 0 24px;
+            padding: 0 16px;
             padding-bottom: env(safe-area-inset-bottom);
-            grid-template-columns: 1.2fr 2fr 1.2fr;
+            grid-template-columns: 1fr 1.6fr 1fr;
+            height: 80px;
           }
-          .track-info { gap: 12px; }
-          .metadata-actions-group { padding-left: 12px; }
-          .extra-controls { gap: 16px; }
-          .volume-control { width: 100px; margin-left: 10px; }
+          .track-info { gap: 10px; }
+          .album-art { width: 44px; height: 44px; }
+          .track-title { font-size: 13px; }
+          .track-artist { font-size: 11px; }
+          .metadata-actions-group { padding-left: 8px; margin-left: 4px; }
+          .progress-container { max-width: 360px; }
+          .control-buttons { gap: 16px; }
+          .play-btn { width: 44px; height: 44px; }
+          .extra-controls { gap: 12px; }
+          .feature-btn .label { font-size: 0; }
+          .feature-btn .label::after { content: attr(data-bpm) "%"; font-size: 11px; }
+          .volume-control { width: 100px; margin-left: 8px; gap: 8px; }
         }
       `}</style>
     </>

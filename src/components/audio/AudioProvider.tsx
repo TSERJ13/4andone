@@ -413,17 +413,18 @@ export const AudioProvider: React.FC<{ children: React.ReactNode }> = ({ childre
           
           const isPasoDoble = playingTrackRef.current?.style?.toLowerCase().includes('paso');
           const isViennese = playingTrackRef.current?.style?.toLowerCase().includes('viennese');
-          const timeLimit = isPasoDoble ? Infinity : (isViennese ? 85 : 100); 
+          // Standard: 1:45 (105s). Viennese: 1:25 (85s). Paso plays to end.
+          const timeLimit = isPasoDoble ? Infinity : (isViennese ? 85 : 105); 
 
           if (isFinalMode) {
             // Calculate Session-wide metrics
-            const currentIdx = finalTracks.findIndex(t => t.title === title || t.id === trackIdRef.current);
+            const currentIdx = finalTracks.findIndex(t => t.id === trackIdRef.current || t.title === title);
             if (currentIdx !== -1) {
               const getLimitForTrack = (track: Track) => {
                 const style = track.style?.toLowerCase() || '';
                 if (style.includes('paso')) return track.duration || 120;
                 if (style.includes('viennese')) return 85;
-                return 105; // Standard 1m 45s for others
+                return 105; 
               };
 
               let sessionElapsed = 0;
@@ -447,26 +448,33 @@ export const AudioProvider: React.FC<{ children: React.ReactNode }> = ({ childre
             setCurrentTime(currentTimeVal);
           }
 
-          // FINAL MODE: FADE-OUT logic (starts 3 seconds before limit)
+          // FINAL MODE: FADE-OUT logic (starts 3 seconds before limit or song end for Paso)
           if (isFinalMode && !isPauseCountdown && masterGainRef.current) {
-            const timeRemaining = timeLimit - currentTimeVal;
-            if (timeRemaining <= 3 && timeRemaining > 0) {
-              // Smooth ramp to zero over the remaining time
-              masterGainRef.current.gain.rampTo(0, timeRemaining);
+            const isNearLimit = !isPasoDoble && (timeLimit - currentTimeVal <= 3) && (timeLimit - currentTimeVal > 0);
+            const isNearSongEnd = isPasoDoble && (duration - currentTimeVal <= 3) && (duration - currentTimeVal > 0);
+            
+            if (isNearLimit) {
+              masterGainRef.current.gain.rampTo(0, timeLimit - currentTimeVal);
+            } else if (isNearSongEnd) {
+              masterGainRef.current.gain.rampTo(0, duration - currentTimeVal);
             }
           }
 
-            if (isFinalMode && currentTimeVal >= timeLimit && !isPauseCountdown) {
+            // TRIGGER NEXT TRACK: If reached limit OR if Paso Doble reached song end
+            const reachedFinalLimit = isFinalMode && !isPauseCountdown && (
+              (currentTimeVal >= timeLimit) || 
+              (isPasoDoble && duration > 0 && currentTimeVal >= duration - 0.5)
+            );
+
+            if (reachedFinalLimit) {
               nativePlayerRef.current.pause();
               setIsPlaying(false);
               
               if (isFitness) {
-                // In fitness mode, just play next immediately
                 playNext();
                 return;
               }
 
-              // Start 15s Pause Countdown for competition modes
               setIsPauseCountdown(true);
               setPauseTime(15);
             
@@ -476,7 +484,6 @@ export const AudioProvider: React.FC<{ children: React.ReactNode }> = ({ childre
                   clearInterval(breakTimer);
                   setIsPauseCountdown(false);
                   
-                  // Sequential Playback for Final Mode
                   const currentIndex = finalTracks.findIndex(t => t.id === trackIdRef.current || t.title === title);
                   if (currentIndex !== -1 && currentIndex < finalTracks.length - 1) {
                     const nextTrack = finalTracks[currentIndex + 1];

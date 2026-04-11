@@ -282,7 +282,7 @@ const FinalsPage = () => {
           </div>
           <Link href="/learn-final-mode" className="learn-finals-btn">
             <Info size={18} />
-            <span>How it works?</span>
+            <span>&nbsp;How it works?</span>
             <ArrowRight size={16} className="arrow" />
           </Link>
         </header>

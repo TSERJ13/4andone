@@ -82,6 +82,8 @@ export const AudioProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   const [isLoading, setIsLoading] = useState(false);
   const playingTrackRef = useRef<any>(null);
   const playPromiseRef = useRef<Promise<void> | null>(null);
+  const compressorRef = useRef<Tone.Compressor | null>(null);
+  const eqRef = useRef<Tone.EQ3 | null>(null);
 
   // Refs to avoid circular re-renders on every tick
   const isPlayingRef = useRef(isPlaying);
@@ -124,9 +126,30 @@ export const AudioProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       masterGainRef.current = new Tone.Gain(volume * 0.65).connect(limiterRef.current);
     }
     
+    if (!compressorRef.current) {
+      // 2. Add a High-Quality Compressor for better transients when slowed
+      compressorRef.current = new Tone.Compressor({
+        threshold: -20,
+        ratio: 2,
+        attack: 0.003,
+        release: 0.25
+      }).connect(masterGainRef.current);
+    }
+
+    if (!eqRef.current) {
+      // 3. Add a specialized EQ to boost "warmth" and reduce "fizz" during time-stretches
+      eqRef.current = new Tone.EQ3({
+        low: 1.5,
+        mid: 0,
+        high: -1.5,
+        lowFrequency: 250,
+        highFrequency: 2500
+      }).connect(compressorRef.current);
+    }
+    
     // Smoothly apply volume changes with the 0.65 headroom factor
     masterGainRef.current.gain.rampTo(volume * 0.65, 0.1);
-    return masterGainRef.current;
+    return eqRef.current;
   };
 
   useEffect(() => {
@@ -271,6 +294,7 @@ export const AudioProvider: React.FC<{ children: React.ReactNode }> = ({ childre
           audio.autoplay = false;
           audio.loop = !isFinalMode;
           // HIGH QUALITY SPEED CHANGE: Ensure pitch is preserved
+          // Always keep true to avoid algorithm switching clicks
           // @ts-ignore
           audio.preservesPitch = true;
           // @ts-ignore
@@ -592,7 +616,8 @@ export const AudioProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     }
     if (nativePlayerRef.current) {
       const rate = newBpm / 100;
-      nativePlayerRef.current.preservesPitch = (newBpm !== 100);
+      // Keep preservesPitch true to maintain algorithm consistency
+      nativePlayerRef.current.preservesPitch = true;
       nativePlayerRef.current.playbackRate = rate;
     }
   };

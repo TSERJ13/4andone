@@ -17,6 +17,8 @@ import {
 } from 'lucide-react';
 import { useAudio } from '@/components/audio/AudioProvider';
 import { useStudio } from '@/components/admin/StudioProvider';
+import { useAuth } from '@/context/AuthContext';
+import ConfirmModal from '@/components/admin/ConfirmModal';
 import SpeedSelector from '@/components/audio/SpeedSelector';
 import { formatDuration } from '@/utils/format';
 
@@ -49,11 +51,21 @@ const MobileFullPlayer = ({ isOpen, onClose }: MobileFullPlayerProps) => {
   } = useAudio();
 
   const { tracks, finalTracks, addToFinal, removeFromFinal, toggleFavorite } = useStudio();
+  const { isAuthenticated, setIsAuthModalOpen } = useAuth();
 
   const [showSpeed, setShowSpeed] = useState(false);
   const [isDragging, setIsDragging] = useState(false);
   const [dragProgress, setDragProgress] = useState(0);
+  const [authPrompt, setAuthPrompt] = useState({ isOpen: false, action: '' });
   const progressRef = useRef<HTMLDivElement>(null);
+
+  const checkAuthAndExecute = (action: () => void, actionName: string) => {
+    if (!isAuthenticated) {
+      setAuthPrompt({ isOpen: true, action: actionName });
+      return;
+    }
+    action();
+  };
 
   const handleSeek = (clientX: number) => {
     if (!progressRef.current || !duration) return;
@@ -66,6 +78,7 @@ const MobileFullPlayer = ({ isOpen, onClose }: MobileFullPlayerProps) => {
   };
 
   const handleInteractionStart = (e: React.MouseEvent | React.TouchEvent) => {
+    if (isFinalMode) return;
     setIsDragging(true);
     const clientX = 'touches' in e ? e.touches[0].clientX : e.clientX;
     handleSeek(clientX);
@@ -89,7 +102,7 @@ const MobileFullPlayer = ({ isOpen, onClose }: MobileFullPlayerProps) => {
 
   // Add global listeners for dragging outside the element
   useEffect(() => {
-    if (isDragging) {
+    if (isDragging && !isFinalMode) {
       window.addEventListener('mousemove', handleInteractionMove);
       window.addEventListener('mouseup', handleInteractionEnd);
       window.addEventListener('touchmove', handleInteractionMove);
@@ -101,7 +114,7 @@ const MobileFullPlayer = ({ isOpen, onClose }: MobileFullPlayerProps) => {
       window.removeEventListener('touchmove', handleInteractionMove);
       window.removeEventListener('touchend', handleInteractionEnd);
     };
-  }, [isDragging]);
+  }, [isDragging, isFinalMode]);
 
   if (!isOpen) return null;
 
@@ -128,32 +141,21 @@ const MobileFullPlayer = ({ isOpen, onClose }: MobileFullPlayerProps) => {
 
         <div className="track-meta">
           <div className="meta-top">
-            <button 
-              className={`meta-btn favorite ${tracks.find(t => t.title === title)?.isFavorite ? 'active' : ''}`}
-              onClick={() => {
-                const track = tracks.find(t => t.title === title);
-                if (track) toggleFavorite(track.id);
-              }}
-            >
-              <Heart size={28} fill={tracks.find(t => t.title === title)?.isFavorite ? "currentColor" : "none"} />
-            </button>
-
+            <div className="header-btn-placeholder" />
             <div className="text-center">
               <h2 className="title truncate">{title}</h2>
               <p className="artist truncate">{artist}</p>
             </div>
-
             <button 
-              className={`meta-btn flag ${finalTracks.find(t => t.title === title) ? 'active' : ''}`}
+              className={`meta-btn favorite ${tracks.find(t => t.title === title)?.isFavorite ? 'active' : ''}`}
               onClick={() => {
-                const track = tracks.find(t => t.title === title);
-                if (track) {
-                  if (finalTracks.find(t => t.id === track.id)) removeFromFinal(track.id);
-                  else addToFinal(track);
-                }
+                checkAuthAndExecute(() => {
+                  const track = tracks.find(t => t.title === title);
+                  if (track) toggleFavorite(track.id);
+                }, 'favorite tracks');
               }}
             >
-              <Flag size={28} fill={finalTracks.find(t => t.title === title) ? "currentColor" : "none"} />
+              <Heart size={32} fill={tracks.find(t => t.title === title)?.isFavorite ? "currentColor" : "none"} />
             </button>
           </div>
 
@@ -162,7 +164,7 @@ const MobileFullPlayer = ({ isOpen, onClose }: MobileFullPlayerProps) => {
             onClick={() => setShowSpeed(true)}
           >
             <Gauge size={14} />
-            <span>{bpm}% Speed</span>
+            <span>{bpm}% BPM</span>
           </button>
         </div>
 
@@ -172,6 +174,11 @@ const MobileFullPlayer = ({ isOpen, onClose }: MobileFullPlayerProps) => {
             ref={progressRef}
             onMouseDown={handleInteractionStart}
             onTouchStart={handleInteractionStart}
+            style={{ 
+               cursor: isFinalMode ? 'not-allowed' : 'pointer',
+               opacity: isFinalMode ? 0.7 : 1,
+               pointerEvents: isFinalMode ? 'none' : 'auto'
+            }}
           >
             <div className="progress-fill" style={{ width: `${displayProgress}%` }}></div>
             <div className={`progress-knob ${isDragging ? 'active' : ''}`} style={{ left: `${displayProgress}%` }}></div>
@@ -186,16 +193,23 @@ const MobileFullPlayer = ({ isOpen, onClose }: MobileFullPlayerProps) => {
           <button 
             className={`secondary-ctrl ${isShuffle ? 'active' : ''}`} 
             onClick={toggleShuffle}
+            disabled={isFinalMode}
+            style={{ opacity: isFinalMode ? 0.2 : 1, cursor: isFinalMode ? 'not-allowed' : 'pointer' }}
           >
             <Shuffle size={24} />
           </button>
 
-          <button className="secondary-ctrl" onClick={playPrevious}>
+          <button 
+            className="secondary-ctrl" 
+            onClick={playPrevious}
+            disabled={isFinalMode}
+            style={{ opacity: isFinalMode ? 0.2 : 1, cursor: isFinalMode ? 'not-allowed' : 'pointer' }}
+          >
             <SkipBack size={32} fill="currentColor" />
           </button>
           
           <div className="main-play-btn glass" onClick={togglePlay}>
-            {!isLoaded ? (
+            {!isLoaded && !isFinalMode ? (
               <div className="loading-spinner"></div>
             ) : isPlaying ? (
               <Pause fill="currentColor" size={32} />
@@ -204,13 +218,20 @@ const MobileFullPlayer = ({ isOpen, onClose }: MobileFullPlayerProps) => {
             )}
           </div>
 
-          <button className="secondary-ctrl" onClick={playNext}>
+          <button 
+            className="secondary-ctrl" 
+            onClick={playNext}
+            disabled={isFinalMode}
+            style={{ opacity: isFinalMode ? 0.2 : 1, cursor: isFinalMode ? 'not-allowed' : 'pointer' }}
+          >
             <SkipForward size={32} fill="currentColor" />
           </button>
 
           <button 
             className={`secondary-ctrl ${isRepeat ? 'active' : ''}`} 
             onClick={toggleRepeat}
+            disabled={isFinalMode}
+            style={{ opacity: isFinalMode ? 0.2 : 1, cursor: isFinalMode ? 'not-allowed' : 'pointer' }}
           >
             <Repeat size={24} />
           </button>
@@ -219,7 +240,7 @@ const MobileFullPlayer = ({ isOpen, onClose }: MobileFullPlayerProps) => {
         <div className="practice-mode glass">
           <div className="practice-info">
             <Timer size={20} />
-            <span>Final Mode Practice</span>
+            <span>Final Mode</span>
           </div>
           <label className="switch">
             <input type="checkbox" checked={isFinalMode} onChange={toggleFinalMode} />
@@ -246,6 +267,19 @@ const MobileFullPlayer = ({ isOpen, onClose }: MobileFullPlayerProps) => {
           </div>
         </div>
       )}
+
+      <ConfirmModal 
+        isOpen={authPrompt.isOpen}
+        title="Authentication Required"
+        message={`Please log in with Telegram to ${authPrompt.action} and sync your studio data.`}
+        confirmText="Login Now"
+        variant="primary"
+        onClose={() => setAuthPrompt(prev => ({ ...prev, isOpen: false }))}
+        onConfirm={() => {
+          setAuthPrompt(prev => ({ ...prev, isOpen: false }));
+          setIsAuthModalOpen(true);
+        }}
+      />
 
       <style jsx>{`
         .full-player-overlay {
@@ -309,7 +343,7 @@ const MobileFullPlayer = ({ isOpen, onClose }: MobileFullPlayerProps) => {
           align-items: center;
           justify-content: center;
           border: 4px solid rgba(255,255,255,0.1);
-          animation: ${isPlaying ? 'rotate 10s linear infinite' : 'none'};
+          animation: ${isPlaying && !isFinalMode ? 'rotate 10s linear infinite' : 'none'};
           box-shadow: 0 20px 40px rgba(0,0,0,0.5);
         }
 

@@ -9,6 +9,7 @@ import { useAuth } from '@/context/AuthContext';
 import { useAudio } from '@/components/audio/AudioProvider';
 import { TelegramLogin } from '@/components/auth/TelegramLogin';
 import { User, LogOut, ShieldCheck } from 'lucide-react';
+import { useVisitTracker } from '@/hooks/useVisitTracker';
 
 export default function AppLayout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
@@ -18,21 +19,25 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
     setMounted(true);
   }, []);
 
+  useVisitTracker(); // Track one visit per session
+
   const { isLoaded } = useAudio();
 
-  const isNoLayout = pathname.startsWith('/admin') || pathname === '/sa-login';
+  const isNoLayout = pathname?.startsWith('/admin') || pathname === '/sa-login';
 
-  // Prevent hydration "jitter"
+  // Prevent hydration "jitter" - Restoring the beautiful loading sequence
   if (!mounted) {
     return <div className="layout-stabilizer" style={{ background: '#000', height: '100vh', width: '100vw' }} />;
   }
 
+  // Bypass public site layout for Admin pages
+  // This allows the Admin layout to take 100% width and manage its own sidebar
   if (isNoLayout) {
-    return <div className="admin-root-wrapper">{children}</div>;
+    return <>{children}</>;
   }
 
   return (
-    <div className={`app-container ${isLoaded ? 'player-active' : ''}`}>
+    <div className={`app-container ${mounted && isLoaded ? 'player-active' : ''}`}>
       <Sidebar />
       <main className="main-content">
         {children}

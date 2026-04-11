@@ -52,21 +52,21 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose }) => {
         .auth-modal-overlay {
           position: fixed;
           inset: 0;
-          background: rgba(0, 0, 0, 0.95);
-          backdrop-filter: blur(16px);
+          background: rgba(0, 0, 0, 0.8);
+          backdrop-filter: blur(8px);
           display: flex;
           align-items: center;
           justify-content: center;
-          z-index: 5000;
+          z-index: 5001;
           cursor: pointer;
         }
 
         .auth-modal-content {
           background: #0d0d0d;
-          width: 90%;
-          max-width: 400px;
+          width: 100%;
+          max-width: 440px;
           padding: 32px;
-          border-radius: 24px;
+          border-radius: 28px;
           position: relative;
           border: 1px solid rgba(255, 255, 255, 0.1);
           color: white;
@@ -98,14 +98,14 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose }) => {
         .close-btn:hover { background: rgba(255, 255, 255, 0.1); color: white; }
 
         .icon-badge {
-          width: 80px;
-          height: 80px;
-          border-radius: 24px;
+          width: 64px;
+          height: 64px;
+          border-radius: 18px;
           background: rgba(29, 185, 84, 0.15);
           display: flex;
           align-items: center;
           justify-content: center;
-          margin-bottom: 8px;
+          margin-bottom: 0px;
           border: 1px solid rgba(29, 185, 84, 0.2);
         }
 

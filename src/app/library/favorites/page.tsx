@@ -1,7 +1,7 @@
 "use client";
 
 import React from 'react';
-import { Heart, Play, Clock, MoreHorizontal, Music, Flag } from 'lucide-react';
+import { Heart, Play, Clock, MoreHorizontal, Disc, Flag } from 'lucide-react';
 import { useAudio } from '@/components/audio/AudioProvider';
 import { useStudio } from '@/components/admin/StudioProvider';
 import { getMPMFromBPM } from '@/utils/audio';
@@ -10,7 +10,7 @@ const FavoritesPage = () => {
   const { togglePlay, isPlaying, title: playingTitle, loadTrack } = useAudio();
   const { tracks, finalTracks, addToFinal, removeFromFinal } = useStudio();
 
-  const likedTracks = tracks.filter(t => t.isFavorite);
+  const likedTracks = tracks.filter(t => t.isFavorite && !t.tags?.some(tag => tag.toLowerCase() === 'closed' || tag === 'დახურული'));
 
   const handlePlayAll = () => {
     if (likedTracks.length > 0) {
@@ -45,20 +45,19 @@ const FavoritesPage = () => {
             {likedTracks.map((track, i) => (
               <div
                 key={track.id}
-                className={`track-row glass ${isPlaying && playingTitle === track.title ? 'is-playing' : ''}`}
+                className={`track-row glass ${isPlaying && playingTitle === track.title ? 'is-active' : ''}`}
                 onClick={() => loadTrack(track)}
-                style={{ cursor: 'pointer' }}
               >
                 <div className="track-number">{i + 1}</div>
                 <div className="track-meta">
-                  <Music size={20} className="text-secondary" />
+                  <Disc size={20} className="text-secondary" />
                   <div>
                     <p className="track-name">{track.title}</p>
                     <p className="track-artist text-secondary">{track.artist}</p>
                   </div>
                 </div>
                 <div className="track-duration text-secondary">
-                  {track.bpm ? `${getMPMFromBPM(Number(track.bpm), track.style)} Bars/Min` : '—'}
+                  {track.bpm ? `${getMPMFromBPM(Number(track.bpm), track.style)} MPM` : track.style}
                 </div>
                 <div className="track-actions">
                   <button
@@ -94,11 +93,12 @@ const FavoritesPage = () => {
         .favorites-page { padding: 40px; padding-bottom: 120px; }
         .page-header { display: flex; align-items: flex-end; gap: 32px; margin-bottom: 40px; }
         .heart-icon-large { 
-          width: 232px; height: 232px; border-radius: 12px; 
-          background: linear-gradient(135deg, #1db954, #191414);
+          width: 232px; height: 232px; border-radius: 20px; 
+          background: linear-gradient(135deg, var(--primary, #1db954), #191414);
           display: flex; align-items: center; justify-content: center;
           flex-shrink: 0;
           box-shadow: 0 12px 32px rgba(0,0,0,0.5);
+          border: 1px solid rgba(255,255,255,0.05);
         }
         .head-content { display: flex; flex-direction: column; gap: 8px; }
         .label { text-transform: uppercase; font-size: 11px; font-weight: 800; letter-spacing: 1px; color: #71717a; }
@@ -114,6 +114,7 @@ const FavoritesPage = () => {
         .play-btn-large:hover { transform: scale(1.05); }
 
         .tracks-list { display: flex; flex-direction: column; gap: 8px; }
+        
         .track-row {
           display: grid;
           grid-template-columns: 40px 1fr 140px 100px;
@@ -121,22 +122,24 @@ const FavoritesPage = () => {
           padding: 12px 16px;
           border-radius: 12px;
           transition: background 0.2s;
+          cursor: pointer;
         }
-        .track-row:hover { background: rgba(255,255,255,0.08); }
-        .track-number { font-size: 12px; font-weight: 800; opacity: 0.3; width: 40px; text-align: center; }
-        .track-meta { display: flex; align-items: center; gap: 16px; }
-        .track-name { font-weight: 600; font-size: 14px; }
-        .track-artist { font-size: 12px; }
-        .track-duration { font-size: 13px; font-weight: 500; }
-        .track-actions { display: flex; align-items: center; justify-content: flex-end; gap: 16px; }
-        .btn-play-row { color: var(--primary); }
 
-        .track-row.is-playing {
+        .track-row:hover { background: rgba(255,255,255,0.08); }
+        .track-row.is-active {
           background: rgba(29, 185, 84, 0.08);
           border-left: 3px solid #1db954;
         }
-        .track-row.is-playing .track-name { color: #1db954; }
+        .track-row.is-active .track-name { color: #1db954; }
 
+        .track-number { font-size: 12px; font-weight: 800; opacity: 0.3; width: 40px; text-align: center; }
+        .track-meta { display: flex; align-items: center; gap: 16px; min-width: 0; }
+        .track-name { font-weight: 600; font-size: 14px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+        .track-artist { font-size: 12px; opacity: 0.5; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+        .track-duration { font-size: 13px; font-weight: 600; }
+        .track-actions { display: flex; align-items: center; justify-content: flex-end; gap: 16px; }
+        
+        .btn-play-row { color: var(--primary); }
         .feature-icon { color: #555; transition: all 0.2s; background: none; border: none; cursor: pointer; }
         .feature-icon:hover { color: white; transform: scale(1.1); }
         .feature-icon.active-flag { color: #1db954; }
@@ -164,13 +167,7 @@ const FavoritesPage = () => {
           .heart-icon-large { width: 140px; height: 140px; border-radius: 20px; }
           .title { font-size: 2.2rem; letter-spacing: -1px; }
           .actions { justify-content: center; height: 80px; }
-          .empty-state { padding: 40px 0; }
-          .empty-state h3 { font-size: 20px; }
-
-          .track-row {
-            grid-template-columns: 32px 1fr 48px;
-            padding: 8px 12px;
-          }
+          .track-row { grid-template-columns: 32px 1fr 48px; }
           .track-duration { display: none; }
         }
       `}</style>

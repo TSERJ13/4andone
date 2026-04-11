@@ -69,6 +69,32 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     localStorage.setItem('4andone-user', JSON.stringify(userData));
     setIsAuthModalOpen(false);
     await syncWithSupabase(userData);
+
+    // Upsert into telegram_users for analytics tracking
+    try {
+      // Get country from cached visit data if available
+      const country = await fetch('https://ipapi.co/json/', { signal: AbortSignal.timeout(3000) })
+        .then(r => r.json())
+        .catch(() => null);
+
+      await supabase.from('telegram_users').upsert({
+        telegram_id: userData.id,
+        first_name: userData.first_name,
+        last_name: userData.last_name ?? null,
+        username: userData.username ?? null,
+        photo_url: userData.photo_url ?? null,
+        last_seen: new Date().toISOString(),
+        country_code: country?.country_code ?? null,
+        country_name: country?.country_name ?? null,
+      }, { onConflict: 'telegram_id', ignoreDuplicates: false });
+
+      // Increment visit count via RPC
+      try {
+        await supabase.rpc('increment_user_visit', { uid: userData.id });
+      } catch { /* non-critical */ }
+    } catch {
+      // Non-critical — don't block login
+    }
   };
 
   const logout = () => {

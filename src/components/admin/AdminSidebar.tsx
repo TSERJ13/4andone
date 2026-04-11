@@ -12,7 +12,7 @@ import {
   LogOut,
   ChevronLeft,
   ChevronRight,
-  Search
+  Users
 } from 'lucide-react';
 import { useStudio } from './StudioProvider';
 import { useRouter } from 'next/navigation';
@@ -30,8 +30,8 @@ const AdminSidebar = ({ isCollapsed, onToggle }: { isCollapsed: boolean, onToggl
   const menuItems = [
     { icon: <LayoutDashboard size={24} />, label: 'Overview', href: '/admin/dashboard' },
     { icon: <Music size={24} />, label: 'Music Library', href: '/admin/library' },
-    { icon: <Folders size={24} />, label: 'Categories & Tags', href: '/admin/taxonomy' },
-    { icon: <Search size={24} />, label: 'Style Explorer', href: '/' },
+    { icon: <Folders size={24} />, label: 'Dance Styles', href: '/admin/taxonomy' },
+    { icon: <Users size={24} />, label: 'Users', href: '/admin/users' },
     { icon: <BarChart3 size={24} />, label: 'Statistics', href: '/admin/analytics' },
     { icon: <Settings size={24} />, label: 'Studio Settings', href: '/admin/settings' },
   ];

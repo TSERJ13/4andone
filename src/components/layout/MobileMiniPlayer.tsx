@@ -4,11 +4,13 @@ import React, { useState } from 'react';
 import {
   Play,
   Pause,
-  Flag,
+  Heart,
   Disc
 } from 'lucide-react';
 import { useAudio } from '@/components/audio/AudioProvider';
 import { useStudio } from '@/components/admin/StudioProvider';
+import { useAuth } from '@/context/AuthContext';
+import ConfirmModal from '@/components/admin/ConfirmModal';
 import { getMPMFromBPM } from '@/utils/audio';
 import MobileFullPlayer from './MobileFullPlayer';
 
@@ -23,19 +25,30 @@ const MobileMiniPlayer = () => {
     duration
   } = useAudio();
 
-  const { tracks, finalTracks, addToFinal, removeFromFinal } = useStudio();
+  const { tracks, finalTracks, addToFinal, removeFromFinal, toggleFavorite } = useStudio();
+  const { isAuthenticated, setIsAuthModalOpen } = useAuth();
   const [isFullPlayerOpen, setIsFullPlayerOpen] = useState(false);
+  const [authPrompt, setAuthPrompt] = useState({ isOpen: false, action: '' });
+
+  const checkAuthAndExecute = (action: () => void, actionName: string) => {
+    if (!isAuthenticated) {
+      setAuthPrompt({ isOpen: true, action: actionName });
+      return;
+    }
+    action();
+  };
 
   if (!isLoaded) return null;
 
   const currentTrack = tracks.find(t => t.title === title) || finalTracks.find(t => t.title === title);
   const isInFinal = currentTrack ? finalTracks.some(t => t.id === currentTrack.id) : false;
 
-  const handleFinalToggle = (e: React.MouseEvent) => {
+  const handleFavoriteToggle = (e: React.MouseEvent) => {
     e.stopPropagation();
     if (!currentTrack) return;
-    if (isInFinal) removeFromFinal(currentTrack.id);
-    else addToFinal(currentTrack);
+    checkAuthAndExecute(() => {
+      toggleFavorite?.(currentTrack.id);
+    }, 'favorite tracks');
   };
 
   const progress = (currentTime / (duration || 105)) * 100;
@@ -53,7 +66,7 @@ const MobileMiniPlayer = () => {
               <span className="artist truncate">
                 {artist}
                 {currentTrack && currentTrack.bpm && (
-                  <span className="text-primary font-bold ml-1">({getMPMFromBPM(Number(currentTrack.bpm), currentTrack.style)})</span>
+                  <span className="text-primary font-bold ml-1">({getMPMFromBPM(Number(currentTrack.bpm), currentTrack.style)} BPM)</span>
                 )}
               </span>
             </div>
@@ -61,11 +74,10 @@ const MobileMiniPlayer = () => {
 
           <div className="controls">
             <button
-              className={`final-btn ${isInFinal ? 'active' : ''}`}
-              onClick={handleFinalToggle}
-              title={isInFinal ? "Remove from Final" : "Add to Final"}
+              className={`favorite-btn ${currentTrack?.isFavorite ? 'active' : ''}`}
+              onClick={handleFavoriteToggle}
             >
-              <Flag size={20} fill={isInFinal ? "currentColor" : "none"} />
+              <Heart size={20} fill={currentTrack?.isFavorite ? "currentColor" : "none"} />
             </button>
             <button
               className="play-btn"
@@ -84,6 +96,19 @@ const MobileMiniPlayer = () => {
       <MobileFullPlayer
         isOpen={isFullPlayerOpen}
         onClose={() => setIsFullPlayerOpen(false)}
+      />
+
+      <ConfirmModal 
+        isOpen={authPrompt.isOpen}
+        title="Authentication Required"
+        message={`Please log in with Telegram to ${authPrompt.action} and sync your studio data.`}
+        confirmText="Login Now"
+        variant="primary"
+        onClose={() => setAuthPrompt(prev => ({ ...prev, isOpen: false }))}
+        onConfirm={() => {
+          setAuthPrompt(prev => ({ ...prev, isOpen: false }));
+          setIsAuthModalOpen(true);
+        }}
       />
 
       <style jsx>{`
@@ -137,8 +162,8 @@ const MobileMiniPlayer = () => {
         .artist { font-size: 11px; color: #b3b3b3; }
 
         .controls { display: flex; align-items: center; gap: 16px; }
-        .final-btn { color: #555; transition: all 0.2s; }
-        .final-btn.active { color: #1db954; transform: scale(1.1); }
+        .favorite-btn { color: #555; transition: all 0.2s; }
+        .favorite-btn.active { color: #f43f5e; transform: scale(1.1); }
         .play-btn { color: white; transition: transform 0.1s; }
         .play-btn:active { transform: scale(0.9); }
 

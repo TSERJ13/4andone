@@ -2,12 +2,16 @@
 
 import React from 'react';
 import Link from 'next/link';
-import { Play, Mic2, Timer, Flame, Music2, Disc, Flag } from 'lucide-react';
+import { Play, Mic2, Timer, Flame, Music2, Disc, Heart } from 'lucide-react';
 import { useAudio } from '@/components/audio/AudioProvider';
 import { useStudio } from '@/components/admin/StudioProvider';
+import { useAuth } from '@/context/AuthContext';
 import { formatDuration } from '@/utils/format';
 import { getMPMFromBPM } from '@/utils/audio';
+import ConfirmModal from '@/components/admin/ConfirmModal';
+import { useState } from 'react';
 import { UserBadge } from '@/components/auth/UserBadge';
+import { useRouter } from 'next/navigation';
 
 export default function Home() {
   const {
@@ -22,8 +26,34 @@ export default function Home() {
     finalTracks,
     addToFinal,
     removeFromFinal,
-    isLoading
+    isLoading,
+    toggleFavorite
   } = useStudio();
+  const { isAuthenticated, setIsAuthModalOpen } = useAuth();
+  const router = useRouter();
+
+  const [infoModal, setInfoModal] = useState({
+    isOpen: false,
+    title: '',
+    message: '',
+    onConfirm: () => {}
+  });
+
+  const checkAuthAndExecute = (action: () => void, actionName: string) => {
+    if (!isAuthenticated) {
+      setInfoModal({
+        isOpen: true,
+        title: 'Authentication Required',
+        message: `Please log in with Telegram to ${actionName} and sync your dance library across all your devices.`,
+        onConfirm: () => {
+          setInfoModal(prev => ({ ...prev, isOpen: false }));
+          setIsAuthModalOpen(true);
+        }
+      });
+      return;
+    }
+    action();
+  };
 
   const handlePlay = (track: any) => {
     loadTrack(track);
@@ -72,6 +102,7 @@ export default function Home() {
   );
 
   return (
+    <div className="page-wrapper">
     <div className="home-container">
       {/* ... Hero Section remains ... */}
       <header className="hero-section glass">
@@ -86,10 +117,10 @@ export default function Home() {
             and practice with professional-grade speed control.
           </p>
           <div className="hero-actions">
-            <button className="btn-primary" onClick={togglePlay}>
-              {isPlaying ? 'Pause Practice' : 'Start Practice'}
+            <button className="btn-primary" onClick={() => router.push('/library/finals')}>
+              Start Practice
             </button>
-            <button className="btn-outline glass">Learn Final Mode</button>
+            <button className="btn-outline glass" onClick={() => router.push('/learn-final-mode')}>Learn Final Mode</button>
           </div>
         </div>
         <div className="hero-visual">
@@ -109,8 +140,12 @@ export default function Home() {
           {isLoading ? (
             Array(5).fill(0).map((_, i) => <SkeletonCard key={i} color="#f7971e" />)
           ) : (
-            styles.filter(s => s.program === 'Latin').map((style) => {
-              const count = tracks.filter(t => t.style?.toLowerCase() === style.title.toLowerCase()).length;
+            styles.filter(s => s.program === 'Latin' && s.title.toLowerCase() !== 'fitness').map((style) => {
+              const count = tracks.filter(t => 
+                t.style?.toLowerCase() === style.title.toLowerCase() &&
+                !t.tags?.some(tag => tag.toLowerCase() === 'closed' || tag === 'დახურული') &&
+                t.style?.toLowerCase() !== 'fitness'
+              ).length;
               return (
                 <Link
                   key={style.id}
@@ -147,8 +182,12 @@ export default function Home() {
           {isLoading ? (
             Array(5).fill(0).map((_, i) => <SkeletonCard key={i} color="#2193b0" />)
           ) : (
-            styles.filter(s => s.program === 'Standard').map((style) => {
-              const count = tracks.filter(t => t.style?.toLowerCase() === style.title.toLowerCase()).length;
+            styles.filter(s => s.program === 'Standard' && s.title.toLowerCase() !== 'fitness').map((style) => {
+              const count = tracks.filter(t => 
+                t.style?.toLowerCase() === style.title.toLowerCase() &&
+                !t.tags?.some(tag => tag.toLowerCase() === 'closed' || tag === 'დახურული') &&
+                t.style?.toLowerCase() !== 'fitness'
+              ).length;
               return (
                 <Link
                   key={style.id}
@@ -180,7 +219,13 @@ export default function Home() {
         <div className="tracks-list">
           {isLoading ? (
             Array(5).fill(0).map((_, i) => <SkeletonRow key={i} />)
-          ) : tracks.length > 0 ? tracks.map((track, i) => (
+          ) : tracks.filter(t => 
+              t.style?.toLowerCase() !== 'fitness' && 
+              !t.tags?.some(tag => tag.toLowerCase() === 'closed' || tag === 'დახურული')
+            ).length > 0 ? tracks.filter(t => 
+              t.style?.toLowerCase() !== 'fitness' && 
+              !t.tags?.some(tag => tag.toLowerCase() === 'closed' || tag === 'დახურული')
+            ).slice(0, 10).map((track, i) => (
             <div
               key={track.id}
               className={`track-row glass ${isPlaying && playingTitle === track.title ? 'is-active' : ''}`}
@@ -195,17 +240,17 @@ export default function Home() {
                   <p className="track-artist">{track.artist}</p>
                 </div>
               </div>
-              <div className="track-duration text-secondary">{track.bpm ? `${getMPMFromBPM(Number(track.bpm), track.style)} Bars/Min` : formatDuration(track.duration)}</div>
+              <div className="track-duration text-secondary">{track.bpm ? `${getMPMFromBPM(Number(track.bpm), track.style)} BPM` : formatDuration(track.duration)}</div>
               <div className="track-actions">
                 <button
-                  className={`feature-icon ${finalTracks.some(t => t.id === track.id) ? 'active-flag' : ''}`}
+                  className={`feature-icon ${track.isFavorite ? 'active-heart' : ''}`}
                   onClick={(e) => {
                     e.stopPropagation();
-                    finalTracks.some(t => t.id === track.id) ? removeFromFinal(track.id) : addToFinal(track);
+                    checkAuthAndExecute(() => toggleFavorite?.(track.id), 'favorite tracks');
                   }}
-                  title="Add to Final"
+                  title="Like Song"
                 >
-                  <Flag size={18} fill={finalTracks.some(t => t.id === track.id) ? "currentColor" : "none"} />
+                  <Heart size={18} fill={track.isFavorite ? "#ff4b2b" : "none"} color={track.isFavorite ? "#ff4b2b" : "currentColor"} />
                 </button>
                 <div className="btn-play-row">
                   {isPlaying && playingTitle === track.title ? <div className="playing-bars"><span></span><span></span><span></span></div> : <Play size={20} fill="currentColor" />}
@@ -221,6 +266,17 @@ export default function Home() {
           )}
         </div>
       </section>
+    </div>
+
+      <ConfirmModal
+        isOpen={infoModal.isOpen}
+        onClose={() => setInfoModal(prev => ({ ...prev, isOpen: false }))}
+        onConfirm={infoModal.onConfirm}
+        title={infoModal.title}
+        message={infoModal.message}
+        confirmText="Connect Telegram"
+        variant="primary"
+      />
 
       <style jsx>{`
         .home-container {

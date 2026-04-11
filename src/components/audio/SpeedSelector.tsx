@@ -1,6 +1,7 @@
 "use client";
 
 import React from 'react';
+import { Minus, Plus } from 'lucide-react';
 
 interface SpeedSelectorProps {
   currentBpm: number;
@@ -9,83 +10,138 @@ interface SpeedSelectorProps {
 }
 
 const SpeedSelector: React.FC<SpeedSelectorProps> = ({ currentBpm, onSelect, onClose }) => {
-  const speeds = [80, 85, 90, 95, 100, 105, 110, 115, 120, 125];
+  const displayValue = currentBpm - 100;
+
+  const handleAdjust = (delta: number) => {
+    const newVal = Math.max(50, Math.min(150, currentBpm + delta));
+    onSelect(newVal);
+  };
+
+  const handleSliderChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    onSelect(parseInt(e.target.value));
+  };
 
   return (
-    <div className="speed-container">
-      <div className="speed-grid">
-        {speeds.map((speed) => (
-          <button 
-            key={speed}
-            className={`speed-option glass ${currentBpm === speed ? 'active' : ''}`}
-            onClick={() => {
-              onSelect(speed);
-              onClose();
-            }}
-          >
-            <span className="value">{speed}%</span>
-            <span className="label">{speed === 100 ? 'Normal' : speed > 100 ? 'Faster' : 'Slower'}</span>
-          </button>
-        ))}
+    <div className="speed-container animate-in">
+      <div className="speed-header">
+        <span className="current-display">{displayValue > 0 ? `+${displayValue}` : displayValue}%</span>
+        <button className="reset-btn glass" onClick={() => onSelect(100)}>Reset</button>
+      </div>
+
+      <div className="slider-wrapper">
+        <button className="adjust-btn glass" onClick={() => handleAdjust(-5)}>
+          <Minus size={18} />
+        </button>
+        
+        <input 
+          type="range" 
+          min="50" 
+          max="150" 
+          step="1"
+          value={currentBpm} 
+          onChange={handleSliderChange}
+          className="speed-slider"
+        />
+
+        <button className="adjust-btn glass" onClick={() => handleAdjust(5)}>
+          <Plus size={18} />
+        </button>
       </div>
       
-      <p className="speed-footer">
-        Adjust the BPM to match your practice tempo.
-      </p>
+      <div className="speed-labels">
+        <span>-50%</span>
+        <span>Normal</span>
+        <span>+50%</span>
+      </div>
 
       <style jsx>{`
         .speed-container {
           width: 100%;
+          padding: 8px 0;
         }
 
-        .speed-grid {
-          display: grid;
-          grid-template-columns: repeat(2, 1fr);
-          gap: 10px;
-          width: 100%;
-        }
-
-        .speed-option {
-          padding: 14px;
-          border-radius: 12px;
+        .speed-header {
           display: flex;
-          flex-direction: column;
+          justify-content: space-between;
           align-items: center;
-          gap: 2px;
+          margin-bottom: 24px;
+        }
+
+        .current-display {
+          font-size: 24px;
+          font-weight: 900;
+          color: var(--primary);
+          letter-spacing: -1px;
+        }
+
+        .reset-btn {
+          font-size: 11px;
+          font-weight: 800;
+          text-transform: uppercase;
+          padding: 6px 12px;
+          border-radius: 8px;
+          opacity: 0.6;
+          transition: all 0.2s;
+        }
+        .reset-btn:hover { opacity: 1; color: var(--primary); }
+
+        .slider-wrapper {
+          display: flex;
+          align-items: center;
+          gap: 16px;
+          margin-bottom: 12px;
+        }
+
+        .adjust-btn {
+          width: 44px;
+          height: 44px;
+          border-radius: 50%;
+          display: flex;
+          align-items: center;
+          justify-content: center;
           transition: all 0.2s;
           background: rgba(255, 255, 255, 0.05);
           border: 1px solid rgba(255, 255, 255, 0.1);
-          color: white;
         }
 
-        .speed-option.active {
-          background: #1db954;
-          color: black;
-          border-color: #1db954;
+        .adjust-btn:active { transform: scale(0.9); }
+        .adjust-btn:hover { background: rgba(255, 255, 255, 0.1); border-color: var(--primary); color: var(--primary); }
+
+        .speed-slider {
+          flex: 1;
+          -webkit-appearance: none;
+          height: 6px;
+          background: rgba(255, 255, 255, 0.1);
+          border-radius: 3px;
+          outline: none;
         }
 
-        .speed-option:active {
-          transform: scale(0.95);
+        .speed-slider::-webkit-slider-thumb {
+          -webkit-appearance: none;
+          width: 20px;
+          height: 20px;
+          border-radius: 50%;
+          background: var(--primary);
+          cursor: pointer;
+          border: 4px solid #121212;
+          box-shadow: 0 0 10px rgba(0,0,0,0.5);
+          transition: scale 0.2s;
         }
 
-        .value {
-          font-size: 16px;
-          font-weight: 800;
-        }
+        .speed-slider::-webkit-slider-thumb:hover { scale: 1.2; }
 
-        .label {
+        .speed-labels {
+          display: flex;
+          justify-content: space-between;
+          padding: 0 60px;
           font-size: 10px;
-          font-weight: 600;
+          font-weight: 800;
           text-transform: uppercase;
-          opacity: 0.7;
+          opacity: 0.4;
         }
 
-        .speed-footer {
-          font-size: 12px;
-          text-align: center;
-          margin-top: 16px;
-          color: #b3b3b3;
-          opacity: 0.8;
+        @media (max-width: 768px) {
+          .speed-labels { padding: 0 54px; }
         }
       `}</style>
     </div>

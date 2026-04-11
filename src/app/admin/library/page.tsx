@@ -111,7 +111,7 @@ const AdminLibrary = () => {
       trackCount: filteredTracks.filter(t => t.album === name).length
     }));
 
-  const filterStyles = ['All', ...styles.map(s => s.title)];
+  const filterStyles = Array.from(new Set(['All', 'Fitness', ...styles.map(s => s.title)]));
 
   return (
     <div className="admin-library animate-in">
@@ -122,7 +122,15 @@ const AdminLibrary = () => {
         </div>
       )}
 
-      <div className="library-header-actions">
+        <div className="header-buttons">
+          <button className="btn-primary" onClick={() => {
+            setSelectedTrack(null);
+            setIsAddModalOpen(true);
+          }}>
+            <Plus size={18} />
+            Add Track
+          </button>
+        </div>
         <div className="search-bar glass">
           <Search size={18} />
           <input 
@@ -137,7 +145,7 @@ const AdminLibrary = () => {
             className={`breadcrumb-item ${activeFolderId === 'All' ? 'active' : ''}`}
             onClick={() => setActiveFolderId('All')}
           >
-            Library
+            All Tracks
           </button>
           {activeFolderId !== 'All' && (
             <>
@@ -148,52 +156,6 @@ const AdminLibrary = () => {
             </>
           )}
         </div>
-        <div className="header-buttons">
-          <div className="view-toggle glass">
-            <button 
-              className={viewMode === 'list' ? 'active' : ''} 
-              onClick={() => setViewMode('list')}
-              title="List View"
-            >
-              <ListIcon size={18} />
-            </button>
-            <button 
-              className={viewMode === 'album' ? 'active' : ''} 
-              onClick={() => setViewMode('album')}
-              title="Album View"
-            >
-              <LayoutGrid size={18} />
-            </button>
-          </div>
-          <button className="btn-secondary glass" onClick={async () => {
-             showToast("Syncing durations... please wait");
-             for (const track of tracks) {
-               if (!track.duration && track.audioUrl) {
-                 try {
-                   const duration: number = await new Promise((resolve, reject) => {
-                     const audio = new Audio();
-                     audio.src = track.audioUrl!;
-                     audio.onloadedmetadata = () => resolve(Math.round(audio.duration));
-                     audio.onerror = reject;
-                     setTimeout(() => reject('Timeout'), 5000);
-                   });
-                   await updateTrack(track.id, { duration });
-                 } catch (e) { console.error("Sync failed for", track.title); }
-               }
-             }
-             showToast("Sync Complete!");
-          }}>
-            Sync Durations
-          </button>
-          <button className="btn-primary" onClick={() => {
-            setSelectedTrack(null);
-            setIsAddModalOpen(true);
-          }}>
-            <Plus size={18} />
-            Add Track
-          </button>
-        </div>
-      </div>
 
       <div className="library-filters-bar">
         <div className="filter-group">
@@ -310,7 +272,10 @@ const AdminLibrary = () => {
                     </td>
                     <td className="col-style">
                       <div className="style-actions">
-                        <span className="style-badge">{track.style}</span>
+                        <span className={`style-badge ${track.style?.toLowerCase() === 'fitness' ? 'fitness-special' : ''}`}>
+                          {track.style?.toLowerCase() === 'fitness' && <Activity size={10} style={{ marginRight: '4px' }} />}
+                          {track.style}
+                        </span>
                         {track.tags && track.tags.length > 0 && (
                            <div className="track-tags-mini">
                              {track.tags.map((t: string) => (
@@ -527,7 +492,8 @@ const AdminLibrary = () => {
         .track-artist { font-size: 12px; }
 
         .album-cell { color: #a1a1aa; font-size: 13px; }
-        .style-badge { background: rgba(29, 185, 84, 0.1); padding: 4px 10px; border-radius: 6px; font-size: 10px; font-weight: 800; text-transform: uppercase; color: #1db954; }
+        .style-badge { background: rgba(255,255,255,0.05); padding: 4px 10px; border-radius: 6px; font-size: 10px; font-weight: 800; text-transform: uppercase; color: #a1a1aa; display: flex; align-items: center; }
+        .fitness-special { background: rgba(29, 185, 84, 0.1) !important; color: #1db954 !important; border: 1px solid rgba(29, 185, 84, 0.2); }
 
         .action-buttons { display: flex; align-items: center; gap: 8px; justify-content: flex-end; }
         .action-btn { width: 36px; height: 36px; border-radius: 10px; display: flex; align-items: center; justify-content: center; color: #71717a; transition: all 0.2s; background: transparent; border: none; cursor: pointer; }

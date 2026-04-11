@@ -10,56 +10,46 @@ import {
   FolderPlus, 
   User, 
   Plus, 
-  Music
+  Music,
+  ArrowRight,
+  Settings2,
+  Activity,
+  Tag as TagIcon,
+  Trash2,
+  Layers
 } from 'lucide-react';
+import { useStudio } from './StudioProvider';
+import { createPresignedUrl } from '@/utils/r2-server';
 
-interface UploadingFile {
+interface StagedFile {
   id: string;
   file: File;
   progress: number;
   status: 'pending' | 'uploading' | 'complete' | 'error';
   errorMessage?: string;
+  // Metadata fields per track
+  title: string;
+  bpm: string;
+  style: string;
+  artist: string;
+  album: string;
+  tags: string[]; // Tag names
 }
 
-import { useStudio } from './StudioProvider';
-import { createPresignedUrl } from '@/utils/r2-server';
-
 const BulkUpload = () => {
-  const { addTrack, folders } = useStudio();
-  const [files, setFiles] = useState<UploadingFile[]>([]);
+  const { addTrack, folders, styles, tags: availableTags } = useStudio();
+  const [files, setFiles] = useState<StagedFile[]>([]);
   const [isDragging, setIsDragging] = useState(false);
-  const [albumName, setAlbumName] = useState('');
-  const [artistName, setArtistName] = useState('');
+  
+  // Batch defaults
+  const [batchAlbum, setBatchAlbum] = useState('');
+  const [batchArtist, setBatchArtist] = useState('');
+  const [batchStyle, setBatchStyle] = useState('Samba');
+  const [batchTags, setBatchTags] = useState<string[]>([]);
   const [targetFolderId, setTargetFolderId] = useState('');
+  
   const [showValidation, setShowValidation] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
-
-  // Sync complete files with StudioProvider
-  React.useEffect(() => {
-    files.forEach(f => {
-      if (f.status === 'complete' && !(f as any).ingested) {
-        addTrack({
-          title: f.file.name.replace(/\.[^/.]+$/, ""),
-          artist: artistName || 'Unknown Artist',
-          album: albumName || 'Bulk Upload',
-          style: 'Samba', // Defaulting to Samba for bulk
-          bpm: '0',
-          folderId: targetFolderId || undefined
-        });
-        (f as any).ingested = true; // Simple flag to prevent double ingestion
-      }
-    });
-  }, [files, addTrack, artistName, albumName]);
-
-  const onDragOver = useCallback((e: React.DragEvent) => {
-    e.preventDefault();
-    setIsDragging(true);
-  }, []);
-
-  const onDragLeave = useCallback((e: React.DragEvent) => {
-    e.preventDefault();
-    setIsDragging(false);
-  }, []);
 
   const processFiles = (fileList: FileList | null) => {
     if (!fileList) return;
@@ -69,28 +59,50 @@ const BulkUpload = () => {
         id: Math.random().toString(36).substring(7),
         file,
         progress: 0,
-        status: 'pending' as const
+        status: 'pending' as const,
+        title: file.name.replace(/\.[^/.]+$/, "").replace(/[_\-]/g, ' '),
+        bpm: '0',
+        style: batchStyle,
+        artist: batchArtist || 'Unknown Artist',
+        album: batchAlbum || 'Bulk Upload',
+        tags: [...batchTags]
       }));
 
     setFiles(prev => [...prev, ...newFiles]);
   };
 
-  const onDrop = useCallback((e: React.DragEvent) => {
-    e.preventDefault();
-    setIsDragging(false);
-    processFiles(e.dataTransfer.files);
-  }, []);
-
-  const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
-    processFiles(e.target.files);
+  const updateFileMeta = (id: string, updates: Partial<StagedFile>) => {
+    setFiles(prev => prev.map(f => f.id === id ? { ...f, ...updates } : f));
   };
 
-  const removeFile = (id: string) => {
-    setFiles(prev => prev.filter(f => f.id !== id));
+  const applyBatchMetadata = () => {
+    setFiles(prev => prev.map(f => f.status === 'pending' ? {
+      ...f,
+      artist: batchArtist || f.artist,
+      album: batchAlbum || f.album,
+      style: batchStyle || f.style,
+      tags: batchTags.length > 0 ? [...batchTags] : f.tags
+    } : f));
+  };
+
+  const toggleTagInBatch = (tagName: string) => {
+    setBatchTags(prev => 
+      prev.includes(tagName) ? prev.filter(t => t !== tagName) : [...prev, tagName]
+    );
+  };
+
+  const toggleTagInFile = (fileId: string, tagName: string) => {
+    setFiles(prev => prev.map(f => {
+      if (f.id !== fileId) return f;
+      const newTags = f.tags.includes(tagName) 
+        ? f.tags.filter(t => t !== tagName) 
+        : [...f.tags, tagName];
+      return { ...f, tags: newTags };
+    }));
   };
 
   const startUpload = async () => {
-    if (!albumName || !artistName) {
+    if (!batchAlbum || !batchArtist) {
       setShowValidation(true);
       return;
     }
@@ -110,7 +122,7 @@ const BulkUpload = () => {
 
         if (error || !url) throw new Error(error || "Signed URL failed");
 
-        // 2. Upload to R2 via XHR for progress tracking
+        // 2. Upload to R2
         const xhr = new XMLHttpRequest();
         xhr.open('PUT', url, true);
         xhr.setRequestHeader('Content-Type', f.file.type);
@@ -132,17 +144,18 @@ const BulkUpload = () => {
         xhr.send(f.file);
         await uploadPromise;
 
-        // 3. Register in Supabase
+        // 3. Register in Supabase with refined metadata
         const publicUrl = `${process.env.NEXT_PUBLIC_R2_PUBLIC_URL}/tracks/${f.id}-${f.file.name}`;
         
         await addTrack({
-          title: f.file.name.replace(/\.[^/.]+$/, ""),
-          artist: artistName,
-          album: albumName,
-          style: 'Samba',
-          bpm: '0',
+          title: f.title,
+          artist: f.artist,
+          album: f.album,
+          style: f.style,
+          bpm: f.bpm || '0',
           audioUrl: publicUrl,
-          folderId: targetFolderId || undefined
+          folderId: targetFolderId || undefined,
+          tags: f.tags
         });
 
         setFiles(current => current.map(curr => 
@@ -159,7 +172,7 @@ const BulkUpload = () => {
   };
 
   const isAllComplete = files.length > 0 && files.every(f => f.status === 'complete');
-  const isReadyToUpload = albumName && artistName && files.some(f => f.status === 'pending');
+  const isReadyToUpload = batchAlbum && batchArtist && files.some(f => f.status === 'pending');
 
   return (
     <div className="bulk-upload-wrapper">
@@ -168,135 +181,228 @@ const BulkUpload = () => {
           <div className="success-badge">
             <CheckCircle2 size={48} className="text-primary" />
           </div>
-          <h2>Ingestion Complete!</h2>
-          <p>{files.length} tracks have been synced to "{albumName}" collection.</p>
+          <h2>Ingestion Successful!</h2>
+          <p>{files.length} tracks have been professionally added to your studio collection.</p>
           <div className="success-actions">
             <button className="btn-primary" onClick={() => {
               setFiles([]);
-              setAlbumName('');
-              setArtistName('');
-            }}>Start New Batch</button>
-            <button className="btn-secondary glass">View in Library</button>
+              setBatchAlbum('');
+              setBatchArtist('');
+              setBatchTags([]);
+            }}>Prepare Next Batch</button>
           </div>
         </div>
       ) : (
         <>
-          <div className="batch-metadata glass">
-            <div className={`meta-field ${showValidation && !albumName ? 'invalid' : ''}`}>
-              <FolderPlus size={18} className="meta-icon" />
-              <input 
-                type="text" 
-                placeholder="Batch Album Name (Required)" 
-                value={albumName}
-                onChange={(e) => setAlbumName(e.target.value)}
-              />
-              {showValidation && !albumName && <span className="error-hint">REQUIRED</span>}
-            </div>
-            <div className={`meta-field ${showValidation && !artistName ? 'invalid' : ''}`}>
-              <User size={18} className="meta-icon" />
-              <input 
-                type="text" 
-                placeholder="Artist / Composer (Required)" 
-                value={artistName}
-                onChange={(e) => setArtistName(e.target.value)}
-              />
-              {showValidation && !artistName && <span className="error-hint">REQUIRED</span>}
-            </div>
+          <div className="batch-header-bar glass">
+            <div className="batch-main-meta">
+              <div className="inputs-row">
+                <div className={`meta-field ${showValidation && !batchAlbum ? 'invalid' : ''}`}>
+                  <FolderPlus size={16} className="meta-icon" />
+                  <input 
+                    type="text" 
+                    placeholder="Collection Name" 
+                    value={batchAlbum}
+                    onChange={(e) => setBatchAlbum(e.target.value)}
+                  />
+                </div>
+                <div className={`meta-field ${showValidation && !batchArtist ? 'invalid' : ''}`}>
+                  <User size={16} className="meta-icon" />
+                  <input 
+                    type="text" 
+                    placeholder="Lead Artist" 
+                    value={batchArtist}
+                    onChange={(e) => setBatchArtist(e.target.value)}
+                  />
+                </div>
+                <div className="meta-field">
+                  <Layers size={16} className="meta-icon" />
+                  <select 
+                    className="meta-select"
+                    value={batchStyle}
+                    onChange={(e) => setBatchStyle(e.target.value)}
+                  >
+                    <option value="" disabled>Select Style</option>
+                    {styles.map(s => <option key={s.id} value={s.title}>{s.title}</option>)}
+                    {!styles.length && (
+                      <>
+                        <option value="Samba">Samba</option>
+                        <option value="Cha Cha Cha">Cha Cha Cha</option>
+                        <option value="Rumba">Rumba</option>
+                        <option value="Paso Doble">Paso Doble</option>
+                        <option value="Jive">Jive</option>
+                        <option value="Waltz">Waltz</option>
+                        <option value="Tango">Tango</option>
+                        <option value="Viennese Waltz">Viennese Waltz</option>
+                        <option value="Slow Foxtrot">Slow Foxtrot</option>
+                        <option value="Quickstep">Quickstep</option>
+                        <option value="Fitness">Fitness</option>
+                      </>
+                    )}
+                  </select>
+                </div>
+              </div>
 
-            <div className="meta-field">
-              <FolderPlus size={18} className="meta-icon" />
-              <select 
-                className="meta-select"
-                value={targetFolderId}
-                onChange={(e) => setTargetFolderId(e.target.value)}
-              >
-                <option value="">No Collection (Inbox)</option>
-                {folders.map(f => (
-                  <option key={f.id} value={f.id}>{f.name}</option>
-                ))}
-              </select>
+              <div className="batch-tags-row">
+                 <div className="tags-label">
+                   <TagIcon size={14} />
+                   <span>Batch Tags:</span>
+                 </div>
+                 <div className="tags-scroller">
+                   {availableTags.map(tag => (
+                     <button
+                       key={tag.id}
+                       className={`batch-tag-pill ${batchTags.includes(tag.name) ? 'active' : ''}`}
+                       onClick={() => toggleTagInBatch(tag.name)}
+                       style={{ 
+                         '--tag-color': tag.color,
+                         borderColor: batchTags.includes(tag.name) ? tag.color : 'rgba(255,255,255,0.05)'
+                       } as any}
+                     >
+                       {tag.name}
+                     </button>
+                   ))}
+                   {!availableTags.length && <span className="no-tags">No tags defined in taxonomy</span>}
+                 </div>
+              </div>
+            </div>
+            
+            <div className="batch-actions-side">
+               <button className="btn-apply glass" onClick={applyBatchMetadata}>
+                 Apply to Pending
+               </button>
+               <div className="target-folder-box">
+                  <span className="dest-label">Destination Folder</span>
+                  <select 
+                    className="meta-select-sm"
+                    value={targetFolderId}
+                    onChange={(e) => setTargetFolderId(e.target.value)}
+                  >
+                    <option value="">Studio Inbox (Global)</option>
+                    {folders.map(f => (
+                      <option key={f.id} value={f.id}>{f.name}</option>
+                    ))}
+                  </select>
+               </div>
             </div>
           </div>
 
           <div 
             className={`dropzone glass ${isDragging ? 'dragging' : ''} ${files.length > 0 ? 'has-files' : ''}`}
-            onDragOver={onDragOver}
-            onDragLeave={onDragLeave}
-            onDrop={onDrop}
+            onDragOver={(e) => { e.preventDefault(); setIsDragging(true); }}
+            onDragLeave={() => setIsDragging(false)}
+            onDrop={(e) => { e.preventDefault(); setIsDragging(false); processFiles(e.dataTransfer.files); }}
             onClick={() => fileInputRef.current?.click()}
           >
             <div className="dropzone-content">
               <div className="upload-icon-wrapper glass">
-                <Upload size={32} className="text-primary" />
+                <Upload size={28} className="text-primary" />
               </div>
               <div className="text-group">
-                <h3>Select Professional Audio Tracks</h3>
-                <p>Drag & drop or click to browse (MP3, WAV, AIFF)</p>
+                <h3>{files.length > 0 ? 'Batch Upload Active' : 'Ingest Quality Audio'}</h3>
+                <p>Drag audio files or click to browse</p>
               </div>
-              <input 
-                type="file" 
-                multiple 
-                accept="audio/*" 
-                onChange={handleFileSelect} 
-                className="file-input" 
-                ref={fileInputRef}
-              />
+              <input type="file" multiple accept="audio/*" onChange={(e) => processFiles(e.target.files)} className="hidden" ref={fileInputRef} />
             </div>
           </div>
         </>
       )}
 
-      {files.length > 0 && (
-        <div className="files-list-section animate-in">
-          <div className="list-controls">
-            <div className="list-title">
-              <Music size={18} />
-              <h4>Staging Queue ({files.filter(f => f.status === 'pending').length} pending)</h4>
+      {files.length > 0 && !isAllComplete && (
+        <div className="staging-area animate-in">
+          <div className="staging-header">
+            <div className="staging-title">
+              <div className="queue-badge">QUEUE</div>
+              <h4>{files.length} Tracks Staged</h4>
             </div>
-            <div className="list-actions">
-              <button className="btn-text" onClick={() => setFiles([])}>Discard All</button>
+            <div className="staging-actions">
+              <button className="btn-discard" onClick={() => setFiles([])}>
+                <Trash2 size={16} />
+                <span>Discard Batch</span>
+              </button>
               <button 
-                className={`btn-upload ${isReadyToUpload ? 'pulsing' : 'disabled'}`}
-                onClick={(e) => {
-                  e.stopPropagation();
-                  startUpload();
-                }}
+                className={`btn-burn ${isReadyToUpload ? 'active' : 'disabled'}`}
+                onClick={startUpload}
               >
                 <Plus size={18} />
-                {isReadyToUpload ? `Burn ${files.length} Tracks to Library` : 'Missing Metadata'}
+                <span>{isReadyToUpload ? `Burn ${files.length} Tracks` : 'Metadata Required'}</span>
               </button>
             </div>
           </div>
 
-          <div className="files-scroll-area">
-            {files.map((f) => (
-              <div key={f.id} className={`file-row glass ${f.status}`}>
-                <div className="file-id-icon">
-                  {f.status === 'complete' ? <CheckCircle2 size={20} className="text-primary" /> : <FileMusic size={20} />}
-                </div>
-                <div className="file-main">
-                  <div className="file-header">
-                    <span className="file-name">{f.file.name}</span>
-                    <span className="file-status-text">{f.status}</span>
+          <div className="staging-table">
+            <div className="table-header">
+              <div className="col-status">#</div>
+              <div className="col-info">Track Info</div>
+              <div className="col-style">Style</div>
+              <div className="col-bpm">BPM</div>
+              <div className="col-tags">Tags</div>
+              <div className="col-actions"></div>
+            </div>
+            <div className="table-body">
+              {files.map((f, idx) => (
+                <div key={f.id} className={`table-row ${f.status}`}>
+                  <div className="col-status">
+                    {f.status === 'uploading' ? <Loader2 size={16} className="spin text-primary" /> : 
+                     f.status === 'complete' ? <CheckCircle2 size={16} className="text-primary" /> : 
+                     <span className="row-number">{idx + 1}</span>}
                   </div>
-                  <div className="progress-container">
-                    <div className="progress-track">
-                      <div className={`progress-fill ${f.status}`} style={{ width: `${f.progress}%` }}></div>
+                  
+                  <div className="col-info">
+                    <input 
+                      className="row-title-input"
+                      value={f.title}
+                      onChange={(e) => updateFileMeta(f.id, { title: e.target.value })}
+                      placeholder="Title"
+                    />
+                  </div>
+
+                  <div className="col-style">
+                    <select 
+                      className="row-select"
+                      value={f.style}
+                      onChange={(e) => updateFileMeta(f.id, { style: e.target.value })}
+                    >
+                      {styles.map(s => <option key={s.id} value={s.title}>{s.title}</option>)}
+                      {!styles.length && <option value={f.style}>{f.style}</option>}
+                    </select>
+                  </div>
+
+                  <div className="col-bpm">
+                    <input 
+                      className="row-bpm-input"
+                      value={f.bpm}
+                      onChange={(e) => updateFileMeta(f.id, { bpm: e.target.value })}
+                    />
+                  </div>
+
+                  <div className="col-tags">
+                    <div className="row-tags-list">
+                      {availableTags.map(tag => (
+                        <button
+                          key={tag.id}
+                          className={`row-tag-btn ${f.tags.includes(tag.name) ? 'active' : ''}`}
+                          onClick={() => toggleTagInFile(f.id, tag.name)}
+                          style={{ '--tag-color': tag.color } as any}
+                        >
+                          {tag.name}
+                        </button>
+                      ))}
                     </div>
-                    <span className="progress-pct">{Math.round(f.progress)}%</span>
                   </div>
-                </div>
-                <div className="file-action">
-                  {f.status === 'uploading' ? (
-                    <Loader2 size={18} className="spin text-primary" />
-                  ) : (
-                    <button className="remove-btn" onClick={(e) => { e.stopPropagation(); removeFile(f.id); }}>
-                      <X size={18} />
+
+                  <div className="col-actions">
+                    <button className="row-remove" onClick={() => setFiles(prev => prev.filter(p => p.id !== f.id))}>
+                      <X size={16} />
                     </button>
+                  </div>
+
+                  {f.status === 'uploading' && (
+                    <div className="row-progress-overlay" style={{ width: `${f.progress}%` }} />
                   )}
                 </div>
-              </div>
-            ))}
+              ))}
+            </div>
           </div>
         </div>
       )}
@@ -304,89 +410,143 @@ const BulkUpload = () => {
       <style jsx>{`
         .bulk-upload-wrapper { display: flex; flex-direction: column; gap: 24px; width: 100%; }
         
-        .batch-metadata { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; padding: 24px; border-radius: 20px; }
-        .meta-field { position: relative; display: flex; align-items: center; }
-        .meta-icon { position: absolute; left: 16px; color: #71717a; }
-        .meta-field input, .meta-select { width: 100%; background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.08); padding: 14px 14px 14px 48px; border-radius: 12px; color: white; font-size: 15px; font-weight: 600; outline: none; transition: all 0.2s; appearance: none; }
-        .meta-field input:focus, .meta-select:focus { border-color: #1db954; background: rgba(29, 185, 84, 0.05); }
+        .batch-header-bar { 
+          display: flex; gap: 32px; padding: 24px; border-radius: 24px;
+          border: 1px solid rgba(255,255,255,0.05); background: rgba(255,255,255,0.02);
+        }
+        .batch-main-meta { flex: 1; display: flex; flex-direction: column; gap: 20px; }
+        .inputs-row { display: flex; gap: 12px; }
+        .meta-field { position: relative; flex: 1; display: flex; align-items: center; }
+        .meta-icon { position: absolute; left: 14px; color: #71717a; }
+        .meta-field input, .meta-select { 
+          width: 100%; height: 44px; background: rgba(255,255,255,0.05); 
+          border: 1px solid rgba(255,255,255,0.08); padding-left: 42px; 
+          border-radius: 12px; color: white; font-size: 14px; font-weight: 600; outline: none; 
+          transition: all 0.2s;
+        }
+        .meta-field input:focus, .meta-select:focus { border-color: #1db954; background: rgba(255,255,255,0.08); }
         .meta-select { cursor: pointer; }
-        .meta-select option { background: #09090b; color: white; }
-        .meta-field.invalid input { border-color: #ef4444; }
-        .error-hint { position: absolute; right: 12px; font-size: 10px; font-weight: 800; color: #ef4444; text-transform: uppercase; }
 
-        .dropzone { border: 2px dashed rgba(255, 255, 255, 0.1); border-radius: 24px; padding: 48px; text-align: center; position: relative; cursor: pointer; transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1); }
-        .dropzone:hover { border-color: rgba(255,255,255,0.2); background: rgba(255,255,255,0.02); }
-        .dropzone.dragging { border-color: #1db954; background: rgba(29, 185, 84, 0.05); transform: scale(1.02); }
-        .dropzone.has-files { padding: 32px; border-style: solid; border-color: rgba(255,255,255,0.05); }
-
-        .upload-icon-wrapper { width: 64px; height: 64px; border-radius: 20px; display: flex; align-items: center; justify-content: center; margin: 0 auto 16px; transition: transform 0.3s; }
-        .dropzone:hover .upload-icon-wrapper { transform: translateY(-4px) scale(1.1); }
+        .batch-tags-row { display: flex; align-items: center; gap: 16px; }
+        .tags-label { display: flex; align-items: center; gap: 8px; font-size: 12px; font-weight: 800; color: #71717a; text-transform: uppercase; }
+        .tags-scroller { display: flex; gap: 8px; overflow-x: auto; padding-bottom: 4px; }
+        .tags-scroller::-webkit-scrollbar { display: none; }
         
-        .text-group h3 { font-size: 18px; font-weight: 900; margin-bottom: 4px; }
+        .batch-tag-pill { 
+          padding: 6px 12px; border-radius: 20px; font-size: 11px; font-weight: 700; 
+          background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.05);
+          color: #a1a1aa; cursor: pointer; transition: all 0.2s; white-space: nowrap;
+        }
+        .batch-tag-pill.active { background: var(--tag-color); color: black; border-color: transparent; }
+
+        .batch-actions-side { display: flex; flex-direction: column; gap: 16px; justify-content: center; }
+        .btn-apply { 
+          height: 44px; padding: 0 24px; border-radius: 12px; font-size: 13px; 
+          font-weight: 900; background: #1db954; color: black; border: none;
+          white-space: nowrap; cursor: pointer; transition: transform 0.2s;
+        }
+        .btn-apply:hover { transform: translateY(-1px); background: #1ed760; }
+        
+        .target-folder-box { display: flex; flex-direction: column; gap: 6px; }
+        .dest-label { font-size: 10px; font-weight: 900; color: #52525b; text-transform: uppercase; text-align: right; }
+        .meta-select-sm { 
+          background: rgba(255,255,255,0.05); color: #1db954; border: 1px solid rgba(29, 185, 84, 0.2); 
+          height: 32px; padding: 0 12px; border-radius: 8px; font-size: 11px; font-weight: 800; cursor: pointer;
+        }
+
+        .dropzone { 
+          border: 1px dashed rgba(255,255,255,0.1); border-radius: 24px; 
+          padding: 32px; cursor: pointer; transition: all 0.2s; background: rgba(255,255,255,0.01);
+        }
+        .dropzone:hover { border-color: #1db954; background: rgba(29,185,84,0.03); }
+        .dropzone-content { display: flex; align-items: center; gap: 24px; justify-content: center; }
+        .upload-icon-wrapper { width: 56px; height: 56px; border-radius: 16px; display: flex; align-items: center; justify-content: center; background: rgba(29, 185, 84, 0.1); }
+        .text-group h3 { font-size: 18px; font-weight: 900; margin-bottom: 2px; }
         .text-group p { font-size: 14px; color: #71717a; }
 
-        .file-input { position: absolute; inset: 0; opacity: 0; cursor: pointer; display: none; }
+        .staging-area { display: flex; flex-direction: column; gap: 20px; }
+        .staging-header { display: flex; justify-content: space-between; align-items: center; }
+        .staging-title { display: flex; align-items: center; gap: 12px; }
+        .queue-badge { font-size: 9px; font-weight: 950; background: rgba(29, 185, 84, 0.2); color: #1db954; padding: 3px 8px; border-radius: 4px; letter-spacing: 1px; }
+        .staging-title h4 { font-size: 18px; font-weight: 900; }
+        
+        .staging-actions { display: flex; align-items: center; gap: 20px; }
+        .btn-discard { display: flex; align-items: center; gap: 8px; font-size: 13px; font-weight: 700; color: #ef4444; background: none; border: none; cursor: pointer; opacity: 0.7; transition: opacity 0.2s; }
+        .btn-discard:hover { opacity: 1; }
+        .btn-burn { 
+          display: flex; align-items: center; gap: 10px; padding: 12px 28px; 
+          border-radius: 14px; font-size: 14px; font-weight: 950; background: #1db954; 
+          color: black; border: none; cursor: pointer; transition: all 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+        }
+        .btn-burn.active:hover { transform: scale(1.05); box-shadow: 0 8px 24px rgba(29, 185, 84, 0.3); }
+        .btn-burn.disabled { opacity: 0.2; filter: grayscale(1); cursor: not-allowed; }
 
-        .files-list-section { display: flex; flex-direction: column; gap: 20px; }
-        .list-controls { display: flex; justify-content: space-between; align-items: center; }
-        .list-title { display: flex; align-items: center; gap: 10px; font-weight: 800; }
-        .list-actions { display: flex; align-items: center; gap: 16px; }
+        /* TABLE VIEW */
+        .staging-table { 
+          background: rgba(255,255,255,0.02); border-radius: 20px; overflow: hidden; 
+          border: 1px solid rgba(255,255,255,0.05);
+        }
+        .table-header { 
+          display: grid; grid-template-columns: 50px 1fr 180px 80px 240px 60px;
+          padding: 16px 20px; background: rgba(255,255,255,0.03);
+          font-size: 11px; font-weight: 900; color: #52525b; text-transform: uppercase; letter-spacing: 0.5px;
+        }
+        .table-body { max-height: 480px; overflow-y: auto; }
+        .table-row { 
+          display: grid; grid-template-columns: 50px 1fr 180px 80px 240px 60px;
+          padding: 12px 20px; align-items: center; border-bottom: 1px solid rgba(255,255,255,0.03);
+          position: relative; transition: background 0.2s;
+        }
+        .table-row:hover { background: rgba(255,255,255,0.03); }
+        
+        .col-status { text-align: center; color: #52525b; }
+        .row-number { font-size: 12px; font-weight: 800; }
+        .row-title-input { background: transparent; border: none; color: white; font-size: 14px; font-weight: 700; width: 100%; outline: none; }
+        .row-select { background: rgba(255,255,255,0.05); border: none; color: #a1a1aa; font-size: 12px; font-weight: 700; padding: 4px 8px; border-radius: 6px; width: 100%; cursor: pointer; outline: none; }
+        .row-bpm-input { background: rgba(255,255,255,0.05); border: none; color: white; font-size: 12px; font-weight: 800; width: 50px; text-align: center; padding: 4px; border-radius: 6px; outline: none; }
+        
+        .row-tags-list { display: flex; flex-wrap: wrap; gap: 4px; }
+        .row-tag-btn { 
+          font-size: 10px; font-weight: 800; padding: 3px 8px; border-radius: 4px;
+          background: rgba(255,255,255,0.03); color: #52525b; border: 1px solid rgba(255,255,255,0.05);
+          cursor: pointer; transition: all 0.2s;
+        }
+        .row-tag-btn.active { background: var(--tag-color); color: black; border-color: transparent; }
 
-        .btn-upload { display: flex; align-items: center; gap: 10px; background: #1db954; color: black; padding: 12px 24px; border-radius: 12px; font-size: 14px; font-weight: 800; transition: all 0.3s; }
-        .btn-upload.disabled { opacity: 0.3; filter: grayscale(1); cursor: not-allowed; }
-        .btn-upload.pulsing { animation: uploadPulse 2s infinite; }
-        @keyframes uploadPulse { 0% { box-shadow: 0 0 0 0 rgba(29, 185, 84, 0.4); } 70% { box-shadow: 0 0 0 10px rgba(29, 185, 84, 0); } 100% { box-shadow: 0 0 0 0 rgba(29, 185, 84, 0); } }
+        .row-remove { color: #3f3f46; background: none; border: none; cursor: pointer; transition: color 0.2s; }
+        .row-remove:hover { color: #ef4444; }
 
-        .files-scroll-area { display: flex; flex-direction: column; gap: 8px; max-height: 400px; overflow-y: auto; padding-right: 4px; }
-        .file-row { padding: 16px; border-radius: 16px; display: grid; grid-template-columns: 48px 1fr 40px; align-items: center; gap: 16px; border: 1px solid rgba(255,255,255,0.03); }
-        .file-main { display: flex; flex-direction: column; gap: 8px; }
-        .file-header { display: flex; justify-content: space-between; align-items: center; }
-        .file-name { font-size: 14px; font-weight: 700; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-        .file-status-text { font-size: 10px; font-weight: 900; text-transform: uppercase; color: #71717a; letter-spacing: 0.5px; }
+        .row-progress-overlay { 
+          position: absolute; bottom: 0; left: 0; height: 100%; 
+          background: rgba(29, 185, 84, 0.05); border-right: 2px solid #1db954;
+          z-index: -1; transition: width 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        }
 
-        .progress-container { display: flex; align-items: center; gap: 12px; }
-        .progress-track { flex: 1; height: 4px; background: rgba(255,255,255,0.05); border-radius: 2px; overflow: hidden; }
-        .progress-fill { height: 100%; background: #1db954; transition: width 0.3s cubic-bezier(0.4, 0, 0.2, 1); }
-        .progress-pct { font-size: 11px; font-weight: 800; color: #a1a1aa; width: 32px; text-align: right; }
-
-        .remove-btn { color: #71717a; transition: color 0.2s; }
-        .remove-btn:hover { color: #ef4444; }
-
-        .spin { animation: spin 1s linear infinite; }
-        @keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
+        .upload-success-hero { padding: 64px; border-radius: 32px; text-align: center; border: 1px solid rgba(29, 185, 84, 0.1); }
+        .success-badge { width: 80px; height: 80px; background: rgba(29, 185, 84, 0.1); border-radius: 24px; display: flex; align-items: center; justify-content: center; margin: 0 auto 24px; }
+        .btn-primary { background: #1db954; color: black; border: none; padding: 14px 32px; border-radius: 12px; font-size: 15px; font-weight: 900; cursor: pointer; transition: transform 0.2s; }
+        .btn-primary:hover { transform: scale(1.02); background: #1ed760; }
 
         .text-primary { color: #1db954; }
-        .btn-text { color: #ef4444; font-size: 13px; font-weight: 700; }
-
-        .upload-success-hero {
-          padding: 60px;
-          border-radius: 32px;
-          text-align: center;
-          display: flex;
-          flex-direction: column;
-          align-items: center;
-          gap: 24px;
-          background: rgba(29, 185, 84, 0.05);
-          border: 1px solid rgba(29, 185, 84, 0.1);
+        .spin { animation: spin 1s linear infinite; }
+        .hidden { display: none; }
+        .animate-in { animation: animIn 0.5s cubic-bezier(0.4, 0, 0.2, 1); }
+        @keyframes animIn { from { opacity: 0; transform: translateY(12px); } to { opacity: 1; transform: translateY(0); } }
+        @keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
+        
+        @media (max-width: 1200px) {
+          .table-header, .table-row { grid-template-columns: 50px 1fr 140px 60px 180px 50px; }
         }
 
-        .success-badge {
-          width: 80px;
-          height: 80px;
-          background: rgba(29, 185, 84, 0.1);
-          border-radius: 24px;
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          margin-bottom: 8px;
+        @media (max-width: 900px) {
+          .batch-header-bar { flex-direction: column; gap: 20px; }
+          .batch-actions-side { flex-direction: row; justify-content: space-between; align-items: center; }
+          .table-header { display: none; }
+          .table-row { grid-template-columns: 1fr 1fr; gap: 12px; padding: 20px; height: auto; }
+          .col-status, .col-actions { display: none; }
+          .col-info, .col-style, .col-bpm, .col-tags { grid-column: span 2; }
+          .row-title-input { font-size: 16px; border-bottom: 1px solid rgba(255,255,255,0.1); }
         }
-
-        .upload-success-hero h2 { font-size: 32px; font-weight: 900; letter-spacing: -1.5px; }
-        .upload-success-hero p { font-size: 16px; color: #a1a1aa; max-width: 400px; line-height: 1.6; }
-        .success-actions { display: flex; gap: 16px; margin-top: 12px; }
-
-        .animate-in { animation: animateIn 0.4s cubic-bezier(0.4, 0, 0.2, 1); }
-        @keyframes animateIn { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: translateY(0); } }
       `}</style>
     </div>
   );

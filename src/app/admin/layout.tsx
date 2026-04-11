@@ -14,7 +14,7 @@ export default function AdminLayout({
   const pathname = usePathname();
   const router = useRouter();
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
-  const [isCollapsed, setIsCollapsed] = useState(false);
+  const [isCollapsed, setIsCollapsed] = useState(true);
   const [isAuthChecking, setIsAuthChecking] = useState(true);
 
   const isLoginPage = pathname === '/sa-login';
@@ -35,8 +35,18 @@ export default function AdminLayout({
     return { label, href };
   });
 
-  const toggleSidebar = () => setIsSidebarOpen(!isSidebarOpen);
+  const toggleSidebar = () => {
+    const opening = !isSidebarOpen;
+    setIsSidebarOpen(opening);
+    // When opening the mobile drawer, always force expand to show labels
+    if (opening) setIsCollapsed(false);
+  };
   const toggleCollapse = () => setIsCollapsed(!isCollapsed);
+
+  // Close sidebar on page navigate
+  useEffect(() => {
+    setIsSidebarOpen(false);
+  }, [pathname]);
 
   if (isAuthChecking && !isLoginPage) {
     return <div className="auth-loader"><div className="loader"></div></div>;
@@ -49,8 +59,14 @@ export default function AdminLayout({
 
   return (
     <div className="admin-layout">
-        {/* Sidebar Overlay for Mobile */}
-        {isSidebarOpen && <div className="sidebar-overlay" onClick={toggleSidebar}></div>}
+        {/* Mobile overlay — click outside to close */}
+        {isSidebarOpen && (
+          <div
+            className="sidebar-overlay"
+            onClick={toggleSidebar}
+            style={{ cursor: 'pointer' }}
+          />
+        )}
 
         <div className={`sidebar-wrapper ${isSidebarOpen ? 'open' : ''} ${isCollapsed ? 'collapsed' : ''}`}>
           <Sidebar isCollapsed={isCollapsed} onToggle={toggleCollapse} />
@@ -62,16 +78,6 @@ export default function AdminLayout({
               <button className="sidebar-toggle-btn glass" onClick={toggleSidebar}>
                 {isSidebarOpen ? <X size={20} /> : <Menu size={20} />}
               </button>
-              <div className="admin-breadcrumb">
-                {breadcrumbs.map((bc: any, i: number) => (
-                  <React.Fragment key={bc.href}>
-                    <span className={i === breadcrumbs.length - 1 ? 'bc-current' : 'bc-link'}>
-                      {bc.label}
-                    </span>
-                    {i < breadcrumbs.length - 1 && <span className="bc-separator">/</span>}
-                  </React.Fragment>
-                ))}
-              </div>
             </div>
             <div className="admin-user-profile">
               <div className="user-info">
@@ -86,7 +92,7 @@ export default function AdminLayout({
           </main>
         </div>
 
-// css imported above
+{/* css imported above via import './admin.css' at top */}
     </div>
   );
 }

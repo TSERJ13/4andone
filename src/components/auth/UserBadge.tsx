@@ -28,15 +28,17 @@ export const UserBadge: React.FC<{ textColor?: string }> = ({ textColor = 'white
   return (
     <div className="user-badge-wrapper">
       {!isAuthenticated ? (
-        <div className="login-trigger" onClick={() => setIsAuthModalOpen(true)}>
-          <div className="silhouette-wrapper glass">
-            <User size={20} />
+        <>
+          <div className="login-trigger" onClick={() => setIsAuthModalOpen(true)}>
+            <div className="silhouette-wrapper glass">
+              <User size={20} />
+            </div>
           </div>
           <AuthModal 
             isOpen={isAuthModalOpen} 
             onClose={() => setIsAuthModalOpen(false)} 
           />
-        </div>
+        </>
       ) : (
         <div className="user-profile-trigger" onClick={() => setShowPopup(!showPopup)}>
           {user?.photo_url ? (

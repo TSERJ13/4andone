@@ -10,6 +10,7 @@ interface AudioContextType {
   bpm: number;
   isFinalMode: boolean;
   currentTime: number;
+  trackCurrentTime: number; 
   duration: number;
   title: string;
   artist: string;
@@ -18,8 +19,12 @@ interface AudioContextType {
   isRepeat: boolean;
   isShuffle: boolean;
   isLoading: boolean;
+  isPauseCountdown: boolean;
+  isFitness: boolean;
+  pauseTime: number;
   togglePlay: () => void;
   loadTrack: (track: any, isRetry?: boolean, forceFinalMode?: boolean) => void;
+  setIsFitness: (val: boolean) => void;
   setBpm: (bpm: number) => void;
   setVolume: (volume: number) => void;
   toggleRepeat: () => void;
@@ -34,14 +39,18 @@ interface AudioContextType {
 
 const AudioContext = createContext<AudioContextType | undefined>(undefined);
 
-import { useStudio } from '@/components/admin/StudioProvider';
+import { useStudio, Track } from '@/components/admin/StudioProvider';
+import { useAuth } from '@/context/AuthContext';
+import { supabase } from '@/utils/supabase';
 
 export const AudioProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const { tracks, finalTracks } = useStudio();
+  const { user } = useAuth();
   const [isPlaying, setIsPlaying] = useState(false);
   const [bpm, setBpmState] = useState(100);
   const [isFinalMode, setIsFinalMode] = useState(false); // Default to Normal Mode
   const [currentTime, setCurrentTime] = useState(0);
+  const [trackCurrentTime, setTrackCurrentTime] = useState(0); // For round-specific progress
   const [duration, setDuration] = useState(0);
   const [isLoaded, setIsLoaded] = useState(false);
   const [title, setTitle] = useState("No Track Selected");
@@ -52,6 +61,7 @@ export const AudioProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   const [isShuffle, setIsShuffle] = useState(false);
   const [isPauseCountdown, setIsPauseCountdown] = useState(false);
   const [pauseTime, setPauseTime] = useState(15);
+  const [isFitness, setIsFitness] = useState(false);
 
   const playerRef = useRef<Tone.GrainPlayer | Tone.Player | null>(null);
   const nativePlayerRef = useRef<HTMLAudioElement | null>(null);
@@ -60,7 +70,10 @@ export const AudioProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   const trackIdRef = useRef<string | null>(null);
   const loadingTokenRef = useRef<number>(0); // Guard for race conditions
   const masterGainRef = useRef<Tone.Gain | null>(null);
+  const limiterRef = useRef<Tone.Limiter | null>(null);
   const [isLoading, setIsLoading] = useState(false);
+  const playingTrackRef = useRef<any>(null);
+  const playPromiseRef = useRef<Promise<void> | null>(null);
 
   // Refs to avoid circular re-renders on every tick
   const isPlayingRef = useRef(isPlaying);
@@ -69,14 +82,34 @@ export const AudioProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   useEffect(() => { isPlayingRef.current = isPlaying; }, [isPlaying]);
   useEffect(() => { currentTimeRef.current = currentTime; }, [currentTime]);
 
+  // Tab synchronization for audio control
+  useEffect(() => {
+    const channel = new BroadcastChannel('audio_control');
+    channel.onmessage = (event) => {
+      if (event.data === 'play' && isPlaying) {
+        if (nativePlayerRef.current) nativePlayerRef.current.pause();
+        if (playerRef.current) playerRef.current.stop();
+        setIsPlaying(false);
+      }
+    };
+    return () => channel.close();
+  }, [isPlaying]);
+
+  const notifyOtherTabs = () => {
+    const channel = new BroadcastChannel('audio_control');
+    channel.postMessage('play');
+    channel.close();
+  };
+
   // Removed AI worker and processing hooks
 
   const initAudioChain = () => {
+    if (!limiterRef.current) {
+      limiterRef.current = new Tone.Limiter(-1).toDestination();
+    }
     if (!masterGainRef.current) {
       // 1. Create Main Gain for volume control with Safe Headroom (-4dB)
-      // We use a fixed multiplier (0.65) instead of a Limiter to ensure volume NEVER 'pumps' or 'dances'.
-      masterGainRef.current = new Tone.Gain(volume * 0.65); 
-      masterGainRef.current.toDestination();
+      masterGainRef.current = new Tone.Gain(volume * 0.65).connect(limiterRef.current);
     }
     
     // Smoothly apply volume changes with the 0.65 headroom factor
@@ -129,11 +162,15 @@ export const AudioProvider: React.FC<{ children: React.ReactNode }> = ({ childre
           playerRef.current = null;
         }
         if (nativePlayerRef.current) {
+          nativePlayerRef.current.onerror = null;
+          nativePlayerRef.current.oncanplay = null;
           nativePlayerRef.current.pause();
           nativePlayerRef.current.src = "";
           nativePlayerRef.current.load();
           nativePlayerRef.current = null;
         }
+        setIsPauseCountdown(false);
+        setPauseTime(15);
       };
 
       stopAndDispose();
@@ -149,22 +186,24 @@ export const AudioProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       setIsLoading(true);
       setError(null);
       setCurrentTime(0);
+      setTrackCurrentTime(0);
       setTitle(track.title);
       setArtist(track.artist);
       trackIdRef.current = track.id;
+      playingTrackRef.current = track;
 
       let finalUrl = track.audioUrl;
       
       // AUTO-HEALING: If track was saved with "undefined/" due to missing env vars
       if (finalUrl?.startsWith('undefined/')) {
-        const R2_FALLBACK = 'https://pub-c41b1121b311f676bdc114d143278d18.r2.dev';
+        const R2_FALLBACK = process.env.NEXT_PUBLIC_R2_PUBLIC_URL || 'https://pub-c41b1121b311f676bdc114d143278d18.r2.dev';
         finalUrl = finalUrl.replace('undefined/', `${R2_FALLBACK}/`);
-        console.log(`[AUDIO-HEAL] Repaired broken URL: ${finalUrl}`);
+        console.log(`[AUDIO-HEAL] Repaired broken URL based on current environment: ${finalUrl}`);
       }
 
       const isRemote = finalUrl?.startsWith('http');
 
-      // 1. If REMOTE (Cloudflare R2), we need a temporary signed URL for playback
+      // 1. If REMOTE (Cloudflare R2), we try signed first, fallback to public on error if needed
       if (isRemote && finalUrl) {
         try {
           console.log(`[AUDIO-SIGN] Requesting playback pass for: ${track.title}`);
@@ -178,9 +217,12 @@ export const AudioProvider: React.FC<{ children: React.ReactNode }> = ({ childre
             console.log(`[AUDIO-SIGN] Success. Secure link active.`);
           } else {
             console.error("[AUDIO-SIGN] Failed to sign, falling back to public link");
+            // FALLBACK: Use environment Public R2 URL for stability
+            const R2_PUBLIC = process.env.NEXT_PUBLIC_R2_PUBLIC_URL || 'https://pub-c41b1121b311f676bdc114d143278d18.r2.dev';
+            finalUrl = `${R2_PUBLIC}/${fileName}`;
           }
         } catch (e) {
-          console.error("[AUDIO-SIGN] Error during signing:", e);
+          console.error("[AUDIO-SIGN] Error during signing, using original link:", e);
         }
       } 
       // 2. Legacy Fallback (IndexedDB)
@@ -203,6 +245,12 @@ export const AudioProvider: React.FC<{ children: React.ReactNode }> = ({ childre
              return;
           }
 
+          // RESET VOLUME: Ensure any previous fade-out is reversed
+          if (masterGainRef.current) {
+             // Ramp back to normal level instantly or subtly
+             masterGainRef.current.gain.rampTo(volume * 0.65, 0.5);
+          }
+
           console.log(`[AUDIO-STREAM] Opening stream for: ${track.title}`);
           
           // Create Native Audio Element for Streaming
@@ -210,6 +258,14 @@ export const AudioProvider: React.FC<{ children: React.ReactNode }> = ({ childre
           audio.crossOrigin = "anonymous";
           audio.autoplay = false;
           audio.loop = !isFinalMode;
+          // HIGH QUALITY SPEED CHANGE: Ensure pitch is preserved
+          // @ts-ignore
+          audio.preservesPitch = true;
+          // @ts-ignore
+          audio.mozPreservesPitch = true;
+          // @ts-ignore
+          audio.webkitPreservesPitch = true;
+          
           nativePlayerRef.current = audio;
 
           // Connect to Tone.js for Gain/Pan control
@@ -221,13 +277,60 @@ export const AudioProvider: React.FC<{ children: React.ReactNode }> = ({ childre
           audio.oncanplay = () => {
             if (currentToken !== loadingTokenRef.current) return;
             console.log(`[AUDIO-READY] Stream buffered. Starting ${track.title}`);
-            setDuration(audio.duration || 0);
+            
+            // Adjust duration for Final Mode reporting
+            if (isFinalMode) {
+               const totalDuration = finalTracks.reduce((acc: number, t: Track, idx: number) => {
+                 const style = t.style?.toLowerCase() || '';
+                 const limit = style.includes('paso') ? (t.duration || 240) : (style.includes('viennese') ? 85 : 105);
+                 return acc + limit + (idx < finalTracks.length - 1 ? 15 : 0);
+               }, 0);
+               setDuration(totalDuration);
+            } else {
+               setDuration(audio.duration || 0);
+            }
             setIsLoaded(true);
             setIsLoading(false);
             resolve(audio);
           };
 
-          audio.onerror = (e) => reject(new Error(`Stream error: ${track.title}`));
+          audio.onerror = (e) => {
+            const err = audio.error;
+            let msg = `Stream error: ${track.title}`;
+            
+            if (err) {
+              const errorTypes = {
+                1: 'MEDIA_ERR_ABORTED',
+                2: 'MEDIA_ERR_NETWORK',
+                3: 'MEDIA_ERR_DECODE',
+                4: 'MEDIA_ERR_SRC_NOT_SUPPORTED'
+              };
+              const errorType = errorTypes[err.code as keyof typeof errorTypes] || 'UNKNOWN';
+              console.error(`[AUDIO-ERROR] Mode: ${isRetry ? 'Retry' : 'Initial'}, Code: ${err.code} (${errorType}), Message: ${err.message || 'No specific metadata'}`);
+              
+              if (!isRetry) {
+                // ROBUST AUTO-HEALING: Extract fileName from complex R2 URLs
+                // Handles: ...r2.cloudflarestorage.com/BUCKET/FILENAME?Signature...
+                const urlObj = new URL(url);
+                const pathParts = urlObj.pathname.split('/');
+                const fileName = pathParts.pop(); // The last part is always the file
+                
+                if (fileName) {
+                  const R2_PUBLIC = process.env.NEXT_PUBLIC_R2_PUBLIC_URL || 'https://pub-c41b1121b311f676bdc114d143278d18.r2.dev';
+                  // Some R2 dev URLs require the bucket name in path, some don't. 
+                  // We'll try the most standard: root + filename
+                  const fallbackUrl = `${R2_PUBLIC}/${fileName}`;
+                  
+                  console.warn(`[AUDIO-STREAM-HEAL] Playback failure. Instantly falling back to public CDN: ${fallbackUrl}`);
+                  loadTrack({...track, audioUrl: fallbackUrl}, true);
+                  return;
+                }
+              }
+              msg += ` (${errorType})`;
+            }
+            console.error(`[AUDIO-STREAM-FAIL] URL: ${url}`, err);
+            reject(new Error(msg));
+          };
           
           // Set initial speed
           audio.playbackRate = bpm / 100;
@@ -238,11 +341,22 @@ export const AudioProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         // ATTEMPT 1: INSTANT STREAMING (Spotify Method)
         const audio = await setupPlayer(finalUrl, 'streaming') as HTMLAudioElement;
         
+        if (currentToken !== loadingTokenRef.current) {
+          audio.pause();
+          return;
+        }
+
         if (Tone.getContext().state === 'running') {
-          audio.play().catch(e => console.error("Play prevented", e));
+          playPromiseRef.current = audio.play();
+          playPromiseRef.current.catch(e => {
+            if (e.name !== 'AbortError') console.error("Play prevented", e);
+          }).finally(() => {
+            playPromiseRef.current = null;
+          });
           setIsPlaying(true);
         }
       } catch (e: any) {
+        if (e.message === "Loading cancelled by new request") return;
         console.error("[AUDIO-CRITICAL] Global failure.", e);
         setError(e.message || "File Unreachable (Check Connection)");
         setIsLoaded(false);
@@ -261,6 +375,19 @@ export const AudioProvider: React.FC<{ children: React.ReactNode }> = ({ childre
           ]
         });
       }
+
+      // ANALYTICS: Log track play event
+      try {
+        supabase.from('track_plays').insert({
+          track_id: track.id,
+          user_ref: user?.id?.toString() || null,
+          style: track.style || 'Unknown',
+          bpm: track.bpm?.toString() || '0'
+        }).then(({ error }) => {
+          if (error) console.warn("[ANALYTICS-ERROR] Failed to log track play:", error);
+        });
+      } catch (e) {}
+
     } catch (err: any) {
       console.error("[LOAD-ERROR]", err);
       setError(err.message || "Failed to load track");
@@ -278,26 +405,75 @@ export const AudioProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   }, []);
 
   useEffect(() => {
-    if (isPlaying) {
+    // RUN DURING PLAYER ACTIVE OR LOADING OR COUNTDOWN
+    if (isPlaying || isPauseCountdown || isLoading) {
       timerRef.current = setInterval(() => {
         if (nativePlayerRef.current) {
           const currentTimeVal = nativePlayerRef.current.currentTime;
-          setCurrentTime(currentTimeVal);
           
-          if (isFinalMode && currentTimeVal >= 105) {
-            nativePlayerRef.current.pause();
-            setIsPlaying(false);
-            setCurrentTime(0);
-            nativePlayerRef.current.currentTime = 0;
+          const isPasoDoble = playingTrackRef.current?.style?.toLowerCase().includes('paso');
+          const isViennese = playingTrackRef.current?.style?.toLowerCase().includes('viennese');
+          const timeLimit = isPasoDoble ? Infinity : (isViennese ? 85 : 100); 
+
+          if (isFinalMode) {
+            // Calculate Session-wide metrics
+            const currentIdx = finalTracks.findIndex(t => t.title === title || t.id === trackIdRef.current);
+            if (currentIdx !== -1) {
+              const getLimitForTrack = (track: Track) => {
+                const style = track.style?.toLowerCase() || '';
+                if (style.includes('paso')) return track.duration || 120;
+                if (style.includes('viennese')) return 85;
+                return 105; // Standard 1m 45s for others
+              };
+
+              let sessionElapsed = 0;
+              for (let i = 0; i < currentIdx; i++) {
+                sessionElapsed += getLimitForTrack(finalTracks[i]) + (isFitness ? 0 : 15);
+              }
+              
+              const currentTrackLimit = getLimitForTrack(finalTracks[currentIdx]);
+              sessionElapsed += isPauseCountdown ? (currentTrackLimit + (15 - pauseTime)) : currentTimeVal;
+              
+              setCurrentTime(sessionElapsed);
+              setTrackCurrentTime(isPauseCountdown ? (15 - pauseTime) : currentTimeVal);
+
+              const totalDuration = finalTracks.reduce((acc: number, t: Track, idx: number) => {
+                const rest = (idx < finalTracks.length - 1 && !isFitness) ? 15 : 0;
+                return acc + getLimitForTrack(t) + rest;
+              }, 0);
+              setDuration(totalDuration);
+            }
+          } else {
+            setCurrentTime(currentTimeVal);
+          }
+
+          // FINAL MODE: FADE-OUT logic (starts 3 seconds before limit)
+          if (isFinalMode && !isPauseCountdown && masterGainRef.current) {
+            const timeRemaining = timeLimit - currentTimeVal;
+            if (timeRemaining <= 3 && timeRemaining > 0) {
+              // Smooth ramp to zero over the remaining time
+              masterGainRef.current.gain.rampTo(0, timeRemaining);
+            }
+          }
+
+            if (isFinalMode && currentTimeVal >= timeLimit && !isPauseCountdown) {
+              nativePlayerRef.current.pause();
+              setIsPlaying(false);
+              
+              if (isFitness) {
+                // In fitness mode, just play next immediately
+                playNext();
+                return;
+              }
+
+              // Start 15s Pause Countdown for competition modes
+              setIsPauseCountdown(true);
+              setPauseTime(15);
             
-            // Start 15s Pause Countdown for Final Mode
-            setIsPauseCountdown(true);
-            setPauseTime(15);
-            
-            const countdownInterval = setInterval(() => {
+            const breakTimer = setInterval(() => {
               setPauseTime(p => {
                 if (p <= 1) {
-                  clearInterval(countdownInterval);
+                  clearInterval(breakTimer);
                   setIsPauseCountdown(false);
                   
                   // Sequential Playback for Final Mode
@@ -321,24 +497,24 @@ export const AudioProvider: React.FC<{ children: React.ReactNode }> = ({ childre
               setCurrentTime(0);
             }
           }
+
+          // Update Media Session Position State
+          if ('mediaSession' in navigator && duration > 0) {
+            navigator.mediaSession.setPositionState({
+              duration: duration,
+              playbackRate: bpm / 100,
+              position: currentTimeVal
+            });
+          }
         }
       }, 100);
-
-      // Update Media Session Position State
-      if ('mediaSession' in navigator && duration > 0) {
-        navigator.mediaSession.setPositionState({
-          duration: duration,
-          playbackRate: bpm / 100,
-          position: currentTime
-        });
-      }
     } else {
       if (timerRef.current) clearInterval(timerRef.current);
     }
     return () => {
       if (timerRef.current) clearInterval(timerRef.current);
     };
-  }, [isPlaying, duration, bpm, isFinalMode, currentTime]);
+  }, [isPlaying, isPauseCountdown, isLoading, duration, bpm, isFinalMode, title]);
 
   const togglePlay = async () => {
     // Mobile browsers require resume() on user gesture
@@ -360,9 +536,15 @@ export const AudioProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         playerRef.current.start(undefined, startTime);
       } else if (nativePlayerRef.current) {
         nativePlayerRef.current.currentTime = startTime;
-        nativePlayerRef.current.play().catch(e => console.error("Native play failed", e));
+        playPromiseRef.current = nativePlayerRef.current.play();
+        playPromiseRef.current.catch(e => {
+          if (e.name !== 'AbortError') console.error("Native play failed", e);
+        }).finally(() => {
+          playPromiseRef.current = null;
+        });
       }
       setIsPlaying(true);
+      notifyOtherTabs();
     }
   };
 
@@ -373,7 +555,9 @@ export const AudioProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       playerRef.current.playbackRate = newBpm / 100;
     }
     if (nativePlayerRef.current) {
-      nativePlayerRef.current.playbackRate = newBpm / 100;
+      const rate = newBpm / 100;
+      nativePlayerRef.current.preservesPitch = (newBpm !== 100);
+      nativePlayerRef.current.playbackRate = rate;
     }
   };
 
@@ -396,8 +580,16 @@ export const AudioProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         if (nativePlayerRef.current) nativePlayerRef.current.pause();
         setIsPlaying(false);
       } else {
-        if (nativePlayerRef.current) nativePlayerRef.current.play().catch(e => console.error("Native play failed", e));
+        if (nativePlayerRef.current) {
+          playPromiseRef.current = nativePlayerRef.current.play();
+          playPromiseRef.current.catch(e => {
+            if (e.name !== 'AbortError') console.error("Native play failed during seek", e);
+          }).finally(() => {
+            playPromiseRef.current = null;
+          });
+        }
         setIsPlaying(true);
+        notifyOtherTabs();
       }
     }
   };
@@ -456,6 +648,10 @@ export const AudioProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     if (playerRef.current) playerRef.current.stop();
     if (nativePlayerRef.current) nativePlayerRef.current.pause();
     setIsPlaying(false);
+    setCurrentTime(0);
+    setTrackCurrentTime(0);
+    setIsPauseCountdown(false);
+    setPauseTime(15);
   };
 
   // REGISTER MEDIA SESSION ACTIONS
@@ -480,6 +676,7 @@ export const AudioProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       bpm,
       isFinalMode,
       currentTime,
+      trackCurrentTime,
       duration,
       title,
       artist,
@@ -488,8 +685,12 @@ export const AudioProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       isRepeat,
       isShuffle,
       isLoading,
+      isPauseCountdown,
+      isFitness,
+      pauseTime,
       togglePlay,
       loadTrack,
+      setIsFitness,
       setBpm,
       setVolume,
       toggleRepeat,

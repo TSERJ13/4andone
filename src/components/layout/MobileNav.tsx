@@ -3,7 +3,7 @@
 import React from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { Home, Search, Library, User, Flag } from 'lucide-react';
+import { Home, Search, Library, User, Zap } from 'lucide-react';
 import MobileMiniPlayer from './MobileMiniPlayer';
 
 const MobileNav = () => {
@@ -15,7 +15,7 @@ const MobileNav = () => {
   const navItems = [
     { icon: <Home size={24} />, label: 'Home', href: '/' },
     { icon: <Search size={24} />, label: 'Search', href: '/search' },
-    { icon: <Flag size={24} />, label: 'Finals', href: '/library/finals' },
+    { icon: <Zap size={24} />, label: 'Finals', href: '/library/finals' },
     { icon: <Library size={24} />, label: 'Library', href: '/library' },
   ];
 

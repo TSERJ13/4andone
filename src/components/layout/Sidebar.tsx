@@ -10,7 +10,8 @@ import {
   PlusSquare,
   Heart,
   Music2,
-  Flag
+  Zap,
+  Info
 } from 'lucide-react';
 import { useStudio } from "@/components/admin/StudioProvider";
 import { useAuth } from '@/context/AuthContext';
@@ -40,7 +41,7 @@ const Sidebar = () => {
   const navItems = [
     { icon: <Home size={24} />, label: 'Home', href: '/' },
     { icon: <Search size={24} />, label: 'Search', href: '/search' },
-    { icon: <Flag size={24} />, label: 'Final Mode', href: '/library/finals' },
+    { icon: <Zap size={24} />, label: 'Final Mode', href: '/library/finals' },
     { icon: <Library size={24} />, label: 'Your Library', href: '/library' },
   ];
 
@@ -74,6 +75,10 @@ const Sidebar = () => {
           <Heart size={24} className="text-secondary" />
           <span>Liked Songs</span>
         </Link>
+        <button className="nav-item no-bg" onClick={handleCreatePlaylist} style={{ background: 'none', border: 'none', width: '100%', textAlign: 'left', padding: '12px' }}>
+          <PlusSquare size={24} className="text-secondary" />
+          <span>Create Playlist</span>
+        </button>
         {folders.map((folder) => (
           <Link
             key={folder.id}
@@ -87,13 +92,7 @@ const Sidebar = () => {
       </nav>
 
       <div className="sidebar-footer">
-        <button 
-          className="create-playlist-btn glass"
-          onClick={handleCreatePlaylist}
-        >
-          <PlusSquare size={20} />
-          <span>Create Playlist</span>
-        </button>
+        {/* Footer info or legacy links if needed */}
       </div>
 
       <ConfirmModal 
@@ -162,6 +161,17 @@ const Sidebar = () => {
           align-items: center;
           justify-content: center;
           transition: transform 0.2s;
+        }
+
+        .nav-item.sub-nav {
+          margin-left: 20px;
+          opacity: 0.7;
+          font-size: 13px;
+          padding: 8px 12px;
+        }
+
+        .nav-item.sub-nav:hover {
+          opacity: 1;
         }
 
         .nav-item:hover .icon-box {

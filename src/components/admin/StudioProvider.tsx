@@ -94,7 +94,8 @@ interface StudioContextType {
   
   stats: {
     totalTracks: number;
-    storageUsed: string;
+    totalFolders: number;
+    totalPlaylists: number;
     activeUsers: number;
   };
 }
@@ -472,7 +473,8 @@ export const StudioProvider: React.FC<{ children: React.ReactNode }> = ({ childr
 
   const stats = {
     totalTracks: tracks.length,
-    storageUsed: `${(tracks.length * 4.2).toFixed(1)} MB`, 
+    totalFolders: folders.length,
+    totalPlaylists: finalFolders.length,
     activeUsers: 1,
   };
 

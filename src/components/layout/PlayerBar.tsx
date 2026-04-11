@@ -13,11 +13,11 @@ import {
   Tally3, 
   Gauge,
   Heart,
-  Flag
+  VolumeX
 } from 'lucide-react';
 import { useAudio } from '@/components/audio/AudioProvider';
 import SpeedSelector from '@/components/audio/SpeedSelector';
-import { useStudio } from '@/components/admin/StudioProvider';
+import { useStudio, Track } from '@/components/admin/StudioProvider';
 import { useAuth } from '@/context/AuthContext';
 import ConfirmModal from '@/components/admin/ConfirmModal';
 import { getMPMFromBPM } from '@/utils/audio';
@@ -46,10 +46,13 @@ const PlayerBar = () => {
     toggleRepeat,
     toggleShuffle,
     seek,
-    isLoading
+    isLoading,
+    isFinalMode
   } = useAudio();
 
   const [showSpeedSelector, setShowSpeedSelector] = useState(false);
+  const [isMuted, setIsMuted] = useState(false);
+  const [lastVolume, setLastVolume] = useState(1);
   const [isDragging, setIsDragging] = useState(false);
   const [dragProgress, setDragProgress] = useState(0);
   const progressRef = useRef<HTMLDivElement>(null);
@@ -75,23 +78,24 @@ const PlayerBar = () => {
   };
 
   const handleInteractionStart = (e: React.MouseEvent) => {
+    if (isFinalMode) return;
     setIsDragging(true);
     handleSeekUpdate(e.clientX);
   };
 
   useEffect(() => {
     const handleMove = (e: MouseEvent) => {
-      if (!isDragging) return;
+      if (!isDragging || isFinalMode) return;
       handleSeekUpdate(e.clientX);
     };
     const handleUp = (e: MouseEvent) => {
-      if (!isDragging) return;
+      if (!isDragging || isFinalMode) return;
       const newTime = handleSeekUpdate(e.clientX);
       if (newTime !== undefined) seek(newTime);
       setIsDragging(false);
     };
 
-    if (isDragging) {
+    if (isDragging && !isFinalMode) {
       window.addEventListener('mousemove', handleMove);
       window.addEventListener('mouseup', handleUp);
     }
@@ -115,8 +119,9 @@ const PlayerBar = () => {
   };
 
   return (
-    <footer className={`player-bar glass ${!isLoaded && !isLoading ? 'is-hidden' : ''}`}>
-      {/* Track Info */}
+    <>
+      <footer className={`player-bar glass ${!isLoaded && !isLoading ? 'is-hidden' : ''}`}>
+        {/* Track Info */}
       <div className="track-info">
         <div className="album-art glass">
           <Tally3 size={24} className="text-primary" />
@@ -135,32 +140,19 @@ const PlayerBar = () => {
             )}
             {currentTrack && currentTrack.bpm && (
               <span className="track-tempo-inline ml-2 text-primary font-bold">
-                • {getMPMFromBPM(Number(currentTrack.bpm), currentTrack.style)} Bars/Min
+                • {getMPMFromBPM(Number(currentTrack.bpm), currentTrack.style)} BPM
               </span>
             )}
           </p>
         </div>
 
         {/* Repositioned Features: Metadata actions grouped with track info */}
-        <div className="metadata-actions-group">
+        <div className="metadata-actions-group" style={{ marginLeft: '12px' }}>
           <div className="quick-actions-bar left-aligned">
             <button 
-              className={`action-btn-large ${finalTracks.some(t => t.title === title) ? 'active-flag' : ''}`}
-              onClick={() => {
-                checkAuthAndExecute(() => {
-                  const currentTrack = tracks.find(t => t.title === title);
-                  if (currentTrack) {
-                    finalTracks.some(t => t.id === currentTrack.id) ? (removeFromFinal(currentTrack.id)) : (addToFinal(currentTrack));
-                  }
-                }, 'manage competition folders');
-              }}
-              title="Add to Final Mode"
-            >
-              <Flag size={20} fill={finalTracks.some(t => t.title === title) ? "currentColor" : "none"} />
-            </button>
-            <button 
-              className="action-btn-large" 
-              title="Add to Favorites"
+              className={`action-btn-large ${(tracks.find(t => t.title === title)?.isFavorite) ? 'active-heart' : ''}`} 
+              title="Like Song"
+              style={{ marginLeft: '8px' }}
               onClick={() => {
                 checkAuthAndExecute(() => {
                    const currentTrack = tracks.find(t => t.title === title);
@@ -170,7 +162,7 @@ const PlayerBar = () => {
                 }, 'favorite tracks');
               }}
             >
-              <Heart size={20} />
+              <Heart size={20} fill={(tracks.find(t => t.title === title)?.isFavorite) ? "#ff4b2b" : "none"} color={(tracks.find(t => t.title === title)?.isFavorite) ? "#ff4b2b" : "currentColor"} />
             </button>
           </div>
         </div>
@@ -182,12 +174,19 @@ const PlayerBar = () => {
           <button 
             className={`control-btn ${isShuffle ? 'active' : ''}`} 
             onClick={toggleShuffle}
+            disabled={isFinalMode}
+            style={{ opacity: isFinalMode ? 0.3 : 1, cursor: isFinalMode ? 'not-allowed' : 'pointer' }}
           >
             <Shuffle size={18} />
           </button>
-          <button className="control-btn" onClick={playPrevious}><SkipBack size={24} fill="currentColor" /></button>
+          <button 
+            className="control-btn" 
+            onClick={playPrevious}
+            disabled={isFinalMode}
+            style={{ opacity: isFinalMode ? 0.3 : 1, cursor: isFinalMode ? 'not-allowed' : 'pointer' }}
+          ><SkipBack size={24} fill="currentColor" /></button>
           <div className="play-btn" onClick={togglePlay}>
-            {!isLoaded ? (
+            {!isLoaded && !isFinalMode ? (
               <div className="loading-spinner"></div>
             ) : isPlaying ? (
               <Pause fill="currentColor" size={28} />
@@ -195,10 +194,17 @@ const PlayerBar = () => {
               <Play fill="currentColor" size={28} className="play-icon-offset" />
             )}
           </div>
-          <button className="control-btn" onClick={playNext}><SkipForward size={24} fill="currentColor" /></button>
+          <button 
+            className="control-btn" 
+            onClick={playNext}
+            disabled={isFinalMode}
+            style={{ opacity: isFinalMode ? 0.3 : 1, cursor: isFinalMode ? 'not-allowed' : 'pointer' }}
+          ><SkipForward size={24} fill="currentColor" /></button>
           <button 
             className={`control-btn ${isRepeat ? 'active' : ''}`} 
             onClick={toggleRepeat}
+            disabled={isFinalMode}
+            style={{ opacity: isFinalMode ? 0.3 : 1, cursor: isFinalMode ? 'not-allowed' : 'pointer' }}
           >
             <Repeat size={18} />
           </button>
@@ -206,11 +212,16 @@ const PlayerBar = () => {
 
         <div className="progress-container">
           <span className="time-text">{formatTime(isDragging ? (dragProgress / 100) * (duration || 0) : currentTime)}</span>
-          <div 
-            className="progress-bar-bg" 
-            ref={progressRef}
-            onMouseDown={handleInteractionStart}
-          >
+            <div 
+              className="progress-bar-bg" 
+              ref={progressRef}
+              onMouseDown={handleInteractionStart}
+              style={{ 
+                cursor: isFinalMode ? 'not-allowed' : 'pointer',
+                opacity: isFinalMode ? 0.7 : 1,
+                pointerEvents: isFinalMode ? 'none' : 'auto'
+              }}
+            >
             <div 
               className={`progress-bar-fill ${error ? 'error' : ''}`} 
               style={{ width: `${displayProgress}%` }}
@@ -231,6 +242,7 @@ const PlayerBar = () => {
               className={`feature-btn glass ${bpm !== 100 ? 'active' : ''}`}
               onClick={() => setShowSpeedSelector(!showSpeedSelector)}
               title={`Playback Speed: ${bpm}%`}
+              style={{ marginRight: '8px' }}
             >
               <Gauge size={18} />
               <span className="label">Speed: {bpm}%</span>
@@ -247,18 +259,37 @@ const PlayerBar = () => {
         </div>
 
         <div className="volume-control">
-          <Volume2 size={20} className="text-secondary" />
+          <button 
+            className="mute-toggle-btn"
+            onClick={() => {
+              if (isMuted) {
+                setVolume(lastVolume);
+                setIsMuted(false);
+              } else {
+                setLastVolume(volume);
+                setVolume(0);
+                setIsMuted(true);
+              }
+            }}
+          >
+            {isMuted || volume === 0 ? <VolumeX size={20} /> : <Volume2 size={20} />}
+          </button>
           <input 
             type="range" 
             min="0" 
             max="1" 
             step="0.01" 
             value={volume}
-            onChange={(e) => setVolume(parseFloat(e.target.value))}
+            onChange={(e) => {
+              const newVol = parseFloat(e.target.value);
+              setVolume(newVol);
+              if (newVol > 0) setIsMuted(false);
+            }}
             className="volume-slider"
           />
         </div>
       </div>
+      </footer>
 
       <ConfirmModal 
         isOpen={authPrompt.isOpen}
@@ -275,7 +306,21 @@ const PlayerBar = () => {
 
       <style jsx>{`
         .player-bar {
-           transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+          display: grid;
+          grid-template-columns: 1fr 2fr 1fr;
+          align-items: center;
+          padding: 0 40px;
+          height: 90px;
+          background: rgba(18, 18, 18, 0.7);
+          backdrop-filter: blur(20px);
+          border-top: 1px solid rgba(255, 255, 255, 0.08);
+          position: fixed;
+          bottom: 0;
+          left: 0;
+          right: 0;
+          z-index: 1000;
+          transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+          padding-bottom: env(safe-area-inset-bottom);
         }
         .player-bar.is-hidden {
            transform: translateY(100%);
@@ -287,7 +332,7 @@ const PlayerBar = () => {
           display: flex;
           align-items: center;
           gap: 20px;
-          min-width: 450px;
+          min-width: 0;
         }
 
         .metadata-actions-group {
@@ -557,8 +602,25 @@ const PlayerBar = () => {
           display: flex;
           align-items: center;
           gap: 12px;
-          width: 140px;
+          width: 160px;
           margin-left: 20px;
+        }
+
+        .mute-toggle-btn {
+          color: var(--text-secondary);
+          transition: color 0.2s;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          background: transparent;
+          border: none;
+          cursor: pointer;
+          padding: 4px;
+        }
+
+        .mute-toggle-btn:hover {
+          color: white;
+          transform: scale(1.1);
         }
         .volume-bar-bg {
           flex: 1;
@@ -586,25 +648,24 @@ const PlayerBar = () => {
 
         @media (max-width: 768px) {
           .player-bar {
-            grid-template-columns: 1fr auto;
-            height: 72px;
-            padding: 0 16px;
-            gap: 12px;
-            position: fixed;
-            bottom: 0;
-            left: 0;
-            width: 100%;
-            z-index: 1000;
+            display: flex;
+            justify-content: space-between;
+            height: auto;
+            min-height: 80px;
+            padding: 12px 16px;
+            padding-bottom: calc(12px + env(safe-area-inset-bottom));
           }
           .track-info {
             flex: 1;
-            overflow: hidden;
+            min-width: 0;
           }
           .extra-controls {
             display: none;
           }
           .player-controls {
             width: auto;
+            flex-direction: row;
+            gap: 12px;
           }
           .control-buttons {
             gap: 12px;
@@ -617,7 +678,7 @@ const PlayerBar = () => {
             top: 0;
             left: 0;
             width: 100%;
-            height: 2px;
+            height: 3px;
             padding: 0;
             max-width: none;
             display: flex !important;
@@ -626,15 +687,28 @@ const PlayerBar = () => {
             display: none;
           }
           .progress-bar-bg {
-            height: 2px;
+            height: 3px;
             border-radius: 0;
           }
           .progress-bar-fill {
             border-radius: 0;
           }
         }
+
+        /* iPad specific optimizations */
+        @media (min-width: 769px) and (max-width: 1180px) {
+          .player-bar {
+            padding: 0 24px;
+            padding-bottom: env(safe-area-inset-bottom);
+            grid-template-columns: 1.2fr 2fr 1.2fr;
+          }
+          .track-info { gap: 12px; }
+          .metadata-actions-group { padding-left: 12px; }
+          .extra-controls { gap: 16px; }
+          .volume-control { width: 100px; margin-left: 10px; }
+        }
       `}</style>
-    </footer>
+    </>
   );
 };
 

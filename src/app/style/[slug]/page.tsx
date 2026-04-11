@@ -114,17 +114,17 @@ const StylePage = () => {
               </div>
             </div>
             <div className="track-duration text-secondary">
-              {getMPMFromBPM(Number(track.bpm), track.style)} Bars/Min
+              {track.bpm ? `${getMPMFromBPM(Number(track.bpm), track.style)} BPM` : '—'}
             </div>
             <div className="track-actions">
               <button
-                className={`feature-icon ${finalTracks.some(t => t.id === track.id) ? 'active-flag' : ''}`}
+                className={`feature-icon ${track.isFavorite ? 'active-heart' : ''}`}
                 onClick={(e) => {
                   e.stopPropagation();
-                  finalTracks.some(t => t.id === track.id) ? removeFromFinal(track.id) : addToFinal(track);
+                  checkAuthAndExecute(() => toggleFavorite?.(track.id), 'favorite tracks');
                 }}
               >
-                <Flag size={18} fill={finalTracks.some(t => t.id === track.id) ? "currentColor" : "none"} />
+                <Heart size={18} fill={track.isFavorite ? "#ff4b2b" : "none"} color={track.isFavorite ? "#ff4b2b" : "currentColor"} />
               </button>
               <div className="btn-play-row">
                 {isPlaying && playingTitle === track.title ? (
@@ -192,7 +192,7 @@ const StylePage = () => {
         .track-row.is-playing .track-name { color: #1db954; }
         .feature-icon { background: none; border: none; color: #555; cursor: pointer; transition: 0.2s; }
         .feature-icon:hover { color: white; }
-        .feature-icon.active-flag { color: var(--primary); }
+        .feature-icon.active-heart { color: #f43f5e; }
         .empty-style-state { padding: 80px 20px; text-align: center; display: flex; flex-direction: column; align-items: center; gap: 16px; border-radius: 24px; margin-top: 20px; }
         .animate-in { animation: slideUp 0.5s cubic-bezier(0.16, 1, 0.3, 1) both; }
         @keyframes slideUp { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: translateY(0); } }
@@ -200,19 +200,19 @@ const StylePage = () => {
         @media (max-width: 768px) {
           .style-page { padding: 16px; padding-bottom: 120px; }
           .style-header { flex-direction: column; align-items: center; text-align: center; gap: 20px; }
-          .style-icon-large { width: 180px; height: 180px; }
+          .style-icon-large { width: 120px; height: 120px; }
           .style-title { font-size: 2.5rem; letter-spacing: -1px; }
+          
+          .tags-row {
             margin: 0 -16px;
             padding: 0 16px;
           }
           
-          .table-header { display: none; }
           .track-row { 
-            grid-template-columns: 32px 1fr 60px; 
+            grid-template-columns: 32px 1fr 48px; 
             gap: 12px;
           }
-          .col-album, .col-bpm { display: none; }
-          .col-duration { font-size: 12px; }
+          .track-duration { display: none; }
         }
       `}</style>
     </div>

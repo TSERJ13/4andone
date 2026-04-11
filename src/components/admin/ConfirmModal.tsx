@@ -60,13 +60,16 @@ const ConfirmModal = ({
       <style jsx>{`
         .modal-overlay {
           position: fixed;
-          inset: 0;
+          top: 0;
+          left: 0;
+          width: 100dvw;
+          height: 100dvh;
           background: rgba(0,0,0,0.8);
           backdrop-filter: blur(8px);
           display: flex;
           align-items: center;
           justify-content: center;
-          z-index: 3000;
+          z-index: 5001; /* Above mobile player and everything else */
           padding: 20px;
         }
 
@@ -83,7 +86,16 @@ const ConfirmModal = ({
         .header-title h3 { font-size: 20px; font-weight: 800; letter-spacing: -0.5px; }
         .header-title p { font-size: 13px; color: #71717a; margin-top: 4px; line-height: 1.5; }
 
-        .icon-box { width: 44px; height: 44px; border-radius: 14px; display: flex; align-items: center; justify-content: center; color: #1db954; }
+        .icon-box { 
+          width: 44px; 
+          height: 44px; 
+          border-radius: 14px; 
+          display: flex; 
+          align-items: center; 
+          justify-content: center; 
+          color: #1db954;
+          flex-shrink: 0;
+        }
         .danger-icon { color: #ef4444; background: rgba(239, 68, 68, 0.1); }
 
         .close-btn { color: #71717a; transition: color 0.2s; }
@@ -102,8 +114,17 @@ const ConfirmModal = ({
         }
         .btn-danger:hover { background: #dc2626; transform: scale(1.02); }
 
-        .animate-in { animation: animateIn 0.3s cubic-bezier(0.4, 0, 0.2, 1); }
-        @keyframes animateIn { from { opacity: 0; transform: scale(0.95); } to { opacity: 1; transform: scale(1); } }
+        @media (max-width: 768px) {
+          .modal-overlay { 
+            align-items: center; 
+            padding: 24px; 
+            z-index: 6000;
+          }
+          .modal-content { 
+            border-radius: 24px; 
+            max-width: 100%; 
+          }
+        }
       `}</style>
     </div>
   );

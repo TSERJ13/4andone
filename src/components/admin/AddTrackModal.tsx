@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState, useRef } from 'react';
-import { X, Music, User, Globe, Activity, Upload, CheckCircle2, ChevronDown, AlertTriangle } from 'lucide-react';
+import { X, Music, User, Globe, Activity, Upload, CheckCircle2, ChevronDown, AlertTriangle, Plus } from 'lucide-react';
 import { saveAudioFile } from '@/utils/storage';
 import { detectBPM, getStyleFromBPM, getMPMFromBPM, getBPMFromMPM } from '@/utils/audio';
 import { useStudio } from './StudioProvider';
@@ -22,7 +22,8 @@ const AddTrackModal = ({ isOpen, onClose, onAdd, initialData }: AddTrackModalPro
     style: initialData?.style || (styles.length > 0 ? styles[0].title : 'Samba'),
     tags: initialData?.tags || ([] as string[]),
     bpm: initialData?.bpm || '',
-    album: initialData?.album || ''
+    album: initialData?.album || '',
+    isClosed: initialData?.tags?.some((t: string) => t.toLowerCase() === 'closed' || t === 'დახურული') || false
   });
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -43,7 +44,8 @@ const AddTrackModal = ({ isOpen, onClose, onAdd, initialData }: AddTrackModalPro
         style: initialData.style,
         tags: initialData.tags || [],
         bpm: initialData.bpm,
-        album: initialData.album
+        album: initialData.album,
+        isClosed: initialData.tags?.some((t: string) => t.toLowerCase() === 'closed' || t === 'დახურული') || false
       });
       setMpmState(getMPMFromBPM(Number(initialData.bpm), initialData.style).toString());
     } else if (isOpen && !initialData) {
@@ -55,7 +57,8 @@ const AddTrackModal = ({ isOpen, onClose, onAdd, initialData }: AddTrackModalPro
         style: defaultStyle, 
         tags: [],
         bpm: '', 
-        album: '' 
+        album: '',
+        isClosed: false 
       });
       setMpmState('');
     }
@@ -184,9 +187,9 @@ const AddTrackModal = ({ isOpen, onClose, onAdd, initialData }: AddTrackModalPro
 
         console.log(`[UPLOAD-DONE] Storage success. Public URL: ${publicUrl}`);
         
-        // Final safety check for undefined
-        const R2_FALLBACK = 'https://pub-c41b1121b311f676bdc114d143278d18.r2.dev';
-        audioUrl = publicUrl.includes('undefined') ? publicUrl.replace('undefined', R2_FALLBACK) : publicUrl;
+        // Final safety check for undefined domains (e.g. from missing env vars)
+        const R2_DOMAIN = process.env.NEXT_PUBLIC_R2_PUBLIC_URL || 'https://pub-c41b1121b311f676bdc114d143278d18.r2.dev';
+        audioUrl = publicUrl.includes('undefined') ? publicUrl.replace(/.*undefined\//, `${R2_DOMAIN}/`) : publicUrl;
 
         // 3. Calculate Duration (only if new file)
         duration = await new Promise((resolve) => {
@@ -201,7 +204,10 @@ const AddTrackModal = ({ isOpen, onClose, onAdd, initialData }: AddTrackModalPro
 
       // 3. Save Metadata to Supabase
       onAdd({ 
-        ...formData, 
+        ...formData,
+        tags: formData.isClosed 
+          ? [...formData.tags.filter((t: string) => t.toLowerCase() !== 'closed' && t !== 'დახურული'), 'Closed']
+          : formData.tags.filter((t: string) => t.toLowerCase() !== 'closed' && t !== 'დახურული'),
         audioUrl,
         id: trackId, 
         duration,
@@ -322,7 +328,11 @@ const AddTrackModal = ({ isOpen, onClose, onAdd, initialData }: AddTrackModalPro
                       </div>
                     ))}
                     {styles.length === 0 && (
-                      ['Samba', 'Cha-Cha-Cha', 'Rumba', 'Paso Doble', 'Jive'].map(s => (
+                      [
+                        'Samba', 'Cha-Cha-Cha', 'Rumba', 'Paso Doble', 'Jive',
+                        'Slow Waltz', 'Tango', 'Viennese Waltz', 'Slow Foxtrot', 'Quickstep',
+                        'Fitness'
+                      ].map(s => (
                         <div 
                           key={s} 
                           className={`style-option ${formData.style === s ? 'selected' : ''}`}
@@ -331,13 +341,29 @@ const AddTrackModal = ({ isOpen, onClose, onAdd, initialData }: AddTrackModalPro
                             setIsStyleDropdownOpen(false);
                           }}
                         >
-                          <span className="dot" style={{ backgroundColor: '#1db954' }}></span>
+                          <span className="dot" style={{ backgroundColor: s === 'Fitness' ? '#1db954' : '#666' }}></span>
                           {s}
                         </div>
                       ))
                     )}
                   </div>
                 )}
+              </div>
+
+              <div className="form-group visibility-toggle-group">
+                <label>Library Visibility</label>
+                <div 
+                  className={`visibility-toggle glass ${!formData.isClosed ? 'is-public' : 'is-closed'}`}
+                  onClick={() => setFormData({ ...formData, isClosed: !formData.isClosed })}
+                >
+                  <div className="toggle-status">
+                    <div className="status-dot"></div>
+                    <span>{formData.isClosed ? 'Hidden (Fitness Only)' : 'Public in Library'}</span>
+                  </div>
+                  <div className="toggle-switch">
+                    <div className="switch-handle"></div>
+                  </div>
+                </div>
               </div>
 
               <div className="form-group">
@@ -486,10 +512,85 @@ const AddTrackModal = ({ isOpen, onClose, onAdd, initialData }: AddTrackModalPro
 
         .modal-content {
           width: 100%;
-          max-width: 600px;
+          max-width: 650px;
           border-radius: 32px;
           padding: 40px;
           position: relative;
+        }
+
+        .visibility-toggle-group {
+          grid-column: span 2;
+          margin-bottom: 8px;
+        }
+
+        .visibility-toggle {
+          display: flex;
+          align-items: center;
+          justify-content: space-between;
+          padding: 12px 20px;
+          border-radius: 16px;
+          cursor: pointer;
+          transition: all 0.3s ease;
+          border: 1px solid rgba(255,255,255,0.08);
+        }
+
+        .visibility-toggle.is-public {
+          background: rgba(29, 185, 84, 0.05);
+          border-color: rgba(29, 185, 84, 0.2);
+        }
+
+        .visibility-toggle.is-closed {
+          background: rgba(255, 255, 255, 0.03);
+          opacity: 0.8;
+        }
+
+        .toggle-status {
+          display: flex;
+          align-items: center;
+          gap: 12px;
+          font-weight: 700;
+          font-size: 14px;
+        }
+
+        .status-dot {
+          width: 10px;
+          height: 10px;
+          border-radius: 50%;
+          background: #71717a;
+          transition: all 0.3s ease;
+        }
+
+        .is-public .status-dot {
+          background: #1db954;
+          box-shadow: 0 0 10px rgba(29, 185, 84, 0.5);
+        }
+
+        .toggle-switch {
+          width: 44px;
+          height: 24px;
+          background: rgba(255,255,255,0.1);
+          border-radius: 12px;
+          position: relative;
+          transition: all 0.3s ease;
+        }
+
+        .is-public .toggle-switch {
+          background: #1db954;
+        }
+
+        .switch-handle {
+          position: absolute;
+          top: 3px;
+          left: 3px;
+          width: 18px;
+          height: 18px;
+          background: white;
+          border-radius: 50%;
+          transition: all 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+        }
+
+        .is-public .switch-handle {
+          left: 23px;
         }
 
         .modal-header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 32px; }
@@ -676,13 +777,5 @@ const AddTrackModal = ({ isOpen, onClose, onAdd, initialData }: AddTrackModalPro
     </div>
   );
 };
-
-
-const Plus = ({ size, className }: { size: number, className?: string }) => (
-  <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}>
-    <line x1="12" y1="5" x2="12" y2="19"></line>
-    <line x1="5" y1="12" x2="19" y2="12"></line>
-  </svg>
-);
 
 export default AddTrackModal;

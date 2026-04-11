@@ -1,6 +1,6 @@
 "use client";
 
-import React from 'react';
+import React, { useState } from 'react';
 import {
   Heart,
   Plus,
@@ -9,18 +9,19 @@ import {
   ChevronRight,
   History,
   TrendingUp,
-  Flag,
-  Play
+  Play,
+  Pause
 } from 'lucide-react';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import { useStudio, Track } from '@/components/admin/StudioProvider';
 import { useAudio } from '@/components/audio/AudioProvider';
 import { useAuth } from '@/context/AuthContext';
 import { getMPMFromBPM } from '@/utils/audio';
 import ConfirmModal from '@/components/admin/ConfirmModal';
-import { useState } from 'react';
 
 export default function LibraryPage() {
+  const router = useRouter();
   const { tracks, folders, finalTracks, addToFinal, removeFromFinal, toggleFavorite } = useStudio();
   const { isPlaying, title: playingTitle, loadTrack } = useAudio();
   const { isAuthenticated, setIsAuthModalOpen } = useAuth();
@@ -36,8 +37,8 @@ export default function LibraryPage() {
     if (!isAuthenticated) {
       setInfoModal({
         isOpen: true,
-        title: 'Authentication Required',
-        message: `Please log in with Telegram to ${actionName} and sync your studio data.`,
+        title: 'Connect Telegram',
+        message: `Please sign in with Telegram to ${actionName} and sync your dance library across all your devices.`,
         onConfirm: () => {
           setInfoModal(prev => ({ ...prev, isOpen: false }));
           setIsAuthModalOpen(true);
@@ -49,13 +50,9 @@ export default function LibraryPage() {
   };
 
   return (
-    <div className="library-container animate-in">
-      {/* ... Header remains ... */}
+    <div className="library-content animate-in">
       <header className="library-header">
         <h1>Your Library</h1>
-        <div className="header-actions">
-          {/* Manage Assets removed as per request */}
-        </div>
       </header>
 
       <section className="library-section">
@@ -64,42 +61,59 @@ export default function LibraryPage() {
           <h2>Your Collections</h2>
         </div>
         <div className="collection-grid">
-          <Link 
-            href="/library/favorites" 
+          <div 
+            onClick={() => router.push('/library/favorites')}
             className="collection-card glass"
-            style={{ borderRadius: '16px', padding: '32px 28px' }}
+            style={{ cursor: 'pointer' }}
           >
-            <div className="card-visual" style={{ background: 'linear-gradient(135deg, #ff0000, transparent)', opacity: 0.1 }} />
-            <div className="card-icon" style={{ color: '#ff0000' }}>
-              <Heart size={24} fill="#ff0000" />
+            <div className="card-icon" style={{ color: '#f43f5e' }}>
+              <Heart size={20} fill="#f43f5e" />
             </div>
             <div className="card-info">
               <h3>Liked Songs</h3>
-              <p className="meta text-secondary">Auto-generated • All favorites</p>
+              <p className="meta text-secondary">All favorites</p>
             </div>
-          </Link>
+          </div>
 
-          {folders.map((folder) => (
-            <Link 
-              key={folder.id} 
-              href={`/library/${folder.id}`} 
+
+            <div 
               className="collection-card glass"
-              style={{ borderRadius: '16px', padding: '32px 28px' }}
+              onClick={() => checkAuthAndExecute(() => {/* playlist logic */}, 'create playlists')}
+              style={{ cursor: 'pointer' }}
             >
-              <div className="card-visual" style={{ 
-                background: `linear-gradient(135deg, ${folder.color}, transparent)`,
-                opacity: 0.1 
-              }} />
-              <div className="card-icon" style={{ color: folder.color }}>
-                <Disc size={24} />
+              <div className="card-icon" style={{ color: '#1db954' }}>
+                <Plus size={20} />
               </div>
               <div className="card-info">
-                <h3>{folder.name}</h3>
-                <p className="meta text-secondary">Studio Folder • {tracks.filter(t => t.folderId === folder.id).length} tracks</p>
+                <h3>Create Playlist</h3>
+                <p className="meta text-secondary">New Playlist</p>
               </div>
-            </Link>
-          ))}
-        </div>
+            </div>
+
+            {folders.map((folder) => (
+              <Link 
+                key={folder.id} 
+                href={`/library/${folder.id}`} 
+                className="collection-card glass"
+              >
+                <div className="card-visual" style={{ 
+                  background: `linear-gradient(135deg, ${folder.color}, transparent)`,
+                  opacity: 0.1 
+                }} />
+                <div className="card-icon" style={{ color: folder.color }}>
+                  <Disc size={20} />
+                </div>
+                <div className="card-info">
+                  <h3>{folder.name}</h3>
+                  <p className="meta text-secondary">{tracks.filter(t => 
+                    t.folderId === folder.id && 
+                    t.style?.toLowerCase() !== 'fitness' &&
+                    !t.tags?.some(tag => tag.toLowerCase() === 'closed' || tag === 'დახურული')
+                  ).length} Tracks</p>
+                </div>
+              </Link>
+            ))}
+          </div>
       </section>
 
       <section className="library-section">
@@ -108,7 +122,13 @@ export default function LibraryPage() {
           <h2>Recent Practice</h2>
         </div>
         <div className="tracks-list">
-          {tracks.length > 0 ? tracks.slice(0, 10).map((track, i) => (
+          {tracks.filter(t => 
+            t.style?.toLowerCase() !== 'fitness' && 
+            !t.tags?.some(tag => tag.toLowerCase() === 'closed' || tag === 'დახურული')
+          ).length > 0 ? tracks.filter(t => 
+            t.style?.toLowerCase() !== 'fitness' && 
+            !t.tags?.some(tag => tag.toLowerCase() === 'closed' || tag === 'დახურული')
+          ).slice(0, 10).map((track, i) => (
             <div
               key={track.id}
               className={`track-row glass ${isPlaying && playingTitle === track.title ? 'is-playing' : ''}`}
@@ -124,7 +144,7 @@ export default function LibraryPage() {
                 </div>
               </div>
               <div className="track-duration text-secondary">
-                {track.bpm ? `${getMPMFromBPM(Number(track.bpm), track.style)} Bars/Min` : '—'}
+                {track.bpm ? `${getMPMFromBPM(Number(track.bpm), track.style)} BPM` : '—'}
               </div>
               <div className="track-actions">
                 <button
@@ -136,20 +156,9 @@ export default function LibraryPage() {
                 >
                   <Heart size={18} fill={track.isFavorite ? "#ff4b2b" : "none"} color={track.isFavorite ? "#ff4b2b" : "currentColor"} />
                 </button>
-                <button
-                  className={`feature-icon ${finalTracks.some(t => t.id === track.id) ? 'active-flag' : ''}`}
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    checkAuthAndExecute(() => {
-                      finalTracks.some(t => t.id === track.id) ? removeFromFinal(track.id) : addToFinal(track);
-                    }, 'manage competition folders');
-                  }}
-                >
-                  <Flag size={18} fill={finalTracks.some(t => t.id === track.id) ? "currentColor" : "none"} />
-                </button>
                 <div className="btn-play-row">
                   {isPlaying && playingTitle === track.title ? (
-                    <div className="playing-bars"><span></span><span></span><span></span></div>
+                    <Pause size={20} fill="currentColor" />
                   ) : (
                     <Play size={20} fill="currentColor" />
                   )}
@@ -175,18 +184,11 @@ export default function LibraryPage() {
       />
 
       <style jsx>{`
-        .library-container {
+        .library-content {
           display: flex;
           flex-direction: column;
           gap: 32px;
-          padding: 32px;
-          margin: 0 16px 16px 0;
-          padding-bottom: 140px;
-          background: rgba(255, 255, 255, 0.02);
-          border-radius: 12px;
-          border: 1px solid rgba(255, 255, 255, 0.05);
-          min-height: calc(100vh - 40px);
-          overflow: hidden;
+          min-height: 100%;
         }
 
         .library-header {
@@ -197,8 +199,27 @@ export default function LibraryPage() {
 
         .library-header h1 {
           font-size: 32px;
-          font-weight: 800;
-          letter-spacing: -1px;
+          font-weight: 900;
+          letter-spacing: -1.5px;
+        }
+
+        .btn-create-folder {
+          display: flex;
+          align-items: center;
+          gap: 8px;
+          padding: 10px 20px;
+          border-radius: 12px;
+          font-size: 14px;
+          font-weight: 700;
+          color: var(--primary);
+          background: rgba(29, 185, 84, 0.1);
+          border: 1px solid rgba(29, 185, 84, 0.2);
+          transition: all 0.2s;
+        }
+
+        .btn-create-folder:hover {
+          background: rgba(29, 185, 84, 0.2);
+          transform: translateY(-2px);
         }
 
         .library-section {
@@ -225,21 +246,44 @@ export default function LibraryPage() {
         }
 
         .collection-card {
-          padding: 24px 20px; /* Reduced from 32px 28px */
-          border-radius: 16px;
+          box-sizing: border-box;
+          padding: 12px;
+          border-radius: 20px;
           display: flex;
+          flex-direction: column;
           align-items: center;
-          gap: 16px; /* Reduced from 24px */
-          width: fit-content;
-          min-width: 180px; /* Reduced from 220px */
+          justify-content: flex-start;
+          text-align: center;
+          gap: 8px;
+          padding: 18px 12px 12px 12px;
+          width: 125px;
+          height: 125px;
           position: relative;
           overflow: hidden;
+          /* Force hardware acceleration to fix overflow:hidden + border-radius bug */
+          transform: translateZ(0);
+          -webkit-mask-image: -webkit-radial-gradient(white, black);
           transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
-          border: 1px solid rgba(255, 255, 255, 0.03);
+          border: 1px solid rgba(255, 255, 255, 0.05);
           cursor: pointer;
         }
 
-        .collection-card:hover { transform: translateY(-8px); background: rgba(255, 255, 255, 0.08); border-color: rgba(255,255,255,0.1); }
+        .collection-card.create-card {
+          border: 2px dashed rgba(255, 255, 255, 0.1);
+          background: transparent;
+        }
+
+        .collection-card.create-card:hover {
+          border-color: var(--primary);
+          background: rgba(29, 185, 84, 0.05);
+        }
+
+        .collection-card:hover { 
+          transform: translateY(-8px); 
+          background: rgba(255, 255, 255, 0.08); 
+          border-color: rgba(255,255,255,0.15);
+          box-shadow: 0 15px 35px rgba(0,0,0,0.4);
+        }
 
         .track-row.is-playing {
           background: rgba(29, 185, 84, 0.08);
@@ -248,15 +292,16 @@ export default function LibraryPage() {
         }
         .track-row.is-playing .track-name { color: #1db954; }
 
-        .card-visual { position: absolute; inset: 0; pointer-events: none; }
+        .card-visual { position: absolute; inset: 0; pointer-events: none; border-radius: inherit; }
 
         .card-icon { 
-          width: 52px; height: 52px; border-radius: 18px; display: flex; align-items: center; justify-content: center; 
+          width: 44px; height: 44px; border-radius: 14px; display: flex; align-items: center; justify-content: center; 
           background: rgba(0, 0, 0, 0.2); backdrop-filter: blur(8px);
         }
 
-        .card-info h3 { font-size: 1.2rem; font-weight: 800; margin-bottom: 4px; letter-spacing: -0.5px; }
-        .card-info .meta { font-size: 12px; opacity: 0.8; }
+        .card-info { display: flex; flex-direction: column; align-items: center; text-align: center; }
+        .card-info h3 { font-size: 0.85rem; font-weight: 800; margin-bottom: 2px; letter-spacing: -0.5px; line-height: 1.1; }
+        .card-info .meta { font-size: 9px; opacity: 0.4; display: block; }
 
         .tracks-list { display: flex; flex-direction: column; gap: 8px; }
         .track-row {
@@ -273,7 +318,7 @@ export default function LibraryPage() {
         .track-name { font-weight: 600; font-size: 14px; }
         .track-artist { font-size: 12px; }
         .track-duration { font-size: 13px; font-weight: 500; }
-        .track-actions { display: flex; align-items: center; justify-content: flex-end; gap: 16px; }
+        .track-actions { display: flex; align-items: center; justify-content: flex-end; gap: 24px; padding-right: 12px; }
         .btn-play-row { color: var(--primary); }
 
         .feature-icon {
@@ -317,27 +362,40 @@ export default function LibraryPage() {
           50% { transform: scaleY(1); }
         }
 
+        .desktop-only { display: flex; }
+        .mobile-only { display: none; }
+
         @media (max-width: 768px) {
-          .library-container {
-            padding: 16px;
-            gap: 20px;
+          .desktop-only { display: none; }
+          .mobile-only { display: flex; }
+          .library-content {
+            padding-bottom: 120px;
           }
           .collection-grid {
-            display: grid;
-            grid-template-columns: repeat(2, 1fr);
+            display: flex;
+            flex-wrap: wrap;
+            justify-content: flex-start;
             gap: 12px;
           }
           .collection-card {
-            padding: 12px;
-            min-width: 100%;
-            gap: 12px;
+            padding: 8px !important;
+            width: 75px !important;
+            height: 75px !important;
+            border-radius: 24px !important;
+            gap: 4px !important;
+            flex-shrink: 0 !important;
           }
-          .card-icon {
+          .collection-card.placeholder-card {
+            border: 2px dashed rgba(255,255,255,0.1);
+            background: transparent;
+            color: var(--text-secondary);
+          }
+          .card-icon, .card-icon-premium {
             width: 32px;
             height: 32px;
             border-radius: 10px;
           }
-          .card-info h3 { font-size: 0.85rem; }
+          .card-info h3 { font-size: 0.8rem; letter-spacing: -0.5px; } /* Slightly smaller for mobile */
           .card-info .meta { display: none; }
 
           .track-row {

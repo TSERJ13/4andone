@@ -67,8 +67,7 @@ export default function TaxonomyPage() {
   return (
     <div className="taxonomy-page animate-in">
       <div className="page-header">
-        <h1>Categories & Tags</h1>
-        <p className="text-secondary">Manage the dynamic categorization of your entire music library.</p>
+        <h1>Dance Styles</h1>
       </div>
 
       <div className="taxonomy-grid">
@@ -77,9 +76,8 @@ export default function TaxonomyPage() {
         <div className="admin-card glass">
           <div className="card-header">
             <Music2 size={24} className="text-primary" />
-            <h2>Dance Styles</h2>
+            <h2>Styles List</h2>
           </div>
-          <p className="text-secondary mb-4">Create core categories (e.g. Samba, Rumba) that define the macro structure.</p>
           
           <form className="add-form glass" onSubmit={handleAddStyle}>
             <div className="form-group">
@@ -181,7 +179,6 @@ export default function TaxonomyPage() {
             <Tag size={24} className="text-primary" />
             <h2>Track Tags</h2>
           </div>
-          <p className="text-secondary mb-4">Create generic tags (e.g. Instrumental, Pop) applied across any style.</p>
           
           <form className="add-form glass" onSubmit={handleAddTag}>
             <div className="form-group">
@@ -488,9 +485,20 @@ export default function TaxonomyPage() {
         }
 
         @media (max-width: 1024px) {
-          .taxonomy-grid {
-            grid-template-columns: 1fr;
-          }
+          .taxonomy-grid { grid-template-columns: 1fr; }
+        }
+
+        @media (max-width: 768px) {
+          .taxonomy-grid { grid-template-columns: 1fr; gap: 16px; }
+          .admin-card { padding: 20px; }
+          .card-header h2 { font-size: 20px; }
+          .page-header h1 { font-size: 24px; }
+          .form-group { flex-wrap: wrap; }
+          .form-group .t-input { min-width: 0; }
+          .add-form { padding: 12px; }
+          .t-select { max-width: 110px; }
+          .t-name { font-size: 13px; }
+          .t-badge { display: none; }
         }
       `}</style>
     </div>

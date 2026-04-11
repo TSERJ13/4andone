@@ -1,79 +1,267 @@
 "use client";
 
-import React, { useState } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import {
-  Flag,
   Play,
+  Pause,
   Trash2,
   GripVertical,
   Music2,
   Disc,
-  FolderPlus,
-  ChevronLeft,
-  Settings,
-  Plus
+  Zap,
+  Activity,
+  MicOff,
+  Dumbbell,
+  Info,
+  ArrowRight
 } from 'lucide-react';
+import Link from 'next/link';
 import { useAudio } from '@/components/audio/AudioProvider';
 import { useStudio, Track } from '@/components/admin/StudioProvider';
 import { useAuth } from '@/context/AuthContext';
 import { getMPMFromBPM } from '@/utils/audio';
 import ConfirmModal from '@/components/admin/ConfirmModal';
+import { formatDuration } from '@/utils/format';
 
 const FinalsPage = () => {
   const { 
     tracks, 
-    styles,
     finalTracks, 
-    finalFolders, 
-    addFinalFolder, 
-    removeFinalFolder, 
-    addTrackToFinalFolder, 
-    getTracksForFinalFolder,
     removeFromFinal, 
     reorderFinalTracks,
     setFinalTracks
   } = useStudio();
-  const { loadTrack, isPlaying, title: playingTitle } = useAudio();
+  const { loadTrack, isPlaying, title: playingTitle, currentTime, trackCurrentTime, duration, isPauseCountdown, pauseTime, stop, isFitness, setIsFitness } = useAudio();
   const { isAuthenticated, setIsAuthModalOpen } = useAuth();
+  const [activeMode, setActiveMode] = useState<string | null>(null);
+  const [showStopConfirm, setShowStopConfirm] = useState(false);
+  const [cardDim, setCardDim] = useState({ w: 0, h: 0 });
+  const activeCardRef = useRef<HTMLDivElement>(null);
+  const [showFitnessModal, setShowFitnessModal] = useState(false);
+  const [fitnessDuration, setFitnessDuration] = useState(10); // Minutes
+  const [fitnessDurationSecs, setFitnessDurationSecs] = useState(0); // Seconds
+
+  useEffect(() => {
+    if (!activeCardRef.current) return;
+    const obs = new ResizeObserver((entries) => {
+      for (const entry of entries) {
+        setCardDim({ w: entry.contentRect.width, h: entry.contentRect.height });
+      }
+    });
+    obs.observe(activeCardRef.current);
+    return () => obs.disconnect();
+  }, [activeMode]);
+
+  const generateDynamicPath = (w: number, h: number, r: number) => {
+    if (w === 0 || h === 0) return "";
+    const inset = 2; // Keep line perfectly centered on border
+    // Start at Top-Middle (w/2, inset)
+    return `M ${w/2} ${inset} 
+            L ${w - r} ${inset} 
+            Q ${w - inset} ${inset} ${w - inset} ${r} 
+            L ${w - inset} ${h - r} 
+            Q ${w - inset} ${h - inset} ${w - r} ${h - inset} 
+            L ${r} ${h - inset} 
+            Q ${inset} ${h - inset} ${inset} ${h - r} 
+            L ${inset} ${r} 
+            Q ${inset} ${inset} ${r} ${inset} 
+            L ${w/2} ${inset}`;
+  };
   
-  const [selectedFolderId, setSelectedFolderId] = useState<string | null>(null);
-  const [newFolderName, setNewFolderName] = useState('');
-  const [showFolderForm, setShowFolderForm] = useState(false);
-  const [infoModal, setInfoModal] = useState<{ isOpen: boolean, title: string, message: string, variant: 'primary' | 'danger', onConfirm?: () => void }>({
-    isOpen: false,
-    title: '',
-    message: '',
-    variant: 'primary'
-  });
-  const [duplicateCheck, setDuplicateCheck] = useState<{ trackId: string, folderId: string, style: string } | null>(null);
-  const [isEditMode, setIsEditMode] = useState(false);
-  const [longPressTimeout, setLongPressTimeout] = useState<NodeJS.Timeout | null>(null);
-  const [isCreatingFolder, setIsCreatingFolder] = useState(false);
+  // Calculate total session metrics
+  const getTrackLimit = (t: Track) => t.style?.toLowerCase().includes('paso') ? (t.duration || 240) : 105;
+  
+  const totalSessionDuration = finalTracks.reduce((sum, t, i) => {
+    const limit = getTrackLimit(t);
+    const breakTime = (i < finalTracks.length - 1 && !isFitness) ? 15 : 0;
+    return sum + limit + breakTime;
+  }, 0);
+  const currentTrackIndex = finalTracks.findIndex(t => t.title === playingTitle);
+  
+  let sessionElapsedTime = 0;
+  if (currentTrackIndex !== -1) {
+    sessionElapsedTime = currentTime;
+  }
 
-  const selectedFolder = finalFolders.find(f => f.id === selectedFolderId);
-  const selectedFolderTracks = selectedFolderId ? getTracksForFinalFolder(selectedFolderId) : [];
+  const currentTrack = currentTrackIndex !== -1 ? finalTracks[currentTrackIndex] : null;
+  const currentTrackLimit = currentTrack ? getTrackLimit(currentTrack) : 100;
+  const currentLimit = isPauseCountdown ? 15 : currentTrackLimit;
+  const trackProgress = Math.min(trackCurrentTime / currentLimit, 1);
 
-  const handleProgramShuffle = (programName: 'Latin' | 'Standard') => {
-    const latinOrder = ["Samba", "Cha-cha-cha", "Rumba", "Paso Doble", "Jive"];
-    const standardOrder = ["Slow Waltz", "Tango", "Viennese Waltz", "Slow Foxtrot", "Quickstep"];
-    
-    const order = programName === 'Latin' ? latinOrder : standardOrder;
+  const totalProgress = totalSessionDuration > 0 ? Math.min(sessionElapsedTime / totalSessionDuration, 1) : 0;
+
+  const formatTime = (seconds: number) => {
+    const mins = Math.floor(seconds / 60);
+    const secs = Math.floor(seconds % 60);
+    return `${mins}:${secs.toString().padStart(2, '0')}`;
+  };
+  
+  const latinOrder = ["Samba", "Cha-cha-cha", "Rumba", "Paso Doble", "Jive"];
+  const standardOrder = ["Slow Waltz", "Tango", "Viennese Waltz", "Slow Foxtrot", "Quickstep"];
+
+  const handleProgramShuffle = (type: string) => {
+    let order: string[] = [];
+    let filterFn: (t: Track) => boolean = () => true;
+
+    setIsFitness(false);
+    switch (type) {
+      case 'Latin':
+        order = latinOrder;
+        break;
+      case 'Standard':
+        order = standardOrder;
+        break;
+      case '10Dance':
+        order = [...standardOrder, ...latinOrder];
+        break;
+      case '8Dance':
+        order = [...standardOrder, ...latinOrder].filter(s => s !== "Slow Foxtrot" && s !== "Paso Doble");
+        break;
+      case '6Dance':
+        order = [...standardOrder, ...latinOrder].filter(s => !["Slow Foxtrot", "Paso Doble", "Viennese Waltz", "Rumba"].includes(s));
+        break;
+      case 'InstLatin':
+        order = latinOrder;
+        filterFn = (t) => t.tags?.some(tag => tag.toLowerCase() === 'instrumental') || false;
+        break;
+      case 'InstStandard':
+        order = standardOrder;
+        filterFn = (t) => t.tags?.some(tag => tag.toLowerCase() === 'instrumental') || false;
+        break;
+      case 'JiveLatin':
+        const jivePool = tracks.filter(t => t.style.toLowerCase() === 'jive');
+        const latinPools = {
+          Samba: tracks.filter(t => t.style.toLowerCase() === 'samba'),
+          'Cha-cha-cha': tracks.filter(t => t.style.toLowerCase() === 'cha-cha-cha'),
+          Rumba: tracks.filter(t => t.style.toLowerCase() === 'rumba'),
+          'Paso Doble': tracks.filter(t => t.style.toLowerCase() === 'paso doble')
+        };
+        const jiveLatinTracks: Track[] = [];
+        const pick = (pool: Track[]) => pool[Math.floor(Math.random() * pool.length)];
+        
+        // 1. Samba - Jive
+        if (latinPools.Samba.length) jiveLatinTracks.push(pick(latinPools.Samba));
+        if (jivePool.length) jiveLatinTracks.push(pick(jivePool));
+        // 2. Cha-cha - Jive
+        if (latinPools['Cha-cha-cha'].length) jiveLatinTracks.push(pick(latinPools['Cha-cha-cha']));
+        if (jivePool.length) jiveLatinTracks.push(pick(jivePool));
+        // 3. Rumba - Jive
+        if (latinPools.Rumba.length) jiveLatinTracks.push(pick(latinPools.Rumba));
+        if (jivePool.length) jiveLatinTracks.push(pick(jivePool));
+        // 4. Paso - Jive
+        if (latinPools['Paso Doble'].length) jiveLatinTracks.push(pick(latinPools['Paso Doble']));
+        if (jivePool.length) jiveLatinTracks.push(pick(jivePool));
+        // 5. Jive - Jive
+        if (jivePool.length) {
+          jiveLatinTracks.push(pick(jivePool));
+          jiveLatinTracks.push(pick(jivePool));
+        }
+        if (jiveLatinTracks.length) {
+          setActiveMode('JiveLatin');
+          setFinalTracks(jiveLatinTracks);
+          loadTrack(jiveLatinTracks[0], false, true);
+        }
+        return;
+      case 'QuickstepStandard':
+        const qsPool = tracks.filter(t => t.style.toLowerCase() === 'quickstep');
+        const stdPools = {
+          'Slow Waltz': tracks.filter(t => t.style.toLowerCase() === 'slow waltz'),
+          Tango: tracks.filter(t => t.style.toLowerCase() === 'tango'),
+          'Viennese Waltz': tracks.filter(t => t.style.toLowerCase() === 'viennese waltz'),
+          'Slow Foxtrot': tracks.filter(t => t.style.toLowerCase() === 'slow foxtrot')
+        };
+        const qsStdTracks: Track[] = [];
+        const pickStd = (pool: Track[]) => pool[Math.floor(Math.random() * pool.length)];
+
+        // 1. Waltz - QS
+        if (stdPools['Slow Waltz'].length) qsStdTracks.push(pickStd(stdPools['Slow Waltz']));
+        if (qsPool.length) qsStdTracks.push(pickStd(qsPool));
+        // 2. Tango - QS
+        if (stdPools.Tango.length) qsStdTracks.push(pickStd(stdPools.Tango));
+        if (qsPool.length) qsStdTracks.push(pickStd(qsPool));
+        // 3. Viennese - QS
+        if (stdPools['Viennese Waltz'].length) qsStdTracks.push(pickStd(stdPools['Viennese Waltz']));
+        if (qsPool.length) qsStdTracks.push(pickStd(qsPool));
+        // 4. Foxtrot - QS
+        if (stdPools['Slow Foxtrot'].length) qsStdTracks.push(pickStd(stdPools['Slow Foxtrot']));
+        if (qsPool.length) qsStdTracks.push(pickStd(qsPool));
+        // 5. QS - QS
+        if (qsPool.length) {
+          qsStdTracks.push(pickStd(qsPool));
+          qsStdTracks.push(pickStd(qsPool));
+        }
+        if (qsStdTracks.length) {
+          setActiveMode('QuickstepStandard');
+          setFinalTracks(qsStdTracks);
+          loadTrack(qsStdTracks[0], false, true);
+        }
+        return;
+      case 'Fitness':
+        setShowFitnessModal(true);
+        return;
+    }
+
     const selectedTracks: Track[] = [];
-
     order.forEach((styleName: string) => {
-      // Find tracks of this style in the general library
-      const styleTracks = tracks.filter((t: Track) => t.style.toLowerCase() === styleName.toLowerCase());
+      const styleTracks = tracks.filter((t: Track) => 
+        t.style.toLowerCase() === styleName.toLowerCase() && filterFn(t)
+      );
       if (styleTracks.length > 0) {
-        // Pick one random track for this style to build the "Final"
         const randomTrack = styleTracks[Math.floor(Math.random() * styleTracks.length)];
         selectedTracks.push(randomTrack);
       }
     });
 
-    if (selectedTracks.length > 0) {
+    if (selectedTracks.length) {
+      setActiveMode(type);
       setFinalTracks(selectedTracks);
+      // Ensure we start playing
       loadTrack(selectedTracks[0], false, true);
     }
+  };
+
+  const handleStopProgram = () => {
+    setActiveMode(null);
+    stop();
+    setFinalTracks([]);
+    setShowStopConfirm(false);
+    setIsFitness(false);
+  };
+
+  const startFitness = (selectedTargetSeconds: number) => {
+    // 1. Filter by "Fitness" Style
+    const fitnessPool = tracks.filter(t => 
+      t.style?.toLowerCase() === 'fitness'
+    );
+
+    setIsFitness(true);
+    
+    if (fitnessPool.length === 0) {
+      alert("No tracks found with Style 'Fitness'. Please assign tracks to the Fitness style in the Admin Panel.");
+      setShowFitnessModal(false);
+      return;
+    }
+
+    const targetSeconds = selectedTargetSeconds;
+    let currentSeconds = 0;
+    const selectedTracks: Track[] = [];
+    const pool = [...fitnessPool].sort(() => 0.5 - Math.random());
+
+    // Fill the queue until we hit the time limit
+    let iterations = 0;
+    while (currentSeconds < targetSeconds && iterations < 50) {
+      const track = pool[iterations % pool.length];
+      selectedTracks.push(track);
+      currentSeconds += (track.duration || 120);
+      iterations++;
+    }
+
+    setActiveMode('Fitness');
+    setFinalTracks(selectedTracks);
+    setShowFitnessModal(false);
+    setIsFitness(true);
+    // Fitness acts as a continuous Final session, so we MUST enable isFinalMode to use the queue
+    loadTrack(selectedTracks[0], false, true);
   };
 
   const handleDragStart = (e: React.DragEvent, trackId: string) => {
@@ -84,243 +272,439 @@ const FinalsPage = () => {
     e.preventDefault();
   };
 
-  const handleDropToFolder = async (e: React.DragEvent, folderId: string) => {
-    e.preventDefault();
-    const trackId = e.dataTransfer.getData('trackId');
-    if (!trackId) return;
-    
-    const result = await addTrackToFinalFolder(trackId, folderId);
-    
-    if (!result.success && result.duplicate) {
-      setDuplicateCheck({ trackId, folderId, style: result.duplicate });
-    }
-  };
-
-  const confirmDuplicateAdd = async () => {
-    if (!duplicateCheck) return;
-    await addTrackToFinalFolder(duplicateCheck.trackId, duplicateCheck.folderId, true);
-    setDuplicateCheck(null);
-  };
-
   return (
-    <div className="finals-container animate-in">
-      <div className="finals-sectors-unified animate-in" style={{ marginTop: '20px' }}>
+    <div className="page-wrapper">
+      <div className="finals-container animate-in">
+        <header className="page-header-unified">
+          <div>
+            <h1>Final Mode</h1>
+            <p className="text-secondary">Tournament Simulation & Practice</p>
+          </div>
+          <Link href="/learn-final-mode" className="learn-finals-btn">
+            <Info size={18} />
+            <span>How it works?</span>
+            <ArrowRight size={16} className="arrow" />
+          </Link>
+        </header>
 
-        <section className="folders-section">
+        <div className="finals-sectors-unified animate-in">
+        
+        <section className="programs-section">
           <header className="section-header">
-            <div className="simulation-actions">
-              <div className="shuffle-stack">
-                <button className="sim-btn latin glass" onClick={() => handleProgramShuffle('Latin')}>
-                  <Play size={14} fill="currentColor" />
-                  <span>Shuffle Latin</span>
-                </button>
-                <button className="sim-btn standard glass" onClick={() => handleProgramShuffle('Standard')}>
-                  <Play size={14} fill="currentColor" />
-                  <span>Shuffle Standard</span>
-                </button>
-              </div>
-              
-              <button 
-                className="sim-btn add-folder-btn glass big-btn" 
-                onClick={() => setShowFolderForm(!showFolderForm)}
-                title="Add Folder"
-              >
-                <FolderPlus size={36} strokeWidth={1.5} />
-              </button>
-              
-              {isEditMode && (
-                <button className="exit-edit-btn glass" onClick={() => setIsEditMode(false)}>
-                  Done
-                </button>
-              )}
-
-              {showFolderForm && (
-                <div className="folder-modal-overlay animate-in-fade" onClick={() => !isCreatingFolder && setShowFolderForm(false)}>
-                  <form className="folder-modal-content animate-in-popup" onClick={(e) => e.stopPropagation()} onSubmit={async (e) => {
-                      e.preventDefault();
-                      if (!newFolderName.trim() || isCreatingFolder) return;
-
-                      if (!isAuthenticated) {
-                        setInfoModal({
-                          isOpen: true,
-                          title: 'Authentication Required',
-                          message: 'Please log in with Telegram to create competition folders and sync your data.',
-                          variant: 'primary',
-                          onConfirm: () => {
-                            setInfoModal(prev => ({ ...prev, isOpen: false }));
-                            setIsAuthModalOpen(true);
-                          }
-                        });
-                        return;
-                      }
-                      
-                      setIsCreatingFolder(true);
-                      try {
-                        await addFinalFolder(newFolderName.trim(), '#1db954');
-                        setNewFolderName('');
-                        setShowFolderForm(false);
-                      } catch (err) {
-                        console.error("Folder creation error:", err);
-                      } finally {
-                        setIsCreatingFolder(false);
-                      }
-                    }}>
-                    <h3>New Folder</h3>
-                    <input 
-                      type="text" 
-                      placeholder="e.g. WDSF Final" 
-                      value={newFolderName}
-                      onChange={(e) => setNewFolderName(e.target.value)}
-                      className="modal-t-input"
-                      autoFocus
-                      disabled={isCreatingFolder}
-                    />
-                    <div className="modal-actions">
-                      <button type="button" className="btn-cancel" onClick={() => setShowFolderForm(false)} disabled={isCreatingFolder}>Cancel</button>
-                      <button type="submit" className="btn-confirm" disabled={isCreatingFolder}>
-                        {isCreatingFolder ? 'Creating...' : 'Create'}
-                      </button>
-                    </div>
-                  </form>
-                </div>
-              )}
-            </div>
           </header>
-
-          <div className="folders-grid">
-            {finalFolders.map(folder => {
-              const folderTracks = getTracksForFinalFolder(folder.id);
-              const count = folderTracks.length;
-              
-              const startLongPress = () => {
-                const timer = setTimeout(() => {
-                  setIsEditMode(true);
-                }, 600);
-                setLongPressTimeout(timer);
-              };
-
-              const endLongPress = () => {
-                if (longPressTimeout) {
-                  clearTimeout(longPressTimeout);
-                  setLongPressTimeout(null);
-                }
-              };
-
-              return (
-                <div 
-                  key={folder.id} 
-                  className={`compact-folder-card glass ${selectedFolderId === folder.id ? 'is-active' : ''} ${isEditMode ? 'jiggle' : ''}`}
-                  onClick={() => !isEditMode && setSelectedFolderId(folder.id)}
-                  onDragOver={handleDragOver}
-                  onDrop={(e) => handleDropToFolder(e, folder.id)}
-                  onMouseDown={startLongPress}
-                  onMouseUp={endLongPress}
-                  onMouseLeave={endLongPress}
-                  onTouchStart={startLongPress}
-                  onTouchEnd={endLongPress}
-                >
-                  {isEditMode && (
-                    <button className="delete-badge" onClick={(e) => {
-                      e.stopPropagation();
-                      removeFinalFolder(folder.id);
-                    }}>✕</button>
-                  )}
-                  <div className="folder-info">
-                    <span className="folder-name truncate">{folder.name}</span>
-                    <div className="folder-mini-list">
-                      {folderTracks.slice(0, 3).map(t => (
-                        <span key={t.id} className="mini-track-pill">{t.style}</span>
-                      ))}
-                      {count > 3 && <span className="mini-track-pill">+{count - 3}</span>}
+          
+          <div className="programs-grid">
+            <div className="prog-card-wrapper">
+              <div 
+                className={`prog-card latin glass ${activeMode === 'Latin' ? 'active' : ''}`} 
+                onClick={() => activeMode === 'Latin' ? setShowStopConfirm(true) : handleProgramShuffle('Latin')}
+                role="button"
+                tabIndex={0}
+                onKeyDown={(e) => e.key === 'Enter' && (activeMode === 'Latin' ? setShowStopConfirm(true) : handleProgramShuffle('Latin'))}
+              >
+                {activeMode === 'Latin' && (
+                  <>
+                    <div className="rectangular-timer-border" ref={activeCardRef}>
+                       <svg 
+                         width={cardDim.w} 
+                         height={cardDim.h} 
+                         viewBox={`0 0 ${cardDim.w} ${cardDim.h}`} 
+                         className="timer-svg"
+                       >
+                         <path 
+                           d={generateDynamicPath(cardDim.w, cardDim.h, 20)}
+                           className={`border-rect-progress ${isPauseCountdown ? 'resting' : 'playing'}`}
+                           vectorEffect="non-scaling-stroke"
+                           pathLength="1"
+                           style={{ 
+                             strokeDasharray: `${totalProgress} 10`,
+                             strokeDashoffset: '0'
+                           }}
+                         />
+                       </svg>
                     </div>
-                  </div>
-                  {!isEditMode && (
-                    <button 
-                      className="quick-play-btn glass"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        if (folderTracks.length > 0) loadTrack(folderTracks[0], false, true);
-                      }}
-                    >
-                      <Play size={16} fill="currentColor" />
-                    </button>
-                  )}
+                    {isPauseCountdown && <div className="rest-timer-overlay pulse-intense">{pauseTime}</div>}
+                  </>
+                )}
+                <div className="card-icon"><Zap size={24} /></div>
+                <div className="card-info">
+                  <h4>Latin</h4>
+                  {activeMode === 'Latin' && <p className="session-timer">{formatTime(sessionElapsedTime)} / {formatTime(totalSessionDuration)}</p>}
                 </div>
-              );
-            })}
+              </div>
+            </div>
+
+            <div className="prog-card-wrapper">
+              <div 
+                className={`prog-card standard glass ${activeMode === 'Standard' ? 'active' : ''}`} 
+                onClick={() => activeMode === 'Standard' ? setShowStopConfirm(true) : handleProgramShuffle('Standard')}
+                role="button"
+                tabIndex={0}
+                onKeyDown={(e) => e.key === 'Enter' && (activeMode === 'Standard' ? setShowStopConfirm(true) : handleProgramShuffle('Standard'))}
+              >
+                {activeMode === 'Standard' && (
+                  <>
+                    <div className="rectangular-timer-border" ref={activeCardRef}>
+                       <svg 
+                         width={cardDim.w} 
+                         height={cardDim.h} 
+                         viewBox={`0 0 ${cardDim.w} ${cardDim.h}`} 
+                         className="timer-svg"
+                       >
+                         <path 
+                           d={generateDynamicPath(cardDim.w, cardDim.h, 20)}
+                           className={`border-rect-progress ${isPauseCountdown ? 'resting' : 'playing'}`}
+                           vectorEffect="non-scaling-stroke"
+                           pathLength="1"
+                           style={{ 
+                             strokeDasharray: `${totalProgress} 10`,
+                             strokeDashoffset: '0'
+                           }}
+                         />
+                       </svg>
+                    </div>
+                    {isPauseCountdown && <div className="rest-timer-overlay pulse-intense">{pauseTime}</div>}
+                  </>
+                )}
+                <div className="card-icon"><Activity size={24} /></div>
+                <div className="card-info">
+                  <h4>Standard</h4>
+                  {activeMode === 'Standard' && <p className="session-timer">{formatTime(sessionElapsedTime)} / {formatTime(totalSessionDuration)}</p>}
+                </div>
+              </div>
+            </div>
+
+            <div className="prog-card-wrapper">
+              <div 
+                className={`prog-card all-dance glass ${activeMode === '10Dance' ? 'active' : ''}`} 
+                onClick={() => activeMode === '10Dance' ? setShowStopConfirm(true) : handleProgramShuffle('10Dance')}
+                role="button"
+                tabIndex={0}
+                onKeyDown={(e) => e.key === 'Enter' && (activeMode === '10Dance' ? setShowStopConfirm(true) : handleProgramShuffle('10Dance'))}
+              >
+                {activeMode === '10Dance' && (
+                  <>
+                    <div className="rectangular-timer-border" ref={activeCardRef}>
+                       <svg 
+                         width={cardDim.w} 
+                         height={cardDim.h} 
+                         viewBox={`0 0 ${cardDim.w} ${cardDim.h}`} 
+                         className="timer-svg"
+                       >
+                         <path 
+                           d={generateDynamicPath(cardDim.w, cardDim.h, 20)}
+                           className={`border-rect-progress ${isPauseCountdown ? 'resting' : 'playing'}`}
+                           vectorEffect="non-scaling-stroke"
+                           pathLength="1"
+                           style={{ 
+                             strokeDasharray: `${totalProgress} 10`,
+                             strokeDashoffset: '0'
+                           }}
+                         />
+                       </svg>
+                    </div>
+                    {isPauseCountdown && <div className="rest-timer-overlay pulse-intense">{pauseTime}</div>}
+                  </>
+                )}
+                <div className="card-icon"><Disc size={24} /></div>
+                <div className="card-info">
+                  <h4>10-Dance</h4>
+                  {activeMode === '10Dance' && <p className="session-timer">{formatTime(sessionElapsedTime)} / {formatTime(totalSessionDuration)}</p>}
+                </div>
+              </div>
+            </div>
+
+            <div className="prog-card-wrapper">
+              <div 
+                className={`prog-card eight-dance glass ${activeMode === '8Dance' ? 'active' : ''}`} 
+                onClick={() => activeMode === '8Dance' ? setShowStopConfirm(true) : handleProgramShuffle('8Dance')}
+                role="button"
+                tabIndex={0}
+                onKeyDown={(e) => e.key === 'Enter' && (activeMode === '8Dance' ? setShowStopConfirm(true) : handleProgramShuffle('8Dance'))}
+              >
+                {activeMode === '8Dance' && (
+                  <>
+                    <div className="rectangular-timer-border" ref={activeCardRef}>
+                       <svg 
+                         width={cardDim.w} 
+                         height={cardDim.h} 
+                         viewBox={`0 0 ${cardDim.w} ${cardDim.h}`} 
+                         className="timer-svg"
+                       >
+                         <path 
+                           d={generateDynamicPath(cardDim.w, cardDim.h, 20)}
+                           className={`border-rect-progress ${isPauseCountdown ? 'resting' : 'playing'}`}
+                           vectorEffect="non-scaling-stroke"
+                           pathLength="1"
+                           style={{ 
+                             strokeDasharray: `${totalProgress} 10`,
+                             strokeDashoffset: '0'
+                           }}
+                         />
+                       </svg>
+                    </div>
+                    {isPauseCountdown && <div className="rest-timer-overlay pulse-intense">{pauseTime}</div>}
+                  </>
+                )}
+                <div className="card-icon"><Music2 size={24} /></div>
+                <div className="card-info">
+                  <h4>8-Dance</h4>
+                  {activeMode === '8Dance' && <p className="session-timer">{formatTime(sessionElapsedTime)} / {formatTime(totalSessionDuration)}</p>}
+                </div>
+              </div>
+            </div>
+
+            <div className="prog-card-wrapper">
+              <div 
+                className={`prog-card six-dance glass ${activeMode === '6Dance' ? 'active' : ''}`} 
+                onClick={() => activeMode === '6Dance' ? setShowStopConfirm(true) : handleProgramShuffle('6Dance')}
+                role="button"
+                tabIndex={0}
+                onKeyDown={(e) => e.key === 'Enter' && (activeMode === '6Dance' ? setShowStopConfirm(true) : handleProgramShuffle('6Dance'))}
+              >
+                {activeMode === '6Dance' && (
+                  <>
+                    <div className="rectangular-timer-border" ref={activeCardRef}>
+                       <svg 
+                         width={cardDim.w} 
+                         height={cardDim.h} 
+                         viewBox={`0 0 ${cardDim.w} ${cardDim.h}`} 
+                         className="timer-svg"
+                       >
+                         <path 
+                           d={generateDynamicPath(cardDim.w, cardDim.h, 20)}
+                           className={`border-rect-progress ${isPauseCountdown ? 'resting' : 'playing'}`}
+                           vectorEffect="non-scaling-stroke"
+                           pathLength="1"
+                           style={{ 
+                             strokeDasharray: `${totalProgress} 10`,
+                             strokeDashoffset: '0'
+                           }}
+                         />
+                       </svg>
+                    </div>
+                    {isPauseCountdown && <div className="rest-timer-overlay pulse-intense">{pauseTime}</div>}
+                  </>
+                )}
+                <div className="card-icon"><Zap size={20} /></div>
+                <div className="card-info">
+                  <h4>6-Dance</h4>
+                  {activeMode === '6Dance' && <p className="session-timer">{formatTime(sessionElapsedTime)} / {formatTime(totalSessionDuration)}</p>}
+                </div>
+              </div>
+            </div>
+
+            <div className="prog-card-wrapper">
+              <div 
+                className={`prog-card inst-latin glass ${activeMode === 'InstLatin' ? 'active' : ''}`} 
+                onClick={() => activeMode === 'InstLatin' ? setShowStopConfirm(true) : handleProgramShuffle('InstLatin')}
+                role="button"
+                tabIndex={0}
+                onKeyDown={(e) => e.key === 'Enter' && (activeMode === 'InstLatin' ? setShowStopConfirm(true) : handleProgramShuffle('InstLatin'))}
+              >
+                {activeMode === 'InstLatin' && (
+                  <>
+                    <div className="rectangular-timer-border" ref={activeCardRef}>
+                       <svg 
+                         width={cardDim.w} 
+                         height={cardDim.h} 
+                         viewBox={`0 0 ${cardDim.w} ${cardDim.h}`} 
+                         className="timer-svg"
+                       >
+                         <path 
+                           d={generateDynamicPath(cardDim.w, cardDim.h, 20)}
+                           className={`border-rect-progress ${isPauseCountdown ? 'resting' : 'playing'}`}
+                           vectorEffect="non-scaling-stroke"
+                           pathLength="1"
+                           style={{ 
+                             strokeDasharray: `${totalProgress} 10`,
+                             strokeDashoffset: '0'
+                           }}
+                         />
+                       </svg>
+                    </div>
+                    {isPauseCountdown && <div className="rest-timer-overlay pulse-intense">{pauseTime}</div>}
+                  </>
+                )}
+                <div className="card-icon"><MicOff size={24} /></div>
+                <div className="card-info">
+                  <h4>Inst. Latin</h4>
+                  {activeMode === 'InstLatin' && <p className="session-timer">{formatTime(sessionElapsedTime)} / {formatTime(totalSessionDuration)}</p>}
+                </div>
+              </div>
+            </div>
+
+            <div className="prog-card-wrapper">
+              <div 
+                className={`prog-card inst-std glass ${activeMode === 'InstStandard' ? 'active' : ''}`} 
+                onClick={() => activeMode === 'InstStandard' ? setShowStopConfirm(true) : handleProgramShuffle('InstStandard')}
+                role="button"
+                tabIndex={0}
+                onKeyDown={(e) => e.key === 'Enter' && (activeMode === 'InstStandard' ? setShowStopConfirm(true) : handleProgramShuffle('InstStandard'))}
+              >
+                {activeMode === 'InstStandard' && (
+                  <>
+                    <div className="rectangular-timer-border" ref={activeCardRef}>
+                       <svg 
+                         width={cardDim.w} 
+                         height={cardDim.h} 
+                         viewBox={`0 0 ${cardDim.w} ${cardDim.h}`} 
+                         className="timer-svg"
+                       >
+                         <path 
+                           d={generateDynamicPath(cardDim.w, cardDim.h, 20)}
+                           className={`border-rect-progress ${isPauseCountdown ? 'resting' : 'playing'}`}
+                           vectorEffect="non-scaling-stroke"
+                           pathLength="1"
+                           style={{ 
+                             strokeDasharray: `${totalProgress} 10`,
+                             strokeDashoffset: '0'
+                           }}
+                         />
+                       </svg>
+                    </div>
+                    {isPauseCountdown && <div className="rest-timer-overlay pulse-intense">{pauseTime}</div>}
+                  </>
+                )}
+                <div className="card-icon"><MicOff size={24} /></div>
+                <div className="card-info">
+                  <h4>Inst. Standard</h4>
+                  {activeMode === 'InstStandard' && <p className="session-timer">{formatTime(sessionElapsedTime)} / {formatTime(totalSessionDuration)}</p>}
+                </div>
+              </div>
+            </div>
+
+            <div className="prog-card-wrapper">
+              <div 
+                className={`prog-card jive-mode glass ${activeMode === 'JiveLatin' ? 'active' : ''}`} 
+                onClick={() => activeMode === 'JiveLatin' ? setShowStopConfirm(true) : handleProgramShuffle('JiveLatin')}
+                role="button"
+                tabIndex={0}
+                onKeyDown={(e) => e.key === 'Enter' && (activeMode === 'JiveLatin' ? setShowStopConfirm(true) : handleProgramShuffle('JiveLatin'))}
+              >
+                {activeMode === 'JiveLatin' && (
+                  <>
+                    <div className="rectangular-timer-border" ref={activeCardRef}>
+                       <svg 
+                         width={cardDim.w} 
+                         height={cardDim.h} 
+                         viewBox={`0 0 ${cardDim.w} ${cardDim.h}`} 
+                         className="timer-svg"
+                       >
+                         <path 
+                           d={generateDynamicPath(cardDim.w, cardDim.h, 20)}
+                           className={`border-rect-progress ${isPauseCountdown ? 'resting' : 'playing'}`}
+                           vectorEffect="non-scaling-stroke"
+                           pathLength="1"
+                           style={{ 
+                             strokeDasharray: `${totalProgress} 10`,
+                             strokeDashoffset: '0'
+                           }}
+                         />
+                       </svg>
+                    </div>
+                    {isPauseCountdown && <div className="rest-timer-overlay pulse-intense">{pauseTime}</div>}
+                  </>
+                )}
+                <div className="card-icon"><Zap size={24} /></div>
+                <div className="card-info">
+                  <h4>Jive Mode</h4>
+                  {activeMode === 'JiveLatin' && <p className="session-timer">{formatTime(sessionElapsedTime)} / {formatTime(totalSessionDuration)}</p>}
+                </div>
+              </div>
+            </div>
+
+            <div className="prog-card-wrapper">
+              <div 
+                className={`prog-card quickstep-mode glass ${activeMode === 'QuickstepStandard' ? 'active' : ''}`} 
+                onClick={() => activeMode === 'QuickstepStandard' ? setShowStopConfirm(true) : handleProgramShuffle('QuickstepStandard')}
+                role="button"
+                tabIndex={0}
+                onKeyDown={(e) => e.key === 'Enter' && (activeMode === 'QuickstepStandard' ? setShowStopConfirm(true) : handleProgramShuffle('QuickstepStandard'))}
+              >
+                {activeMode === 'QuickstepStandard' && (
+                  <>
+                    <div className="rectangular-timer-border" ref={activeCardRef}>
+                       <svg 
+                         width={cardDim.w} 
+                         height={cardDim.h} 
+                         viewBox={`0 0 ${cardDim.w} ${cardDim.h}`} 
+                         className="timer-svg"
+                       >
+                         <path 
+                           d={generateDynamicPath(cardDim.w, cardDim.h, 20)}
+                           className={`border-rect-progress ${isPauseCountdown ? 'resting' : 'playing'}`}
+                           vectorEffect="non-scaling-stroke"
+                           pathLength="1"
+                           style={{ 
+                             strokeDasharray: `${totalProgress} 10`,
+                             strokeDashoffset: '0'
+                           }}
+                         />
+                       </svg>
+                    </div>
+                    {isPauseCountdown && <div className="rest-timer-overlay pulse-intense">{pauseTime}</div>}
+                  </>
+                )}
+                <div className="card-icon"><Activity size={24} /></div>
+                <div className="card-info">
+                  <h4>Quickstep Mode</h4>
+                  {activeMode === 'QuickstepStandard' && <p className="session-timer">{formatTime(sessionElapsedTime)} / {formatTime(totalSessionDuration)}</p>}
+                </div>
+              </div>
+            </div>
+
+            <div className="prog-card-wrapper">
+              <div 
+                className={`prog-card fitness glass ${activeMode === 'Fitness' ? 'active' : ''}`} 
+                onClick={() => activeMode === 'Fitness' ? setShowStopConfirm(true) : handleProgramShuffle('Fitness')}
+                role="button"
+                tabIndex={0}
+                onKeyDown={(e) => e.key === 'Enter' && (activeMode === 'Fitness' ? setShowStopConfirm(true) : handleProgramShuffle('Fitness'))}
+              >
+                {activeMode === 'Fitness' && (
+                  <>
+                    <div className="rectangular-timer-border" ref={activeCardRef}>
+                       <svg 
+                         width={cardDim.w} 
+                         height={cardDim.h} 
+                         viewBox={`0 0 ${cardDim.w} ${cardDim.h}`} 
+                         className="timer-svg"
+                       >
+                         <path 
+                           d={generateDynamicPath(cardDim.w, cardDim.h, 20)}
+                           className={`border-rect-progress ${isPauseCountdown ? 'resting' : 'playing'}`}
+                           vectorEffect="non-scaling-stroke"
+                           pathLength="1"
+                           style={{ 
+                             strokeDasharray: `${totalProgress} 10`,
+                             strokeDashoffset: '0'
+                           }}
+                         />
+                       </svg>
+                    </div>
+                    {isPauseCountdown && <div className="rest-timer-overlay pulse-intense">{pauseTime}</div>}
+                  </>
+                )}
+                <div className="card-icon"><Dumbbell size={24} /></div>
+                <div className="card-info">
+                  <h4>Fitness</h4>
+                  {activeMode === 'Fitness' && <p className="session-timer">{formatTime(sessionElapsedTime)} / {formatTime(totalSessionDuration)}</p>}
+                </div>
+              </div>
+            </div>
           </div>
         </section>
 
-        {selectedFolder && (
-          <section className="folder-detail-view glass animate-in-up">
-            <header className="detail-header">
-              <button className="back-btn glass" onClick={() => setSelectedFolderId(null)}>
-                <ChevronLeft size={20} />
-              </button>
-              <div className="title-area">
-                <h2>{selectedFolder.name}</h2>
-                <p>{selectedFolderTracks.length} tracks prioritized</p>
-              </div>
-              <div className="detail-actions">
-                <button className="play-all-btn" onClick={() => selectedFolderTracks.length > 0 && loadTrack(selectedFolderTracks[0], false, true)}>
-                  <Play size={18} fill="currentColor" />
-                  <span>Play Program</span>
-                </button>
-                <button className="del-folder-btn glass" onClick={() => { removeFinalFolder(selectedFolder.id); setSelectedFolderId(null); }}>
-                   <Trash2 size={18} />
-                </button>
-              </div>
-            </header>
-
-            <div className="detail-tracks-list">
-               {selectedFolderTracks.length > 0 ? selectedFolderTracks.map((track, i) => (
-                 <div 
-                   key={track.id} 
-                   className="detail-track-row glass" 
-                   draggable
-                   onDragStart={(e) => handleDragStart(e, track.id)}
-                   onDragOver={handleDragOver}
-                   onDrop={(e) => {
-                     e.preventDefault();
-                     const dragId = e.dataTransfer.getData('trackId');
-                     if (dragId && dragId !== track.id) {
-                       reorderFinalTracks(
-                         selectedFolderTracks.findIndex(t => t.id === dragId),
-                         i,
-                         selectedFolderId // Pass folderId to scope the reorder
-                       );
-                     }
-                   }}
-                   onClick={() => loadTrack(track, false, true)}
-                 >
-                   <GripVertical size={14} className="drag-handle text-secondary" />
-                   <span className="idx">{i+1}</span>
-                   <div className="meta">
-                      <span className="name truncate">{track.title}</span>
-                      <span className="style-badge">{track.style}</span>
-                   </div>
-                   <div className="actions">
-                     <span className="duration text-secondary">{getMPMFromBPM(Number(track.bpm), track.style)} MPM</span>
-                   </div>
-                 </div>
-               )) : <p className="empty-msg">Drag tracks from the queue below to add to this folder.</p>}
-            </div>
-          </section>
-        )}
-
         <section className="track-queue-section glass">
           <header className="queue-header">
-             <div className="title-area">
-                <h3>Finals Queue</h3>
-                <p className="description">Tracks flagged for finals. Drag to folders to organize.</p>
-             </div>
           </header>
 
           <div className="tracks-list queue-list">
             {finalTracks.length > 0 ? finalTracks.map((track: Track, i: number) => (
               <div
                 key={track.id}
-                className={`final-row glass ${playingTitle === track.title ? 'is-playing' : ''}`}
+                className={`track-row glass ${isPlaying && playingTitle === track.title ? 'is-active' : ''}`}
                 draggable
                 onDragStart={(e) => handleDragStart(e, track.id)}
                 onClick={() => loadTrack(track, false, true)}
@@ -334,48 +718,36 @@ const FinalsPage = () => {
                   }
                 }}
               >
-                <div className="track-info">
-                  <span className="idx">{i + 1}</span>
-                  <GripVertical size={16} className="drag-handle-icon" />
-                  <div className="track-meta">
-                    <span className="title truncate">{track.title}</span>
-                    <span className="artist truncate info-mobile-hide">
-                      {track.artist}
-                    </span>
-                    <span className="style-mini">{track.style}</span>
+                <div className="track-number">{i + 1}</div>
+                <div className="track-meta">
+                  <Disc size={20} className="text-secondary" />
+                  <div>
+                    <p className="track-name">{track.title}</p>
+                    <p className="track-artist">{track.artist}</p>
                   </div>
+                </div>
+                <div className="track-duration text-secondary">
+                  {track.bpm ? `${getMPMFromBPM(Number(track.bpm), track.style)} BPM` : track.style}
                 </div>
                 <div className="track-actions">
                   <button className="remove-btn" onClick={(e) => { e.stopPropagation(); removeFromFinal(track.id); }}>
                     <Trash2 size={18} />
                   </button>
+                  <div className="btn-play-row">
+                    {isPlaying && playingTitle === track.title ? (
+                      <Pause size={20} fill="currentColor" />
+                    ) : (
+                      <Play size={20} fill="currentColor" />
+                    )}
+                  </div>
                 </div>
               </div>
-            )) : <p className="empty-msg">Add tracks from the library to see them here.</p>}
+            )) : <p className="empty-msg"></p>}
           </div>
         </section>
+
       </div>
-
-      <ConfirmModal 
-        isOpen={infoModal.isOpen}
-        onClose={() => setInfoModal({ ...infoModal, isOpen: false })}
-        onConfirm={infoModal.onConfirm || (() => setInfoModal({ ...infoModal, isOpen: false }))}
-        title={infoModal.title}
-        message={infoModal.message}
-        confirmText="Got it"
-        variant={infoModal.variant}
-        showCancel={false}
-      />
-
-      <ConfirmModal 
-        isOpen={!!duplicateCheck}
-        onClose={() => setDuplicateCheck(null)}
-        onConfirm={confirmDuplicateAdd}
-        title="Duplicate Style"
-        message={`This folder already contains a ${duplicateCheck?.style}. Add anyway?`}
-        confirmText="Yes, Add"
-        variant="primary"
-      />
+    </div>
 
       <style jsx>{`
         .finals-container {
@@ -386,237 +758,421 @@ const FinalsPage = () => {
           gap: 40px;
         }
 
-        .folders-section { 
-          display: flex; 
-          flex-direction: column; 
-          gap: 20px; 
-          min-height: 120px; 
-          margin-bottom: 30px;
-        }
-        .section-header { display: flex; justify-content: space-between; align-items: center; }
-        .section-header h3 { font-size: 1rem; font-weight: 800; opacity: 0.6; text-transform: uppercase; letter-spacing: 0.5px; }
-
-        .folders-grid {
-          display: grid;
-          grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
-          gap: 12px;
-        }
-
-        .compact-folder-card {
-          padding: 16px 20px;
-          min-height: 90px;
-          border-radius: 20px;
+        .page-header-unified {
           display: flex;
           align-items: center;
           justify-content: space-between;
-          position: relative;
+          margin-bottom: 8px;
+        }
+
+        .page-header-unified h1 {
+          font-size: 32px;
+          font-weight: 900;
+          letter-spacing: -1.5px;
+        }
+
+        .learn-finals-btn {
+          display: flex;
+          align-items: center;
+          gap: 10px;
+          padding: 10px 18px;
+          background: rgba(255, 255, 255, 0.03);
+          border: 1px solid rgba(255, 255, 255, 0.08);
+          border-radius: 99px;
+          font-size: 13px;
+          font-weight: 700;
+          color: var(--primary);
+          transition: all 0.2s;
+        }
+
+        .learn-finals-btn:hover {
+          background: rgba(255, 255, 255, 0.08);
+          border-color: var(--primary);
+          transform: translateX(4px);
+        }
+
+        .learn-finals-btn .arrow {
+          opacity: 0.5;
+          transition: transform 0.2s;
+        }
+
+        .learn-finals-btn:hover .arrow {
+          opacity: 1;
+          transform: translateX(4px);
+        }
+
+        .programs-section {
+          margin-bottom: 40px;
+        }
+
+        .section-header h3 {
+          font-size: 0.9rem;
+          font-weight: 800;
+          opacity: 0.6;
+          text-transform: uppercase;
+          letter-spacing: 1px;
+          margin-bottom: 24px;
+        }
+
+        .programs-grid {
+          display: grid;
+          grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+          gap: 16px;
+        }
+
+        .prog-card {
+          padding: 20px;
+          border-radius: 20px;
+          display: flex;
+          align-items: center;
+          gap: 16px;
           cursor: pointer;
           transition: all 0.2s;
-          border: 1px solid rgba(255, 255, 255, 0.08);
-          background: rgba(255, 255, 255, 0.03);
+          border: 1px solid rgba(255, 255, 255, 0.05);
+          text-align: left;
         }
 
-        .jiggle {
-          animation: jiggle 0.3s infinite ease-in-out;
+        .prog-card:hover { 
+          transform: translateY(-4px); 
+          background: rgba(255, 255, 255, 0.08);
+          border-color: var(--primary);
         }
 
-        @keyframes jiggle {
-          0% { transform: rotate(-1deg); }
-          50% { transform: rotate(1deg); }
-          100% { transform: rotate(-1deg); }
-        }
+        .prog-card-wrapper { position: relative; }
 
-        .delete-badge {
+        .rectangular-timer-border {
           position: absolute;
-          top: -8px;
-          left: -8px;
-          width: 24px;
-          height: 24px;
-          background: #ff4b2b;
-          color: white;
-          border-radius: 50%;
-          border: 2px solid #121212;
+          inset: -2px;
+          border-radius: 22px;
+          pointer-events: none;
+          z-index: 5;
+        }
+
+        .timer-svg {
+          width: 100%;
+          height: 100%;
+          overflow: visible;
+        }
+
+        .border-rect-progress {
+          fill: none;
+          stroke-width: 4px;
+          stroke-linecap: round;
+          transition: stroke-dasharray 0.3s ease-out;
+        }
+
+        .border-rect-progress.playing {
+          stroke: #1ed760;
+          filter: drop-shadow(0 0 8px rgba(30, 215, 96, 0.4));
+        }
+
+        .border-rect-progress.resting {
+          stroke: #f44336;
+          filter: drop-shadow(0 0 12px rgba(244, 67, 54, 0.6));
+        }
+
+        @keyframes pulse-intense {
+          0% { transform: scale(1); opacity: 0.8; }
+          50% { transform: scale(1.1); opacity: 1; }
+          100% { transform: scale(1); opacity: 0.8; }
+        }
+
+        .rest-timer-overlay {
+          position: absolute;
+          inset: 0;
           display: flex;
           align-items: center;
           justify-content: center;
-          font-size: 12px;
-          font-weight: 900;
-          cursor: pointer;
-          z-index: 10;
+          background: radial-gradient(circle, rgba(244, 67, 54, 0.5) 0%, rgba(244, 67, 54, 0.1) 100%);
+          border-radius: 20px;
+          font-size: 48px;
+          font-weight: 1000;
+          color: white;
+          z-index: 15;
+          backdrop-filter: blur(12px);
+          animation: pulse-intense 1s infinite ease-in-out;
+          text-shadow: 0 0 20px rgba(0,0,0,0.5);
         }
 
-        .compact-folder-card:hover { transform: translateY(-2px); border-color: rgba(29, 185, 84, 0.3); }
-        .compact-folder-card.is-active { border-color: var(--primary); background: rgba(29, 185, 84, 0.05); }
-
-        .folder-mini-list { 
-          display: flex; 
-          .collection-card {
-            padding: 12px;
-            min-width: 100%;
-            gap: 12px;
-          }
-          .card-icon {
-            width: 36px;
-            height: 36px;
-            border-radius: 10px;
-          }
-          .card-info h3 { font-size: 0.9rem; }
-          .card-info .meta { font-size: 10px; }
-        }
-        .mini-track-pill { 
-          font-size: 8px; 
-          padding: 1px 5px; 
-          border-radius: 6px; 
-          background: rgba(29, 185, 84, 0.15); 
-          color: var(--primary);
-          white-space: nowrap;
-          border: 1px solid rgba(29, 185, 84, 0.1);
-        }
-
-        .quick-play-btn {
-          width: 32px; height: 32px; border-radius: 50%; display: flex; align-items: center; justify-content: center;
-          color: var(--primary); transition: all 0.2s;
-        }
-        .quick-play-btn:hover { transform: scale(1.1); background: var(--primary); color: black; }
-
-        /* Detail View */
-        .folder-detail-view {
-          padding: 32px;
-          border-radius: 32px;
+        .card-icon {
+          width: 48px;
+          height: 48px;
+          border-radius: 12px;
           display: flex;
-          flex-direction: column;
-          gap: 24px;
-          border: 1px solid var(--primary);
-          background: rgba(0,0,0,0.4);
-          box-shadow: 0 20px 80px rgba(0,0,0,0.8);
-        }
-        .detail-header { display: flex; align-items: center; gap: 24px; }
-        .detail-header h2 { font-size: 1.8rem; font-weight: 900; margin: 0; }
-        .detail-header p { font-size: 12px; opacity: 0.5; margin-top: 4px; }
-        .back-btn { width: 44px; height: 44px; border-radius: 50%; display: flex; align-items: center; justify-content: center; }
-        .detail-actions { display: flex; gap: 12px; margin-left: auto; }
-        
-        .play-all-btn {
-          display: flex; align-items: center; gap: 10px; padding: 12px 24px; border-radius: 16px;
-          background: var(--primary); color: black; font-weight: 900; border: none; cursor: pointer;
-          transition: all 0.2s;
-        }
-        .del-folder-btn {
-          width: 44px; height: 44px; border-radius: 12px; display: flex; align-items: center; justify-content: center;
-          color: #ff4b2b;
+          align-items: center;
+          justify-content: center;
+          background: rgba(255, 255, 255, 0.05);
         }
 
-        .detail-tracks-list { display: flex; flex-direction: column; gap: 8px; }
-        .detail-track-row {
-          padding: 12px 20px; border-radius: 16px; display: flex; align-items: center; gap: 16px;
-          cursor: pointer; transition: all 0.2s;
-        }
-        .detail-track-row:hover { background: rgba(255,255,255,0.05); }
-        .detail-track-row .meta { flex: 1; display: flex; align-items: center; gap: 12px; }
-        .detail-track-row .name { font-weight: 700; font-size: 14px; }
-        .style-badge { font-size: 9px; font-weight: 800; text-transform: uppercase; padding: 2px 6px; border-radius: 4px; background: rgba(255,255,255,0.05); }
+        .prog-card.latin .card-icon { color: #f7971e; background: rgba(247, 151, 30, 0.1); }
+        .prog-card.standard .card-icon { color: #00d2ff; background: rgba(0, 210, 255, 0.1); }
+        .prog-card.all-dance .card-icon { color: #1db954; background: rgba(29, 185, 84, 0.1); }
+        .prog-card.eight-dance .card-icon { color: #ffeb3b; background: rgba(255, 235, 59, 0.1); }
+        .prog-card.six-dance .card-icon { color: #e91e63; background: rgba(233, 30, 99, 0.1); }
+        .prog-card.inst-latin .card-icon { color: #9c27b0; background: rgba(156, 39, 176, 0.1); }
+        .prog-card.inst-std .card-icon { color: #3f51b5; background: rgba(63, 81, 181, 0.1); }
+        .prog-card.fitness .card-icon { color: #ff5722; background: rgba(255, 87, 34, 0.1); }
 
-        /* Queue Section */
-        .track-queue-section { padding: 24px; border-radius: 24px; }
-        .queue-header { margin-bottom: 20px; }
-        .queue-header h3 { font-size: 1.2rem; font-weight: 800; margin-bottom: 4px; }
-        .queue-header .description { font-size: 12px; opacity: 0.5; }
+        .card-info h4 { font-size: 14px; font-weight: 800; margin-bottom: 2px; }
+        .card-info p { font-size: 11px; opacity: 0.5; font-weight: 600; }
+        .session-timer { 
+          font-size: 12px !important; 
+          color: var(--primary) !important; 
+          opacity: 1 !important; 
+          font-family: monospace;
+          margin-top: 4px;
+        }
+
+        .track-queue-section { padding: 32px; border-radius: 32px; background: rgba(255,255,255,0.02); }
+        .queue-header { margin-bottom: 24px; }
+        .queue-header h3 { font-size: 1.2rem; font-weight: 900; }
+        .queue-header .description { font-size: 12px; opacity: 0.5; margin-top: 4px; }
 
         .tracks-list { display: flex; flex-direction: column; gap: 8px; }
-        .final-row {
-          display: flex; align-items: center; justify-content: space-between; padding: 12px 20px;
-          border-radius: 16px; background: rgba(255,255,255,0.02); cursor: grab; transition: all 0.2s;
-          font-size: 11px !important;
+        
+        /* Unified List Style */
+        .track-row {
+          display: grid;
+          grid-template-columns: 40px 1fr 140px 100px;
+          align-items: center;
+          padding: 12px 16px;
+          border-radius: 12px;
+          transition: background 0.2s;
+          cursor: pointer;
         }
-        .final-row .title { font-weight: 700; font-size: 11px; }
-        .final-row .style-mini { font-size: 9px; padding: 2px 6px; font-weight: 800; text-transform: uppercase; color: var(--primary); }
-        .track-info { display: flex; align-items: center; gap: 16px; flex: 1; }
-        .track-meta { display: flex; align-items: center; gap: 12px; flex: 1; }
 
-        .simulation-actions { display: flex; gap: 12px; align-items: center; width: 100%; transition: all 0.3s; }
-        .shuffle-stack { display: flex; gap: 12px; align-items: center; }
-        .sim-btn {
-          display: flex; align-items: center; gap: 8px; padding: 12px 20px; border-radius: 14px;
-          font-weight: 800; font-size: 13px; cursor: pointer; transition: all 0.2s;
-          white-space: nowrap;
+        .track-row:hover { background: rgba(255,255,255,0.08); }
+        .track-row.is-active {
+          background: rgba(29, 185, 84, 0.08);
+          border-left: 3px solid #1db954;
         }
-        .sim-btn.latin { color: #f7971e; border-color: rgba(247, 151, 30, 0.3); }
-        .sim-btn.standard { color: #00d2ff; border-color: rgba(0, 210, 255, 0.3); }
-        .sim-btn.add-folder-btn { color: white; background: rgba(255,255,255,0.05); }
-        .sim-btn:hover { transform: translateY(-2px); background: rgba(255,255,255,0.1); }
+        .track-row.is-active .track-name { color: #1db954; }
+
+        .track-number { font-size: 12px; font-weight: 800; opacity: 0.3; text-align: center; }
+        .track-meta { display: flex; align-items: center; gap: 16px; min-width: 0; }
+        .track-name { font-weight: 600; font-size: 14px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+        .track-artist { font-size: 12px; opacity: 0.5; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+        .track-duration { font-size: 13px; font-weight: 600; }
+        .track-actions { display: flex; align-items: center; justify-content: flex-end; gap: 16px; }
+        
+        .remove-btn { color: #555; transition: color 0.2s; }
+        .remove-btn:hover { color: #ff4b2b; }
+        
+        .btn-play-row { color: var(--primary); }
+
+        .playing-bars { display: flex; align-items: flex-end; gap: 2px; width: 16px; height: 16px; }
+        .playing-bars span { width: 2px; background: var(--primary); animation: dance 1s infinite ease-in-out; }
+        .playing-bars span:nth-child(1) { height: 60%; animation-delay: -0.4s; }
+        .playing-bars span:nth-child(2) { height: 100%; animation-delay: -0.2s; }
+        .playing-bars span:nth-child(3) { height: 80%; animation-delay: 0s; }
+        @keyframes dance {
+          0%, 100% { transform: scaleY(0.5); }
+          50% { transform: scaleY(1); }
+        }
+
+        .empty-msg { padding: 40px; text-align: center; opacity: 0.3; font-weight: 700; font-size: 14px; }
 
         @media (max-width: 768px) {
-          .finals-container { padding: 16px; padding-bottom: 120px; gap: 24px; }
-          .page-header { flex-direction: column; align-items: center; text-align: center; gap: 16px; }
-          .detail-header h2 { font-size: 1.4rem; }
-          .play-all-btn { padding: 12px; width: 44px; height: 44px; justify-content: center; }
-          .play-all-btn span { display: none; }
-          .sim-btn span { display: inline !important; }
-          .info-mobile-hide { display: none !important; }
-
-          .folders-section { margin-bottom: 20px; }
-          .track-queue-section { padding: 16px; border-radius: 20px; }
-          .queue-header h3 { font-size: 1.1rem; }
-          .queue-header .description { display: none; }
-          .final-row { padding: 10px 14px; border-radius: 12px; }
-          
-          .folder-detail-view {
-            position: fixed;
-            inset: 0;
-            z-index: 4000;
-            border-radius: 0;
-            padding: 20px;
-            background: #0d0d0d;
+          .finals-container { padding: 16px; padding-bottom: 120px; }
+          .programs-grid { 
+             grid-template-columns: repeat(2, 1fr); 
+             gap: 10px;
           }
-
-          .simulation-actions { 
-            display: flex;
-            justify-content: space-between;
-            align-items: stretch;
-            gap: 16px;
+          .prog-card {
+             padding: 12px;
+             gap: 10px;
+             border-radius: 16px;
           }
-          .shuffle-stack {
-            display: flex;
-            flex-direction: column;
-            gap: 8px;
-            flex: 1;
+          .card-icon {
+             width: 36px;
+             height: 36px;
           }
-          .sim-btn {
-            width: 100%;
-            padding: 10px 12px;
-            font-size: 11px;
-            justify-content: center;
-          }
-          .sim-btn.big-btn {
-            height: auto;
-            flex: 0.8;
-            padding: 0;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-size: 12px;
-          }
+          .card-info h4 { font-size: 13px; font-weight: 700; }
+          .track-row { grid-template-columns: 32px 1fr 48px; }
+          .track-duration { display: none; }
+          .track-queue-section { padding: 20px; border-radius: 24px; }
         }
-
-        .folder-modal-overlay {
-          position: fixed; inset: 0; background: rgba(0,0,0,0.8); backdrop-filter: blur(10px);
-          display: flex; align-items: center; justify-content: center; z-index: 1000;
-        }
-        .folder-modal-content {
-          background: #111; padding: 32px; border-radius: 24px; border: 1px solid #222;
-          width: 90%; max-width: 320px; display: flex; flex-direction: column; gap: 20px;
-        }
-        .modal-t-input {
-          background: #1a1a1a; border: 1px solid #333; border-radius: 12px; padding: 14px; color: white; outline: none;
-        }
-        .modal-actions { display: flex; gap: 12px; justify-content: flex-end; }
-        .btn-confirm { background: var(--primary); color: black; font-weight: 800; padding: 10px 20px; border-radius: 10px; border: none; cursor: pointer; }
-        .btn-cancel { background: transparent; color: #555; border: none; font-weight: 700; cursor: pointer; }
-
-        .idx { font-size: 12px; font-weight: 800; opacity: 0.3; width: 20px; text-align: center; }
-        .animate-in-up { animation: fadeInUp 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275); }
-        @keyframes fadeInUp { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: translateY(0); } }
       `}</style>
+      <style jsx>{`
+        .modal-overlay {
+          position: fixed;
+          top: 0;
+          left: 0;
+          width: 100dvw;
+          height: 100dvh;
+          background: rgba(0,0,0,0.8);
+          backdrop-filter: blur(8px);
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          z-index: 5002;
+          padding: 20px;
+        }
+        
+        .modal-content {
+          width: 100%;
+          position: relative;
+        }
+
+        .fitness-modal {
+          max-width: 400px;
+          padding: 32px;
+          text-align: center;
+        }
+
+        .modal-header {
+          display: flex;
+          flex-direction: column;
+          align-items: center;
+          gap: 16px;
+          margin-bottom: 32px;
+        }
+
+        .modal-header h2 { font-size: 24px; font-weight: 800; }
+        .modal-header p { font-size: 14px; color: #71717a; }
+
+        .custom-duration-selector {
+          display: flex;
+          justify-content: center;
+          align-items: center;
+          gap: 16px;
+          margin-bottom: 32px;
+        }
+
+        .time-group {
+          display: flex;
+          flex-direction: column;
+          align-items: center;
+          gap: 8px;
+        }
+
+        .time-separator {
+          font-size: 40px;
+          font-weight: 900;
+          color: rgba(255, 255, 255, 0.4);
+          margin-bottom: 24px;
+        }
+
+        .duration-input {
+          background: rgba(255,255,255,0.05);
+          border: 2px solid rgba(255, 255, 255, 0.08);
+          border-radius: 20px;
+          width: 100px;
+          height: 100px;
+          text-align: center;
+          font-size: 44px;
+          font-weight: 900;
+          color: white;
+          outline: none;
+          transition: all 0.2s;
+        }
+
+        .duration-input:focus {
+          border-color: #1db954;
+          box-shadow: 0 0 0 4px rgba(29, 185, 84, 0.2);
+          background: rgba(29, 185, 84, 0.05);
+        }
+        
+        .duration-input::-webkit-outer-spin-button,
+        .duration-input::-webkit-inner-spin-button {
+          -webkit-appearance: none;
+          margin: 0;
+        }
+
+        .duration-label {
+          font-size: 13px;
+          font-weight: 800;
+          letter-spacing: 2px;
+          text-transform: uppercase;
+          color: #71717a;
+        }
+
+        .start-fitness-btn {
+          width: 100%;
+          height: 56px;
+          font-size: 16px;
+          font-weight: 800;
+          border-radius: 14px;
+        }
+
+        .cancel-btn { margin-top: 8px; width: 100%; height: 48px; border-radius: 12px; }
+      `}</style>
+      
+      {showStopConfirm && (
+        <ConfirmModal 
+          isOpen={showStopConfirm}
+          onClose={() => setShowStopConfirm(false)}
+          onConfirm={handleStopProgram}
+          title="End Finals Practice?"
+          message={`You are on track ${currentTrackIndex + 1} of ${finalTracks.length}. Do you want to stop the practice session?`}
+          confirmText="Finish"
+          variant="danger"
+        />
+      )}
+
+      {/* Fitness Duration Modal */}
+      {showFitnessModal && (
+        <div className="modal-overlay" onClick={() => setShowFitnessModal(false)}>
+          <div className="modal-content glass fitness-modal animate-in" onClick={e => e.stopPropagation()}>
+            <div className="modal-header">
+              <Dumbbell className="text-primary" size={28} />
+              <div>
+                <h2>Fitness Session</h2>
+                <p>Select duration for non-stop music</p>
+              </div>
+            </div>
+            
+            <div className="custom-duration-selector">
+              <div className="time-group">
+                <input 
+                   type="number"
+                   min="0"
+                   max="300"
+                   value={fitnessDuration}
+                   onChange={e => setFitnessDuration(Math.max(0, Number(e.target.value)))}
+                   className="duration-input"
+                   placeholder="0"
+                />
+                <span className="duration-label">Min</span>
+              </div>
+              
+              <div className="time-separator">:</div>
+
+              <div className="time-group">
+                <input 
+                   type="number"
+                   min="0"
+                   max="59"
+                   value={fitnessDurationSecs}
+                   onChange={e => {
+                     let val = Number(e.target.value);
+                     if (val >= 60) {
+                        setFitnessDuration(prev => prev + Math.floor(val / 60));
+                        val = val % 60;
+                     }
+                     setFitnessDurationSecs(Math.max(0, val));
+                   }}
+                   className="duration-input"
+                   placeholder="00"
+                />
+                <span className="duration-label">Sec</span>
+              </div>
+            </div>
+
+            <button className="primary-btn start-fitness-btn" onClick={() => {
+              const totalSecs = (fitnessDuration * 60) + fitnessDurationSecs;
+              if (totalSecs > 0) startFitness(totalSecs);
+            }}>
+              Start Session
+            </button>
+
+            <button className="cancel-btn text-btn" onClick={() => setShowFitnessModal(false)}>
+              Cancel
+            </button>
+          </div>
+        </div>
+      )}
+
     </div>
   );
 };

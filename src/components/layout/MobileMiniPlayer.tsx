@@ -22,12 +22,13 @@ const MobileMiniPlayer = () => {
     title,
     artist,
     currentTime,
-    duration
+    duration,
+    isExpanded,
+    setIsExpanded
   } = useAudio();
 
-  const { tracks, finalTracks, addToFinal, removeFromFinal, toggleFavorite } = useStudio();
+  const { tracks, finalTracks, toggleFavorite } = useStudio();
   const { isAuthenticated, setIsAuthModalOpen } = useAuth();
-  const [isFullPlayerOpen, setIsFullPlayerOpen] = useState(false);
   const [authPrompt, setAuthPrompt] = useState({ isOpen: false, action: '' });
 
   const checkAuthAndExecute = (action: () => void, actionName: string) => {
@@ -38,10 +39,10 @@ const MobileMiniPlayer = () => {
     action();
   };
 
-  if (!isLoaded) return null;
+  // We no longer return null here to prevent unmounting the expanded player
+  // if (!isLoaded) return null;
 
   const currentTrack = tracks.find(t => t.title === title) || finalTracks.find(t => t.title === title);
-  const isInFinal = currentTrack ? finalTracks.some(t => t.id === currentTrack.id) : false;
 
   const handleFavoriteToggle = (e: React.MouseEvent) => {
     e.stopPropagation();
@@ -55,47 +56,49 @@ const MobileMiniPlayer = () => {
 
   return (
     <>
-      <div className="mini-player-wrapper animate-in" onClick={() => setIsFullPlayerOpen(true)}>
-        <div className="mini-player glass">
-          <div className="track-info">
-            <div className="mini-art glass">
-              <Disc size={20} className={isPlaying ? 'rotating' : ''} />
+      {isLoaded && (
+        <div className="mini-player-wrapper animate-in" onClick={() => setIsExpanded(true)}>
+          <div className="mini-player glass">
+            <div className="track-info">
+              <div className="mini-art glass">
+                <Disc size={20} className={isPlaying ? 'rotating' : ''} />
+              </div>
+              <div className="text-info">
+                <span className="title truncate">{title}</span>
+                <span className="artist truncate">
+                  {artist}
+                  {currentTrack && currentTrack.bpm && (
+                    <span className="text-primary font-bold ml-1">({getMPMFromBPM(Number(currentTrack.bpm), currentTrack.style)} BPM)</span>
+                  )}
+                </span>
+              </div>
             </div>
-            <div className="text-info">
-              <span className="title truncate">{title}</span>
-              <span className="artist truncate">
-                {artist}
-                {currentTrack && currentTrack.bpm && (
-                  <span className="text-primary font-bold ml-1">({getMPMFromBPM(Number(currentTrack.bpm), currentTrack.style)} BPM)</span>
-                )}
-              </span>
+
+            <div className="controls">
+              <button
+                className={`favorite-btn ${currentTrack?.isFavorite ? 'active' : ''}`}
+                onClick={handleFavoriteToggle}
+              >
+                <Heart size={20} fill={currentTrack?.isFavorite ? "currentColor" : "none"} />
+              </button>
+              <button
+                className="play-btn"
+                onClick={(e) => { e.stopPropagation(); togglePlay(); }}
+              >
+                {isPlaying ? <Pause size={24} fill="currentColor" /> : <Play size={24} fill="currentColor" />}
+              </button>
             </div>
-          </div>
 
-          <div className="controls">
-            <button
-              className={`favorite-btn ${currentTrack?.isFavorite ? 'active' : ''}`}
-              onClick={handleFavoriteToggle}
-            >
-              <Heart size={20} fill={currentTrack?.isFavorite ? "currentColor" : "none"} />
-            </button>
-            <button
-              className="play-btn"
-              onClick={(e) => { e.stopPropagation(); togglePlay(); }}
-            >
-              {isPlaying ? <Pause size={24} fill="currentColor" /> : <Play size={24} fill="currentColor" />}
-            </button>
-          </div>
-
-          <div className="progress-bar">
-            <div className="progress-fill" style={{ width: `${progress}%` }}></div>
+            <div className="progress-bar">
+              <div className="progress-fill" style={{ width: `${progress}%` }}></div>
+            </div>
           </div>
         </div>
-      </div>
+      )}
 
       <MobileFullPlayer
-        isOpen={isFullPlayerOpen}
-        onClose={() => setIsFullPlayerOpen(false)}
+        isOpen={isExpanded}
+        onClose={() => setIsExpanded(false)}
       />
 
       <ConfirmModal 

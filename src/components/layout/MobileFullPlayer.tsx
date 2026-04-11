@@ -223,7 +223,7 @@ const MobileFullPlayer = ({ isOpen, onClose }: MobileFullPlayerProps) => {
             <SkipBack size={32} fill="currentColor" />
           </button>
           
-          <div className="main-play-btn glass" onClick={togglePlay}>
+          <div className="play-pause-btn" onClick={togglePlay}>
             {!isLoaded && !isFinalMode ? (
               <div className="loading-spinner"></div>
             ) : isPlaying ? (
@@ -404,7 +404,7 @@ const MobileFullPlayer = ({ isOpen, onClose }: MobileFullPlayerProps) => {
         }
         .meta-btn.favorite.active { color: #f43f5e; }
         .meta-btn.flag.active { color: #1db954; }
-        .main-play-btn:active { transform: scale(0.95); }
+        .play-pause-btn:active { transform: scale(0.95); }
         .play-icon-offset { transform: translateX(2px); }
 
         .loading-spinner {
@@ -490,15 +490,17 @@ const MobileFullPlayer = ({ isOpen, onClose }: MobileFullPlayerProps) => {
         }
 
         .play-pause-btn {
-          width: 72px;
-          height: 72px;
+          width: 80px;
+          height: 80px;
           background: white;
           color: black;
-          border-radius: 50%;
+          border-radius: 50% !important;
           display: flex;
           align-items: center;
           justify-content: center;
-          box-shadow: 0 4px 12px rgba(255,255,255,0.2);
+          box-shadow: 0 8px 32px rgba(255,255,255,0.1);
+          border: none !important;
+          outline: none !important;
         }
 
         .secondary-ctrl { color: white; opacity: 0.5; transition: all 0.2s; }

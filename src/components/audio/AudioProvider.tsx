@@ -22,6 +22,8 @@ interface AudioContextType {
   isPauseCountdown: boolean;
   isFitness: boolean;
   pauseTime: number;
+  isExpanded: boolean;
+  setIsExpanded: (val: boolean) => void;
   togglePlay: () => void;
   loadTrack: (track: any, isRetry?: boolean, forceFinalMode?: boolean) => void;
   setIsFitness: (val: boolean) => void;
@@ -70,6 +72,7 @@ export const AudioProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   const [sessionDuration, setSessionDuration] = useState(0);
   const [activeMode, setActiveMode] = useState<string | null>(null);
   const [sessionTracks, setSessionTracks] = useState<Track[]>([]);
+  const [isExpanded, setIsExpanded] = useState(false);
 
   const playerRef = useRef<Tone.GrainPlayer | Tone.Player | null>(null);
   const nativePlayerRef = useRef<HTMLAudioElement | null>(null);
@@ -824,6 +827,8 @@ export const AudioProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       isPauseCountdown,
       isFitness,
       pauseTime,
+      isExpanded,
+      setIsExpanded,
       togglePlay,
       loadTrack,
       setIsFitness,

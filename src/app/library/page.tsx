@@ -384,6 +384,7 @@ export default function LibraryPage() {
           .desktop-only { display: none; }
           .mobile-only { display: flex; }
           .library-content {
+            padding: 16px;
             padding-bottom: 120px;
           }
           .collection-grid {

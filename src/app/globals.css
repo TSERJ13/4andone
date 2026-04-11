@@ -116,6 +116,7 @@ button {
   grid-area: main;
   background: linear-gradient(to bottom, #1e1e1e 0%, var(--surface) 100%);
   overflow-y: auto;
+  overflow-x: hidden;
   padding: 32px;
   position: relative;
   border-radius: 12px;
@@ -154,6 +155,13 @@ button {
 
 /* Responsive Media Queries */
 @media (max-width: 768px) {
+  .search-page { padding: 16px; padding-bottom: 120px; }
+  .search-header-container { padding: 10px 0 20px; }
+  .search-header { 
+    max-width: 100%; 
+    margin-bottom: 0;
+    padding: 12px 20px;
+  }
   .app-container {
     display: flex;
     flex-direction: column;

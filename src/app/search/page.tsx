@@ -282,9 +282,13 @@ const SearchPage = () => {
         .text-primary { color: var(--primary); }
 
         @media (max-width: 768px) {
-          .search-page { padding: 20px; padding-bottom: 120px; }
-          .search-header-container { padding-bottom: 20px; }
-          .search-header { max-width: 100%; margin-bottom: 0; }
+          .search-page { padding: 16px; padding-bottom: 120px; }
+          .search-header-container { padding: 10px 0 20px; }
+          .search-header { 
+            max-width: 100%; 
+            margin-bottom: 0; 
+            padding: 12px 20px;
+          }
           .genre-grid { grid-template-columns: repeat(2, 1fr); gap: 12px; }
           .genre-card { padding: 48px 16px; border-radius: 8px; }
           .track-row { 

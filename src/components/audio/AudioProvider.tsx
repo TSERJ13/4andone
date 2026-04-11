@@ -79,6 +79,8 @@ export const AudioProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   const loadingTokenRef = useRef<number>(0); // Guard for race conditions
   const masterGainRef = useRef<Tone.Gain | null>(null);
   const limiterRef = useRef<Tone.Limiter | null>(null);
+  const wakeLockRef = useRef<any>(null);
+  const heartbeatRef = useRef<HTMLAudioElement | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const playingTrackRef = useRef<any>(null);
   const playPromiseRef = useRef<Promise<void> | null>(null);
@@ -153,15 +155,38 @@ export const AudioProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   };
 
   useEffect(() => {
+    // Initialize Heartbeat
+    if (typeof window !== 'undefined') {
+      // Tiny silent WAV (approx 1s) to keep iOS audio session alive
+      const silentWav = "data:audio/wav;base64,UklGRjIAAABXQVZFRm10IBAAAAABAAEAIlYAAESsAAACABAAZGF0YRAAAAAAAAAAAAAAAAAAAAAAAAAA";
+      const hb = new Audio(silentWav);
+      hb.loop = true;
+      hb.volume = 0.01; // Minimal volume to satisfy iOS "active" requirement
+      heartbeatRef.current = hb;
+    }
+
     const savedVol = localStorage.getItem('4andone-volume');
     if (savedVol) setVolumeState(parseFloat(savedVol));
 
-    // Global "Unlock" for mobile audio
+    // Global "Unlock" for mobile audio + Safari Optimizations
     const unlockAudio = async () => {
+      // PRO-TIP: "playback" latency hint is much more stable on iOS/Safari 
+      // as it uses larger buffers, preventing "choppy" audio artifacts.
+      if (Tone.getContext().latencyHint !== 'playback') {
+        Tone.getContext().lookAhead = 0.08;
+        Tone.getContext().latencyHint = 'playback';
+      }
+
       if (Tone.getContext().state !== 'running') {
         await Tone.start();
         await Tone.getContext().resume();
       }
+      
+      // Start heartbeat on first interaction
+      if (heartbeatRef.current && heartbeatRef.current.paused) {
+        heartbeatRef.current.play().catch(() => {});
+      }
+
       // Remove listeners once unlocked
       document.removeEventListener('touchstart', unlockAudio);
       document.removeEventListener('mousedown', unlockAudio);
@@ -588,7 +613,15 @@ export const AudioProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     if (isPlaying) {
       if (playerRef.current) playerRef.current.stop();
       if (nativePlayerRef.current) nativePlayerRef.current.pause();
+      if (heartbeatRef.current) heartbeatRef.current.pause();
+      
+      // Release Wake Lock
+      if (wakeLockRef.current) {
+        wakeLockRef.current.release().then(() => { wakeLockRef.current = null; });
+      }
+
       setIsPlaying(false);
+      if ('mediaSession' in navigator) navigator.mediaSession.playbackState = 'paused';
     } else {
       const startTime = currentTimeRef.current >= duration ? 0 : currentTimeRef.current;
       
@@ -603,7 +636,19 @@ export const AudioProvider: React.FC<{ children: React.ReactNode }> = ({ childre
           playPromiseRef.current = null;
         });
       }
+
+      // Start Heartbeat & Wake Lock
+      if (heartbeatRef.current) {
+        heartbeatRef.current.play().catch(() => {});
+      }
+      if ('wakeLock' in navigator) {
+        (navigator as any).wakeLock.request('screen').then((lock: any) => {
+          wakeLockRef.current = lock;
+        }).catch(() => {});
+      }
+
       setIsPlaying(true);
+      if ('mediaSession' in navigator) navigator.mediaSession.playbackState = 'playing';
       notifyOtherTabs();
     }
   };

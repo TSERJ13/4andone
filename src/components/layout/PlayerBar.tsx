@@ -13,7 +13,8 @@ import {
   Tally3, 
   Gauge,
   Heart,
-  VolumeX
+  VolumeX,
+  ListMusic
 } from 'lucide-react';
 import { useAudio } from '@/components/audio/AudioProvider';
 import SpeedSelector from '@/components/audio/SpeedSelector';
@@ -57,9 +58,21 @@ const PlayerBar = () => {
   const [isDragging, setIsDragging] = useState(false);
   const [dragProgress, setDragProgress] = useState(0);
   const progressRef = useRef<HTMLDivElement>(null);
+  const lastSeekRef = useRef<number>(0);
   
   const { isAuthenticated, setIsAuthModalOpen } = useAuth();
   const [authPrompt, setAuthPrompt] = useState({ isOpen: false, action: '' });
+
+  const togglePlaybackMode = () => {
+    if (!isShuffle && !isRepeat) {
+      toggleRepeat(); // List -> Repeat
+    } else if (isRepeat) {
+      toggleRepeat(); // Turn off repeat
+      toggleShuffle(); // Turn on shuffle
+    } else if (isShuffle) {
+      toggleShuffle(); // Turn off shuffle -> List
+    }
+  };
 
   const checkAuthAndExecute = (action: () => void, actionName: string) => {
     if (!isAuthenticated) {
@@ -78,20 +91,36 @@ const PlayerBar = () => {
     return percentage * duration;
   };
 
-  const handleInteractionStart = (e: React.MouseEvent) => {
+  const getClientX = (e: React.MouseEvent | React.TouchEvent | MouseEvent | TouchEvent) => {
+    if ('touches' in e) {
+      return e.touches[0]?.clientX || (e as any).changedTouches?.[0]?.clientX || 0;
+    }
+    return (e as MouseEvent).clientX;
+  };
+
+  const handleInteractionStart = (e: React.MouseEvent | React.TouchEvent) => {
     if (isFinalMode) return;
     setIsDragging(true);
-    handleSeekUpdate(e.clientX);
+    handleSeekUpdate(getClientX(e));
   };
 
   useEffect(() => {
-    const handleMove = (e: MouseEvent) => {
+    const handleMove = (e: MouseEvent | TouchEvent) => {
       if (!isDragging || isFinalMode) return;
-      handleSeekUpdate(e.clientX);
+      const newTime = handleSeekUpdate(getClientX(e));
+      
+      // LIVE SCRUBBING: If playing, update position in real-time but with throttling for Safari stability
+      if (isPlaying && newTime !== undefined) {
+        const now = Date.now();
+        if (now - lastSeekRef.current > 150) { // Throttle to ~6.6fps for audio engine safety on iPad
+          seek(newTime);
+          lastSeekRef.current = now;
+        }
+      }
     };
-    const handleUp = (e: MouseEvent) => {
+    const handleUp = (e: MouseEvent | TouchEvent) => {
       if (!isDragging || isFinalMode) return;
-      const newTime = handleSeekUpdate(e.clientX);
+      const newTime = handleSeekUpdate(getClientX(e));
       if (newTime !== undefined) seek(newTime);
       setIsDragging(false);
     };
@@ -99,12 +128,16 @@ const PlayerBar = () => {
     if (isDragging && !isFinalMode) {
       window.addEventListener('mousemove', handleMove);
       window.addEventListener('mouseup', handleUp);
+      window.addEventListener('touchmove', handleMove, { passive: false });
+      window.addEventListener('touchend', handleUp);
     }
     return () => {
       window.removeEventListener('mousemove', handleMove);
       window.removeEventListener('mouseup', handleUp);
+      window.removeEventListener('touchmove', handleMove);
+      window.removeEventListener('touchend', handleUp);
     };
-  }, [isDragging, duration, seek]);
+  }, [isDragging, isPlaying, duration, seek, isFinalMode]);
 
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
@@ -165,81 +198,76 @@ const PlayerBar = () => {
             )}
           </p>
         </div>
-
-        {/* Repositioned Features: Metadata actions grouped with track info */}
-        <div className="metadata-actions-group" style={{ marginLeft: '12px' }}>
-          <div className="quick-actions-bar left-aligned">
-            <button 
-              className={`action-btn-large ${(tracks.find(t => t.title === title)?.isFavorite) ? 'active-heart' : ''}`} 
-              title="Like Song"
-              style={{ marginLeft: '8px' }}
-              onClick={() => {
-                checkAuthAndExecute(() => {
-                   const currentTrack = tracks.find(t => t.title === title);
-                   if (currentTrack && typeof toggleFavorite === 'function') {
-                      toggleFavorite(currentTrack.id);
-                   }
-                }, 'favorite tracks');
-              }}
-            >
-              <Heart size={20} fill={(tracks.find(t => t.title === title)?.isFavorite) ? "#ff4b2b" : "none"} color={(tracks.find(t => t.title === title)?.isFavorite) ? "#ff4b2b" : "currentColor"} />
-            </button>
-          </div>
-        </div>
       </div>
 
       {/* Main Controls */}
       <div className="player-controls">
         <div className="control-buttons">
+          {/* Heart/Favorite - Pro Glass Style */}
           <button 
-            className={`control-btn ${isShuffle ? 'active' : ''}`} 
-            onClick={toggleShuffle}
-            disabled={isFinalMode}
-            style={{ opacity: isFinalMode ? 0.3 : 1, cursor: isFinalMode ? 'not-allowed' : 'pointer' }}
+            className={`feature-btn glass ${tracks.find(t => t.title === title)?.isFavorite ? 'active active-heart' : ''}`} 
+            onClick={() => {
+              checkAuthAndExecute(() => {
+                  const currTrack = tracks.find(t => t.title === title);
+                  if (currTrack && typeof toggleFavorite === 'function') {
+                    toggleFavorite(currTrack.id);
+                  }
+              }, 'favorite tracks');
+            }}
+            style={{ marginRight: '48px' }} /* Increased distance to the triplet */
           >
-            <Shuffle size={18} />
+            <Heart size={18} fill={tracks.find(t => t.title === title)?.isFavorite ? "currentColor" : "none"} />
           </button>
+
           <button 
             className="control-btn" 
             onClick={playPrevious}
             disabled={isFinalMode}
-            style={{ opacity: isFinalMode ? 0.3 : 1, cursor: isFinalMode ? 'not-allowed' : 'pointer' }}
+            style={{ opacity: isFinalMode ? 0.3 : 1, cursor: isFinalMode ? 'not-allowed' : 'pointer', marginRight: '4px' }}
           ><SkipBack size={24} fill="currentColor" /></button>
-          <div className="play-btn" onClick={togglePlay}>
-            {!isLoaded && !isFinalMode ? (
-              <div className="loading-spinner"></div>
-            ) : isPlaying ? (
-              <Pause fill="currentColor" size={28} />
-            ) : (
-              <Play fill="currentColor" size={28} className="play-icon-offset" />
-            )}
+          
+          <div className="play-btn-wrapper">
+            <div className={`play-btn ${error ? 'error' : ''}`} onClick={togglePlay}>
+              {!isLoaded && !isFinalMode ? (
+                <div className="loading-spinner"></div>
+              ) : isPlaying ? (
+                <Pause fill="currentColor" size={28} />
+              ) : (
+                <Play fill="currentColor" size={28} className="play-icon-offset" />
+              )}
+            </div>
           </div>
+
           <button 
             className="control-btn" 
             onClick={playNext}
             disabled={isFinalMode}
-            style={{ opacity: isFinalMode ? 0.3 : 1, cursor: isFinalMode ? 'not-allowed' : 'pointer' }}
+            style={{ opacity: isFinalMode ? 0.3 : 1, cursor: isFinalMode ? 'not-allowed' : 'pointer', marginLeft: '4px' }}
           ><SkipForward size={24} fill="currentColor" /></button>
+
+          {/* Universal Mode Toggle - Pro Glass Style */}
           <button 
-            className={`control-btn ${isRepeat ? 'active' : ''}`} 
-            onClick={toggleRepeat}
-            disabled={isFinalMode}
-            style={{ opacity: isFinalMode ? 0.3 : 1, cursor: isFinalMode ? 'not-allowed' : 'pointer' }}
+            className={`feature-btn glass ${isShuffle || isRepeat ? 'active' : ''}`}
+            onClick={togglePlaybackMode}
+            title={isShuffle ? "Shuffle" : isRepeat ? "Repeat One" : "List Order"}
+            style={{ marginLeft: '48px' }} /* Increased distance from the triplet */
           >
-            <Repeat size={18} />
+            {isShuffle ? <Shuffle size={18} /> : isRepeat ? <Repeat size={18} /> : <ListMusic size={18} />}
           </button>
         </div>
 
         <div className="progress-container">
           <span className="time-text">{formatTime(isDragging ? (dragProgress / 100) * (duration || 0) : currentTime)}</span>
             <div 
-              className="progress-bar-bg" 
+              className={`progress-bar-bg ${isDragging ? 'is-dragging' : ''}`} 
               ref={progressRef}
               onMouseDown={handleInteractionStart}
+              onTouchStart={handleInteractionStart}
               style={{ 
                 cursor: isFinalMode ? 'not-allowed' : 'pointer',
                 opacity: isFinalMode ? 0.7 : 1,
-                pointerEvents: isFinalMode ? 'none' : 'auto'
+                pointerEvents: isFinalMode ? 'none' : 'auto',
+                touchAction: 'none'
               }}
             >
             <div 
@@ -262,7 +290,6 @@ const PlayerBar = () => {
               className={`feature-btn glass ${bpm !== 100 ? 'active' : ''}`}
               onClick={() => setShowSpeedSelector(!showSpeedSelector)}
               title={`Playback Speed: ${bpm}%`}
-              style={{ marginRight: '8px' }}
             >
               <Gauge size={18} />
               <span className="label" data-bpm={bpm}>Speed: {bpm}%</span>
@@ -294,7 +321,7 @@ const PlayerBar = () => {
               }
             }}
           >
-            {isMuted || volume === 0 ? <VolumeX size={20} /> : <Volume2 size={20} />}
+            {isMuted || volume === 0 ? <VolumeX size={18} /> : <Volume2 size={18} />}
           </button>
           <input 
             type="range" 
@@ -329,14 +356,14 @@ const PlayerBar = () => {
       <style jsx>{`
         .player-bar {
           display: grid;
-          grid-template-columns: 1fr 2fr 1fr;
+          grid-template-columns: 1fr 2.2fr 1fr;
           align-items: center;
-          padding: 0 40px;
-          height: 90px;
-          background: rgba(18, 18, 18, 0.7);
-          backdrop-filter: blur(20px);
+          padding: 0 60px; /* Symmetrical padding for balanced look */
+          height: 106px; /* Slightly increased "ceiling" for more room */
+          background: rgba(10, 10, 10, 0.85);
+          backdrop-filter: blur(28px);
           border: 1px solid rgba(255, 255, 255, 0.1);
-          border-radius: 20px;
+          border-radius: 28px;
           position: fixed;
           bottom: 12px;
           left: 12px;
@@ -402,8 +429,17 @@ const PlayerBar = () => {
         .control-buttons {
           display: flex;
           align-items: center;
-          gap: 24px;
+          gap: 16px;
         }
+        .control-btn.secondary-action {
+          color: var(--text-secondary);
+          opacity: 0.6;
+        }
+        .control-btn.secondary-action:hover {
+          color: var(--text);
+          opacity: 1;
+        }
+        .control-btn.active-heart { color: var(--primary); opacity: 1; }
         .control-btn {
           color: var(--text-secondary);
           transition: all 0.2s;
@@ -424,9 +460,15 @@ const PlayerBar = () => {
           border-radius: 50%;
           background: var(--primary);
         }
+        .play-btn-wrapper {
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          padding-bottom: 4px; /* Move up slightly from the visual "floor" */
+        }
         .play-btn {
-          width: 50px;
-          height: 50px;
+          width: 52px;
+          height: 52px;
           border-radius: 50%;
           border: 2px solid var(--primary);
           display: flex;
@@ -441,9 +483,11 @@ const PlayerBar = () => {
         }
         .play-btn:focus { outline: none !important; }
         .play-btn:hover {
-          transform: scale(1.1);
+          transform: scale(1.05);
           background: rgba(29, 185, 84, 0.1);
-          box-shadow: 0 0 15px rgba(29, 185, 84, 0.3);
+          border-color: #3ae071;
+          color: #3ae071;
+          box-shadow: 0 0 20px rgba(29, 185, 84, 0.3);
         }
         .play-icon-offset { margin-left: 4px; }
         .loading-spinner {
@@ -476,11 +520,24 @@ const PlayerBar = () => {
           display: flex;
           align-items: center;
         }
+        /* Increased hit area */
+        .progress-bar-bg::after {
+          content: '';
+          position: absolute;
+          top: -12px;
+          bottom: -12px;
+          left: 0;
+          right: 0;
+          z-index: 10;
+        }
         .progress-bar-fill {
           height: 100%;
           background: var(--primary);
           border-radius: 3px;
           transition: width 0.1s linear;
+        }
+        .progress-bar-bg.is-dragging .progress-bar-fill {
+          transition: none !important;
         }
         .progress-bar-fill.error {
           background: #ef4444;
@@ -517,8 +574,10 @@ const PlayerBar = () => {
         .extra-controls {
           display: flex;
           align-items: center;
-          justify-content: flex-end;
-          gap: 32px;
+          justify-content: flex-end; /* Volume stays at the right edge */
+          gap: 64px; /* Significantly increased gap to shift Speed further left */
+          padding-left: 0;
+          margin-left: 0;
         }
         .special-features {
           display: flex;
@@ -528,19 +587,29 @@ const PlayerBar = () => {
         .feature-btn {
           display: flex;
           align-items: center;
+          justify-content: center;
           gap: 8px;
-          padding: 6px 12px;
-          border-radius: 20px;
-          font-size: 12px;
+          padding: 8px 16px;
+          border-radius: 24px;
+          font-size: 13px;
           font-weight: 700;
           color: var(--text-secondary);
           cursor: pointer;
-          transition: all 0.2s;
+          transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+          background: rgba(255, 255, 255, 0.04);
+          border: 1px solid rgba(255, 255, 255, 0.08);
         }
         .feature-btn.active {
           color: var(--primary);
-          border-color: var(--primary);
+          border-color: rgba(29, 185, 84, 0.6);
           background: rgba(29, 185, 84, 0.1);
+          box-shadow: 0 0 15px rgba(29, 185, 84, 0.4);
+        }
+        .feature-btn.active-heart {
+          color: #ff4b2b;
+          border-color: rgba(255, 75, 43, 0.4);
+          background: rgba(255, 75, 43, 0.05);
+          box-shadow: 0 0 15px rgba(255, 75, 43, 0.3);
         }
         .speed-container {
           position: relative;
@@ -625,8 +694,10 @@ const PlayerBar = () => {
           display: flex;
           align-items: center;
           gap: 12px;
-          width: 160px;
-          margin-left: 20px;
+          flex: none; /* Let it take its natural width */
+          margin-left: 0;
+          padding-left: 0;
+          border-left: none; /* Removing the divider as requested */
         }
 
         .mute-toggle-btn {

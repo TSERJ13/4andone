@@ -474,8 +474,30 @@ const MobileFullPlayer = ({ isOpen, onClose }: MobileFullPlayerProps) => {
           cursor: pointer;
           touch-action: none;
         }
-        .progress-fill.final-active { background: #f43f5e; box-shadow: 0 0 10px rgba(244, 63, 94, 0.5); }
-        .progress-knob.final-active { background: #f43f5e; border: 2px solid white; }
+        .progress-fill {
+          height: 100%;
+          background: var(--primary, #1db954);
+          border-radius: 3px;
+          transition: width 0.1s linear;
+        }
+        .progress-fill.final-active { background: #f43f5e; box-shadow: 0 0 12px rgba(244, 63, 94, 0.6); }
+
+        .progress-knob {
+          width: 14px;
+          height: 14px;
+          background: white;
+          border-radius: 50%;
+          position: absolute;
+          top: 50%;
+          transform: translate(-50%, -50%);
+          transition: transform 0.1s, left 0.1s linear;
+          box-shadow: 0 2px 6px rgba(0,0,0,0.3);
+        }
+        .progress-knob.active {
+          transform: translate(-50%, -50%) scale(1.5);
+          background: var(--primary);
+        }
+        .progress-knob.final-active { background: #f43f5e; border: 2px solid white; opacity: 1 !important; visibility: visible !important; }
         .time-labels {
           display: flex;
           justify-content: space-between;

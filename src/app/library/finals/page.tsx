@@ -772,8 +772,8 @@ const FinalsPage = () => {
           align-items: center;
           gap: 10px;
           padding: 10px 18px;
-          background: rgba(255, 255, 255, 0.03);
-          border: 1px solid rgba(255, 255, 255, 0.08);
+          background: rgba(255, 255, 255, 0.05) !important;
+          border: 1px solid rgba(255,255,255,0.05) !important;
           border-radius: 99px;
           font-size: 13px;
           font-weight: 700;
@@ -950,13 +950,13 @@ const FinalsPage = () => {
             gap: 16px; 
           }
           .track-queue-section { padding: 20px; border-radius: 24px; }
-          .page-header-unified h1 { font-size: 24px; }
-          .page-header-unified .text-secondary { font-size: 11px; }
+          .page-header-unified h1 { font-size: 20px !important; }
+          .page-header-unified .text-secondary { font-size: 10px !important; opacity: 0.6 !important; }
           .learn-finals-btn { 
-            padding: 2px 6px; 
-            font-size: 7.5px; 
+            padding: 2px 6px !important; 
+            font-size: 7px !important; 
           }
-          .learn-finals-btn span { font-size: 7px; font-weight: 800; display: inline; }
+          .learn-finals-btn span { font-size: 7px !important; font-weight: 800; display: inline; }
         }
       `}</style>
       <style jsx>{`
@@ -966,8 +966,8 @@ const FinalsPage = () => {
           left: 0;
           width: 100dvw;
           height: 100dvh;
-          background: rgba(0,0,0,0.8);
-          backdrop-filter: blur(8px);
+          background: transparent !important;
+          backdrop-filter: blur(20px);
           display: flex;
           align-items: center;
           justify-content: center;

@@ -190,7 +190,7 @@ const SearchPage = () => {
         .search-header-container {
           position: sticky; top: 0; z-index: 100;
           padding: 20px 0 32px;
-          background: linear-gradient(to bottom, rgba(0,0,0,0.5), transparent);
+          background: transparent !important;
           backdrop-filter: blur(20px);
           margin-bottom: 0;
           display: flex;
@@ -201,8 +201,8 @@ const SearchPage = () => {
           display: flex; align-items: center; gap: 16px;
           padding: 14px 28px; border-radius: 50px;
           width: 100%; max-width: 600px;
-          background: rgba(255, 255, 255, 0.08);
-          border: 1px solid rgba(255,255,255,0.08);
+          background: rgba(255, 255, 255, 0.05) !important;
+          border: 1px solid rgba(255,255,255,0.05) !important;
           transition: all 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
         }
         

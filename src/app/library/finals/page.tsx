@@ -950,11 +950,13 @@ const FinalsPage = () => {
             gap: 16px; 
           }
           .track-queue-section { padding: 20px; border-radius: 24px; }
+          .page-header-unified h1 { font-size: 24px; }
+          .page-header-unified .text-secondary { font-size: 11px; }
           .learn-finals-btn { 
-            padding: 4px 6px; 
-            font-size: 9px; 
+            padding: 2px 6px; 
+            font-size: 7.5px; 
           }
-          .learn-finals-btn span { font-size: 8px; font-weight: 800; display: inline; }
+          .learn-finals-btn span { font-size: 7px; font-weight: 800; display: inline; }
         }
       `}</style>
       <style jsx>{`

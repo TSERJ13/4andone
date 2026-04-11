@@ -55,49 +55,51 @@ const MobileMiniPlayer = () => {
   const progress = (currentTime / (duration || 105)) * 100;
 
   return (
-    <div className="mini-player-outer-wrapper" 
-         style={{ pointerEvents: isLoaded ? 'auto' : 'none' }} 
-         onClick={() => setIsExpanded(true)}
-    >
-      {isLoaded && (
-        <div className="mini-player-wrapper animate-in">
-          <div className="mini-player glass">
-            <div className="track-info">
-              <div className="mini-art glass">
-                <Disc size={20} className={isPlaying ? 'rotating' : ''} />
+    <>
+      <div className="mini-player-outer-wrapper" 
+           style={{ pointerEvents: isLoaded ? 'auto' : 'none' }} 
+           onClick={() => setIsExpanded(true)}
+      >
+        {isLoaded && (
+          <div className="mini-player-wrapper animate-in">
+            <div className="mini-player glass">
+              <div className="track-info">
+                <div className="mini-art glass">
+                  <Disc size={20} className={isPlaying ? 'rotating' : ''} />
+                </div>
+                <div className="text-info">
+                  <span className="title truncate">{title}</span>
+                  <span className="artist truncate">
+                    {artist}
+                    {currentTrack && currentTrack.bpm && (
+                      <span className="text-primary font-bold ml-1">({getMPMFromBPM(Number(currentTrack.bpm), currentTrack.style)} BPM)</span>
+                    )}
+                  </span>
+                </div>
               </div>
-              <div className="text-info">
-                <span className="title truncate">{title}</span>
-                <span className="artist truncate">
-                  {artist}
-                  {currentTrack && currentTrack.bpm && (
-                    <span className="text-primary font-bold ml-1">({getMPMFromBPM(Number(currentTrack.bpm), currentTrack.style)} BPM)</span>
-                  )}
-                </span>
+
+              <div className="controls">
+                <button
+                  className={`favorite-btn ${currentTrack?.isFavorite ? 'active' : ''}`}
+                  onClick={handleFavoriteToggle}
+                >
+                  <Heart size={20} fill={currentTrack?.isFavorite ? "currentColor" : "none"} />
+                </button>
+                <button
+                  className="play-btn"
+                  onClick={(e) => { e.stopPropagation(); togglePlay(); }}
+                >
+                  {isPlaying ? <Pause size={24} fill="currentColor" /> : <Play size={24} fill="currentColor" />}
+                </button>
               </div>
-            </div>
 
-            <div className="controls">
-              <button
-                className={`favorite-btn ${currentTrack?.isFavorite ? 'active' : ''}`}
-                onClick={handleFavoriteToggle}
-              >
-                <Heart size={20} fill={currentTrack?.isFavorite ? "currentColor" : "none"} />
-              </button>
-              <button
-                className="play-btn"
-                onClick={(e) => { e.stopPropagation(); togglePlay(); }}
-              >
-                {isPlaying ? <Pause size={24} fill="currentColor" /> : <Play size={24} fill="currentColor" />}
-              </button>
-            </div>
-
-            <div className="progress-bar">
-              <div className="progress-fill" style={{ width: `${progress}%` }}></div>
+              <div className="progress-bar">
+                <div className="progress-fill" style={{ width: `${progress}%` }}></div>
+              </div>
             </div>
           </div>
-        </div>
-      )}
+        )}
+      </div>
 
       <MobileFullPlayer
         isOpen={isExpanded}
@@ -202,7 +204,7 @@ const MobileMiniPlayer = () => {
 
         @media (min-width: 769px) { .mini-player-wrapper { display: none; } }
       `}</style>
-    </div>
+    </>
   );
 };
 

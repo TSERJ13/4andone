@@ -747,8 +747,8 @@ const PlayerBar = () => {
           .progress-container { max-width: 450px; }
           .control-buttons { gap: 20px; }
           .play-btn { width: 52px; height: 52px; } /* Restoring full size for reach */
-          .extra-controls { gap: 24px; }
-          .volume-control { width: 180px; }
+          .extra-controls { gap: 32px; }
+          .volume-control { width: 140px; }
           .feature-btn { padding: 8px 12px; }
         }
 

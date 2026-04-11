@@ -99,6 +99,28 @@ export const AudioProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   useEffect(() => { isPauseCountdownRef.current = isPauseCountdown; }, [isPauseCountdown]);
   useEffect(() => { pauseTimeRef.current = pauseTime; }, [pauseTime]);
 
+  // Reactive Session Duration Calculation
+  // This ensures the total time is known immediately when sessionTracks changes,
+  // preventing the "duration flicker" from one track's time to the full session time.
+  useEffect(() => {
+    if (isFinalMode && sessionTracks.length > 0) {
+      const getLimitForTrack = (track: Track) => {
+        const style = track.style?.toLowerCase() || '';
+        if (style.includes('paso')) return track.duration || 210; // Standard Paso length approx
+        if (style.includes('viennese')) return 85;
+        return 105;
+      };
+
+      const total = sessionTracks.reduce((acc, t, idx) => {
+        const rest = (idx < sessionTracks.length - 1 && !isFitness) ? 15 : 0;
+        return acc + getLimitForTrack(t) + rest;
+      }, 0);
+      setSessionDuration(total);
+    } else if (!isFinalMode) {
+      setSessionDuration(duration);
+    }
+  }, [sessionTracks, isFinalMode, isFitness, duration]);
+
   // Tab synchronization for audio control
   useEffect(() => {
     const channel = new BroadcastChannel('audio_control');
@@ -344,17 +366,6 @@ export const AudioProvider: React.FC<{ children: React.ReactNode }> = ({ childre
             // Adjust duration for Final Mode reporting
             const realDuration = audio.duration || 0;
             setDuration(realDuration);
-
-            if (isFinalMode) {
-              const total = finalTracks.reduce((acc: number, t: Track, idx: number) => {
-                const style = t.style?.toLowerCase() || '';
-                const limit = style.includes('paso') ? (t.duration || realDuration || 240) : (style.includes('viennese') ? 85 : 105);
-                return acc + limit + (idx < finalTracks.length - 1 ? 15 : 0);
-              }, 0);
-              setSessionDuration(total);
-            } else {
-              setSessionDuration(realDuration);
-            }
             setIsLoaded(true);
             setIsLoading(false);
             resolve(audio);
@@ -530,16 +541,9 @@ export const AudioProvider: React.FC<{ children: React.ReactNode }> = ({ childre
 
               setCurrentTime(sessionElapsed);
               setTrackCurrentTime(currentTimeVal);
-
-              const totalDuration = sessionTracks.reduce((acc: number, t: Track, idx: number) => {
-                const rest = (idx < sessionTracks.length - 1 && !isFitness) ? 15 : 0;
-                return acc + getLimitForTrack(t) + rest;
-              }, 0);
-              setSessionDuration(totalDuration);
             }
           } else {
             setCurrentTime(currentTimeVal);
-            setSessionDuration(duration);
           }
 
           // FINAL MODE: FADE-OUT logic (starts 3 seconds before limit or song end for Paso)

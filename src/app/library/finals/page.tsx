@@ -951,12 +951,12 @@ const FinalsPage = () => {
 
         @media (max-width: 1024px) {
           .track-row { 
-            grid-template-columns: 40px 1fr 120px 80px; 
-            gap: 12px;
+            grid-template-columns: 40px 1fr 180px 80px; 
+            gap: 20px;
           }
-          .track-meta { gap: 12px; }
+          .track-meta { gap: 12px; min-width: 0; }
           .track-name { font-size: 13px; }
-          .track-duration { font-size: 12px; text-align: right; }
+          .track-duration { font-size: 13px; text-align: right; white-space: nowrap; }
         }
 
         @media (max-width: 768px) {

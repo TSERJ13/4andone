@@ -574,7 +574,9 @@ export const AudioProvider: React.FC<{ children: React.ReactNode }> = ({ childre
           const currentTimeVal = nativePlayerRef.current.currentTime;
 
           if (isFinalMode) {
-            // Calculate Session-wide metrics for display
+            setTrackCurrentTime(currentTimeVal);
+            
+            // Calculate Session-wide metrics for display if in a program
             const currentIdx = sessionTracks.findIndex(t => t.id === trackIdRef.current || t.title === title);
             if (currentIdx !== -1) {
               const getLimitForTrack = (track: Track) => {
@@ -591,12 +593,13 @@ export const AudioProvider: React.FC<{ children: React.ReactNode }> = ({ childre
 
               const currentTrackLimit = getLimitForTrack(sessionTracks[currentIdx]);
               sessionElapsed += isPauseCountdown ? (currentTrackLimit + (15 - pauseTime)) : currentTimeVal;
-
               setCurrentTime(sessionElapsed);
-              setTrackCurrentTime(currentTimeVal);
+            } else {
+              setCurrentTime(currentTimeVal);
             }
           } else {
             setCurrentTime(currentTimeVal);
+            setTrackCurrentTime(currentTimeVal);
           }
 
           // Update Media Session Position State

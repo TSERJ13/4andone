@@ -37,6 +37,7 @@ const MobileFullPlayer = ({ isOpen, onClose }: MobileFullPlayerProps) => {
     title,
     artist,
     currentTime,
+    trackCurrentTime,
     duration,
     isFinalMode,
     toggleFinalMode,
@@ -141,7 +142,8 @@ const MobileFullPlayer = ({ isOpen, onClose }: MobileFullPlayerProps) => {
   if (!isOpen) return null;
 
   const effectiveDuration = isFinalMode ? getTimeLimit() : duration;
-  const displayProgress = isDragging ? dragProgress : (currentTime / (effectiveDuration || 1)) * 100;
+  const activeTime = isFinalMode ? trackCurrentTime : currentTime;
+  const displayProgress = isDragging ? dragProgress : (activeTime / (effectiveDuration || 1)) * 100;
 
   const formatTime = (time: number) => {
     return formatDuration(time);
@@ -207,7 +209,7 @@ const MobileFullPlayer = ({ isOpen, onClose }: MobileFullPlayerProps) => {
             <div className={`progress-knob ${isDragging ? 'active' : ''} ${isFinalMode ? 'final-active' : ''}`} style={{ left: `${displayProgress}%` }}></div>
           </div>
           <div className="time-labels">
-            <span>{formatTime(isDragging ? (dragProgress / 100) * (effectiveDuration || 0) : currentTime)}</span>
+            <span>{formatTime(isDragging ? (dragProgress / 100) * (effectiveDuration || 0) : activeTime)}</span>
             <span>{formatTime(effectiveDuration)}</span>
           </div>
         </div>
@@ -480,7 +482,7 @@ const MobileFullPlayer = ({ isOpen, onClose }: MobileFullPlayerProps) => {
           border-radius: 3px;
           transition: width 0.1s linear;
         }
-        .progress-fill.final-active { background: #f43f5e; box-shadow: 0 0 12px rgba(244, 63, 94, 0.6); }
+        .progress-fill.final-active { background: #f43f5e; box-shadow: 0 0 12px rgba(244, 63, 94, 0.7); }
 
         .progress-knob {
           width: 14px;
@@ -497,7 +499,13 @@ const MobileFullPlayer = ({ isOpen, onClose }: MobileFullPlayerProps) => {
           transform: translate(-50%, -50%) scale(1.5);
           background: var(--primary);
         }
-        .progress-knob.final-active { background: #f43f5e; border: 2px solid white; opacity: 1 !important; visibility: visible !important; }
+        .progress-knob.final-active { 
+          background: #f43f5e !important; 
+          border: 2px solid white !important; 
+          box-shadow: 0 0 10px rgba(244, 63, 94, 0.5);
+          opacity: 1 !important; 
+          visibility: visible !important; 
+        }
         .time-labels {
           display: flex;
           justify-content: space-between;

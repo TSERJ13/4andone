@@ -13,7 +13,10 @@ export const metadata: Metadata = {
   description: "The ultimate tool for dancers and coaches. High-fidelity BPM control and professional practice modes.",
   manifest: "/manifest.json?v=3",
   icons: {
-    icon: "/icon.png?v=3",
+    icon: [
+      { url: "/favicon.ico" },
+      { url: "/icon.png?v=3" },
+    ],
     apple: "/apple-icon.png?v=3",
   },
   appleWebApp: {

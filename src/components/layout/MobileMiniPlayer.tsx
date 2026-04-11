@@ -23,6 +23,9 @@ const MobileMiniPlayer = () => {
     artist,
     currentTime,
     duration,
+    sessionDuration,
+    sessionTracks,
+    isFinalMode,
     isExpanded,
     setIsExpanded
   } = useAudio();
@@ -52,7 +55,9 @@ const MobileMiniPlayer = () => {
     }, 'favorite tracks');
   };
 
-  const progress = (currentTime / (duration || 105)) * 100;
+  const isSessionActive = isFinalMode && sessionTracks?.length > 0;
+  const effectiveDuration = isSessionActive ? sessionDuration : (isFinalMode ? 105 : duration);
+  const progress = (currentTime / (effectiveDuration || 105)) * 100;
 
   return (
     <>

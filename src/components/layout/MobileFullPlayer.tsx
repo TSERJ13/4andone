@@ -39,6 +39,8 @@ const MobileFullPlayer = ({ isOpen, onClose }: MobileFullPlayerProps) => {
     currentTime,
     trackCurrentTime,
     duration,
+    sessionDuration,
+    sessionTracks,
     isFinalMode,
     toggleFinalMode,
     seek,
@@ -48,8 +50,7 @@ const MobileFullPlayer = ({ isOpen, onClose }: MobileFullPlayerProps) => {
     isShuffle,
     isRepeat,
     toggleShuffle,
-    toggleRepeat,
-    sessionDuration
+    toggleRepeat
   } = useAudio();
 
   const { tracks, finalTracks, addToFinal, removeFromFinal, toggleFavorite } = useStudio();
@@ -141,8 +142,9 @@ const MobileFullPlayer = ({ isOpen, onClose }: MobileFullPlayerProps) => {
 
   if (!isOpen) return null;
 
-  const effectiveDuration = isFinalMode ? getTimeLimit() : duration;
-  const activeTime = isFinalMode ? trackCurrentTime : currentTime;
+  const isSessionActive = isFinalMode && sessionTracks?.length > 0;
+  const effectiveDuration = isSessionActive ? sessionDuration : (isFinalMode ? getTimeLimit() : duration);
+  const activeTime = isSessionActive ? currentTime : (isFinalMode ? trackCurrentTime : currentTime);
   const displayProgress = isDragging ? dragProgress : (activeTime / (effectiveDuration || 1)) * 100;
 
   const formatTime = (time: number) => {

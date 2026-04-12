@@ -49,7 +49,7 @@ export const Marquee: React.FC<MarqueeProps> = ({ text, className = '', speed = 
 
   return (
     <div 
-      className={`marquee-container ${className}`} 
+      className={`marquee-container ${className} ${shouldScroll ? 'can-scroll' : ''}`} 
       ref={containerRef}
       onMouseEnter={() => setIsHovered(true)}
       onMouseLeave={() => setIsHovered(false)}
@@ -58,8 +58,7 @@ export const Marquee: React.FC<MarqueeProps> = ({ text, className = '', speed = 
         className={`marquee-content ${shouldScroll ? 'is-scrolling' : ''}`}
         style={{ 
           animationDuration: shouldScroll && duration > 0 ? `${duration}s` : '0s',
-          animationDelay: '1.5s',
-          transform: `translateX(0)`
+          animationDelay: '1s'
         } as React.CSSProperties}
       >
         <span ref={textRef} className="marquee-text">{text}</span>
@@ -68,26 +67,38 @@ export const Marquee: React.FC<MarqueeProps> = ({ text, className = '', speed = 
       <style jsx>{`
         .marquee-container {
           overflow: hidden;
-          white-space: nowrap;
           width: 100%;
           position: relative;
-          mask-image: linear-gradient(to right, transparent, black 8%, black 92%, transparent);
-          -webkit-mask-image: linear-gradient(to right, transparent, black 8%, black 92%, transparent);
           cursor: default;
+        }
+
+        /* Default state: Truncate with ellipsis if not scrolling */
+        .marquee-container:not(.can-scroll) {
+          white-space: nowrap;
+          text-overflow: ellipsis;
+          display: block;
+          overflow: hidden;
+        }
+
+        .marquee-container.can-scroll {
+          mask-image: linear-gradient(to right, transparent, black 5%, black 95%, transparent);
+          -webkit-mask-image: linear-gradient(to right, transparent, black 5%, black 95%, transparent);
         }
 
         .marquee-content {
           display: inline-block;
           width: max-content;
           will-change: transform;
+          white-space: nowrap;
         }
 
+        /* Only allow scrolling when explicitly enabled by parent or hover */
         .is-scrolling {
           animation: marquee-yoyo linear infinite alternate;
         }
 
         .marquee-text {
-          padding-right: 20px;
+          padding-right: 15px; /* Slight padding to ensure it doesn't touch the mask edge immediately */
         }
 
         @keyframes marquee-yoyo {

@@ -145,7 +145,8 @@ const BulkUpload = () => {
         await uploadPromise;
 
         // 3. Register in Supabase with refined metadata
-        const publicUrl = `${process.env.NEXT_PUBLIC_R2_PUBLIC_URL}/tracks/${f.id}-${f.file.name}`;
+        const baseUrl = (process.env.NEXT_PUBLIC_R2_PUBLIC_URL || '').replace(/\/$/, '');
+        const publicUrl = `${baseUrl}/tracks/${f.id}-${f.file.name}`;
         
         await addTrack({
           title: f.title,
@@ -325,7 +326,7 @@ const BulkUpload = () => {
                 onClick={startUpload}
               >
                 <Plus size={18} />
-                <span>{isReadyToUpload ? `Burn ${files.length} Tracks` : 'Metadata Required'}</span>
+                <span>{isReadyToUpload ? `Start Upload (${files.length} Tracks)` : 'Enter Collection & Artist'}</span>
               </button>
             </div>
           </div>

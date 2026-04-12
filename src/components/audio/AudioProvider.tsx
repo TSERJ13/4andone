@@ -99,6 +99,10 @@ export const AudioProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   const isFinalModeRef = useRef(isFinalMode);
   const sessionTracksRef = useRef(sessionTracks);
   const isFitnessRef = useRef(isFitness);
+  const isRepeatRef = useRef(isRepeat);
+  const isShuffleRef = useRef(isShuffle);
+  const bpmRef = useRef(bpm);
+  const volumeRef = useRef(volume);
 
   useEffect(() => { isPlayingRef.current = isPlaying; }, [isPlaying]);
   useEffect(() => { currentTimeRef.current = currentTime; }, [currentTime]);
@@ -107,6 +111,10 @@ export const AudioProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   useEffect(() => { isFinalModeRef.current = isFinalMode; }, [isFinalMode]);
   useEffect(() => { sessionTracksRef.current = sessionTracks; }, [sessionTracks]);
   useEffect(() => { isFitnessRef.current = isFitness; }, [isFitness]);
+  useEffect(() => { isRepeatRef.current = isRepeat; }, [isRepeat]);
+  useEffect(() => { isShuffleRef.current = isShuffle; }, [isShuffle]);
+  useEffect(() => { bpmRef.current = bpm; }, [bpm]);
+  useEffect(() => { volumeRef.current = volume; }, [volume]);
 
   // Reactive Session Duration Calculation
   // This ensures the total time is known immediately when sessionTracks changes,
@@ -169,23 +177,13 @@ export const AudioProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     // Initialize Persistent Player & Heartbeat
     if (typeof window !== 'undefined') {
       // 1. Create a single, persistent Audio element for the entire app lifecycle.
-      // Reusing this element is mandatory for reliable auto-play on iOS.
+      // We play DIRECTLY to destination (speakers) to avoid WebAudio bridge lag.
       const audio = new Audio();
       audio.crossOrigin = "anonymous";
       audio.autoplay = false;
-      // @ts-ignore - Ensure high-quality pitch preservation on all platforms
       audio.preservesPitch = true;
-      // @ts-ignore
-      audio.mozPreservesPitch = true;
-      // @ts-ignore
-      audio.webkitPreservesPitch = true;
       
       nativePlayerRef.current = audio;
-
-      // Connect to Tone.js for Gain/Pan control ONCE
-      const node = Tone.getContext().createMediaElementSource(audio);
-      const output = initAudioChain();
-      Tone.connect(node, output);
 
       // 2. Tiny silent WAV to keep iOS audio session alive
       const silentWav = "data:audio/wav;base64,UklGRjIAAABXQVZFRm10IBAAAAABAAEAIlYAAESsAAACABAAZGF0YRAAAAAAAAAAAAAAAAAAAAAAAAAA";
@@ -333,12 +331,15 @@ export const AudioProvider: React.FC<{ children: React.ReactNode }> = ({ childre
 
       const setupPlayer = (url: string) => {
         return new Promise<HTMLAudioElement>((resolve, reject) => {
-          if (currentToken !== loadingTokenRef.current || !nativePlayerRef.current) {
+          if (currentToken !== loadingTokenRef.current) {
             reject(new Error("Loading cancelled by new request"));
             return;
           }
 
-          const audio = nativePlayerRef.current;
+          const audio = nativePlayerRef.current || new Audio();
+          if (!nativePlayerRef.current) nativePlayerRef.current = audio;
+          
+          audio.crossOrigin = "anonymous";
           
           // RESET VOLUME: Ensure any previous fade-out is reversed
           if (masterGainRef.current) {
@@ -386,22 +387,35 @@ export const AudioProvider: React.FC<{ children: React.ReactNode }> = ({ childre
             const currentTimeVal = audio.currentTime;
             
             // 1. FINAL MODE LIMIT CHECK (1:45 / 1:25)
-            // Using REFS ensures that even if Mode is toggled, it's captured in the closure
             if (isFinalModeRef.current && !isPauseCountdownRef.current && isPlayingRef.current) {
               const style = playingTrackRef.current?.style?.toLowerCase() || '';
               const isPasoDoble = style.includes('paso');
               const isViennese = style.includes('viennese');
               const timeLimit = isPasoDoble ? Infinity : (isViennese ? 85 : 105);
 
-              // FADE-OUT Logic (3 seconds before limit)
-              if (masterGainRef.current) {
+              // NATIVE FADE-OUT Logic (3 seconds before limit)
+              if (audio) {
                   const isNearLimit = !isPasoDoble && (timeLimit - currentTimeVal <= 3.5) && (timeLimit - currentTimeVal > 0);
                   const isNearSongEnd = isPasoDoble && (audio.duration - currentTimeVal <= 3.5) && (audio.duration - currentTimeVal > 0);
                   
                   if (isNearLimit || isNearSongEnd) {
                     const remaining = isNearLimit ? (timeLimit - currentTimeVal) : (audio.duration - currentTimeVal);
-                    // Pro-Tip: rampTo(0, remaining) is better for preventing abrupt cuts
-                    masterGainRef.current.gain.rampTo(0, Math.max(0.1, remaining));
+                    // Smooth native volume reduction
+                    const targetVol = 0;
+                    const startVol = volumeRef.current * 0.8;
+                    const steps = 20;
+                    const stepDuration = (remaining * 1000) / steps;
+                    
+                    if (audio.volume > 0.01) {
+                        const volumeInterval = setInterval(() => {
+                           if (!audio || audio.volume <= 0.05) {
+                               clearInterval(volumeInterval);
+                               if (audio) audio.volume = 0;
+                           } else {
+                               audio.volume = Math.max(0, audio.volume - (startVol / steps));
+                           }
+                        }, stepDuration);
+                    }
                   }
               }
 
@@ -415,7 +429,6 @@ export const AudioProvider: React.FC<{ children: React.ReactNode }> = ({ childre
                 const isLastTrack = currentIdx === sessionTracksRef.current.length - 1;
 
                 if (isLastTrack) { 
-                  // NEW RULE: Final Mode just ends after the last track, no rest period
                   stop(); 
                   return; 
                 }
@@ -442,37 +455,34 @@ export const AudioProvider: React.FC<{ children: React.ReactNode }> = ({ childre
             }
           };
 
-          // Update speed
+          // NATIVE SPEED CONTROL: No bridge needed
+          audio.preservesPitch = true;
           audio.playbackRate = bpm / 100;
           audio.loop = !isFinalMode;
-          // IMPORTANT: Changing src on persistent element
           audio.src = url;
           audio.load();
         });
       };
 
       try {
-        // ATTEMPT 1: INSTANT STREAMING (Spotify Method)
-        const audio = await setupPlayer(finalUrl) as HTMLAudioElement;
+        const audio = await setupPlayer(finalUrl);
 
         if (currentToken !== loadingTokenRef.current) {
           audio.pause();
           return;
         }
 
-        if (Tone.getContext().state === 'running') {
-          playPromiseRef.current = audio.play();
-          playPromiseRef.current.catch(e => {
-            if (e.name !== 'AbortError') console.error("Play prevented", e);
-          }).finally(() => {
-            playPromiseRef.current = null;
-          });
-          setIsPlaying(true);
-        }
+        playPromiseRef.current = audio.play();
+        playPromiseRef.current.catch(e => {
+          if (e.name !== 'AbortError') console.error("Play prevented", e);
+        }).finally(() => {
+          playPromiseRef.current = null;
+        });
+        setIsPlaying(true);
       } catch (e: any) {
         if (e.message === "Loading cancelled by new request") return;
         console.error("[AUDIO-CRITICAL] Global failure.", e);
-        setError(e.message || "File Unreachable (Check Connection)");
+        setError(e.message || "File Unreachable");
         setIsLoaded(false);
         setIsLoading(false);
       }
@@ -495,27 +505,25 @@ export const AudioProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         const sessionId = typeof window !== 'undefined' ? sessionStorage.getItem('4andone_session_id') : null;
         const tgUser = typeof window !== 'undefined' ? (window as any).Telegram?.WebApp?.initDataUnsafe?.user : null;
         const userRef = user?.id?.toString() || tgUser?.id?.toString() || null;
-
+        
         supabase.from('track_plays').insert({
+          track_title: track.title,
           track_id: track.id,
           user_ref: userRef,
           session_id: sessionId,
           style: track.style || 'Unknown',
           bpm: track.bpm?.toString() || '0',
           duration_seconds: 0
-        })
-        .select('id')
-        .single()
-        .then(({ data, error }) => {
-          if (error) console.warn("[ANALYTICS-ERROR] Failed to log track play:", error);
+        }).select('id').single().then(({ data }) => {
           if (data) trackLogIdRef.current = data.id;
         });
-      } catch (e) { }
+      } catch (e) {}
 
     } catch (err: any) {
       console.error("[LOAD-ERROR]", err);
       setError(err.message || "Failed to load track");
       setIsLoaded(false);
+      setIsLoading(false);
     }
   };
 
@@ -721,8 +729,11 @@ export const AudioProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   const setVolume = (v: number) => {
     setVolumeState(v);
     localStorage.setItem('4andone-volume', v.toString());
+    if (nativePlayerRef.current) {
+      nativePlayerRef.current.volume = v * 0.8;
+    }
     if (masterGainRef.current) {
-      // Apply the 0.65 headroom logic
+      // Still update Tone.js volume for beeps/fitness sounds if they use this gain
       masterGainRef.current.gain.rampTo(v * 0.65, 0.1);
     }
   };

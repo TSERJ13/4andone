@@ -95,12 +95,16 @@ const AdminLibrary = () => {
   };
 
   const filteredTracks = tracks.filter(track => {
-    const matchesSearch = track.title.toLowerCase().includes(searchQuery.toLowerCase()) || 
-                          track.artist.toLowerCase().includes(searchQuery.toLowerCase()) ||
-                          track.album?.toLowerCase().includes(searchQuery.toLowerCase());
+    const title = track.title || '';
+    const artist = track.artist || '';
+    const album = track.album || '';
+    
+    const matchesSearch = title.toLowerCase().includes(searchQuery.toLowerCase()) || 
+                          artist.toLowerCase().includes(searchQuery.toLowerCase()) ||
+                          album.toLowerCase().includes(searchQuery.toLowerCase());
     const matchesFilter = activeFilter === 'All' || track.style === activeFilter;
     const matchesFolder = activeFolderId === 'All' || track.folderId === activeFolderId;
-    const matchesTag = activeTag === 'All' || track.tags?.includes(activeTag);
+    const matchesTag = activeTag === 'All' || (track.tags && track.tags.includes(activeTag));
     return matchesSearch && matchesFilter && matchesFolder && matchesTag;
   });
 
@@ -239,7 +243,7 @@ const AdminLibrary = () => {
                 return (
                   <tr 
                     key={track.id} 
-                    className={`track-row ${isThisPlaying ? 'is-playing-row' : ''}`}
+                    className={`admin-track-row ${isThisPlaying ? 'is-playing-row' : ''}`}
                     draggable
                     onDragStart={(e) => handleDragStart(e, i)}
                     onDragOver={handleDragOver}
@@ -501,8 +505,8 @@ const AdminLibrary = () => {
         .row-play-btn { color: #1db954; width: 36px; height: 36px; display: flex; align-items: center; justify-content: center; border-radius: 10px; transition: all 0.2s; }
         .row-play-btn:hover { background: rgba(29, 185, 84, 0.1); transform: scale(1.05); }
 
-        .track-row { transition: background 0.2s; }
-        .track-row:hover { background: rgba(255, 255, 255, 0.03); }
+        .admin-track-row { transition: background 0.2s; }
+        .admin-track-row:hover { background: rgba(255, 255, 255, 0.03); }
         .is-playing-row { background: rgba(29, 185, 84, 0.05); }
 
         .track-cell { display: flex; align-items: center; gap: 14px; }

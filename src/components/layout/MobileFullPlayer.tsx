@@ -278,7 +278,14 @@ const MobileFullPlayer = ({ isOpen, onClose }: MobileFullPlayerProps) => {
 
       {showSpeed && (
         <div className={`speed-overlay ${isExitingSpeed ? 'exit' : 'animate-in'}`} onClick={handleToggleSpeed}>
-          <div className="speed-modal glass" onClick={(e) => e.stopPropagation()}>
+          <div 
+            className="speed-modal glass" 
+            onClick={(e) => e.stopPropagation()}
+            onMouseDown={(e) => e.stopPropagation()}
+            onMouseUp={(e) => e.stopPropagation()}
+            onTouchStart={(e) => e.stopPropagation()}
+            onTouchEnd={(e) => e.stopPropagation()}
+          >
             <div className="modal-header">
               <div className="modal-title">
                 <Gauge size={20} className="text-primary" />

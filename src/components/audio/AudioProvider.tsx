@@ -340,6 +340,42 @@ export const AudioProvider: React.FC<{ children: React.ReactNode }> = ({ childre
             reject(new Error(msg));
           };
 
+          // NATURAL END HANDLING
+          audio.onended = () => {
+            if (currentToken !== loadingTokenRef.current) return;
+            
+            if (isFinalModeRef.current) {
+              const currentIdx = sessionTracksRef.current.findIndex(t => t.id === trackIdRef.current || t.title === title);
+              const isLastTrack = currentIdx === sessionTracksRef.current.length - 1;
+
+              if (isLastTrack) {
+                stop();
+                return;
+              }
+
+              if (isFitnessRef.current) {
+                playNext();
+                return;
+              }
+
+              setIsPauseCountdown(true);
+              isPauseCountdownRef.current = true;
+              setPauseTime(15);
+              pauseTimeRef.current = 15;
+            } else {
+              if (!isRepeat) {
+                audio.pause();
+                setIsPlaying(false);
+                setCurrentTime(0);
+                audio.currentTime = 0;
+              } else {
+                audio.currentTime = 0;
+                setCurrentTime(0);
+                audio.play().catch(() => {});
+              }
+            }
+          };
+
           // ATTACH EVENT-DRIVEN MONITORING (Frame-accurate limit checks)
           audio.ontimeupdate = () => {
             if (currentToken !== loadingTokenRef.current) return;
@@ -353,14 +389,12 @@ export const AudioProvider: React.FC<{ children: React.ReactNode }> = ({ childre
               const timeLimit = isPasoDoble ? Infinity : (isViennese ? 85 : 105);
 
               // NATIVE FADE-OUT Logic (3 seconds before limit)
-              if (audio) {
-                  const isNearLimit = !isPasoDoble && (timeLimit - currentTimeVal <= 3.5) && (timeLimit - currentTimeVal > 0);
-                  const isNearSongEnd = isPasoDoble && (audio.duration - currentTimeVal <= 3.5) && (audio.duration - currentTimeVal > 0);
+              if (audio && !isPasoDoble) {
+                  const isNearLimit = (timeLimit - currentTimeVal <= 3.5) && (timeLimit - currentTimeVal > 0);
                   
-                  if (isNearLimit || isNearSongEnd) {
-                    const remaining = isNearLimit ? (timeLimit - currentTimeVal) : (audio.duration - currentTimeVal);
+                  if (isNearLimit) {
+                    const remaining = timeLimit - currentTimeVal;
                     // Smooth native volume reduction
-                    const targetVol = 0;
                     const startVol = volumeRef.current * 0.8;
                     const steps = 20;
                     const stepDuration = (remaining * 1000) / steps;
@@ -381,6 +415,7 @@ export const AudioProvider: React.FC<{ children: React.ReactNode }> = ({ childre
               // TRIGGER NEXT or END
               if (currentTimeVal >= timeLimit || (isPasoDoble && audio.duration > 0 && currentTimeVal >= audio.duration - 0.5)) {
                 audio.pause();
+                audio.src = ''; // Force stop any remaining buffer
                 setIsPlaying(false);
                 isPlayingRef.current = false;
 
@@ -399,18 +434,6 @@ export const AudioProvider: React.FC<{ children: React.ReactNode }> = ({ childre
                 setPauseTime(15);
                 pauseTimeRef.current = 15;
               }
-            } else if (!isFinalModeRef.current && audio.duration > 0 && currentTimeVal >= audio.duration) {
-                // NORMAL MODE Loop handling
-                if (!isRepeat) {
-                  audio.pause();
-                  setIsPlaying(false);
-                  setCurrentTime(0);
-                  audio.currentTime = 0;
-                } else {
-                  audio.currentTime = 0;
-                  setCurrentTime(0);
-                  audio.play().catch(() => {});
-                }
             }
           };
 
@@ -713,7 +736,10 @@ export const AudioProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   };
 
   const stop = () => {
-    if (nativePlayerRef.current) nativePlayerRef.current.pause();
+    if (nativePlayerRef.current) {
+      nativePlayerRef.current.pause();
+      nativePlayerRef.current.src = '';
+    }
     setIsPlaying(false);
     setCurrentTime(0);
     setTrackCurrentTime(0);
@@ -723,6 +749,8 @@ export const AudioProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     pauseTimeRef.current = 15;
     setActiveMode(null);
     setSessionTracks([]);
+    setIsFinalMode(false);
+    isFinalModeRef.current = false;
   };
 
   // REGISTER MEDIA SESSION ACTIONS

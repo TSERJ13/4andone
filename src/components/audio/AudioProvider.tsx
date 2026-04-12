@@ -555,14 +555,14 @@ export const AudioProvider: React.FC<{ children: React.ReactNode }> = ({ childre
 
         if (nativePlayerRef.current) {
           const currentTimeVal = nativePlayerRef.current.currentTime;
+          setTrackCurrentTime(currentTimeVal);
 
-          if (isFinalMode) {
-            setTrackCurrentTime(currentTimeVal);
-            
+          if (isFinalModeRef.current) {
             // Calculate Session-wide metrics for display if in a program
-            const currentIdx = sessionTracks.findIndex(t => t.id === trackIdRef.current || t.title === title);
+            const currentIdx = sessionTracksRef.current.findIndex(t => t.id === trackIdRef.current || t.title === title);
             if (currentIdx !== -1) {
               const getLimitForTrack = (track: Track) => {
+                if (!track) return 105;
                 const style = track.style?.toLowerCase() || '';
                 if (style.includes('paso')) return track.duration || 120;
                 if (style.includes('viennese')) return 85;
@@ -571,22 +571,21 @@ export const AudioProvider: React.FC<{ children: React.ReactNode }> = ({ childre
 
               let sessionElapsed = 0;
               for (let i = 0; i < currentIdx; i++) {
-                sessionElapsed += getLimitForTrack(sessionTracks[i]) + (isFitness ? 0 : 15);
+                const trackLimit = getLimitForTrack(sessionTracksRef.current[i]);
+                sessionElapsed += trackLimit + (isFitnessRef.current ? 0 : 15);
               }
 
-              const currentTrackLimit = getLimitForTrack(sessionTracks[currentIdx]);
-              sessionElapsed += isPauseCountdown ? (currentTrackLimit + (15 - pauseTime)) : currentTimeVal;
-              setCurrentTime(sessionElapsed);
+              const currentTrackLimit = getLimitForTrack(sessionTracksRef.current[currentIdx]);
+              sessionElapsed += isPauseCountdownRef.current ? (currentTrackLimit + (15 - pauseTimeRef.current)) : currentTimeVal;
+              
+              const safeSessionElapsed = Number.isFinite(sessionElapsed) ? Math.max(0, sessionElapsed) : 0;
+              setCurrentTime(safeSessionElapsed);
             } else {
               setCurrentTime(currentTimeVal);
             }
           } else {
-          }
-
-          // CORE TIME TRACKING: Update UI state every 100ms
-          setCurrentTime(currentTimeVal);
-          if (playingTrackRef.current) {
-            setTrackCurrentTime(currentTimeVal);
+            // Normal Mode: Simply track the relative file time
+            setCurrentTime(currentTimeVal);
           }
 
           // SAFE MEDIASESSION UPDATE: Guard against NaN, Infinity, and unsupported methods

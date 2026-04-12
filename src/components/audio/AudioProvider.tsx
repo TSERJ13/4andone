@@ -269,19 +269,31 @@ export const AudioProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       // 1. If REMOTE (Cloudflare R2), we try signed first, fallback to public on error if needed
       if (isRemote && finalUrl) {
         try {
-          const fileName = finalUrl.split('/').pop();
-          if (!fileName) throw new Error("Invalid remote URL");
-          const signRes = await fetch(`/api/upload?key=${fileName}`);
+          const R2_DOMAIN = process.env.NEXT_PUBLIC_R2_PUBLIC_URL || 'https://pub-c41b1121b311f676bdc114d143278d18.r2.dev';
+          const domainNormalized = R2_DOMAIN.replace(/\/$/, '');
+          
+          // EXTRACT FULL KEY: Take everything after the domain to handle nested paths
+          let storageKey = '';
+          if (finalUrl.includes(domainNormalized)) {
+            storageKey = finalUrl.split(`${domainNormalized}/`)[1];
+          } else {
+            // Fallback for custom or direct URLs
+            storageKey = finalUrl.split('/').slice(3).join('/');
+          }
+
+          if (!storageKey) throw new Error("Invalid remote URL storage key");
+
+          const signRes = await fetch(`/api/upload?key=${storageKey}`);
 
           if (signRes.ok) {
             const { url } = await signRes.json();
             finalUrl = url;
           } else {
-            // FALLBACK: Use environment Public R2 URL for stability
-            const R2_PUBLIC = process.env.NEXT_PUBLIC_R2_PUBLIC_URL || 'https://pub-c41b1121b311f676bdc114d143278d18.r2.dev';
-            finalUrl = `${R2_PUBLIC}/${fileName}`;
+            // FALLBACK: Use environment Public R2 URL with the full gathered path
+            finalUrl = `${domainNormalized}/${storageKey}`;
           }
         } catch (e) {
+          console.error("[AUDIO-ENGINE] Playback signing failed:", e);
         }
       }
       // 2. Legacy Fallback (IndexedDB)

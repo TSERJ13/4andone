@@ -187,7 +187,7 @@ const BulkUpload = () => {
         // 1. Get Presigned URL
         // SANITIZE: Remove special characters from filename for reliable R2 keys
         const safeName = f.file.name.replace(/[^\w.-]/g, '_');
-        const storagePath = `tracks/${f.id}-${safeName}`;
+        const storagePath = `${f.id}-${safeName}`;
 
         const { url, error } = await createPresignedUrl(
           storagePath,
@@ -221,7 +221,7 @@ const BulkUpload = () => {
         // 3. Register in Supabase
         const baseUrl = (process.env.NEXT_PUBLIC_R2_PUBLIC_URL || 'https://pub-c41b1121b311f676bdc114d143278d18.r2.dev').replace(/\/$/, '');
         // ENCODE: Ensure characters like # or ? are encoded for the public URL
-        const publicUrl = `${baseUrl}/tracks/${f.id}-${encodeURIComponent(safeName)}`;
+        const publicUrl = `${baseUrl}/${f.id}-${encodeURIComponent(safeName)}`;
         
         await addTrack({
           title: f.title,

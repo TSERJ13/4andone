@@ -23,7 +23,8 @@ import {
   detectBPM, 
   getStyleFromBPM, 
   getMPMFromBPM,
-  getBPMFromMPM 
+  getBPMFromMPM,
+  getStyleFromFilenamePart
 } from '@/utils/audio';
 
 interface Style { id: string; title: string; }
@@ -70,20 +71,28 @@ const BulkUpload = () => {
       .map(file => {
         const id = Math.random().toString(36).substring(7);
         
-        // Advanced Parsing (Artist - Title)
-        let autoTitle = file.name.replace(/\.[^/.]+$/, "");
+        let rawName = file.name.replace(/\.[^/.]+$/, "");
         let autoArtist = batchArtist || 'Unknown Artist';
+        let detectedStyle = batchStyle;
+
+        // SMART MULTI-PART PARSING
+        const parts = rawName.split(/ - | — /).map(p => p.trim());
         
-        if (autoTitle.includes(' - ')) {
-          const parts = autoTitle.split(' - ').map(s => s.trim());
+        // 1. Check if the LAST part is a dance style
+        if (parts.length > 1) {
+          const lastPartMatched = getStyleFromFilenamePart(parts[parts.length - 1]);
+          if (lastPartMatched) {
+            detectedStyle = lastPartMatched;
+            parts.pop(); // Remove style from Title/Artist parts
+          }
+        }
+
+        let autoTitle = '';
+        if (parts.length >= 2) {
           autoArtist = parts[0];
-          autoTitle = parts[1];
-        } else if (autoTitle.includes(' — ')) {
-          const parts = autoTitle.split(' — ').map(s => s.trim());
-          autoArtist = parts[0];
-          autoTitle = parts[1];
+          autoTitle = parts.slice(1).join(' - ');
         } else {
-          autoTitle = autoTitle.replace(/[_\-]/g, ' ');
+          autoTitle = parts[0] || rawName;
         }
 
         return {
@@ -95,7 +104,7 @@ const BulkUpload = () => {
           title: autoTitle,
           bpm: '0',
           duration: 0,
-          style: batchStyle,
+          style: detectedStyle,
           artist: autoArtist,
           album: batchAlbum || 'Bulk Upload',
           tags: [...batchTags]

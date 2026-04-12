@@ -140,10 +140,37 @@ export function getStyleInfo(styleName: string): DanceStyleInfo | undefined {
   return DANCE_STYLES.find(s => normalizeStyleName(s.name) === normalized);
 }
 
+/**
+ * Identifies a dance style specifically from a filename string part.
+ * More strict than global keyword searching to avoid false positives.
+ */
+export function getStyleFromFilenamePart(part: string): string | null {
+  const p = part.toLowerCase().trim();
+  if (p === 'cha cha' || p === 'chacha' || p === 'cha-cha' || p === 'cha-cha-cha') return 'Cha-Cha-Cha';
+  if (p === 'samba') return 'Samba';
+  if (p === 'rumba') return 'Rumba';
+  if (p === 'jive') return 'Jive';
+  if (p === 'paso' || p === 'paso doble') return 'Paso Doble';
+  if (p === 'viennese' || p === 'viennese waltz') return 'Viennese Waltz';
+  if (p === 'waltz' || p === 'slow waltz') return 'Slow Waltz';
+  if (p === 'tango') return 'Tango';
+  if (p === 'foxtrot' || p === 'slow foxtrot') return 'Slow Foxtrot';
+  if (p === 'quickstep') return 'Quickstep';
+  return null;
+}
+
 export function getStyleFromBPM(bpm: number, filename?: string): string {
   if (!bpm || bpm === 0) return 'Samba'; 
   const fnLower = filename?.toLowerCase() || '';
   
+  // High Priority: Explicit filename keywords
+  const parts = fnLower.split(/[\s\-_—]/).map(s => s.trim());
+  for (const part of parts) {
+    const matched = getStyleFromFilenamePart(part);
+    if (matched) return matched;
+  }
+
+  // Fallback: Broad string searching
   if (fnLower.includes('cha cha') || fnLower.includes('chacha')) return 'Cha-Cha-Cha';
   if (fnLower.includes('samba')) return 'Samba';
   if (fnLower.includes('rumba')) return 'Rumba';
@@ -155,6 +182,7 @@ export function getStyleFromBPM(bpm: number, filename?: string): string {
   if (fnLower.includes('foxtrot')) return 'Slow Foxtrot';
   if (fnLower.includes('quickstep')) return 'Quickstep';
 
+  // Final Fallback: Rhythmic analysis
   for (const style of DANCE_STYLES) {
     const mpm = bpm / style.timeSignature;
     if (mpm >= style.minMPM - 2 && mpm <= style.maxMPM + 2) {

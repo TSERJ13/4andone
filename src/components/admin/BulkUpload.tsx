@@ -22,7 +22,8 @@ import { useStudio } from './StudioProvider';
 import { 
   detectBPM, 
   getStyleFromBPM, 
-  getMPMFromBPM 
+  getMPMFromBPM,
+  getBPMFromMPM 
 } from '@/utils/audio';
 
 interface Style { id: string; title: string; }
@@ -131,7 +132,7 @@ const BulkUpload = () => {
         setFiles(current => current.map(f => f.id === staged.id ? {
           ...f,
           bpm: detectedBpm > 0 ? detectedBpm.toString() : f.bpm,
-          duration: duration || f.duration, // Prioritize non-zero duration
+          duration: duration || f.duration, 
           style: (bestStyle && bestStyle !== 'Samba') ? bestStyle : f.style,
           isAnalyzing: false
         } : f));
@@ -144,7 +145,17 @@ const BulkUpload = () => {
   };
 
   const updateFileMeta = (id: string, updates: Partial<StagedFile>) => {
-    setFiles(prev => prev.map(f => f.id === id ? { ...f, ...updates } : f));
+    setFiles(prev => prev.map(f => {
+      if (f.id !== id) return f;
+      const next = { ...f, ...updates };
+      
+      // Auto-Sync BPM/MPM logic
+      if ('bpm' in updates && updates.bpm) {
+        // No explicit MPM storage, we calculate it on the fly for display
+      }
+      
+      return next;
+    }));
   };
 
   const applyBatchMetadata = () => {
@@ -303,12 +314,12 @@ const BulkUpload = () => {
                     {styles.map((s: Style) => <option key={s.id} value={s.title}>{s.title}</option>)}
                     {!styles.length && (
                       <>
+                        <option value="Cha-Cha-Cha">Cha-Cha-Cha</option>
                         <option value="Samba">Samba</option>
-                        <option value="Cha Cha Cha">Cha Cha Cha</option>
                         <option value="Rumba">Rumba</option>
                         <option value="Paso Doble">Paso Doble</option>
                         <option value="Jive">Jive</option>
-                        <option value="Waltz">Waltz</option>
+                        <option value="Slow Waltz">Slow Waltz</option>
                         <option value="Tango">Tango</option>
                         <option value="Viennese Waltz">Viennese Waltz</option>
                         <option value="Slow Foxtrot">Slow Foxtrot</option>
@@ -409,7 +420,8 @@ const BulkUpload = () => {
               <div className="col-status">#</div>
               <div className="col-info">Track Info</div>
               <div className="col-style">Style</div>
-              <div className="col-bpm">BPM</div>
+              <div className="col-bpm">Beats/Min</div>
+              <div className="col-mpm">Bars/Min</div>
               <div className="col-tags">Tags</div>
               <div className="col-actions"></div>
             </div>
@@ -446,8 +458,27 @@ const BulkUpload = () => {
                     {f.isAnalyzing ? <div className="analyzing-mini-spinner" /> : (
                       <input 
                         className="row-bpm-input"
+                        type="number"
                         value={f.bpm}
                         onChange={(e) => updateFileMeta(f.id, { bpm: e.target.value })}
+                        placeholder="BPM"
+                      />
+                    )}
+                  </div>
+
+                  <div className="col-mpm">
+                    {f.isAnalyzing ? <div className="analyzing-mini-spinner" /> : (
+                      <input 
+                        className="row-bpm-input"
+                        type="number"
+                        step="0.1"
+                        value={getMPMFromBPM(Number(f.bpm), f.style)}
+                        onChange={(e) => {
+                          const newMpm = Number(e.target.value);
+                          const newBpm = getBPMFromMPM(newMpm, f.style);
+                          updateFileMeta(f.id, { bpm: newBpm.toString() });
+                        }}
+                        placeholder="MPM"
                       />
                     )}
                   </div>
@@ -563,13 +594,13 @@ const BulkUpload = () => {
           border: 1px solid rgba(255,255,255,0.05);
         }
         .table-header { 
-          display: grid; grid-template-columns: 50px 1fr 180px 80px 240px 60px;
+          display: grid; grid-template-columns: 50px 1fr 140px 90px 90px 200px 60px;
           padding: 16px 20px; background: rgba(255,255,255,0.03);
           font-size: 11px; font-weight: 900; color: #52525b; text-transform: uppercase; letter-spacing: 0.5px;
         }
         .table-body { max-height: 480px; overflow-y: auto; }
         .table-row { 
-          display: grid; grid-template-columns: 50px 1fr 180px 80px 240px 60px;
+          display: grid; grid-template-columns: 50px 1fr 140px 90px 90px 200px 60px;
           padding: 12px 20px; align-items: center; border-bottom: 1px solid rgba(255,255,255,0.03);
           position: relative; transition: background 0.2s;
         }

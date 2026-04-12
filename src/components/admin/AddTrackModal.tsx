@@ -326,7 +326,7 @@ const AddTrackModal = ({ isOpen, onClose, onAdd, initialData }: AddTrackModalPro
                     ))}
                     {styles.length === 0 && (
                       [
-                        'Samba', 'Cha-Cha-Cha', 'Rumba', 'Paso Doble', 'Jive',
+                        'Cha-Cha-Cha', 'Samba', 'Rumba', 'Paso Doble', 'Jive',
                         'Slow Waltz', 'Tango', 'Viennese Waltz', 'Slow Foxtrot', 'Quickstep',
                         'Fitness'
                       ].map(s => (
@@ -335,6 +335,9 @@ const AddTrackModal = ({ isOpen, onClose, onAdd, initialData }: AddTrackModalPro
                           className={`style-option ${formData.style === s ? 'selected' : ''}`}
                           onClick={() => {
                             setFormData({ ...formData, style: s });
+                            if (formData.bpm) {
+                               setMpmState(getMPMFromBPM(Number(formData.bpm), s).toString());
+                            }
                             setIsStyleDropdownOpen(false);
                           }}
                         >

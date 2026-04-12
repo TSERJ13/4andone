@@ -579,13 +579,24 @@ export const AudioProvider: React.FC<{ children: React.ReactNode }> = ({ childre
             setTrackCurrentTime(currentTimeVal);
           }
 
-          // Update Media Session Position State
-          if ('mediaSession' in navigator && sessionDuration > 0) {
-            navigator.mediaSession.setPositionState({
-              duration: sessionDuration,
-              playbackRate: bpmRef.current / 100,
-              position: currentTimeVal
-            });
+          // SAFE MEDIASESSION UPDATE: Guard against NaN, Infinity, and unsupported methods
+          if ('mediaSession' in navigator && (navigator.mediaSession as any).setPositionState) {
+            try {
+              const safeDuration = Number.isFinite(sessionDuration) && sessionDuration > 0 ? sessionDuration : 0;
+              const safePosition = Number.isFinite(currentTimeVal) && currentTimeVal >= 0 ? Math.min(currentTimeVal, safeDuration) : 0;
+              const safeRate = Number.isFinite(bpmRef.current) && bpmRef.current > 0 ? bpmRef.current / 100 : 1.0;
+
+              if (safeDuration > 0) {
+                navigator.mediaSession.setPositionState({
+                  duration: safeDuration,
+                  playbackRate: safeRate,
+                  position: safePosition
+                });
+              }
+            } catch (msError) {
+              // Silently catch media session errors to prevent UI crash
+              console.warn("[AUDIO-ENGINE] MediaSession position update failed:", msError);
+            }
           }
 
           // PERIODIC ANALYTICS UPDATE: Update track play duration

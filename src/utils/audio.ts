@@ -128,6 +128,18 @@ function detectBPMSimple(data: Float32Array): number {
   return bpm;
 }
 
+function normalizeStyleName(name: string): string {
+  if (!name) return '';
+  return name.toLowerCase()
+    .replace(/[^a-z0-9]/g, '')
+    .trim();
+}
+
+export function getStyleInfo(styleName: string): DanceStyleInfo | undefined {
+  const normalized = normalizeStyleName(styleName);
+  return DANCE_STYLES.find(s => normalizeStyleName(s.name) === normalized);
+}
+
 export function getStyleFromBPM(bpm: number, filename?: string): string {
   if (!bpm || bpm === 0) return 'Samba'; 
   const fnLower = filename?.toLowerCase() || '';
@@ -153,13 +165,13 @@ export function getStyleFromBPM(bpm: number, filename?: string): string {
 }
 
 export function getMPMFromBPM(bpm: number, styleName: string): number {
-  const style = DANCE_STYLES.find(s => s.name === styleName);
+  const style = getStyleInfo(styleName);
   if (!style) return 0;
   return Number((bpm / style.timeSignature).toFixed(1));
 }
 
 export function getBPMFromMPM(mpm: number, styleName: string): number {
-  const style = DANCE_STYLES.find(s => s.name === styleName);
+  const style = getStyleInfo(styleName);
   if (!style) return 0;
   return Math.round(mpm * style.timeSignature);
 }

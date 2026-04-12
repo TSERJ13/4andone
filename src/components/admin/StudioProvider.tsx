@@ -224,6 +224,27 @@ export const StudioProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       .select();
 
     if (error) {
+      console.error("[STUDIO-ERROR] addTrack failed:", error);
+      throw error;
+    }
+
+    if (data && data.length > 0) {
+      const nt = data[0];
+      const newTrack: Track = {
+         ...nt,
+         audioUrl: nt.audio_url,
+         folderId: nt.folder_id,
+         duration: nt.duration || 0,
+         isFavorite: nt.is_favorite || false
+      };
+      
+      setTracks(prev => {
+        // Prevent duplicate from real-time INSERT if it fired quickly
+        if (prev.some(t => t.id === newTrack.id)) return prev;
+        return [newTrack, ...prev];
+      });
+      
+      return newTrack;
     }
   };
 

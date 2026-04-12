@@ -655,30 +655,24 @@ export const AudioProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   };
 
   const seek = (time: number) => {
-    if (isLoaded) {
-      const isWasPlaying = isPlayingRef.current;
+    if (isLoaded && nativePlayerRef.current) {
       const safeTime = Math.max(0, Math.min(time, duration));
+      const wasPlaying = isPlayingRef.current;
 
-      if (nativePlayerRef.current) {
-        nativePlayerRef.current.pause();
-        nativePlayerRef.current.currentTime = safeTime;
-      }
-
+      // OPTIMIZATION: On mobile/iPad, excessive pause/play cycles cause stutter.
+      // We directly update currentTime and only trigger play if it wasn't already in a play state.
+      nativePlayerRef.current.currentTime = safeTime;
       setCurrentTime(safeTime);
+      currentTimeRef.current = safeTime;
 
-      if (!isWasPlaying) {
-        if (nativePlayerRef.current) nativePlayerRef.current.pause();
-        setIsPlaying(false);
-      } else {
-        if (nativePlayerRef.current) {
-          playPromiseRef.current = nativePlayerRef.current.play();
-          playPromiseRef.current.catch(e => {
-          }).finally(() => {
-            playPromiseRef.current = null;
-          });
+      if (wasPlaying) {
+        // If it's already playing, we don't need to call play() again usually, 
+        // but to be safe against buffer underruns during scrub:
+        if (nativePlayerRef.current.paused) {
+           playPromiseRef.current = nativePlayerRef.current.play();
+           playPromiseRef.current.catch(() => {}).finally(() => { playPromiseRef.current = null; });
         }
         setIsPlaying(true);
-        notifyOtherTabs();
       }
     }
   };

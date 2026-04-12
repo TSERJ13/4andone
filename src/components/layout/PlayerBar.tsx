@@ -364,7 +364,7 @@ const PlayerBar = () => {
           grid-template-columns: 1fr 2.2fr 1fr;
           align-items: center;
           padding: 0 60px; /* Symmetrical padding for balanced look */
-          height: 106px; /* Slightly increased "ceiling" for more room */
+          height: 110px; 
           background: rgba(10, 10, 10, 0.85);
           backdrop-filter: blur(28px);
           border: 1px solid rgba(255, 255, 255, 0.1);
@@ -774,28 +774,46 @@ const PlayerBar = () => {
         .text-primary { color: var(--primary); }
         @media (max-width: 1400px) and (orientation: landscape) {
           .player-bar {
-            grid-template-columns: 1fr 2fr 1fr; /* SYMMETRIC: Center column is 2/4 = dead center */
+            grid-template-columns: 1fr 2fr 1fr;
             padding: 0 40px;
-            height: 140px; /* Increased by 40px+ for plenty of vertical room */
-            bottom: 24px; /* More space from the bottom of the screen */
+            height: 160px; /* PRO SPACIOUS HEIGHT: increased for iPad per user request */
+            bottom: 24px;
             left: 24px;
             right: 24px;
             border-radius: 40px;
           }
-          .play-btn-wrapper { padding-bottom: 0px !important; } /* Neutralized as height is now sufficient */
-          .track-info { justify-self: start; gap: 16px; min-width: 0; }
-          .player-controls { justify-self: center; } /* ABSOLUTE CENTER */
-          .album-art { width: 48px; height: 48px; }
-          .track-title { font-size: 14px; }
-          .track-artist { font-size: 11px; }
-          .progress-container { max-width: 450px; }
-          .control-buttons { gap: 20px; }
-          .play-btn { width: 52px; height: 52px; } /* Restoring full size for reach */
-          .play-btn-wrapper { padding-bottom: 12px !important; }
-          .extra-controls { gap: 12px; margin-right: 80px; } /* Move whole block even further left */
-          .volume-control { width: 100px; gap: 8px; }
-          .volume-control span { font-size: 11px; min-width: 32px; } 
-          .feature-btn { padding: 8px 10px; }
+          .play-btn-wrapper { padding-bottom: 0px !important; }
+          .player-controls { 
+             justify-self: center; 
+             gap: 16px; 
+             padding-top: 14px; /* HEADROOM: More space from the "ceiling" */
+             padding-bottom: 8px;
+          } 
+          .track-info { justify-self: start; gap: 16px; min-width: 0; padding-top: 8px; }
+          .album-art { width: 52px; height: 52px; }
+          .track-title { font-size: 15px; }
+          .track-artist { font-size: 12px; }
+          .progress-container { max-width: 500px; margin-top: 4px; }
+          .control-buttons { gap: 24px; margin-bottom: 4px; }
+          .play-btn { width: 54px; height: 54px; } /* Slightly more balanced size */
+          .play-btn-wrapper { padding-bottom: 0px !important; margin-bottom: 8px; }
+          .extra-controls { gap: 24px; margin-right: 80px; padding-top: 8px; }
+          .volume-control { width: 120px; gap: 12px; }
+          .feature-btn { padding: 10px 18px; }
+        }
+
+        @media (max-width: 1024px) {
+          .player-bar {
+            height: 180px; /* Even taller for portrait tablets to avoid crowded controls */
+            padding: 24px;
+            grid-template-columns: 1fr;
+            grid-template-rows: auto auto auto;
+            gap: 16px;
+          }
+          .track-info { justify-self: center; text-align: center; }
+          .player-controls { width: 100%; order: 1; }
+          .extra-controls { display: none; } /* Hide extra side controls on small portrait to keep main clean */
+          .progress-container { max-width: 100%; }
         }
 
         @media (max-width: 768px) {

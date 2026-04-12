@@ -113,12 +113,17 @@ const BulkUpload = () => {
         // 2. Detect Duration
         const duration: number = await new Promise((resolve) => {
           const audio = new Audio();
-          audio.src = URL.createObjectURL(staged.file);
+          const objectUrl = URL.createObjectURL(staged.file);
+          audio.src = objectUrl;
           audio.onloadedmetadata = () => {
-            resolve(Math.round(audio.duration));
-            URL.revokeObjectURL(audio.src);
+            const d = Math.round(audio.duration);
+            URL.revokeObjectURL(objectUrl);
+            resolve(d);
           };
-          audio.onerror = () => resolve(0);
+          audio.onerror = () => {
+            URL.revokeObjectURL(objectUrl);
+            resolve(0);
+          };
         });
 
         // 3. Match Style
@@ -127,12 +132,13 @@ const BulkUpload = () => {
         setFiles(current => current.map(f => f.id === staged.id ? {
           ...f,
           bpm: detectedBpm > 0 ? detectedBpm.toString() : f.bpm,
-          duration,
-          style: bestStyle || f.style,
+          duration: duration || f.duration, // Prioritize non-zero duration
+          style: (bestStyle && bestStyle !== 'Samba') ? bestStyle : f.style,
           isAnalyzing: false
         } : f));
 
       } catch (err) {
+        console.error("[BULK-META-ERROR] Failed to analyze file:", staged.file.name, err);
         setFiles(current => current.map(f => f.id === staged.id ? { ...f, isAnalyzing: false } : f));
       }
     }
@@ -179,8 +185,12 @@ const BulkUpload = () => {
         setFiles(current => current.map(curr => curr.id === f.id ? { ...curr, status: 'uploading' } : curr));
 
         // 1. Get Presigned URL
+        // SANITIZE: Remove special characters from filename for reliable R2 keys
+        const safeName = f.file.name.replace(/[^\w.-]/g, '_');
+        const storagePath = `tracks/${f.id}-${safeName}`;
+
         const { url, error } = await createPresignedUrl(
-          `tracks/${f.id}-${f.file.name.replace(/\s+/g, '_')}`,
+          storagePath,
           f.file.type || 'audio/mpeg'
         );
 
@@ -210,7 +220,8 @@ const BulkUpload = () => {
 
         // 3. Register in Supabase
         const baseUrl = (process.env.NEXT_PUBLIC_R2_PUBLIC_URL || 'https://pub-c41b1121b311f676bdc114d143278d18.r2.dev').replace(/\/$/, '');
-        const publicUrl = `${baseUrl}/tracks/${f.id}-${f.file.name.replace(/\s+/g, '_')}`;
+        // ENCODE: Ensure characters like # or ? are encoded for the public URL
+        const publicUrl = `${baseUrl}/tracks/${f.id}-${encodeURIComponent(safeName)}`;
         
         await addTrack({
           title: f.title,
@@ -218,7 +229,7 @@ const BulkUpload = () => {
           album: f.album,
           style: f.style,
           bpm: f.bpm || '0',
-          duration: f.duration || 0, // CRITICAL: Pass the extracted duration
+          duration: f.duration || 0,
           audioUrl: publicUrl,
           folderId: targetFolderId || undefined,
           tags: f.tags
@@ -228,16 +239,17 @@ const BulkUpload = () => {
           curr.id === f.id ? { ...curr, status: 'complete', progress: 100 } : curr
         ));
 
-      } catch (err) {
+      } catch (err: any) {
+        console.error("[BULK-UPLOAD-ERROR] Failed for file:", f.file.name, err);
         setFiles(current => current.map(curr => 
-          curr.id === f.id ? { ...curr, status: 'error', errorMessage: 'Upload failed' } : curr
+          curr.id === f.id ? { ...curr, status: 'error', errorMessage: err.message || 'Upload failed' } : curr
         ));
       }
     }
   };
 
   const isAllComplete = files.length > 0 && files.every(f => f.status === 'complete');
-  const isReadyToUpload = files.some(f => f.status === 'pending'); // Collection/Artist no longer strictly required for start
+  const isReadyToUpload = files.some(f => f.status === 'pending') && !files.some(f => f.isAnalyzing); 
 
   return (
     <div className="bulk-upload-wrapper">

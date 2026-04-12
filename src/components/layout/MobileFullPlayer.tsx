@@ -136,15 +136,20 @@ const MobileFullPlayer = ({ isOpen, onClose }: MobileFullPlayerProps) => {
     setBpm(val, persistent);
   }, [setBpm]);
 
+  // PERFORMANCE: Memoize the track object to avoid searching the array on every 100ms tick
+  const currentTrack = React.useMemo(() => {
+    if (!title || title === "No Track Selected") return null;
+    return tracks?.find(t => t.title === title || t.id === title) || 
+           finalTracks?.find(t => t.title === title || t.id === title);
+  }, [tracks, finalTracks, title]);
+
   const getTimeLimit = useCallback(() => {
-    if (!title || title === "No Track Selected") return 105;
-    const track = tracks?.find(t => t.title === title || t.id === title) || 
-                  finalTracks?.find(t => t.title === title || t.id === title);
-    const style = track?.style?.toLowerCase() || '';
-    if (style.includes('paso')) return track?.duration || 210;
+    if (!currentTrack) return 105;
+    const style = currentTrack?.style?.toLowerCase() || '';
+    if (style.includes('paso')) return currentTrack?.duration || 210;
     if (style.includes('viennese')) return 85;
     return 105; // 1:45
-  }, [tracks, finalTracks, title]);
+  }, [currentTrack]);
 
   if (!isOpen) return null;
 
@@ -177,7 +182,7 @@ const MobileFullPlayer = ({ isOpen, onClose }: MobileFullPlayerProps) => {
 
       <div className="player-content">
         <div className="album-art-container">
-          <div className={`disc-art glass ${isFinalMode ? 'final-active' : ''}`}>
+          <div className={`disc-art glass ${isFinalMode ? 'final-active' : ''} ${isPlaying ? 'is-playing' : ''}`}>
             <div className="disc-center"></div>
           </div>
         </div>
@@ -190,15 +195,14 @@ const MobileFullPlayer = ({ isOpen, onClose }: MobileFullPlayerProps) => {
               <p className="artist truncate">{artist}</p>
             </div>
             <button 
-              className={`meta-btn favorite ${tracks?.find(t => t.title === title)?.isFavorite ? 'active' : ''}`}
+              className={`meta-btn favorite ${currentTrack?.isFavorite ? 'active' : ''}`}
               onClick={() => {
                 checkAuthAndExecute(() => {
-                  const track = tracks?.find(t => t.title === title);
-                  if (track) toggleFavorite(track.id);
+                  if (currentTrack) toggleFavorite(currentTrack.id);
                 }, 'favorite tracks');
               }}
             >
-              <Heart size={32} fill={tracks?.find(t => t.title === title)?.isFavorite ? "currentColor" : "none"} />
+              <Heart size={32} fill={currentTrack?.isFavorite ? "currentColor" : "none"} />
             </button>
           </div>
 
@@ -403,9 +407,12 @@ const MobileFullPlayer = ({ isOpen, onClose }: MobileFullPlayerProps) => {
           align-items: center;
           justify-content: center;
           border: 4px solid rgba(255,255,255,0.1);
-          animation: ${isPlaying ? 'rotate 10s linear infinite' : 'none'};
           box-shadow: 0 20px 40px rgba(0,0,0,0.5);
           transition: all 0.5s ease;
+        }
+
+        .disc-art.is-playing {
+          animation: rotate 10s linear infinite;
         }
 
         .disc-art.final-active {

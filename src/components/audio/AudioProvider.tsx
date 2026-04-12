@@ -125,12 +125,18 @@ export const AudioProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       };
 
       const total = sessionTracks.reduce((acc, t, idx) => {
+        if (!t) return acc;
+        const limit = getLimitForTrack(t);
+        const safeLimit = Number.isFinite(limit) && limit > 0 ? limit : 0;
         const rest = (idx < sessionTracks.length - 1 && !isFitness) ? 15 : 0;
-        return acc + getLimitForTrack(t) + rest;
+        return acc + safeLimit + rest;
       }, 0);
-      setSessionDuration(total);
+      
+      const safeTotal = Number.isFinite(total) && total >= 0 ? total : 0;
+      setSessionDuration(safeTotal);
     } else if (!isFinalMode) {
-      setSessionDuration(duration);
+      const safeDur = Number.isFinite(duration) && duration >= 0 ? duration : 0;
+      setSessionDuration(safeDur);
     }
   }, [sessionTracks, isFinalMode, isFitness, duration]);
 

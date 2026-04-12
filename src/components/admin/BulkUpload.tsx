@@ -20,16 +20,27 @@ import {
 } from 'lucide-react';
 import { useStudio } from './StudioProvider';
 import { createPresignedUrl } from '@/utils/r2-server';
+import { 
+  detectBPM, 
+  getStyleFromBPM, 
+  getMPMFromBPM 
+} from '@/utils/audio';
+
+interface Style { id: string; title: string; }
+interface Tag { id: string; name: string; color: string; }
+interface Folder { id: string; name: string; }
 
 interface StagedFile {
   id: string;
   file: File;
   progress: number;
   status: 'pending' | 'uploading' | 'complete' | 'error';
+  isAnalyzing?: boolean;
   errorMessage?: string;
   // Metadata fields per track
   title: string;
   bpm: string;
+  duration: number;
   style: string;
   artist: string;
   album: string;
@@ -41,7 +52,7 @@ const BulkUpload = () => {
   const [files, setFiles] = useState<StagedFile[]>([]);
   const [isDragging, setIsDragging] = useState(false);
   
-  // Batch defaults
+  // Batch defaults (now optional)
   const [batchAlbum, setBatchAlbum] = useState('');
   const [batchArtist, setBatchArtist] = useState('');
   const [batchStyle, setBatchStyle] = useState('Samba');
@@ -51,24 +62,80 @@ const BulkUpload = () => {
   const [showValidation, setShowValidation] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  const processFiles = (fileList: FileList | null) => {
+  const processFiles = async (fileList: FileList | null) => {
     if (!fileList) return;
-    const newFiles = Array.from(fileList)
+    
+    const newFilesBase = Array.from(fileList)
       .filter(file => file.type.includes('audio') || file.name.endsWith('.mp3'))
-      .map(file => ({
-        id: Math.random().toString(36).substring(7),
-        file,
-        progress: 0,
-        status: 'pending' as const,
-        title: file.name.replace(/\.[^/.]+$/, "").replace(/[_\-]/g, ' '),
-        bpm: '0',
-        style: batchStyle,
-        artist: batchArtist || 'Unknown Artist',
-        album: batchAlbum || 'Bulk Upload',
-        tags: [...batchTags]
-      }));
+      .map(file => {
+        const id = Math.random().toString(36).substring(7);
+        
+        // Advanced Parsing (Artist - Title)
+        let autoTitle = file.name.replace(/\.[^/.]+$/, "");
+        let autoArtist = batchArtist || 'Unknown Artist';
+        
+        if (autoTitle.includes(' - ')) {
+          const parts = autoTitle.split(' - ').map(s => s.trim());
+          autoArtist = parts[0];
+          autoTitle = parts[1];
+        } else if (autoTitle.includes(' — ')) {
+          const parts = autoTitle.split(' — ').map(s => s.trim());
+          autoArtist = parts[0];
+          autoTitle = parts[1];
+        } else {
+          autoTitle = autoTitle.replace(/[_\-]/g, ' ');
+        }
 
-    setFiles(prev => [...prev, ...newFiles]);
+        return {
+          id,
+          file,
+          progress: 0,
+          status: 'pending' as const,
+          isAnalyzing: true,
+          title: autoTitle,
+          bpm: '0',
+          duration: 0,
+          style: batchStyle,
+          artist: autoArtist,
+          album: batchAlbum || 'Bulk Upload',
+          tags: [...batchTags]
+        };
+      });
+
+    setFiles(prev => [...prev, ...newFilesBase]);
+
+    // Async Metadata Extraction
+    for (const staged of newFilesBase) {
+      try {
+        // 1. Detect BPM
+        const detectedBpm = await detectBPM(staged.file);
+        
+        // 2. Detect Duration
+        const duration: number = await new Promise((resolve) => {
+          const audio = new Audio();
+          audio.src = URL.createObjectURL(staged.file);
+          audio.onloadedmetadata = () => {
+            resolve(Math.round(audio.duration));
+            URL.revokeObjectURL(audio.src);
+          };
+          audio.onerror = () => resolve(0);
+        });
+
+        // 3. Match Style
+        const bestStyle = getStyleFromBPM(detectedBpm, staged.file.name);
+
+        setFiles(current => current.map(f => f.id === staged.id ? {
+          ...f,
+          bpm: detectedBpm > 0 ? detectedBpm.toString() : f.bpm,
+          duration,
+          style: bestStyle || f.style,
+          isAnalyzing: false
+        } : f));
+
+      } catch (err) {
+        setFiles(current => current.map(f => f.id === staged.id ? { ...f, isAnalyzing: false } : f));
+      }
+    }
   };
 
   const updateFileMeta = (id: string, updates: Partial<StagedFile>) => {
@@ -102,10 +169,7 @@ const BulkUpload = () => {
   };
 
   const startUpload = async () => {
-    if (!batchAlbum || !batchArtist) {
-      setShowValidation(true);
-      return;
-    }
+    // Validation is now more relaxed
     setShowValidation(false);
 
     for (const f of files) {
@@ -116,8 +180,8 @@ const BulkUpload = () => {
 
         // 1. Get Presigned URL
         const { url, error } = await createPresignedUrl(
-          `tracks/${f.id}-${f.file.name}`,
-          f.file.type
+          `tracks/${f.id}-${f.file.name.replace(/\s+/g, '_')}`,
+          f.file.type || 'audio/mpeg'
         );
 
         if (error || !url) throw new Error(error || "Signed URL failed");
@@ -125,7 +189,7 @@ const BulkUpload = () => {
         // 2. Upload to R2
         const xhr = new XMLHttpRequest();
         xhr.open('PUT', url, true);
-        xhr.setRequestHeader('Content-Type', f.file.type);
+        xhr.setRequestHeader('Content-Type', f.file.type || 'audio/mpeg');
 
         xhr.upload.onprogress = (event) => {
           if (event.lengthComputable) {
@@ -144,9 +208,9 @@ const BulkUpload = () => {
         xhr.send(f.file);
         await uploadPromise;
 
-        // 3. Register in Supabase with refined metadata
-        const baseUrl = (process.env.NEXT_PUBLIC_R2_PUBLIC_URL || '').replace(/\/$/, '');
-        const publicUrl = `${baseUrl}/tracks/${f.id}-${f.file.name}`;
+        // 3. Register in Supabase
+        const baseUrl = (process.env.NEXT_PUBLIC_R2_PUBLIC_URL || 'https://pub-c41b1121b311f676bdc114d143278d18.r2.dev').replace(/\/$/, '');
+        const publicUrl = `${baseUrl}/tracks/${f.id}-${f.file.name.replace(/\s+/g, '_')}`;
         
         await addTrack({
           title: f.title,
@@ -154,6 +218,7 @@ const BulkUpload = () => {
           album: f.album,
           style: f.style,
           bpm: f.bpm || '0',
+          duration: f.duration || 0, // CRITICAL: Pass the extracted duration
           audioUrl: publicUrl,
           folderId: targetFolderId || undefined,
           tags: f.tags
@@ -164,7 +229,6 @@ const BulkUpload = () => {
         ));
 
       } catch (err) {
-        console.error("Upload failed for", f.file.name, err);
         setFiles(current => current.map(curr => 
           curr.id === f.id ? { ...curr, status: 'error', errorMessage: 'Upload failed' } : curr
         ));
@@ -173,7 +237,7 @@ const BulkUpload = () => {
   };
 
   const isAllComplete = files.length > 0 && files.every(f => f.status === 'complete');
-  const isReadyToUpload = batchAlbum && batchArtist && files.some(f => f.status === 'pending');
+  const isReadyToUpload = files.some(f => f.status === 'pending'); // Collection/Artist no longer strictly required for start
 
   return (
     <div className="bulk-upload-wrapper">
@@ -198,20 +262,20 @@ const BulkUpload = () => {
           <div className="batch-header-bar glass">
             <div className="batch-main-meta">
               <div className="inputs-row">
-                <div className={`meta-field ${showValidation && !batchAlbum ? 'invalid' : ''}`}>
+                <div className="meta-field">
                   <FolderPlus size={16} className="meta-icon" />
                   <input 
                     type="text" 
-                    placeholder="Collection Name" 
+                    placeholder="Album / Collection (Optional)" 
                     value={batchAlbum}
                     onChange={(e) => setBatchAlbum(e.target.value)}
                   />
                 </div>
-                <div className={`meta-field ${showValidation && !batchArtist ? 'invalid' : ''}`}>
+                <div className="meta-field">
                   <User size={16} className="meta-icon" />
                   <input 
                     type="text" 
-                    placeholder="Lead Artist" 
+                    placeholder="Artist (Optional)" 
                     value={batchArtist}
                     onChange={(e) => setBatchArtist(e.target.value)}
                   />
@@ -224,7 +288,7 @@ const BulkUpload = () => {
                     onChange={(e) => setBatchStyle(e.target.value)}
                   >
                     <option value="" disabled>Select Style</option>
-                    {styles.map(s => <option key={s.id} value={s.title}>{s.title}</option>)}
+                    {styles.map((s: Style) => <option key={s.id} value={s.title}>{s.title}</option>)}
                     {!styles.length && (
                       <>
                         <option value="Samba">Samba</option>
@@ -250,37 +314,34 @@ const BulkUpload = () => {
                    <span>Batch Tags:</span>
                  </div>
                  <div className="tags-scroller">
-                   {availableTags.map(tag => (
-                     <button
-                       key={tag.id}
-                       className={`batch-tag-pill ${batchTags.includes(tag.name) ? 'active' : ''}`}
-                       onClick={() => toggleTagInBatch(tag.name)}
-                       style={{ 
-                         '--tag-color': tag.color,
-                         borderColor: batchTags.includes(tag.name) ? tag.color : 'rgba(255,255,255,0.05)'
-                       } as any}
-                     >
-                       {tag.name}
-                     </button>
-                   ))}
+                    {availableTags.map((tag: Tag) => (
+                      <button
+                        key={tag.id}
+                        className={`batch-tag-pill ${batchTags.includes(tag.name) ? 'active' : ''}`}
+                        onClick={() => toggleTagInBatch(tag.name)}
+                        style={{ 
+                          '--tag-color': tag.color,
+                          borderColor: batchTags.includes(tag.name) ? tag.color : 'rgba(255,255,255,0.05)'
+                        } as any}
+                      >
+                        {tag.name}
+                      </button>
+                    ))}
                    {!availableTags.length && <span className="no-tags">No tags defined in taxonomy</span>}
                  </div>
               </div>
             </div>
             
             <div className="batch-actions-side">
-               <button className="btn-apply glass" onClick={applyBatchMetadata}>
-                 Apply to Pending
-               </button>
                <div className="target-folder-box">
-                  <span className="dest-label">Destination Folder</span>
+                  <span className="dest-label">Target Folder</span>
                   <select 
                     className="meta-select-sm"
                     value={targetFolderId}
                     onChange={(e) => setTargetFolderId(e.target.value)}
                   >
-                    <option value="">Studio Inbox (Global)</option>
-                    {folders.map(f => (
+                    <option value="">Studio Inbox</option>
+                    {folders.map((f: Folder) => (
                       <option key={f.id} value={f.id}>{f.name}</option>
                     ))}
                   </select>
@@ -364,22 +425,24 @@ const BulkUpload = () => {
                       value={f.style}
                       onChange={(e) => updateFileMeta(f.id, { style: e.target.value })}
                     >
-                      {styles.map(s => <option key={s.id} value={s.title}>{s.title}</option>)}
+                      {styles.map((s: Style) => <option key={s.id} value={s.title}>{s.title}</option>)}
                       {!styles.length && <option value={f.style}>{f.style}</option>}
                     </select>
                   </div>
 
                   <div className="col-bpm">
-                    <input 
-                      className="row-bpm-input"
-                      value={f.bpm}
-                      onChange={(e) => updateFileMeta(f.id, { bpm: e.target.value })}
-                    />
+                    {f.isAnalyzing ? <div className="analyzing-mini-spinner" /> : (
+                      <input 
+                        className="row-bpm-input"
+                        value={f.bpm}
+                        onChange={(e) => updateFileMeta(f.id, { bpm: e.target.value })}
+                      />
+                    )}
                   </div>
 
                   <div className="col-tags">
                     <div className="row-tags-list">
-                      {availableTags.map(tag => (
+                      {availableTags.map((tag: Tag) => (
                         <button
                           key={tag.id}
                           className={`row-tag-btn ${f.tags.includes(tag.name) ? 'active' : ''}`}
@@ -521,6 +584,15 @@ const BulkUpload = () => {
           position: absolute; bottom: 0; left: 0; height: 100%; 
           background: rgba(29, 185, 84, 0.05); border-right: 2px solid #1db954;
           z-index: -1; transition: width 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+
+        .analyzing-mini-spinner {
+          width: 14px;
+          height: 14px;
+          border: 2px solid rgba(255, 255, 255, 0.1);
+          border-top: 2px solid #1db954;
+          border-radius: 50%;
+          animation: spin 1s linear infinite;
         }
 
         .upload-success-hero { padding: 64px; border-radius: 32px; text-align: center; border: 1px solid rgba(29, 185, 84, 0.1); }

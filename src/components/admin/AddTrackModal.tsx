@@ -105,11 +105,11 @@ const AddTrackModal = ({ isOpen, onClose, onAdd, initialData }: AddTrackModalPro
 
       // 2. Detect BPM and Auto-Select Style
       try {
-        console.log(`[BPM-CHECK] Analysis started for ${file.name}`);
+        // BPM analysis
         const detectedBpm = await detectBPM(file);
         const bestStyle = getStyleFromBPM(detectedBpm, file.name);
         
-        console.log(`[BPM-CHECK] Result: ${detectedBpm} BPM, Style: ${bestStyle}`);
+        // BPM result
 
         // Immediate state update
         if (detectedBpm > 0) {
@@ -120,13 +120,13 @@ const AddTrackModal = ({ isOpen, onClose, onAdd, initialData }: AddTrackModalPro
           }));
           const calMpm = getMPMFromBPM(detectedBpm, bestStyle);
           setMpmState(calMpm.toString());
-          console.log(`[BPM-CHECK] State updated with BPM: ${detectedBpm}, Bars/Min: ${calMpm}`);
+          // State updated
         } else {
-          console.warn(`[BPM-CHECK] Analysis yielded 0 BPM. Manual entry required.`);
+          // 0 BPM
           setFormData(prev => ({ ...prev, style: bestStyle }));
         }
       } catch (err) {
-        console.error("[BPM-CHECK] Critical error:", err);
+        // Critical error
       } finally {
         setIsAnalyzing(false);
       }
@@ -149,7 +149,7 @@ const AddTrackModal = ({ isOpen, onClose, onAdd, initialData }: AddTrackModalPro
 
       if (selectedFile) {
         setIsSubmitting(true);
-        console.log(`[UPLOAD-START] Preparing signs for: ${selectedFile.name}`);
+        // Upload start
 
         // 1. Get Presigned URL
         const signRes = await fetch('/api/upload', {
@@ -167,7 +167,7 @@ const AddTrackModal = ({ isOpen, onClose, onAdd, initialData }: AddTrackModalPro
         }
 
         const { uploadUrl, publicUrl } = await signRes.json();
-        console.log(`[UPLOAD-SIGN] Signature received. Origin: Browser -> R2`);
+        // Signature received
 
         // 2. Direct Binary Upload to Cloudflare R2
         const uploadRes = await fetch(uploadUrl, {
@@ -179,13 +179,10 @@ const AddTrackModal = ({ isOpen, onClose, onAdd, initialData }: AddTrackModalPro
         });
 
         if (!uploadRes.ok) {
-          console.error(`[R2-UPLOAD] Error Status: ${uploadRes.status}`);
-          const errorText = await uploadRes.text();
-          console.error(`[R2-UPLOAD] Error Body: ${errorText}`);
           throw new Error(`Direct R2 upload failed (Status: ${uploadRes.status}). Check browser console for details.`);
         }
 
-        console.log(`[UPLOAD-DONE] Storage success. Public URL: ${publicUrl}`);
+        // Storage success
         
         // Final safety check for undefined domains (e.g. from missing env vars)
         const R2_DOMAIN = process.env.NEXT_PUBLIC_R2_PUBLIC_URL || 'https://pub-c41b1121b311f676bdc114d143278d18.r2.dev';
@@ -222,7 +219,7 @@ const AddTrackModal = ({ isOpen, onClose, onAdd, initialData }: AddTrackModalPro
       }, 1500);
 
     } catch (err: any) {
-      console.error("Cloud Upload Failed:", err);
+      // Cloud Upload Failed
       setValidationError(err.message || "Failed to upload to Cloudflare R2.");
       setIsSubmitting(false);
     }

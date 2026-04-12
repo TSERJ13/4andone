@@ -40,7 +40,7 @@ export async function GET(request: NextRequest) {
 
     return NextResponse.json({ url });
   } catch (error: any) {
-    console.error('[R2-GET-SIGN] Failure:', error);
+    // R2-GET-SIGN Failure
     return NextResponse.json({ error: 'Failed to sign playback URL' }, { status: 500 });
   }
 }
@@ -71,14 +71,14 @@ export async function POST(request: NextRequest) {
     const R2_DOMAIN = process.env.NEXT_PUBLIC_R2_PUBLIC_URL || 'https://pub-c41b1121b311f676bdc114d143278d18.r2.dev';
     const publicUrl = `${R2_DOMAIN}/${safeFileName}`;
 
-    console.log(`[R2-POST-SIGN] Generated upload URL for: ${safeFileName}`);
+    // R2-POST-SIGN Success
 
     return NextResponse.json({ 
       uploadUrl: signedUrl, 
       publicUrl: publicUrl 
     });
   } catch (error: any) {
-    console.error('[R2-POST-SIGN] Failure:', error);
+    // R2-POST-SIGN Failure
     return NextResponse.json({ 
       error: error.message || 'Failed to generate upload URL' 
     }, { status: 500 });

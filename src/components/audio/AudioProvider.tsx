@@ -1,7 +1,6 @@
 "use client";
 
 import React, { createContext, useContext, useState, useEffect, useRef } from 'react';
-import * as Tone from 'tone';
 import { getAudioFile } from '@/utils/storage';
 
 interface AudioContextType {
@@ -74,22 +73,19 @@ export const AudioProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   const [sessionTracks, setSessionTracks] = useState<Track[]>([]);
   const [isExpanded, setIsExpanded] = useState(false);
 
-  const playerRef = useRef<Tone.GrainPlayer | Tone.Player | null>(null);
   const nativePlayerRef = useRef<HTMLAudioElement | null>(null);
   const timerRef = useRef<NodeJS.Timeout | null>(null);
   const activeBlobUrlRef = useRef<string | null>(null);
   const trackIdRef = useRef<string | null>(null);
   const loadingTokenRef = useRef<number>(0); // Guard for race conditions
-  const masterGainRef = useRef<Tone.Gain | null>(null);
-  const limiterRef = useRef<Tone.Limiter | null>(null);
+  const masterGainRef = useRef<any>(null);
+  const limiterRef = useRef<any>(null);
   const wakeLockRef = useRef<any>(null);
   const heartbeatRef = useRef<HTMLAudioElement | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const playingTrackRef = useRef<any>(null);
   const trackLogIdRef = useRef<string | null>(null);
   const playPromiseRef = useRef<Promise<void> | null>(null);
-  const compressorRef = useRef<Tone.Compressor | null>(null);
-  const eqRef = useRef<Tone.EQ3 | null>(null);
 
   // Refs to avoid circular re-renders on every tick
   const isPlayingRef = useRef(isPlaying);
@@ -144,7 +140,6 @@ export const AudioProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     channel.onmessage = (event) => {
       if (event.data === 'play' && isPlaying) {
         if (nativePlayerRef.current) nativePlayerRef.current.pause();
-        if (playerRef.current) playerRef.current.stop();
         setIsPlaying(false);
       }
     };
@@ -160,17 +155,7 @@ export const AudioProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   // Removed AI worker and processing hooks
 
   const initAudioChain = () => {
-    if (!limiterRef.current) {
-      limiterRef.current = new Tone.Limiter(-1).toDestination();
-    }
-    if (!masterGainRef.current) {
-      // Create Main Gain for volume control with Safe Headroom (-4dB)
-      masterGainRef.current = new Tone.Gain(volume * 0.65).connect(limiterRef.current);
-    }
-
-    // Smoothly apply volume changes
-    masterGainRef.current.gain.rampTo(volume * 0.65, 0.1);
-    return masterGainRef.current;
+    return null;
   };
 
   useEffect(() => {
@@ -200,14 +185,7 @@ export const AudioProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     const unlockAudio = async () => {
       // PRO-TIP: "playback" latency hint is much more stable on iOS/Safari 
       // as it uses larger buffers, preventing "choppy" audio artifacts.
-      if (Tone.getContext().lookAhead < 0.2) {
-        Tone.getContext().lookAhead = 0.2;
-      }
-
-      if (Tone.getContext().state !== 'running') {
-        await Tone.start();
-        await Tone.getContext().resume();
-      }
+      // Unlock for mobile audio
 
       // Start heartbeat on first interaction
       if (heartbeatRef.current && heartbeatRef.current.paused) {
@@ -244,15 +222,10 @@ export const AudioProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         setIsFinalMode(forceFinalMode);
         isFinalModeRef.current = forceFinalMode; // IMMEDIATE SYNC for closure
       }
-      if (Tone.getContext().state !== 'running') await Tone.start();
+      // Context start
 
       // Cleanup previous state immediately
       const stopAndPrepare = () => {
-        if (playerRef.current) {
-          playerRef.current.stop();
-          playerRef.current.dispose();
-          playerRef.current = null;
-        }
         if (nativePlayerRef.current) {
           nativePlayerRef.current.onerror = null;
           nativePlayerRef.current.oncanplay = null;
@@ -289,7 +262,6 @@ export const AudioProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       if (finalUrl?.startsWith('undefined/')) {
         const R2_FALLBACK = process.env.NEXT_PUBLIC_R2_PUBLIC_URL || 'https://pub-c41b1121b311f676bdc114d143278d18.r2.dev';
         finalUrl = finalUrl.replace('undefined/', `${R2_FALLBACK}/`);
-        console.log(`[AUDIO-HEAL] Repaired broken URL based on current environment: ${finalUrl}`);
       }
 
       const isRemote = finalUrl?.startsWith('http');
@@ -297,7 +269,6 @@ export const AudioProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       // 1. If REMOTE (Cloudflare R2), we try signed first, fallback to public on error if needed
       if (isRemote && finalUrl) {
         try {
-          console.log(`[AUDIO-SIGN] Requesting playback pass for: ${track.title}`);
           const fileName = finalUrl.split('/').pop();
           if (!fileName) throw new Error("Invalid remote URL");
           const signRes = await fetch(`/api/upload?key=${fileName}`);
@@ -305,15 +276,12 @@ export const AudioProvider: React.FC<{ children: React.ReactNode }> = ({ childre
           if (signRes.ok) {
             const { url } = await signRes.json();
             finalUrl = url;
-            console.log(`[AUDIO-SIGN] Success. Secure link active.`);
           } else {
-            console.error("[AUDIO-SIGN] Failed to sign, falling back to public link");
             // FALLBACK: Use environment Public R2 URL for stability
             const R2_PUBLIC = process.env.NEXT_PUBLIC_R2_PUBLIC_URL || 'https://pub-c41b1121b311f676bdc114d143278d18.r2.dev';
             finalUrl = `${R2_PUBLIC}/${fileName}`;
           }
         } catch (e) {
-          console.error("[AUDIO-SIGN] Error during signing, using original link:", e);
         }
       }
       // 2. Legacy Fallback (IndexedDB)
@@ -342,16 +310,11 @@ export const AudioProvider: React.FC<{ children: React.ReactNode }> = ({ childre
           audio.crossOrigin = "anonymous";
           
           // RESET VOLUME: Ensure any previous fade-out is reversed
-          if (masterGainRef.current) {
-            masterGainRef.current.gain.cancelScheduledValues(0);
-            masterGainRef.current.gain.setTargetAtTime(volume * 0.65, Tone.getContext().currentTime, 0.1);
-          }
+          // RESET VOLUME
 
-          console.log(`[AUDIO-STREAM] Loading ${track.title}`);
 
           audio.oncanplay = () => {
             if (currentToken !== loadingTokenRef.current) return;
-            console.log(`[AUDIO-READY] Stream buffered. Starting ${track.title}`);
             const realDuration = audio.duration || 0;
             setDuration(realDuration);
             setIsLoaded(true);
@@ -363,9 +326,6 @@ export const AudioProvider: React.FC<{ children: React.ReactNode }> = ({ childre
             const err = audio.error;
             let msg = `Stream error: ${track.title}`;
             if (err) {
-              const errorTypes = { 1: 'ABORTED', 2: 'NETWORK', 3: 'DECODE', 4: 'NOT_SUPPORTED' };
-              const errorType = errorTypes[err.code as keyof typeof errorTypes] || 'UNKNOWN';
-              console.error(`[AUDIO-ERROR] Code: ${err.code} (${errorType})`);
               if (!isRetry) {
                 const urlObj = new URL(url);
                 const fileName = urlObj.pathname.split('/').pop();
@@ -376,7 +336,6 @@ export const AudioProvider: React.FC<{ children: React.ReactNode }> = ({ childre
                   return;
                 }
               }
-              msg += ` (${errorType})`;
             }
             reject(new Error(msg));
           };
@@ -474,14 +433,12 @@ export const AudioProvider: React.FC<{ children: React.ReactNode }> = ({ childre
 
         playPromiseRef.current = audio.play();
         playPromiseRef.current.catch(e => {
-          if (e.name !== 'AbortError') console.error("Play prevented", e);
         }).finally(() => {
           playPromiseRef.current = null;
         });
         setIsPlaying(true);
       } catch (e: any) {
         if (e.message === "Loading cancelled by new request") return;
-        console.error("[AUDIO-CRITICAL] Global failure.", e);
         setError(e.message || "File Unreachable");
         setIsLoaded(false);
         setIsLoading(false);
@@ -520,7 +477,6 @@ export const AudioProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       } catch (e) {}
 
     } catch (err: any) {
-      console.error("[LOAD-ERROR]", err);
       setError(err.message || "Failed to load track");
       setIsLoaded(false);
       setIsLoading(false);
@@ -531,7 +487,6 @@ export const AudioProvider: React.FC<{ children: React.ReactNode }> = ({ childre
 
   useEffect(() => {
     return () => {
-      if (playerRef.current) playerRef.current.dispose();
       if (timerRef.current) clearInterval(timerRef.current);
     };
   }, []);
@@ -618,15 +573,11 @@ export const AudioProvider: React.FC<{ children: React.ReactNode }> = ({ childre
 
   const togglePlay = async () => {
     // Mobile browsers require resume() on user gesture
-    if (Tone.getContext().state !== 'running') {
-      await Tone.start();
-      await Tone.getContext().resume();
-    }
+    // Unlock
 
     if (!isLoaded) return;
 
     if (isPlaying) {
-      if (playerRef.current) playerRef.current.stop();
       if (nativePlayerRef.current) nativePlayerRef.current.pause();
       
       // LOGIC FIX: Do NOT pause the heartbeat on iPad/mobile. 
@@ -644,13 +595,10 @@ export const AudioProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     } else {
       const startTime = currentTimeRef.current >= duration ? 0 : currentTimeRef.current;
 
-      if (playerRef.current) {
-        playerRef.current.start(undefined, startTime);
-      } else if (nativePlayerRef.current) {
+      if (nativePlayerRef.current) {
         nativePlayerRef.current.currentTime = startTime;
         playPromiseRef.current = nativePlayerRef.current.play();
         playPromiseRef.current.catch(e => {
-          if (e.name !== 'AbortError') console.error("Native play failed", e);
         }).finally(() => {
           playPromiseRef.current = null;
         });
@@ -675,9 +623,6 @@ export const AudioProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   const setBpm = (newBpm: number) => {
     setBpmState(newBpm);
     localStorage.setItem('4andone-bpm', newBpm.toString());
-    if (playerRef.current) {
-      playerRef.current.playbackRate = newBpm / 100;
-    }
     if (nativePlayerRef.current) {
       const rate = newBpm / 100;
       // Keep preservesPitch true to maintain algorithm consistency
@@ -691,10 +636,7 @@ export const AudioProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       const isWasPlaying = isPlayingRef.current;
       const safeTime = Math.max(0, Math.min(time, duration));
 
-      if (playerRef.current) {
-        playerRef.current.stop();
-        playerRef.current.start(undefined, safeTime);
-      } else if (nativePlayerRef.current) {
+      if (nativePlayerRef.current) {
         nativePlayerRef.current.pause();
         nativePlayerRef.current.currentTime = safeTime;
       }
@@ -708,7 +650,6 @@ export const AudioProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         if (nativePlayerRef.current) {
           playPromiseRef.current = nativePlayerRef.current.play();
           playPromiseRef.current.catch(e => {
-            if (e.name !== 'AbortError') console.error("Native play failed during seek", e);
           }).finally(() => {
             playPromiseRef.current = null;
           });
@@ -720,7 +661,7 @@ export const AudioProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   };
 
   const seekRelative = (seconds: number) => {
-    if (playerRef.current && isLoaded) {
+    if (nativePlayerRef.current && isLoaded) {
       const newTime = Math.max(0, Math.min(currentTimeRef.current + seconds, duration));
       seek(newTime);
     }
@@ -733,8 +674,7 @@ export const AudioProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       nativePlayerRef.current.volume = v * 0.8;
     }
     if (masterGainRef.current) {
-      // Still update Tone.js volume for beeps/fitness sounds if they use this gain
-      masterGainRef.current.gain.rampTo(v * 0.65, 0.1);
+      // Update gain if needed
     }
   };
 
@@ -773,7 +713,6 @@ export const AudioProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   };
 
   const stop = () => {
-    if (playerRef.current) playerRef.current.stop();
     if (nativePlayerRef.current) nativePlayerRef.current.pause();
     setIsPlaying(false);
     setCurrentTime(0);

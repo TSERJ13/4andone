@@ -8,7 +8,7 @@ const openDB = (): Promise<IDBDatabase> => {
 
     request.onupgradeneeded = (e: any) => {
       const db = e.target.result;
-      console.log("IDB Upgrade: Migrating storage to version", DB_VERSION);
+      // IDB Upgrade
       if (!db.objectStoreNames.contains(STORE_NAME)) {
         db.createObjectStore(STORE_NAME);
       }
@@ -16,7 +16,7 @@ const openDB = (): Promise<IDBDatabase> => {
 
     request.onsuccess = (e: any) => resolve(e.target.result);
     request.onerror = (e) => {
-      console.error("IDB Open Error:", e);
+      // IDB Open Error
       reject(new Error('Persistent storage unavailable. Please REFRESH the page.'));
     };
   });
@@ -34,19 +34,15 @@ export const saveAudioFile = async (id: string, file: File | Blob): Promise<void
       const request = store.put(file, id);
 
       transaction.oncomplete = () => {
-        console.log("IDB: Successfully persisted audio-binary", id);
+        // IDB Success
         resolve();
       };
-      
-      transaction.onerror = (e) => {
-        console.error("IDB: Transaction failed", e);
-        reject(new Error('Failed to save to local storage'));
-      };
+      transaction.onerror = () => reject(new Error('Failed to save to local storage'));
 
       request.onerror = () => reject(new Error('Put request failed'));
     });
   } catch (err) {
-    console.error("IDB Save Critical:", err);
+    // IDB Save Critical
     throw err;
   }
 };
@@ -66,7 +62,7 @@ export const getAudioFile = async (id: string): Promise<Blob | null> => {
       request.onerror = () => reject(new Error('Retrieve failed'));
     });
   } catch (err) {
-    console.error("IDB Retrieve Error:", err);
+    // IDB Retrieve Error
     return null;
   }
 };

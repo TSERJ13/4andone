@@ -106,7 +106,7 @@
   overflow-y: auto;
   overflow-x: hidden;
   background: radial-gradient(ellipse at top right, rgba(29, 185, 84, 0.05), transparent 60%);
-  padding: 40px;
+  padding: 24px;
   padding-bottom: 120px;
   width: 100%;
   max-width: 100%;
@@ -344,7 +344,7 @@
     padding: 0 12px;
   }
   .admin-main {
-    padding: 12px;
+    padding: 8px;
     padding-bottom: 80px;
   }
   .user-info { display: none; }

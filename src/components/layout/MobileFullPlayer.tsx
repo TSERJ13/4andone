@@ -288,7 +288,7 @@ const MobileFullPlayer = ({ isOpen, onClose }: MobileFullPlayerProps) => {
             </div>
             <SpeedSelector 
               currentBpm={bpm} 
-              onSelect={(val) => { setBpm(val); handleToggleSpeed(); }} 
+              onSelect={(val) => { setBpm(val); }} 
               onClose={handleToggleSpeed} 
             />
           </div>

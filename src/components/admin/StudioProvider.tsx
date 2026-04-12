@@ -224,14 +224,11 @@ export const StudioProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       .select();
 
     if (error) {
-      console.error("[SYNC-ERROR] Add failed:", error);
-      alert("Failed to save to cloud: " + error.message);
     }
   };
 
   const removeTrack = async (id: string) => {
     const { error } = await supabase.from('tracks').delete().eq('id', id);
-    if (error) console.error("[SYNC-ERROR] Delete failed:", error);
   };
 
   const updateTrack = async (id: string, updates: Partial<Track>) => {
@@ -254,8 +251,6 @@ export const StudioProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     const { error } = await supabase.from('tracks').update(dbUpdates).eq('id', id);
     
     if (error) {
-      console.error("[SYNC-ERROR] Update failed:", error);
-      alert("Changes were NOT saved to cloud. Refresh and try again.");
     }
   };
 

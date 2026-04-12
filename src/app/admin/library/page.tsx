@@ -473,7 +473,7 @@ const AdminLibrary = () => {
 
         .folder-dot { width: 8px; height: 8px; border-radius: 50%; }
 
-        .tracks-container { border-radius: 20px; overflow: hidden; border: 1px solid rgba(255,255,255,0.05); }
+        .tracks-container { width: 100%; border-radius: 20px; overflow: hidden; border: 1px solid rgba(255,255,255,0.05); }
         
         .albums-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 24px; }
         .album-card { padding: 24px; border-radius: 24px; display: flex; flex-direction: column; gap: 16px; position: relative; transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1); }
@@ -495,7 +495,7 @@ const AdminLibrary = () => {
         .admin-table th { background: rgba(255,255,255,0.02); padding: 16px 24px; font-size: 11px; text-transform: uppercase; color: #71717a; border-bottom: 1px solid rgba(255,255,255,0.05); letter-spacing: 0.5px; }
         .admin-table td { padding: 14px 24px; border-bottom: 1px solid rgba(255,255,255,0.02); }
         
-        .col-play { width: 130px; }
+        .col-play { width: 90px; }
         .play-cell { display: flex; align-items: center; gap: 10px; }
         .row-idx { font-size: 11px; font-weight: 800; color: #555; min-width: 20px; }
         .drag-handle-icon { color: #555; opacity: 0.3; cursor: grab; transition: opacity 0.2s; }

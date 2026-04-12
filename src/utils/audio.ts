@@ -28,7 +28,6 @@ export const DANCE_STYLES: DanceStyleInfo[] = [
  * Uses a combination of energy peaks and median interval analysis.
  */
 export async function detectBPM(file: File): Promise<number> {
-  console.log(`[AudioEngine] Starting precision analysis for: ${file.name}`);
   try {
     const arrayBuffer = await file.arrayBuffer();
     const tempContext = new (window.AudioContext || (window as any).webkitAudioContext)();
@@ -75,7 +74,6 @@ export async function detectBPM(file: File): Promise<number> {
     }
 
     if (onsets.length < 5) {
-      console.warn(`[AudioEngine] Not enough onsets found (${onsets.length}). Fallback to 120 (standard fallback).`);
       return 120;
     }
 
@@ -101,7 +99,7 @@ export async function detectBPM(file: File): Promise<number> {
     while (detectedBpm < 60) detectedBpm *= 2;
     while (detectedBpm > 220) detectedBpm /= 2;
 
-    console.log(`[AudioEngine] Precision Result: ${detectedBpm} BPM analyzed over ${analysisWindow.toFixed(1)}s.`);
+    // Precision Result analyzed
     
     // CRITICAL: Close context to prevent leaking hundreds of contexts on mobile
     if (tempContext && (tempContext as any).close) {
@@ -110,7 +108,6 @@ export async function detectBPM(file: File): Promise<number> {
     
     return detectedBpm;
   } catch (err) {
-    console.error("[AudioEngine] Analysis failure:", err);
     return 0;
   }
 }

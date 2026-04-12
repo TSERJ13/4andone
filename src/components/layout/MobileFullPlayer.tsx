@@ -363,7 +363,8 @@ const MobileFullPlayer = ({ isOpen, onClose }: MobileFullPlayerProps) => {
           height: 100dvh;
           overflow: hidden;
           animation: slideUp 0.4s cubic-bezier(0.4, 0, 0.2, 1) forwards;
-          transition: backdrop-filter 0.3s ease;
+          /* Removed backdrop-filter to prevent mobile browser crashes */
+          transition: background 0.3s ease;
           /* GPU optimization */
           backface-visibility: hidden;
           -webkit-backface-visibility: hidden;
@@ -371,12 +372,11 @@ const MobileFullPlayer = ({ isOpen, onClose }: MobileFullPlayerProps) => {
         }
 
         .full-player-overlay.optimizing-gpu {
-          backdrop-filter: none !important;
-          -webkit-backdrop-filter: none !important;
+          background: rgba(0, 0, 0, 1) !important;
         }
 
         .full-player-overlay.optimizing-gpu .speed-overlay {
-          backdrop-filter: none !important;
+          background: rgba(0, 0, 0, 0.9) !important;
         }
 
         @keyframes slideUp {
@@ -637,8 +637,7 @@ const MobileFullPlayer = ({ isOpen, onClose }: MobileFullPlayerProps) => {
           z-index: 6000;
           display: flex;
           align-items: flex-end;
-          background: rgba(0, 0, 0, 0.6);
-          backdrop-filter: blur(8px);
+          background: rgba(0, 0, 0, 0.85); /* Increased opacity as fallback for removed blur */
           padding: 10px;
         }
 
@@ -651,6 +650,8 @@ const MobileFullPlayer = ({ isOpen, onClose }: MobileFullPlayerProps) => {
           border: 1px solid rgba(255, 255, 255, 0.1);
           box-shadow: 0 -10px 40px rgba(0, 0, 0, 0.5);
           margin-bottom: 5px;
+          backface-visibility: hidden;
+          -webkit-backface-visibility: hidden;
         }
 
         .modal-title {

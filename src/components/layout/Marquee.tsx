@@ -15,20 +15,23 @@ export const Marquee: React.FC<MarqueeProps> = ({ text, className = '', speed = 
   const [shouldScroll, setShouldScroll] = useState(false);
   const [duration, setDuration] = useState(0);
   const [isHovered, setIsHovered] = useState(false);
+  const [containerWidth, setContainerWidth] = useState(0);
 
   useEffect(() => {
     let timeoutId: NodeJS.Timeout;
     
     const checkOverflow = () => {
       if (containerRef.current && textRef.current) {
-        const containerWidth = containerRef.current.offsetWidth;
+        const currentContainerWidth = containerRef.current.offsetWidth;
         const textWidth = textRef.current.offsetWidth;
         
+        setContainerWidth(currentContainerWidth);
+        
         // Scroll if either globally active OR locally hovered
-        if (textWidth > containerWidth + 5 && (isActive || isHovered)) {
+        if (textWidth > currentContainerWidth + 5 && (isActive || isHovered)) {
           setShouldScroll(true);
           const safeSpeed = Math.max(1, speed);
-          const diff = textWidth - containerWidth;
+          const diff = textWidth - currentContainerWidth;
           const calculatedDuration = diff / safeSpeed;
           setDuration(Number.isFinite(calculatedDuration) ? Math.max(2, calculatedDuration) : 10);
         } else {
@@ -59,7 +62,7 @@ export const Marquee: React.FC<MarqueeProps> = ({ text, className = '', speed = 
         style={{ 
           animationDuration: shouldScroll && duration > 0 ? `${duration}s` : '0s',
           animationDelay: '1s',
-          '--container-width': `${containerRef.current?.offsetWidth || 0}px`
+          '--container-width': `${containerWidth}px`
         } as React.CSSProperties}
       >
         <span ref={textRef} className="marquee-text">{text}</span>

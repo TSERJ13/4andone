@@ -15,6 +15,7 @@ import {
   Repeat,
   Heart
 } from 'lucide-react';
+import { Marquee } from '@/components/layout/Marquee';
 import { useAudio } from '@/components/audio/AudioProvider';
 import { useStudio } from '@/components/admin/StudioProvider';
 import { useAuth } from '@/context/AuthContext';
@@ -198,7 +199,11 @@ const MobileFullPlayer = ({ isOpen, onClose }: MobileFullPlayerProps) => {
           <div className="meta-top">
             <div className="header-btn-placeholder" />
             <div className="text-center">
-              <h2 className="title truncate">{title}</h2>
+              <Marquee 
+                text={title} 
+                className="title" 
+                isActive={isPlaying}
+              />
               <p className="artist truncate">{artist}</p>
             </div>
             <button 

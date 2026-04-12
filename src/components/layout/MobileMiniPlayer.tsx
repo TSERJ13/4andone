@@ -13,6 +13,7 @@ import { useAuth } from '@/context/AuthContext';
 import ConfirmModal from '@/components/admin/ConfirmModal';
 import { getMPMFromBPM } from '@/utils/audio';
 import MobileFullPlayer from './MobileFullPlayer';
+import { Marquee } from '@/components/layout/Marquee';
 
 const MobileMiniPlayer = () => {
   const {
@@ -80,7 +81,11 @@ const MobileMiniPlayer = () => {
                   <Disc size={20} className={isPlaying ? 'rotating' : ''} />
                 </div>
                 <div className="text-info">
-                  <span className="title truncate">{title}</span>
+                  <Marquee 
+                    text={title} 
+                    className="title" 
+                    isActive={isPlaying}
+                  />
                   <span className="artist truncate">
                     {artist}
                     {currentTrack && currentTrack.bpm && (

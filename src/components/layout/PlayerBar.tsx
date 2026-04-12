@@ -22,6 +22,7 @@ import { useStudio, Track } from '@/components/admin/StudioProvider';
 import { useAuth } from '@/context/AuthContext';
 import ConfirmModal from '@/components/admin/ConfirmModal';
 import { getMPMFromBPM } from '@/utils/audio';
+import { Marquee } from '@/components/layout/Marquee';
 
 const PlayerBar = () => {
   const pathname = usePathname();
@@ -189,9 +190,11 @@ const PlayerBar = () => {
           </div>
           <div className="track-details">
             <div className="track-row-header">
-              <p className="track-title truncate">
-                {title}
-              </p>
+              <Marquee 
+                text={title} 
+                className="track-title" 
+                isActive={isPlaying}
+              />
             </div>
             <p className="track-artist truncate">
               {error ? (

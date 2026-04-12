@@ -75,8 +75,8 @@ const BulkUpload = () => {
         let autoArtist = batchArtist || 'Unknown Artist';
         let detectedStyle = batchStyle;
 
-        // SMART MULTI-PART PARSING
-        const parts = rawName.split(/ - | — /).map(p => p.trim());
+        // FLEXIBLE PARSING (handles various hyphen spacings and em-dashes)
+        const parts = rawName.split(/\s*[-—]\s*/).map(p => p.trim()).filter(Boolean);
         
         // 1. Check if the LAST part is a dance style
         if (parts.length > 1) {
@@ -93,6 +93,10 @@ const BulkUpload = () => {
           autoTitle = parts.slice(1).join(' - ');
         } else {
           autoTitle = parts[0] || rawName;
+          // Fallback cleaning for files without hyphens
+          if (!rawName.includes('-') && !rawName.includes('—')) {
+            autoTitle = autoTitle.replace(/[_\-]/g, ' ');
+          }
         }
 
         return {

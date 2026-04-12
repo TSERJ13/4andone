@@ -1,6 +1,7 @@
 "use client";
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
+import { createPortal } from 'react-dom';
 import {
   Play,
   Pause,
@@ -12,10 +13,10 @@ import { useStudio } from '@/components/admin/StudioProvider';
 import { useAuth } from '@/context/AuthContext';
 import ConfirmModal from '@/components/admin/ConfirmModal';
 import { getMPMFromBPM } from '@/utils/audio';
-import MobileFullPlayer from './MobileFullPlayer';
 import { Marquee } from '@/components/layout/Marquee';
+import MobileFullPlayer from './MobileFullPlayer';
 
-const MobileMiniPlayer = () => {
+const MobileMiniPlayer = ({ onExpand }: { onExpand: () => void }) => {
   const {
     isPlaying,
     togglePlay,
@@ -27,8 +28,7 @@ const MobileMiniPlayer = () => {
     sessionDuration,
     sessionTracks,
     isFinalMode,
-    isExpanded,
-    setIsExpanded,
+    bpm,
     isLoading
   } = useAudio();
 
@@ -71,7 +71,7 @@ const MobileMiniPlayer = () => {
     <>
       <div className="mini-player-outer-wrapper" 
            style={{ pointerEvents: isLoaded ? 'auto' : 'none' }} 
-           onClick={() => setIsExpanded(true)}
+           onClick={onExpand}
       >
         {(isLoaded || isLoading) && (
           <div className="mini-player-wrapper animate-in">
@@ -118,10 +118,6 @@ const MobileMiniPlayer = () => {
         )}
       </div>
 
-      <MobileFullPlayer
-        isOpen={isExpanded}
-        onClose={() => setIsExpanded(false)}
-      />
 
       <ConfirmModal 
         isOpen={authPrompt.isOpen}

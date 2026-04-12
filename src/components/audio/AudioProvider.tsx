@@ -21,11 +21,9 @@ interface AudioContextType {
   isPauseCountdown: boolean;
   isFitness: boolean;
   pauseTime: number;
-  isExpanded: boolean;
-  setIsExpanded: (val: boolean) => void;
+  setIsFitness: (val: boolean) => void;
   togglePlay: () => void;
   loadTrack: (track: any, isRetry?: boolean, forceFinalMode?: boolean) => void;
-  setIsFitness: (val: boolean) => void;
   setBpm: (bpm: number, persistent?: boolean) => void;
   setVolume: (volume: number) => void;
   toggleRepeat: () => void;
@@ -71,7 +69,6 @@ export const AudioProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   const [sessionDuration, setSessionDuration] = useState(0);
   const [activeMode, setActiveMode] = useState<string | null>(null);
   const [sessionTracks, setSessionTracks] = useState<Track[]>([]);
-  const [isExpanded, setIsExpanded] = useState(false);
 
   const nativePlayerRef = useRef<HTMLAudioElement | null>(null);
   const timerRef = useRef<NodeJS.Timeout | null>(null);
@@ -99,6 +96,7 @@ export const AudioProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   const isShuffleRef = useRef(isShuffle);
   const bpmRef = useRef(bpm);
   const volumeRef = useRef(volume);
+  const fadeStartedRef = useRef(false); // Guard: prevent multiple fade intervals
 
   useEffect(() => { isPlayingRef.current = isPlaying; }, [isPlaying]);
   useEffect(() => { currentTimeRef.current = currentTime; }, [currentTime]);
@@ -240,7 +238,9 @@ export const AudioProvider: React.FC<{ children: React.ReactNode }> = ({ childre
           nativePlayerRef.current.pause();
         }
         setIsPauseCountdown(false);
+        isPauseCountdownRef.current = false;
         setPauseTime(15);
+        pauseTimeRef.current = 15;
       };
 
       stopAndPrepare();
@@ -328,8 +328,8 @@ export const AudioProvider: React.FC<{ children: React.ReactNode }> = ({ childre
           audio.crossOrigin = "anonymous";
           
           // RESET VOLUME: Ensure any previous fade-out is reversed
-          // RESET VOLUME
-
+          audio.volume = volumeRef.current * 0.8;
+          fadeStartedRef.current = false; // Allow fade to trigger for new track
 
           audio.oncanplay = () => {
             if (currentToken !== loadingTokenRef.current) return;
@@ -359,10 +359,22 @@ export const AudioProvider: React.FC<{ children: React.ReactNode }> = ({ childre
           };
 
           // NATURAL END HANDLING
+          // NOTE: In Final Mode, ontimeupdate handles the 1:45 cutoff.
+          // onended only fires naturally for Paso Doble (full track) or if audio loops to end unexpectedly.
+          // We guard with pauseTriggeredRef to prevent double-pause.
           audio.onended = () => {
             if (currentToken !== loadingTokenRef.current) return;
             
             if (isFinalModeRef.current) {
+              // If pause was already triggered by ontimeupdate, do nothing
+              if (isPauseCountdownRef.current) return;
+
+              const style = playingTrackRef.current?.style?.toLowerCase() || '';
+              const isPasoDoble = style.includes('paso');
+
+              // Only handle natural end for Paso Doble here
+              if (!isPasoDoble) return;
+
               const currentIdx = sessionTracksRef.current.findIndex(t => t.id === trackIdRef.current || t.title === title);
               const isLastTrack = currentIdx === sessionTracksRef.current.length - 1;
 
@@ -406,34 +418,37 @@ export const AudioProvider: React.FC<{ children: React.ReactNode }> = ({ childre
               const isViennese = style.includes('viennese');
               const timeLimit = isPasoDoble ? Infinity : (isViennese ? 85 : 105);
 
-              // NATIVE FADE-OUT Logic (3 seconds before limit)
-              if (audio && !isPasoDoble) {
+              // NATIVE FADE-OUT Logic (runs ONCE, 3 seconds before limit)
+              if (audio && !isPasoDoble && !fadeStartedRef.current) {
                   const isNearLimit = (timeLimit - currentTimeVal <= 3.5) && (timeLimit - currentTimeVal > 0);
                   
                   if (isNearLimit) {
-                    const remaining = timeLimit - currentTimeVal;
-                    // Smooth native volume reduction
-                    const startVol = volumeRef.current * 0.8;
-                    const steps = 20;
-                    const stepDuration = (remaining * 1000) / steps;
-                    
-                    if (audio.volume > 0.01) {
-                        const volumeInterval = setInterval(() => {
-                           if (!audio || audio.volume <= 0.05) {
-                               clearInterval(volumeInterval);
-                               if (audio) audio.volume = 0;
-                           } else {
-                               audio.volume = Math.max(0, audio.volume - (startVol / steps));
-                           }
-                        }, stepDuration);
-                    }
+                    fadeStartedRef.current = true; // Prevent re-entry on future ticks
+                    const targetVol = volumeRef.current * 0.8;
+                    const steps = 30;
+                    const stepDuration = (3000) / steps; // spread over full 3 seconds
+                    let stepCount = 0;
+
+                    const volumeInterval = setInterval(() => {
+                      stepCount++;
+                      if (!nativePlayerRef.current || stepCount >= steps) {
+                        clearInterval(volumeInterval);
+                        if (nativePlayerRef.current) nativePlayerRef.current.volume = 0;
+                      } else {
+                        nativePlayerRef.current.volume = Math.max(0, targetVol - (targetVol / steps) * stepCount);
+                      }
+                    }, stepDuration);
                   }
               }
 
-              // TRIGGER NEXT or END
-              if (currentTimeVal >= timeLimit || (isPasoDoble && audio.duration > 0 && currentTimeVal >= audio.duration - 0.5)) {
+              // TRIGGER NEXT or END at 1:45 limit (ontimeupdate handles non-Paso tracks)
+              // isPasoDoble is handled by onended, skip it here
+              if (!isPasoDoble && currentTimeVal >= timeLimit) {
+                // Guard: only trigger once
+                if (isPauseCountdownRef.current) return;
+
+                audio.onended = null; // Detach to prevent double firing
                 audio.pause();
-                audio.src = ''; // Force stop any remaining buffer
                 setIsPlaying(false);
                 isPlayingRef.current = false;
 
@@ -504,6 +519,7 @@ export const AudioProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         const tgUser = typeof window !== 'undefined' ? (window as any).Telegram?.WebApp?.initDataUnsafe?.user : null;
         const userRef = user?.id?.toString() || tgUser?.id?.toString() || null;
         
+        /*
         supabase.from('track_plays').insert({
           track_title: track.title,
           track_id: track.id,
@@ -515,6 +531,7 @@ export const AudioProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         }).select('id').single().then(({ data }) => {
           if (data) trackLogIdRef.current = data.id;
         });
+        */
       } catch (e) {}
 
     } catch (err: any) {
@@ -542,12 +559,20 @@ export const AudioProvider: React.FC<{ children: React.ReactNode }> = ({ childre
           setPauseTime(Math.ceil(newPauseTime));
 
           if (newPauseTime <= 0) {
-            const tracksList = isFinalMode ? sessionTracks : tracks;
-            const currentIndex = tracksList.findIndex(t => t.id === trackIdRef.current || t.title === title);
+            // CRITICAL: Use refs (not stale state) to find the correct next track
+            const tracksList = sessionTracksRef.current;
+            const currentIndex = tracksList.findIndex(t => t.id === trackIdRef.current);
 
             if (currentIndex !== -1 && currentIndex < tracksList.length - 1) {
               const nextTrack = tracksList[currentIndex + 1];
+              // Restore volume before loading next track
+              if (nativePlayerRef.current) {
+                nativePlayerRef.current.volume = volumeRef.current * 0.8;
+              }
               loadTrack(nextTrack, false, true);
+            } else {
+              // No more tracks - stop
+              stop();
             }
           }
           return;
@@ -614,13 +639,12 @@ export const AudioProvider: React.FC<{ children: React.ReactNode }> = ({ childre
           }
 
           // PERIODIC ANALYTICS UPDATE: Update track play duration
-          if (trackLogIdRef.current && Math.floor(currentTimeVal) % 10 === 0) {
-            supabase
+              /*
               .from('track_plays')
               .update({ duration_seconds: Math.floor(currentTimeVal) })
               .eq('id', trackLogIdRef.current)
               .then(() => {});
-          }
+              */
         }
       }, 100);
     } else {
@@ -794,8 +818,6 @@ export const AudioProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       isPauseCountdown,
       isFitness,
       pauseTime,
-      isExpanded,
-      setIsExpanded,
       togglePlay,
       loadTrack,
       setIsFitness,

@@ -67,49 +67,6 @@ export const Marquee: React.FC<MarqueeProps> = ({ text, className = '', speed = 
       >
         <span ref={textRef} className="marquee-text">{text}</span>
       </div>
-
-      <style jsx>{`
-        .marquee-container {
-          overflow: hidden;
-          width: 100%;
-          position: relative;
-          cursor: default;
-        }
-
-        /* Default state: Truncate with ellipsis if not scrolling */
-        .marquee-container:not(.can-scroll) {
-          white-space: nowrap;
-          text-overflow: ellipsis;
-          display: block;
-          overflow: hidden;
-        }
-
-        .marquee-container.can-scroll {
-          mask-image: linear-gradient(to right, transparent, black 5%, black 95%, transparent);
-          -webkit-mask-image: linear-gradient(to right, transparent, black 5%, black 95%, transparent);
-        }
-
-        .marquee-content {
-          display: inline-block;
-          width: max-content;
-          will-change: transform;
-          white-space: nowrap;
-        }
-
-        /* Only allow scrolling when explicitly enabled by parent or hover */
-        .is-scrolling {
-          animation: marquee-yoyo linear infinite alternate;
-        }
-
-        .marquee-text {
-          padding-right: 15px; /* Slight padding to ensure it doesn't touch the mask edge immediately */
-        }
-
-        @keyframes marquee-yoyo {
-          0%, 15% { transform: translateX(0); }
-          85%, 100% { transform: translateX(calc(-100% + var(--container-width, 100%))); }
-        }
-      `}</style>
     </div>
   );
 };

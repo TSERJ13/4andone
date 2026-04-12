@@ -6,7 +6,7 @@ import { usePathname } from 'next/navigation';
 import { Home, Search, Library, User, Zap } from 'lucide-react';
 import MobileMiniPlayer from './MobileMiniPlayer';
 
-const MobileNav = () => {
+const MobileNav = ({ onExpand }: { onExpand: () => void }) => {
   const pathname = usePathname();
   const isAdmin = pathname.startsWith('/admin');
 
@@ -21,7 +21,7 @@ const MobileNav = () => {
 
   return (
     <>
-      <MobileMiniPlayer />
+      <MobileMiniPlayer onExpand={onExpand} />
       <nav className="mobile-nav">
         {navItems.map((item) => (
           <Link

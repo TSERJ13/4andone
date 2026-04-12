@@ -11,6 +11,7 @@ import { TelegramLogin } from '@/components/auth/TelegramLogin';
 import { User, LogOut, ShieldCheck } from 'lucide-react';
 import { useVisitTracker } from '@/hooks/useVisitTracker';
 import { AuthModal } from '@/components/auth/AuthModal';
+import MobileFullPlayer from './MobileFullPlayer';
 
 export default function AppLayout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
@@ -19,6 +20,8 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     setMounted(true);
   }, []);
+
+  const [isFullPlayerOpen, setIsFullPlayerOpen] = useState(false);
 
   useVisitTracker(); // Track one visit per session
 
@@ -46,10 +49,14 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
         {children}
       </main>
       <PlayerBar />
-      <MobileNav />
+      <MobileNav onExpand={() => setIsFullPlayerOpen(true)} />
       <AuthModal 
         isOpen={isAuthModalOpen} 
         onClose={() => setIsAuthModalOpen(false)} 
+      />
+      <MobileFullPlayer 
+        isOpen={isFullPlayerOpen}
+        onClose={() => setIsFullPlayerOpen(false)}
       />
     </div>
   );

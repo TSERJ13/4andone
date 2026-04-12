@@ -58,7 +58,8 @@ export const Marquee: React.FC<MarqueeProps> = ({ text, className = '', speed = 
         className={`marquee-content ${shouldScroll ? 'is-scrolling' : ''}`}
         style={{ 
           animationDuration: shouldScroll && duration > 0 ? `${duration}s` : '0s',
-          animationDelay: '1s'
+          animationDelay: '1s',
+          '--container-width': `${containerRef.current?.offsetWidth || 0}px`
         } as React.CSSProperties}
       >
         <span ref={textRef} className="marquee-text">{text}</span>
@@ -104,11 +105,6 @@ export const Marquee: React.FC<MarqueeProps> = ({ text, className = '', speed = 
         @keyframes marquee-yoyo {
           0%, 15% { transform: translateX(0); }
           85%, 100% { transform: translateX(calc(-100% + var(--container-width, 100%))); }
-        }
-      `}</style>
-      <style jsx>{`
-        .is-scrolling {
-          --container-width: ${containerRef.current?.offsetWidth || 0}px;
         }
       `}</style>
     </div>

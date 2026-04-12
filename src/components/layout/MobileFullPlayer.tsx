@@ -359,14 +359,20 @@ const MobileFullPlayer = ({ isOpen, onClose }: MobileFullPlayerProps) => {
           padding: 20px;
           padding-top: max(20px, env(safe-area-inset-top));
           padding-bottom: max(20px, env(safe-area-inset-bottom));
+          height: 100vh; /* Fallback for older browsers */
           height: 100dvh;
           overflow: hidden;
-          animation: slideUp 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+          animation: slideUp 0.4s cubic-bezier(0.4, 0, 0.2, 1) forwards;
           transition: backdrop-filter 0.3s ease;
+          /* GPU optimization */
+          backface-visibility: hidden;
+          -webkit-backface-visibility: hidden;
+          will-change: transform;
         }
 
         .full-player-overlay.optimizing-gpu {
           backdrop-filter: none !important;
+          -webkit-backdrop-filter: none !important;
         }
 
         .full-player-overlay.optimizing-gpu .speed-overlay {

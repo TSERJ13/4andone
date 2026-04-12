@@ -120,7 +120,7 @@ const MobileFullPlayer = ({ isOpen, onClose }: MobileFullPlayerProps) => {
     };
   }, [isDragging, isFinalMode]);
 
-  const handleToggleSpeed = () => {
+  const handleToggleSpeed = useCallback(() => {
     if (showSpeed) {
       setIsExitingSpeed(true);
       setTimeout(() => {
@@ -130,7 +130,11 @@ const MobileFullPlayer = ({ isOpen, onClose }: MobileFullPlayerProps) => {
     } else {
       setShowSpeed(true);
     }
-  };
+  }, [showSpeed]);
+
+  const onSelectSpeed = useCallback((val: number, persistent?: boolean) => {
+    setBpm(val, persistent);
+  }, [setBpm]);
 
   const getTimeLimit = useCallback(() => {
     const track = tracks?.find(t => t.title === title) || finalTracks?.find(t => t.title === title);
@@ -147,12 +151,13 @@ const MobileFullPlayer = ({ isOpen, onClose }: MobileFullPlayerProps) => {
   const activeTime = isSessionActive ? currentTime : (isFinalMode ? trackCurrentTime : currentTime);
   const displayProgress = isDragging ? dragProgress : (activeTime / (effectiveDuration || 1)) * 100;
 
+  const [isDraggingSpeed, setIsDraggingSpeed] = useState(false);
   const formatTime = (time: number) => {
     return formatDuration(time);
   };
 
   return (
-    <div className="full-player-overlay">
+    <div className={`full-player-overlay ${isDraggingSpeed ? 'optimizing-gpu' : ''}`}>
       <div className="player-header">
         <button onClick={onClose} className="header-btn"><ChevronDown size={32} /></button>
         <span className="now-playing-label">Now Playing</span>
@@ -188,7 +193,7 @@ const MobileFullPlayer = ({ isOpen, onClose }: MobileFullPlayerProps) => {
 
           <button 
             className={`speed-tag ${bpm !== 100 ? 'active' : ''}`}
-            onClick={() => handleToggleSpeed()}
+            onClick={handleToggleSpeed}
           >
             <Gauge size={14} />
             <span>{bpm}% BPM</span>
@@ -295,8 +300,9 @@ const MobileFullPlayer = ({ isOpen, onClose }: MobileFullPlayerProps) => {
             </div>
             <SpeedSelector 
               currentBpm={bpm} 
-              onSelect={(val) => { setBpm(val); }} 
+              onSelect={onSelectSpeed} 
               onClose={handleToggleSpeed} 
+              onDragStateChange={setIsDraggingSpeed}
             />
           </div>
         </div>
@@ -329,6 +335,15 @@ const MobileFullPlayer = ({ isOpen, onClose }: MobileFullPlayerProps) => {
           height: 100dvh;
           overflow: hidden;
           animation: slideUp 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+          transition: backdrop-filter 0.3s ease;
+        }
+
+        .full-player-overlay.optimizing-gpu {
+          backdrop-filter: none !important;
+        }
+
+        .full-player-overlay.optimizing-gpu .speed-overlay {
+          backdrop-filter: none !important;
         }
 
         @keyframes slideUp {

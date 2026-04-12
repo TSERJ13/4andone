@@ -26,7 +26,7 @@ interface AudioContextType {
   togglePlay: () => void;
   loadTrack: (track: any, isRetry?: boolean, forceFinalMode?: boolean) => void;
   setIsFitness: (val: boolean) => void;
-  setBpm: (bpm: number) => void;
+  setBpm: (bpm: number, persistent?: boolean) => void;
   setVolume: (volume: number) => void;
   toggleRepeat: () => void;
   toggleShuffle: () => void;
@@ -583,8 +583,8 @@ export const AudioProvider: React.FC<{ children: React.ReactNode }> = ({ childre
           if ('mediaSession' in navigator && sessionDuration > 0) {
             navigator.mediaSession.setPositionState({
               duration: sessionDuration,
-              playbackRate: bpm / 100,
-              position: currentTime
+              playbackRate: bpmRef.current / 100,
+              position: currentTimeVal
             });
           }
 
@@ -604,82 +604,64 @@ export const AudioProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     return () => {
       if (timerRef.current) clearInterval(timerRef.current);
     };
-  }, [isPlaying, isPauseCountdown, isLoading, duration, bpm, isFinalMode, title]);
+  }, [isPlaying, isPauseCountdown, isLoading, duration, isFinalMode, title]);
 
-  const togglePlay = async () => {
+  const togglePlay = React.useCallback(async () => {
     // Mobile browsers require resume() on user gesture
-    // Unlock
-
     if (!isLoaded) return;
 
-    if (isPlaying) {
+    if (isPlayingRef.current) {
       if (nativePlayerRef.current) nativePlayerRef.current.pause();
-      
-      // LOGIC FIX: Do NOT pause the heartbeat on iPad/mobile. 
-      // Keeping it playing (silently) ensures the browser doesn't suspend 
-      // the audio session during the pause, allowing a smooth resume.
-      // if (heartbeatRef.current) heartbeatRef.current.pause();
-
-      // Release Wake Lock
       if (wakeLockRef.current) {
         wakeLockRef.current.release().then(() => { wakeLockRef.current = null; });
       }
-
       setIsPlaying(false);
       if ('mediaSession' in navigator) navigator.mediaSession.playbackState = 'paused';
     } else {
       const startTime = currentTimeRef.current >= duration ? 0 : currentTimeRef.current;
-
       if (nativePlayerRef.current) {
         nativePlayerRef.current.currentTime = startTime;
         playPromiseRef.current = nativePlayerRef.current.play();
-        playPromiseRef.current.catch(e => {
-        }).finally(() => {
-          playPromiseRef.current = null;
-        });
+        playPromiseRef.current.catch(() => {}).finally(() => { playPromiseRef.current = null; });
       }
-
-      // Start Heartbeat & Wake Lock
-      if (heartbeatRef.current) {
-        heartbeatRef.current.play().catch(() => { });
-      }
+      if (heartbeatRef.current) heartbeatRef.current.play().catch(() => {});
       if ('wakeLock' in navigator) {
         (navigator as any).wakeLock.request('screen').then((lock: any) => {
           wakeLockRef.current = lock;
-        }).catch(() => { });
+        }).catch(() => {});
       }
-
       setIsPlaying(true);
       if ('mediaSession' in navigator) navigator.mediaSession.playbackState = 'playing';
       notifyOtherTabs();
     }
-  };
+  }, [isLoaded, duration]);
 
-  const setBpm = (newBpm: number) => {
-    setBpmState(newBpm);
-    localStorage.setItem('4andone-bpm', newBpm.toString());
+  const setBpm = React.useCallback((newBpm: number, persistent = true) => {
+    // 1. ALWAYS UPDATE NATIVE IMMEDIATELY (Near-zero latency)
     if (nativePlayerRef.current) {
       const rate = newBpm / 100;
-      // Keep preservesPitch true to maintain algorithm consistency
-      nativePlayerRef.current.preservesPitch = true;
-      nativePlayerRef.current.playbackRate = rate;
+      if (Math.abs(nativePlayerRef.current.playbackRate - rate) > 0.001) {
+        if (!nativePlayerRef.current.preservesPitch) {
+           nativePlayerRef.current.preservesPitch = true;
+        }
+        nativePlayerRef.current.playbackRate = rate;
+      }
     }
-  };
+    // 2. Only update state and local storage if it's the final value 
+    if (persistent) {
+      setBpmState(newBpm);
+      localStorage.setItem('4andone-bpm', newBpm.toString());
+    }
+  }, []);
 
-  const seek = (time: number) => {
+  const seek = React.useCallback((time: number) => {
     if (isLoaded && nativePlayerRef.current) {
       const safeTime = Math.max(0, Math.min(time, duration));
       const wasPlaying = isPlayingRef.current;
-
-      // OPTIMIZATION: On mobile/iPad, excessive pause/play cycles cause stutter.
-      // We directly update currentTime and only trigger play if it wasn't already in a play state.
       nativePlayerRef.current.currentTime = safeTime;
       setCurrentTime(safeTime);
       currentTimeRef.current = safeTime;
-
       if (wasPlaying) {
-        // If it's already playing, we don't need to call play() again usually, 
-        // but to be safe against buffer underruns during scrub:
         if (nativePlayerRef.current.paused) {
            playPromiseRef.current = nativePlayerRef.current.play();
            playPromiseRef.current.catch(() => {}).finally(() => { playPromiseRef.current = null; });
@@ -687,61 +669,55 @@ export const AudioProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         setIsPlaying(true);
       }
     }
-  };
+  }, [isLoaded, duration]);
 
-  const seekRelative = (seconds: number) => {
+  const seekRelative = React.useCallback((seconds: number) => {
     if (nativePlayerRef.current && isLoaded) {
       const newTime = Math.max(0, Math.min(currentTimeRef.current + seconds, duration));
       seek(newTime);
     }
-  };
+  }, [isLoaded, duration, seek]);
 
-  const setVolume = (v: number) => {
+  const setVolume = React.useCallback((v: number) => {
     setVolumeState(v);
     localStorage.setItem('4andone-volume', v.toString());
     if (nativePlayerRef.current) {
       nativePlayerRef.current.volume = v * 0.8;
     }
-    if (masterGainRef.current) {
-      // Update gain if needed
-    }
-  };
+  }, []);
 
-  const toggleRepeat = () => setIsRepeat(!isRepeat);
-  const toggleShuffle = () => setIsShuffle(!isShuffle);
-  const toggleFinalMode = () => setIsFinalMode(!isFinalMode);
+  const toggleRepeat = React.useCallback(() => setIsRepeat(prev => !prev), []);
+  const toggleShuffle = React.useCallback(() => setIsShuffle(prev => !prev), []);
+  const toggleFinalMode = React.useCallback(() => setIsFinalMode(prev => !prev), []);
 
-  const playNext = () => {
-    const list = isFinalMode ? sessionTracks : tracks;
+  const playNext = React.useCallback(() => {
+    const list = isFinalModeRef.current ? sessionTracksRef.current : tracks;
     if (list.length === 0) return;
 
-    let currentIndex = list.findIndex(t => t.id === trackIdRef.current || t.title === title);
+    let currentIndex = list.findIndex(t => t.id === trackIdRef.current || t.title === playingTrackRef.current?.title);
 
-    // Handle shuffle
-    if (isShuffle) {
+    if (isShuffleRef.current) {
       let nextIndex = Math.floor(Math.random() * list.length);
       while (nextIndex === currentIndex && list.length > 1) {
         nextIndex = Math.floor(Math.random() * list.length);
       }
-      currentIndex = nextIndex - 1; // offset by 1 because we increment below
+      currentIndex = nextIndex - 1;
     }
 
     const nextIndex = (currentIndex + 1) % list.length;
-    const nextTrack = list[nextIndex];
-    loadTrack(nextTrack);
-  };
+    loadTrack(list[nextIndex]);
+  }, [tracks, loadTrack]);
 
-  const playPrevious = () => {
-    const list = isFinalMode ? sessionTracks : tracks;
+  const playPrevious = React.useCallback(() => {
+    const list = isFinalModeRef.current ? sessionTracksRef.current : tracks;
     if (list.length === 0) return;
 
-    const currentIndex = list.findIndex(t => t.id === trackIdRef.current || t.title === title);
+    const currentIndex = list.findIndex(t => t.id === trackIdRef.current || t.title === playingTrackRef.current?.title);
     const prevIndex = currentIndex <= 0 ? list.length - 1 : currentIndex - 1;
-    const prevTrack = list[prevIndex];
-    loadTrack(prevTrack);
-  };
+    loadTrack(list[prevIndex]);
+  }, [tracks, loadTrack]);
 
-  const stop = () => {
+  const stop = React.useCallback(() => {
     if (nativePlayerRef.current) {
       nativePlayerRef.current.pause();
       nativePlayerRef.current.src = '';
@@ -757,7 +733,7 @@ export const AudioProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     setSessionTracks([]);
     setIsFinalMode(false);
     isFinalModeRef.current = false;
-  };
+  }, []);
 
   // REGISTER MEDIA SESSION ACTIONS
   useEffect(() => {

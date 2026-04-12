@@ -19,7 +19,6 @@ import {
   Layers
 } from 'lucide-react';
 import { useStudio } from './StudioProvider';
-import { createPresignedUrl } from '@/utils/r2-server';
 import { 
   detectBPM, 
   getStyleFromBPM, 
@@ -184,21 +183,26 @@ const BulkUpload = () => {
       try {
         setFiles(current => current.map(curr => curr.id === f.id ? { ...curr, status: 'uploading' } : curr));
 
-        // 1. Get Presigned URL
-        // SANITIZE: Remove special characters from filename for reliable R2 keys
-        const safeName = f.file.name.replace(/[^\w.-]/g, '_');
-        const storagePath = `${f.id}-${safeName}`;
+        // 1. Get Presigned URL via the same API AddTrackModal uses
+        const signRes = await fetch('/api/upload', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            fileName: f.file.name,
+            fileType: f.file.type || 'audio/mpeg'
+          })
+        });
 
-        const { url, error } = await createPresignedUrl(
-          storagePath,
-          f.file.type || 'audio/mpeg'
-        );
+        if (!signRes.ok) {
+          const err = await signRes.json();
+          throw new Error(err.error || "Signed URL failed");
+        }
 
-        if (error || !url) throw new Error(error || "Signed URL failed");
+        const { uploadUrl, publicUrl } = await signRes.json();
 
         // 2. Upload to R2
         const xhr = new XMLHttpRequest();
-        xhr.open('PUT', url, true);
+        xhr.open('PUT', uploadUrl, true);
         xhr.setRequestHeader('Content-Type', f.file.type || 'audio/mpeg');
 
         xhr.upload.onprogress = (event) => {
@@ -211,7 +215,7 @@ const BulkUpload = () => {
         };
 
         const uploadPromise = new Promise((resolve, reject) => {
-          xhr.onload = () => xhr.status === 200 ? resolve(true) : reject();
+          xhr.onload = () => xhr.status === 200 || xhr.status === 201 ? resolve(true) : reject();
           xhr.onerror = () => reject();
         });
 
@@ -219,10 +223,6 @@ const BulkUpload = () => {
         await uploadPromise;
 
         // 3. Register in Supabase
-        const baseUrl = (process.env.NEXT_PUBLIC_R2_PUBLIC_URL || 'https://pub-c41b1121b311f676bdc114d143278d18.r2.dev').replace(/\/$/, '');
-        // ENCODE: Ensure characters like # or ? are encoded for the public URL
-        const publicUrl = `${baseUrl}/${f.id}-${encodeURIComponent(safeName)}`;
-        
         await addTrack({
           title: f.title,
           artist: f.artist,

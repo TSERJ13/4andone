@@ -173,9 +173,15 @@ const PlayerBar = () => {
     return `${mins}:${secs.toString().padStart(2, '0')}`;
   };
 
+  const [isDraggingSpeed, setIsDraggingSpeed] = useState(false);
+  const handleCloseSpeed = React.useCallback(() => setShowSpeedSelector(false), []);
+  const onSelectSpeed = React.useCallback((val: number, persistent?: boolean) => {
+    setBpm(val, persistent);
+  }, [setBpm]);
+
   return (
     <>
-      <footer className={`player-bar glass ${title === "No Track Selected" ? 'is-hidden' : ''}`}>
+      <footer className={`player-bar glass ${title === "No Track Selected" ? 'is-hidden' : ''} ${isDraggingSpeed ? 'optimizing-gpu' : ''}`}>
         {/* Track Info */}
         <div className="track-info">
           <div className="album-art glass">
@@ -304,8 +310,9 @@ const PlayerBar = () => {
                 <div ref={speedSelectorRef}>
                   <SpeedSelector
                     currentBpm={bpm}
-                    onSelect={setBpm}
-                    onClose={() => (setShowSpeedSelector(false))}
+                    onSelect={onSelectSpeed}
+                    onClose={handleCloseSpeed}
+                    onDragStateChange={setIsDraggingSpeed}
                   />
                 </div>
               )}
@@ -353,7 +360,7 @@ const PlayerBar = () => {
         variant="primary"
         onClose={() => setAuthPrompt(prev => ({ ...prev, isOpen: false }))}
         onConfirm={() => {
-          setAuthPrompt(prev => ({ ...prev, isOpen: false }));
+          setAuthPrompt(prev => ({ ...prev, isOpen: false }))
           setIsAuthModalOpen(true);
         }}
       />
@@ -377,6 +384,17 @@ const PlayerBar = () => {
           transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
           padding-bottom: env(safe-area-inset-bottom);
         }
+
+        .player-bar.optimizing-gpu {
+          backdrop-filter: none !important;
+          background: rgba(10, 10, 10, 0.95);
+        }
+
+        .player-bar.optimizing-gpu :global(.speed-container) {
+          backdrop-filter: none !important;
+          background: rgba(18, 18, 18, 1);
+        }
+
         .player-bar.is-hidden {
            transform: translateY(calc(100% + 24px));
            opacity: 0;

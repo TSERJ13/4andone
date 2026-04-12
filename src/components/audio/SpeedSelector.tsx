@@ -5,27 +5,72 @@ import { Minus, Plus } from 'lucide-react';
 
 interface SpeedSelectorProps {
   currentBpm: number;
-  onSelect: (bpm: number) => void;
+  onSelect: (bpm: number, persistent?: boolean) => void;
   onClose: () => void;
+  onDragStateChange?: (isDragging: boolean) => void;
 }
 
-const SpeedSelector: React.FC<SpeedSelectorProps> = ({ currentBpm, onSelect, onClose }) => {
-  const displayValue = currentBpm - 100;
+const SpeedSelector: React.FC<SpeedSelectorProps> = React.memo(({ currentBpm, onSelect, onClose, onDragStateChange }) => {
+  // OPTIMIZATION: Use local state for immediate slider feedback to avoid iPad lag
+  const [localBpm, setLocalBpm] = React.useState(currentBpm);
+  const displayRef = React.useRef<HTMLSpanElement>(null);
+  const lastUpdateRef = React.useRef(0);
+
+  // Sync internal state when external prop changes (e.g. on Reset)
+  React.useEffect(() => {
+    setLocalBpm(currentBpm);
+    if (displayRef.current) {
+      const displayValue = currentBpm - 100;
+      displayRef.current.textContent = `${displayValue > 0 ? `+${displayValue}` : displayValue}%`;
+    }
+  }, [currentBpm]);
 
   const handleAdjust = (delta: number) => {
-    const newVal = Math.max(50, Math.min(150, currentBpm + delta));
+    const newVal = Math.max(50, Math.min(150, localBpm + delta));
+    setLocalBpm(newVal);
     onSelect(newVal);
   };
 
+  const handleInteractionStart = () => {
+    onDragStateChange?.(true);
+  };
+
   const handleSliderChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    onSelect(parseInt(e.target.value));
+    const newVal = parseInt(e.target.value);
+    
+    // ZERO-BLOCK: Update the DOM directly to bypass React re-render cycle
+    // This keeps the UI thread free for perfectly smooth movement.
+    if (displayRef.current) {
+        const displayValue = newVal - 100;
+        displayRef.current.textContent = `${displayValue > 0 ? `+${displayValue}` : displayValue}%`;
+    }
+
+    // Still update the local state but do NOT use it for the primary display during drag
+    // setLocalBpm(newVal); // Commented out to reduce React overhead during drag
+
+    // SMART THROTTLE: Audio Engine is throttled to 60ms
+    const now = Date.now();
+    if (now - lastUpdateRef.current > 60) {
+      onSelect(newVal, false);
+      lastUpdateRef.current = now;
+    }
+  };
+
+  // Ensure the final value is synced when the user stops dragging
+  const handleSliderEnd = (e: React.ChangeEvent<HTMLInputElement> | any) => {
+    const finalVal = parseInt(e.target.value || localBpm);
+    setLocalBpm(finalVal);
+    onSelect(finalVal);
+    onDragStateChange?.(false);
   };
 
   return (
     <div className="speed-container animate-in">
       <div className="speed-header">
-        <span className="current-display">{displayValue > 0 ? `+${displayValue}` : displayValue}%</span>
-        <button className="reset-btn glass" onClick={() => onSelect(100)}>Reset</button>
+        <span ref={displayRef} className="current-display">
+           {localBpm - 100 > 0 ? `+${localBpm - 100}` : localBpm - 100}%
+        </span>
+        <button className="reset-btn glass" onClick={() => { setLocalBpm(100); onSelect(100); }}>Reset</button>
       </div>
 
       <div className="slider-wrapper">
@@ -38,8 +83,12 @@ const SpeedSelector: React.FC<SpeedSelectorProps> = ({ currentBpm, onSelect, onC
           min="50" 
           max="150" 
           step="1"
-          value={currentBpm} 
+          defaultValue={localBpm}
           onChange={handleSliderChange}
+          onMouseDown={handleInteractionStart}
+          onTouchStart={handleInteractionStart}
+          onMouseUp={handleSliderEnd}
+          onTouchEnd={handleSliderEnd}
           className="speed-slider"
         />
 
@@ -118,8 +167,8 @@ const SpeedSelector: React.FC<SpeedSelectorProps> = ({ currentBpm, onSelect, onC
 
         .speed-slider::-webkit-slider-thumb {
           -webkit-appearance: none;
-          width: 20px;
-          height: 20px;
+          width: 24px;
+          height: 24px;
           border-radius: 50%;
           background: var(--primary);
           cursor: pointer;
@@ -146,6 +195,6 @@ const SpeedSelector: React.FC<SpeedSelectorProps> = ({ currentBpm, onSelect, onC
       `}</style>
     </div>
   );
-};
+});
 
 export default SpeedSelector;

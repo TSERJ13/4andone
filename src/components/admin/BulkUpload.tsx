@@ -72,31 +72,43 @@ const BulkUpload = () => {
         const id = Math.random().toString(36).substring(7);
         
         let rawName = file.name.replace(/\.[^/.]+$/, "");
-        let autoArtist = batchArtist || 'Unknown Artist';
         let detectedStyle = batchStyle;
 
         // FLEXIBLE PARSING (handles various hyphen spacings and em-dashes)
         const parts = rawName.split(/\s*[-—]\s*/).map(p => p.trim()).filter(Boolean);
         
+        let styleToAppend = '';
         // 1. Check if the LAST part is a dance style
         if (parts.length > 1) {
-          const lastPartMatched = getStyleFromFilenamePart(parts[parts.length - 1]);
-          if (lastPartMatched) {
-            detectedStyle = lastPartMatched;
-            parts.pop(); // Remove style from Title/Artist parts
+          const lastPart = parts[parts.length - 1];
+          const matched = getStyleFromFilenamePart(lastPart);
+          if (matched) {
+            detectedStyle = matched;
+            styleToAppend = lastPart; // Store the original string to append to Title
+            parts.pop(); // Remove from metadata parts
           }
         }
 
-        let autoTitle = '';
+        let autoArtist = '';
+        let titleParts: string[] = [];
+
+        // 2. Logic: If at least 2 parts remain, parts[0] is Artist, others are Title.
         if (parts.length >= 2) {
           autoArtist = parts[0];
-          autoTitle = parts.slice(1).join(' - ');
+          titleParts = parts.slice(1);
         } else {
-          autoTitle = parts[0] || rawName;
+          // If only 1 part remains, it's the Title. Artist comes from the Batch setting.
+          autoArtist = batchArtist || 'Unknown Artist';
+          titleParts = [parts[0] || rawName];
+        }
+
+        // 3. Compose Final Title: Music Name + Style (if detected)
+        let finalTitle = titleParts.join(' - ');
+        if (styleToAppend) {
+          finalTitle = `${finalTitle} - ${styleToAppend}`;
+        } else if (!rawName.includes('-') && !rawName.includes('—')) {
           // Fallback cleaning for files without hyphens
-          if (!rawName.includes('-') && !rawName.includes('—')) {
-            autoTitle = autoTitle.replace(/[_\-]/g, ' ');
-          }
+          finalTitle = finalTitle.replace(/[_\-]/g, ' ');
         }
 
         return {
@@ -105,11 +117,11 @@ const BulkUpload = () => {
           progress: 0,
           status: 'pending' as const,
           isAnalyzing: true,
-          title: autoTitle,
+          title: finalTitle,
+          artist: autoArtist,
           bpm: '0',
           duration: 0,
           style: detectedStyle,
-          artist: autoArtist,
           album: batchAlbum || 'Bulk Upload',
           tags: [...batchTags]
         };

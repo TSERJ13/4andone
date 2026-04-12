@@ -575,7 +575,11 @@ export const AudioProvider: React.FC<{ children: React.ReactNode }> = ({ childre
               setCurrentTime(currentTimeVal);
             }
           } else {
-            setCurrentTime(currentTimeVal);
+          }
+
+          // CORE TIME TRACKING: Update UI state every 100ms
+          setCurrentTime(currentTimeVal);
+          if (playingTrackRef.current) {
             setTrackCurrentTime(currentTimeVal);
           }
 

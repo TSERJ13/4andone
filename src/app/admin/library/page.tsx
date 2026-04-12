@@ -492,8 +492,8 @@ const AdminLibrary = () => {
         .album-card:hover .album-play-btn { opacity: 1; transform: translateY(0); }
 
         .admin-table { width: 100%; border-collapse: collapse; text-align: left; }
-        .admin-table th { background: rgba(255,255,255,0.02); padding: 16px 24px; font-size: 11px; text-transform: uppercase; color: #71717a; border-bottom: 1px solid rgba(255,255,255,0.05); letter-spacing: 0.5px; }
-        .admin-table td { padding: 14px 24px; border-bottom: 1px solid rgba(255,255,255,0.02); }
+        .admin-table th { background: rgba(255,255,255,0.02); padding: 12px 24px; font-size: 11px; text-transform: uppercase; color: #71717a; border-bottom: 1px solid rgba(255,255,255,0.05); letter-spacing: 0.5px; }
+        .admin-table td { padding: 10px 24px; border-bottom: 1px solid rgba(255,255,255,0.02); }
         
         .col-play { width: 90px; }
         .play-cell { display: flex; align-items: center; gap: 10px; }

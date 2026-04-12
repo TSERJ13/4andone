@@ -595,14 +595,14 @@ const BulkUpload = () => {
         }
         .table-header { 
           display: grid; grid-template-columns: 50px 1fr 140px 90px 90px 200px 60px;
-          padding: 16px 20px; background: rgba(255,255,255,0.03);
+          padding: 12px 20px; background: rgba(255,255,255,0.03);
           font-size: 11px; font-weight: 900; color: #52525b; text-transform: uppercase; letter-spacing: 0.5px;
         }
         .table-body { max-height: 480px; overflow-y: auto; }
         .table-row { 
           display: grid; grid-template-columns: 50px 1fr 140px 90px 90px 200px 60px;
-          padding: 12px 20px; align-items: center; border-bottom: 1px solid rgba(255,255,255,0.03);
-          position: relative; transition: background 0.2s;
+          padding: 8px 20px; border-bottom: 1px solid rgba(255,255,255,0.03);
+          align-items: center; transition: background 0.2s;
         }
         .table-row:hover { background: rgba(255,255,255,0.03); }
         

@@ -312,8 +312,8 @@ button {
   display: grid;
   grid-template-columns: 20px 24px 1fr 140px auto;
   align-items: center;
-  padding: 16px 17px 16px 16px;
-  border-radius: 20px;
+  padding: 12px 17px 10px 16px;
+  border-radius: 16px;
   background: rgba(255, 255, 255, 0.04);
   border: 1px solid rgba(255, 255, 255, 0.06);
   transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);

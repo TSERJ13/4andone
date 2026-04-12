@@ -212,9 +212,6 @@ const PlaylistPage = () => {
           .icon-large { width: 140px; height: 140px; border-radius: 20px; }
           .title { font-size: 2.2rem; letter-spacing: -1px; }
           .actions { justify-content: center; height: 80px; }
-          .track-row { 
-            gap: 16px; 
-          }
         }
       `}</style>
     </div>

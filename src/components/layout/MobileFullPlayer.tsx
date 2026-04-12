@@ -137,7 +137,9 @@ const MobileFullPlayer = ({ isOpen, onClose }: MobileFullPlayerProps) => {
   }, [setBpm]);
 
   const getTimeLimit = useCallback(() => {
-    const track = tracks?.find(t => t.title === title) || finalTracks?.find(t => t.title === title);
+    if (!title || title === "No Track Selected") return 105;
+    const track = tracks?.find(t => t.title === title || t.id === title) || 
+                  finalTracks?.find(t => t.title === title || t.id === title);
     const style = track?.style?.toLowerCase() || '';
     if (style.includes('paso')) return track?.duration || 210;
     if (style.includes('viennese')) return 85;
@@ -146,14 +148,23 @@ const MobileFullPlayer = ({ isOpen, onClose }: MobileFullPlayerProps) => {
 
   if (!isOpen) return null;
 
-  const isSessionActive = isFinalMode && sessionTracks?.length > 0;
-  const effectiveDuration = isSessionActive ? sessionDuration : (isFinalMode ? getTimeLimit() : duration);
-  const activeTime = isSessionActive ? currentTime : (isFinalMode ? trackCurrentTime : currentTime);
-  const displayProgress = isDragging ? dragProgress : (activeTime / (effectiveDuration || 1)) * 100;
+  const isSessionActive = isFinalMode && sessionTracks && sessionTracks.length > 0;
+  
+  // DEFENSIVE: Ensure duration and time metrics are never NaN or Infinity
+  const rawDuration = isSessionActive ? sessionDuration : (isFinalMode ? getTimeLimit() : duration);
+  const effectiveDuration = Number.isFinite(rawDuration) && rawDuration > 0 ? rawDuration : 0;
+  
+  const rawActiveTime = isSessionActive ? currentTime : (isFinalMode ? trackCurrentTime : currentTime);
+  const activeTime = Number.isFinite(rawActiveTime) ? Math.max(0, rawActiveTime) : 0;
+
+  const displayProgress = isDragging 
+    ? (Number.isFinite(dragProgress) ? dragProgress : 0) 
+    : (effectiveDuration > 0 ? (activeTime / effectiveDuration) * 100 : 0);
 
   const [isDraggingSpeed, setIsDraggingSpeed] = useState(false);
   const formatTime = (time: number) => {
-    return formatDuration(time);
+    const safeTime = Number.isFinite(time) ? Math.max(0, time) : 0;
+    return formatDuration(safeTime);
   };
 
   return (

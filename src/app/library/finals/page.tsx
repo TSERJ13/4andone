@@ -926,9 +926,6 @@ const FinalsPage = () => {
 
         .tracks-list { display: flex; flex-direction: column; gap: 8px; }
         
-          .track-row { 
-            gap: 16px; 
-          }
 
         @media (max-width: 768px) {
           .finals-container { padding: 16px; gap: 24px; }
@@ -953,9 +950,6 @@ const FinalsPage = () => {
              height: 36px;
           }
           .card-info h4 { font-size: 13px; font-weight: 700; }
-          .track-row { 
-            gap: 16px; 
-          }
           .track-queue-section { padding: 20px; border-radius: 24px; }
           .page-header-unified h1 { font-size: 20px !important; }
           .page-header-unified .text-secondary { font-size: 10px !important; opacity: 0.6 !important; }

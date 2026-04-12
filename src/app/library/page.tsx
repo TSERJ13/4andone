@@ -313,9 +313,6 @@ export default function LibraryPage() {
         .card-info .meta { font-size: 9px; opacity: 0.4; display: block; }
 
         .tracks-list { display: flex; flex-direction: column; gap: 8px; }
-          .track-row { 
-            gap: 16px; 
-          }
 
         .track-index { font-size: 13px; font-weight: 800; opacity: 0.3; text-align: left; }
         .track-icon-col { display: flex; align-items: center; justify-content: flex-start; }
@@ -414,9 +411,6 @@ export default function LibraryPage() {
           .card-info h3 { font-size: 0.8rem; letter-spacing: -0.5px; } /* Slightly smaller for mobile */
           .card-info .meta { display: none; }
 
-          .track-row { 
-            gap: 16px; 
-          }
         }
       `}</style>
     </div>

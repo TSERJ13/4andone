@@ -290,9 +290,6 @@ const SearchPage = () => {
           }
           .genre-grid { grid-template-columns: repeat(2, 1fr); gap: 12px; }
           .genre-card { padding: 48px 16px; border-radius: 8px; }
-          .track-row { 
-            gap: 16px; 
-          }
         }
       `}</style>
     </div>

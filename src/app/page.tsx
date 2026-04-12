@@ -523,9 +523,6 @@ export default function Home() {
           gap: 8px;
         }
 
-          .track-row { 
-            gap: 16px; 
-          }
 
         @media (max-width: 1024px) and (orientation: landscape) {
           .hero-section {
@@ -613,9 +610,6 @@ export default function Home() {
             padding: 16px;
           }
 
-          .track-row { 
-            gap: 16px; 
-          }
 
           .track-meta {
             gap: 12px;

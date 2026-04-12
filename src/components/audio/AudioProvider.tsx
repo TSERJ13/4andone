@@ -586,11 +586,16 @@ export const AudioProvider: React.FC<{ children: React.ReactNode }> = ({ childre
           // SAFE MEDIASESSION UPDATE: Guard against NaN, Infinity, and unsupported methods
           if ('mediaSession' in navigator && (navigator.mediaSession as any).setPositionState) {
             try {
-              const safeDuration = Number.isFinite(sessionDuration) && sessionDuration > 0 ? sessionDuration : 0;
-              const safePosition = Number.isFinite(currentTimeVal) && currentTimeVal >= 0 ? Math.min(currentTimeVal, safeDuration) : 0;
+              // Ensure all values are finite and valid numbers before calling native API
+              const rawDurationVal = isFinalMode && sessionTracks.length > 0 ? (sessionDuration || 0) : (nativePlayerRef.current?.duration || 0);
+              const safeDuration = Number.isFinite(rawDurationVal) && rawDurationVal > 0 ? rawDurationVal : 0;
+              
+              const rawPositionVal = isFinalMode && sessionTracks.length > 0 ? (currentTime || 0) : currentTimeVal;
+              const safePosition = Number.isFinite(rawPositionVal) && rawPositionVal >= 0 ? Math.min(rawPositionVal, safeDuration) : 0;
+              
               const safeRate = Number.isFinite(bpmRef.current) && bpmRef.current > 0 ? bpmRef.current / 100 : 1.0;
 
-              if (safeDuration > 0) {
+              if (safeDuration > 0 && safePosition >= 0) {
                 navigator.mediaSession.setPositionState({
                   duration: safeDuration,
                   playbackRate: safeRate,

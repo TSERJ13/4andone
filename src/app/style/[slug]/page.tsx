@@ -202,9 +202,6 @@ const StylePage = () => {
             padding: 0 16px;
           }
           
-          .track-row { 
-            gap: 16px; 
-          }
         }
       `}</style>
     </div>

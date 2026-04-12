@@ -72,13 +72,20 @@ const MobileFullPlayer = ({ isOpen, onClose }: MobileFullPlayerProps) => {
   };
 
   const handleSeek = (clientX: number) => {
-    if (!progressRef.current || !duration) return;
-    const rect = progressRef.current.getBoundingClientRect();
-    const x = Math.max(0, Math.min(clientX - rect.left, rect.width));
-    const percentage = x / rect.width;
-    const newTime = percentage * duration;
-    setDragProgress(percentage * 100);
-    return newTime;
+    if (!progressRef.current || !duration) return 0;
+    try {
+      const rect = progressRef.current.getBoundingClientRect();
+      if (!rect.width) return 0;
+      const x = Math.max(0, Math.min(clientX - rect.left, rect.width));
+      const percentage = x / rect.width;
+      const safePercentage = Number.isFinite(percentage) ? Math.max(0, Math.min(1, percentage)) : 0;
+      const safeDuration = Number.isFinite(duration) ? duration : 0;
+      const newTime = safePercentage * safeDuration;
+      setDragProgress(safePercentage * 100);
+      return newTime;
+    } catch (e) {
+      return 0;
+    }
   };
 
   const handleInteractionStart = (e: React.MouseEvent | React.TouchEvent) => {
@@ -157,14 +164,14 @@ const MobileFullPlayer = ({ isOpen, onClose }: MobileFullPlayerProps) => {
   
   // DEFENSIVE: Ensure duration and time metrics are never NaN or Infinity
   const rawDuration = isSessionActive ? sessionDuration : (isFinalMode ? getTimeLimit() : duration);
-  const effectiveDuration = Number.isFinite(rawDuration) && rawDuration > 0 ? rawDuration : 0;
+  const effectiveDuration = Number.isFinite(rawDuration) && rawDuration > 0 ? rawDuration : 105;
   
   const rawActiveTime = isSessionActive ? currentTime : (isFinalMode ? trackCurrentTime : currentTime);
   const activeTime = Number.isFinite(rawActiveTime) ? Math.max(0, rawActiveTime) : 0;
 
   const displayProgress = isDragging 
-    ? (Number.isFinite(dragProgress) ? dragProgress : 0) 
-    : (effectiveDuration > 0 ? (activeTime / effectiveDuration) * 100 : 0);
+    ? (Number.isFinite(dragProgress) ? Math.max(0, Math.min(100, dragProgress)) : 0) 
+    : (effectiveDuration > 0 ? Math.max(0, Math.min(100, (activeTime / effectiveDuration) * 100)) : 0);
 
   const [isDraggingSpeed, setIsDraggingSpeed] = useState(false);
   const formatTime = (time: number) => {

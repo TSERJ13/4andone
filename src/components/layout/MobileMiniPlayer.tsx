@@ -46,7 +46,11 @@ const MobileMiniPlayer = () => {
   // We no longer return null here to prevent unmounting the expanded player
   // if (!isLoaded) return null;
 
-  const currentTrack = tracks?.find(t => t.title === title) || finalTracks?.find(t => t.title === title);
+  // PERFORMANCE: Memoize the track to avoid searching the array on every render
+  const currentTrack = React.useMemo(() => {
+    if (!title || title === "No Track Selected") return null;
+    return tracks?.find(t => t.title === title) || finalTracks?.find(t => t.title === title);
+  }, [tracks, finalTracks, title]);
 
   const handleFavoriteToggle = (e: React.MouseEvent) => {
     e.stopPropagation();
@@ -56,9 +60,11 @@ const MobileMiniPlayer = () => {
     }, 'favorite tracks');
   };
 
-  const isSessionActive = isFinalMode && sessionTracks?.length > 0;
-  const effectiveDuration = isSessionActive ? sessionDuration : (isFinalMode ? 105 : duration);
-  const progress = (currentTime / (effectiveDuration || 105)) * 100;
+  const isSessionActive = isFinalMode && sessionTracks && sessionTracks.length > 0;
+  const rawDuration = isSessionActive ? sessionDuration : (isFinalMode ? 105 : duration);
+  const effectiveDuration = Number.isFinite(rawDuration) && rawDuration > 0 ? rawDuration : 105;
+  const rawProgress = (currentTime / effectiveDuration) * 100;
+  const progress = Number.isFinite(rawProgress) ? Math.max(0, Math.min(100, rawProgress)) : 0;
 
   return (
     <>

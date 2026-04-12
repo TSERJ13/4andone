@@ -839,13 +839,14 @@ const PlayerBar = () => {
             display: flex;
             justify-content: space-between;
             height: auto;
-            min-height: 80px;
+            min-height: 94px;
             padding: 12px 16px;
             padding-bottom: calc(12px + env(safe-area-inset-bottom));
             bottom: 0;
             left: 0;
             right: 0;
             border-radius: 0;
+            border-top: 1px solid rgba(255, 255, 255, 0.22);
             border-left: none;
             border-right: none;
             border-bottom: none;

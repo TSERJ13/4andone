@@ -455,9 +455,9 @@ button {
   .track-row {
     grid-template-columns: 14px 24px 1fr auto;
     gap: 2px;
-    padding: 20px 18px 20px 10px;
-    border-radius: 18px;
-    min-height: 76px;
+    padding: 14px 18px 14px 10px;
+    border-radius: 12px;
+    min-height: 62px;
   }
 
   .track-meta-col {

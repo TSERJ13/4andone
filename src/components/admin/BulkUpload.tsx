@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useCallback, useRef } from 'react';
+import React, { useState, useCallback, useRef, useEffect } from 'react';
 import { 
   Upload, 
   X, 
@@ -58,6 +58,7 @@ const BulkUpload = () => {
   const [batchArtist, setBatchArtist] = useState('');
   const [batchStyle, setBatchStyle] = useState('Samba');
   const [batchTags, setBatchTags] = useState<string[]>([]);
+  const [recentArtists, setRecentArtists] = useState<string[]>([]);
   const [targetFolderId, setTargetFolderId] = useState('');
   const [batchCoverFile, setBatchCoverFile] = useState<File | null>(null);
   const [batchCoverPreview, setBatchCoverPreview] = useState<string | null>(null);
@@ -66,6 +67,11 @@ const BulkUpload = () => {
   const [showValidation, setShowValidation] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const coverInputRef = useRef<HTMLInputElement>(null);
+  
+  useEffect(() => {
+    const saved = localStorage.getItem('recentArtists');
+    if (saved) setRecentArtists(JSON.parse(saved));
+  }, []);
 
   const processFiles = async (fileList: FileList | null) => {
     if (!fileList) return;
@@ -309,6 +315,13 @@ const BulkUpload = () => {
           curr.id === f.id ? { ...curr, status: 'complete', progress: 100 } : curr
         ));
 
+        // Update Persistent Memory
+        if (f.artist && !recentArtists.includes(f.artist)) {
+          const updated = [f.artist, ...recentArtists].slice(0, 15);
+          setRecentArtists(updated);
+          localStorage.setItem('recentArtists', JSON.stringify(updated));
+        }
+
       } catch (err: any) {
         console.error("[BULK-UPLOAD-ERROR] Failed for file:", f.file.name, err);
         setFiles(current => current.map(curr => 
@@ -353,14 +366,23 @@ const BulkUpload = () => {
                     onChange={(e) => setBatchAlbum(e.target.value)}
                   />
                 </div>
-                <div className="meta-field">
-                  <User size={16} className="meta-icon" />
-                  <input 
-                    type="text" 
-                    placeholder="Artist (Optional)" 
-                    value={batchArtist}
-                    onChange={(e) => setBatchArtist(e.target.value)}
-                  />
+                <div className="meta-field-group">
+                  <div className="meta-field">
+                    <User size={16} className="meta-icon" />
+                    <input 
+                      type="text" 
+                      placeholder="Artist (Optional)" 
+                      value={batchArtist}
+                      onChange={(e) => setBatchArtist(e.target.value)}
+                    />
+                  </div>
+                  {recentArtists.length > 0 && (
+                    <div className="recent-artists-suggestions">
+                      {recentArtists.slice(0, 6).map(a => (
+                        <button type="button" key={a} className="artist-suggestion-chip" onClick={() => setBatchArtist(a)}>{a}</button>
+                      ))}
+                    </div>
+                  )}
                 </div>
                 <div className="meta-field">
                   <Layers size={16} className="meta-icon" />
@@ -618,6 +640,14 @@ const BulkUpload = () => {
         }
         .meta-field input:focus, .meta-select:focus { border-color: #1db954; background: rgba(255,255,255,0.08); }
         .meta-select { cursor: pointer; }
+
+        .meta-field-group { flex: 1; display: flex; flex-direction: column; gap: 8px; }
+        .recent-artists-suggestions { display: flex; flex-wrap: wrap; gap: 6px; }
+        .artist-suggestion-chip { 
+          padding: 4px 10px; border-radius: 8px; background: rgba(255,255,255,0.05); 
+          color: #71717a; font-size: 11px; font-weight: 700; border: none; cursor: pointer; transition: all 0.2s;
+        }
+        .artist-suggestion-chip:hover { background: #1db954; color: black; }
 
         .batch-tags-row { display: flex; align-items: center; gap: 16px; }
         .tags-label { display: flex; align-items: center; gap: 8px; font-size: 12px; font-weight: 800; color: #71717a; text-transform: uppercase; }

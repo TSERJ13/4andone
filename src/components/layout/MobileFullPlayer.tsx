@@ -2,11 +2,11 @@
 
 import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { createPortal } from 'react-dom';
-import { 
-  Play, 
-  Pause, 
-  X, 
-  Gauge, 
+import {
+  Play,
+  Pause,
+  X,
+  Gauge,
   Timer,
   ChevronDown,
   SkipBack,
@@ -31,11 +31,11 @@ interface MobileFullPlayerProps {
 }
 
 const MobileFullPlayer = ({ isOpen, onClose }: MobileFullPlayerProps) => {
-  const { 
-    isPlaying, 
-    togglePlay, 
-    bpm, 
-    setBpm, 
+  const {
+    isPlaying,
+    togglePlay,
+    bpm,
+    setBpm,
     isLoaded,
     title,
     artist,
@@ -143,7 +143,7 @@ const MobileFullPlayer = ({ isOpen, onClose }: MobileFullPlayerProps) => {
   let activeDuration = duration;
   if (isFinalMode) {
     const isTrackInSession = sessionTracks && sessionTracks.some((t: any) => t.title === title);
-    
+
     if (sessionDuration > 0 && isTrackInSession) {
       activeDuration = sessionDuration;
     } else {
@@ -168,22 +168,22 @@ const MobileFullPlayer = ({ isOpen, onClose }: MobileFullPlayerProps) => {
 
       <div className="mfp-content">
         <div className="art-container">
-           <div 
-             className={`vinyl-disc-v8 ${isFinalMode ? 'final-active' : 'standard-active'}`} 
-             style={isPlaying && !isPauseCountdown ? { animation: 'spin 12s linear infinite' } : {}}
-           >
-              {currentTrack?.artworkUrl && (
-                <img src={currentTrack.artworkUrl} alt="Artwork" className="disc-art-img-v8" />
-              )}
-              {isFinalMode && <div className="disc-final-overlay-red"></div>}
-              <div className="disc-inner-glow-v8"></div>
-           </div>
-           {isPauseCountdown && (
-             <div className="countdown-ring-mobile">
-                <span className="count">{pauseTime}</span>
-                <span className="label">Next Round</span>
-             </div>
-           )}
+          <div
+            className={`vinyl-disc-v8 ${isFinalMode ? 'final-active' : 'standard-active'}`}
+            style={isPlaying && !isPauseCountdown ? { animation: 'spin 12s linear infinite' } : {}}
+          >
+            {currentTrack?.artworkUrl && (
+              <img src={currentTrack.artworkUrl} alt="Artwork" className="disc-art-img-v8" />
+            )}
+            {isFinalMode && <div className="disc-final-overlay-red"></div>}
+            <div className="disc-inner-glow-v8"></div>
+          </div>
+          {isPauseCountdown && (
+            <div className="countdown-ring-mobile">
+              <span className="count">{pauseTime}</span>
+              <span className="label">Next Round</span>
+            </div>
+          )}
         </div>
 
         <div className="mfp-track-meta">
@@ -195,7 +195,7 @@ const MobileFullPlayer = ({ isOpen, onClose }: MobileFullPlayerProps) => {
               </div>
               <p className="mfp-artist truncate">{artist}</p>
             </div>
-            <button 
+            <button
               className={`mfp-meta-btn mfp-favorite ${tracks.find(t => t.title === title)?.isFavorite ? 'active' : ''}`}
               onClick={() => {
                 checkAuthAndExecute(() => {
@@ -213,7 +213,7 @@ const MobileFullPlayer = ({ isOpen, onClose }: MobileFullPlayerProps) => {
             </button>
           </div>
 
-          <button 
+          <button
             className={`mfp-speed-tag ${bpm !== 100 ? 'active' : ''}`}
             onClick={handleToggleSpeed}
           >
@@ -223,15 +223,15 @@ const MobileFullPlayer = ({ isOpen, onClose }: MobileFullPlayerProps) => {
         </div>
 
         <div className="mfp-progress-section">
-          <div 
-            className="mfp-progress-bar-container" 
+          <div
+            className="mfp-progress-bar-container"
             ref={progressRef}
             onMouseDown={handleInteractionStart}
             onTouchStart={handleInteractionStart}
-            style={{ 
-               cursor: isFinalMode ? 'not-allowed' : 'pointer',
-               opacity: isFinalMode ? 0.7 : 1,
-               pointerEvents: isFinalMode ? 'none' : 'auto'
+            style={{
+              cursor: isFinalMode ? 'not-allowed' : 'pointer',
+              opacity: isFinalMode ? 0.7 : 1,
+              pointerEvents: isFinalMode ? 'none' : 'auto'
             }}
           >
             <div className={`mfp-progress-fill ${isFinalMode ? 'mfp-final-active' : ''}`} style={{ width: `${displayProgress}%` }}></div>
@@ -244,8 +244,8 @@ const MobileFullPlayer = ({ isOpen, onClose }: MobileFullPlayerProps) => {
         </div>
 
         <div className="mfp-main-controls">
-          <button 
-            className={`mfp-secondary-ctrl ${isShuffle ? 'active' : ''}`} 
+          <button
+            className={`mfp-secondary-ctrl ${isShuffle ? 'active' : ''}`}
             onClick={toggleShuffle}
             disabled={isFinalMode}
             style={{ opacity: isFinalMode ? 0.2 : 1, cursor: isFinalMode ? 'not-allowed' : 'pointer' }}
@@ -253,17 +253,17 @@ const MobileFullPlayer = ({ isOpen, onClose }: MobileFullPlayerProps) => {
             <Shuffle size={24} />
           </button>
 
-          <button 
-            className="mfp-secondary-ctrl" 
+          <button
+            className="mfp-secondary-ctrl"
             onClick={playPrevious}
             disabled={isFinalMode}
             style={{ opacity: isFinalMode ? 0.2 : 1, cursor: isFinalMode ? 'not-allowed' : 'pointer' }}
           >
             <SkipBack size={32} fill="currentColor" />
           </button>
-          
-          <div 
-            className={`mfp-play-pause-btn ${isFinalMode ? 'mfp-final-active' : ''}`} 
+
+          <div
+            className={`mfp-play-pause-btn ${isFinalMode ? 'mfp-final-active' : ''}`}
             onClick={togglePlay}
           >
             {!isLoaded && !isFinalMode ? (
@@ -275,8 +275,8 @@ const MobileFullPlayer = ({ isOpen, onClose }: MobileFullPlayerProps) => {
             )}
           </div>
 
-          <button 
-            className="mfp-secondary-ctrl" 
+          <button
+            className="mfp-secondary-ctrl"
             onClick={playNext}
             disabled={isFinalMode}
             style={{ opacity: isFinalMode ? 0.2 : 1, cursor: isFinalMode ? 'not-allowed' : 'pointer' }}
@@ -284,8 +284,8 @@ const MobileFullPlayer = ({ isOpen, onClose }: MobileFullPlayerProps) => {
             <SkipForward size={32} fill="currentColor" />
           </button>
 
-          <button 
-            className={`mfp-secondary-ctrl ${isRepeat ? 'active' : ''}`} 
+          <button
+            className={`mfp-secondary-ctrl ${isRepeat ? 'active' : ''}`}
             onClick={toggleRepeat}
             disabled={isFinalMode}
             style={{ opacity: isFinalMode ? 0.2 : 1, cursor: isFinalMode ? 'not-allowed' : 'pointer' }}
@@ -296,12 +296,12 @@ const MobileFullPlayer = ({ isOpen, onClose }: MobileFullPlayerProps) => {
           {/* New Volume Section for Landscape */}
           <div className="mfp-landscape-volume">
             <Tally3 size={18} className="mfp-volume-icon" />
-            <input 
-              type="range" 
-              min="0" 
-              max="1" 
-              step="0.01" 
-              value={volume} 
+            <input
+              type="range"
+              min="0"
+              max="1"
+              step="0.01"
+              value={volume}
               onChange={(e) => setVolume(parseFloat(e.target.value))}
               className="mfp-volume-slider"
             />
@@ -314,10 +314,10 @@ const MobileFullPlayer = ({ isOpen, onClose }: MobileFullPlayerProps) => {
             <span>Final Mode</span>
           </div>
           <label className="mfp-switch">
-            <input 
-              type="checkbox" 
-              checked={isFinalMode} 
-              onChange={toggleFinalMode} 
+            <input
+              type="checkbox"
+              checked={isFinalMode}
+              onChange={toggleFinalMode}
               disabled={!!activeMode}
             />
             <span className="mfp-slider mfp-round"></span>
@@ -335,17 +335,17 @@ const MobileFullPlayer = ({ isOpen, onClose }: MobileFullPlayerProps) => {
               </div>
               <button className="mfp-close-btn" onClick={handleToggleSpeed}><X size={20} /></button>
             </div>
-            <SpeedSelector 
-              currentBpm={bpm} 
-              onSelect={(val) => { setBpm(val); }} 
-              onClose={handleToggleSpeed} 
+            <SpeedSelector
+              currentBpm={bpm}
+              onSelect={(val) => { setBpm(val); }}
+              onClose={handleToggleSpeed}
               isFinalMode={isFinalMode}
             />
           </div>
         </div>
       )}
 
-      <ConfirmModal 
+      <ConfirmModal
         isOpen={authPrompt.isOpen}
         title="Authentication Required"
         message={`Please log in with Telegram to ${authPrompt.action} and sync your studio data.`}
@@ -502,6 +502,7 @@ const MobileFullPlayer = ({ isOpen, onClose }: MobileFullPlayerProps) => {
           }
 
           /* Final Mode: bottom right */
+          /* Final Mode: bottom right */
           .mfp-practice-mode { 
             display: flex !important;
             position: fixed;
@@ -514,6 +515,10 @@ const MobileFullPlayer = ({ isOpen, onClose }: MobileFullPlayerProps) => {
             border: 1px solid rgba(255,255,255,0.1) !important;
           }
           .mfp-practice-info span { font-size: 11px; }
+        }
+
+        .mfp-practice-mode {
+          transform: translateY(-3mm);
         }
         
         /* Volume section is hidden in portrait */

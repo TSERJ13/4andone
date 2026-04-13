@@ -50,11 +50,6 @@ const FavoritesPage = () => {
 
       {likedTracks.length > 0 ? (
         <>
-          <div className="actions">
-            <button className="play-btn-large" onClick={handlePlayAll}>
-              <Play fill="currentColor" size={24} />
-            </button>
-          </div>
 
           <div className="tracks-list">
             {likedTracks.map((track, i) => (
@@ -131,7 +126,7 @@ const FavoritesPage = () => {
         .favorites-page { padding: 40px; padding-bottom: 120px; }
         .page-header { display: flex; align-items: flex-end; gap: 32px; margin-bottom: 40px; }
         .icon-large { 
-          width: 232px; height: 232px; border-radius: 20px; 
+          width: 180px; height: 180px; border-radius: 20px; 
           background: linear-gradient(135deg, var(--primary, #1db954), #191414);
           display: flex; align-items: center; justify-content: center;
           flex-shrink: 0;
@@ -143,7 +138,7 @@ const FavoritesPage = () => {
         .title { font-size: 5rem; font-weight: 950; margin: 0; letter-spacing: -2px; line-height: 1; }
         .stats { font-size: 14px; font-weight: 600; color: #71717a; }
         
-        .actions { display: flex; align-items: center; height: 100px; }
+
         .play-btn-large { 
           width: 56px; height: 56px; border-radius: 50%; background: var(--primary, #1db954); 
           color: black; display: flex; align-items: center; justify-content: center; 
@@ -168,11 +163,14 @@ const FavoritesPage = () => {
         .empty-state p { max-width: 300px; line-height: 1.5; font-size: 14px; }
 
         @media (max-width: 768px) {
-          .favorites-page { padding: 0; padding-bottom: 20px; }
-          .page-header { flex-direction: column; align-items: center; text-align: center; gap: 24px; margin-top: 20px; padding: 0 16px; }
-          .icon-large { width: 140px; height: 140px; border-radius: 20px; }
-          .title { font-size: 2.2rem; letter-spacing: -1px; }
-          .actions { justify-content: center; height: 80px; }
+          .favorites-page { padding: 12px; padding-bottom: 20px; }
+          .page-header { flex-direction: row; align-items: center; text-align: left; gap: 16px; margin-top: 20px; margin-bottom: 24px; }
+          .icon-large { width: 100px; height: 100px; border-radius: 12px; }
+          .title { font-size: 24px; font-weight: 900; letter-spacing: -0.5px; }
+          .head-content { gap: 2px; }
+          .head-content .label { font-size: 9px; }
+          .head-content .stats { font-size: 11px; }
+          .actions { display: none; }
         }
       `}</style>
     </div>

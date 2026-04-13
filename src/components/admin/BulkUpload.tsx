@@ -476,6 +476,16 @@ const BulkUpload = () => {
                     ))}
                   </select>
                </div>
+               
+               <button 
+                 type="button" 
+                 className="btn-apply-batch" 
+                 onClick={applyBatchMetadata}
+                 disabled={files.length === 0}
+               >
+                 <CheckCircle2 size={16} />
+                 <span>Apply to all Tracks</span>
+               </button>
             </div>
           </div>
 
@@ -661,13 +671,17 @@ const BulkUpload = () => {
         }
         .batch-tag-pill.active { background: var(--tag-color); color: black; border-color: transparent; }
 
-        .batch-actions-side { display: flex; flex-direction: column; gap: 16px; justify-content: center; }
-        .btn-apply { 
-          height: 44px; padding: 0 24px; border-radius: 12px; font-size: 13px; 
-          font-weight: 900; background: #1db954; color: black; border: none;
-          white-space: nowrap; cursor: pointer; transition: transform 0.2s;
+        .batch-actions-side { display: flex; flex-direction: column; gap: 16px; justify-content: center; align-items: flex-end; }
+        .btn-apply-batch { 
+          display: flex; align-items: center; gap: 8px;
+          height: 48px; padding: 0 24px; border-radius: 12px; font-size: 13px; 
+          font-weight: 950; background: #1db954; color: black; border: none;
+          white-space: nowrap; cursor: pointer; transition: all 0.2s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+          box-shadow: 0 4px 12px rgba(29, 185, 84, 0.2);
         }
-        .btn-apply:hover { transform: translateY(-1px); background: #1ed760; }
+        .btn-apply-batch:hover:not(:disabled) { transform: translateY(-2px); background: #1ed760; box-shadow: 0 6px 16px rgba(29, 185, 84, 0.3); }
+        .btn-apply-batch:active:not(:disabled) { transform: translateY(0); }
+        .btn-apply-batch:disabled { opacity: 0.3; cursor: not-allowed; filter: grayscale(1); }
         
         .batch-cover-side { display: flex; flex-direction: column; gap: 8px; align-items: center; }
         .batch-dest-label { font-size: 10px; font-weight: 900; color: #52525b; text-transform: uppercase; }

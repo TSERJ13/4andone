@@ -24,6 +24,7 @@ import {
   ListMusic,
   Music2
 } from 'lucide-react';
+import { Marquee } from '@/components/layout/Marquee';
 import { useAudio } from '@/components/audio/AudioProvider';
 import { useStudio } from '@/components/admin/StudioProvider';
 import { useAuth } from '@/context/AuthContext';
@@ -52,6 +53,25 @@ export default function DesktopFullPlayer({ onClose }: { onClose: () => void }) 
   const [isDragging, setIsDragging] = useState(false);
   const [dragProgress, setDragProgress] = useState(0);
   const progressRef = useRef<HTMLDivElement>(null);
+  const speedPopoverRef = useRef<HTMLDivElement>(null);
+
+  // Click outside to close speed selector
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (speedPopoverRef.current && !speedPopoverRef.current.contains(event.target as Node)) {
+        // Also check if we didn't click the trigger button
+        const trigger = document.querySelector('.gauge-trigger-v19');
+        if (trigger && trigger.contains(event.target as Node)) return;
+        
+        setShowSpeed(false);
+      }
+    };
+
+    if (showSpeed) {
+      document.addEventListener('mousedown', handleClickOutside);
+    }
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, [showSpeed]);
 
   useEffect(() => {
     setMounted(true);
@@ -178,7 +198,7 @@ export default function DesktopFullPlayer({ onClose }: { onClose: () => void }) 
   if (!mounted) return null;
 
   return createPortal(
-    <div className="desktop-player-overlay animate-fade-in" style={{ zIndex: 9999, background: '#121212' }}>
+    <div className={`desktop-player-overlay animate-fade-in ${isFinalMode ? 'final-active' : ''}`} style={{ zIndex: 9999, background: '#121212' }}>
       <div className="dp-console-wrapper">
         <main className="dp-player-console">
           <div className="console-body">
@@ -216,24 +236,31 @@ export default function DesktopFullPlayer({ onClose }: { onClose: () => void }) 
                     </div>
                     
                     {/* Speed Selector - Improved Proximity V19 */}
-                    <div className="relative">
-                       <button className={`console-action-btn-v13 ${showSpeed ? 'active' : ''}`} onClick={() => setShowSpeed(!showSpeed)}>
-                          <Gauge size={36} />
-                       </button>
+                       <div className="relative">
+                          <button 
+                            className={`console-action-btn-v13 gauge-trigger-v19 ${showSpeed ? 'active' : ''}`} 
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setShowSpeed(!showSpeed);
+                            }}
+                          >
+                             <Gauge size={36} />
+                          </button>
 
-                       {showSpeed && (
-                         <div className="speed-popover-v17 animate-in">
-                            <SpeedSelector 
-                              currentBpm={bpm} 
-                              onSelect={val => { setBpm(val); setShowSpeed(false); }} 
-                              onClose={() => setShowSpeed(false)} 
-                            />
-                         </div>
-                       )}
-                    </div>
+                          {showSpeed && (
+                            <div className="speed-popover-v17 animate-in" ref={speedPopoverRef} onClick={(e) => e.stopPropagation()}>
+                               <SpeedSelector 
+                                 currentBpm={bpm} 
+                                 onSelect={val => setBpm(val)} 
+                                 onClose={() => setShowSpeed(false)} 
+                                 isFinalMode={isFinalMode}
+                               />
+                            </div>
+                          )}
+                       </div>
                  </div>
                 
-                <div className="bpm-pill glass mt-8">
+                <div className="bpm-pill glass mt-8" style={isFinalMode ? { color: '#ef4444', borderColor: 'rgba(239, 68, 68, 0.3)' } : {}}>
                   {currentTrack?.style} • {currentTrack?.bpm} BPM
                 </div>
              </div>
@@ -355,7 +382,13 @@ export default function DesktopFullPlayer({ onClose }: { onClose: () => void }) 
                           >
                             <span className="queue-idx">{(i + 1).toString().padStart(2, '0')}</span>
                             <div className="queue-blob">
-                              <span className="track-name truncate">{t.title}</span>
+                              {isActive ? (
+                                <div className="queue-marquee-wrap">
+                                  <Marquee text={t.title} speed={45} isActive={true} className="track-name-marquee" />
+                                </div>
+                              ) : (
+                                <span className="track-name truncate">{t.title}</span>
+                              )}
                               <div className="artist-badge-row">
                                 <span className="track-origin truncate">{t.artist}</span>
                                 {styles.find(s => s.title.toLowerCase() === t.style?.toLowerCase()) && (
@@ -486,7 +519,13 @@ export default function DesktopFullPlayer({ onClose }: { onClose: () => void }) 
                     >
                       <span className="track-idx-pro">{(i + 1).toString().padStart(2, '0')}</span>
                       <div className="track-blob">
-                        <span className="track-name truncate">{t.title}</span>
+                        {t.title === title ? (
+                          <div className="track-marquee-wrap">
+                            <Marquee text={t.title} speed={45} isActive={true} className="track-name-marquee" />
+                          </div>
+                        ) : (
+                          <span className="track-name truncate">{t.title}</span>
+                        )}
                         <div className="artist-badge-row">
                           <span className="track-origin truncate">{t.artist}</span>
                           {styles.find(s => s.title.toLowerCase() === t.style?.toLowerCase()) && (
@@ -548,7 +587,30 @@ export default function DesktopFullPlayer({ onClose }: { onClose: () => void }) 
           flex-direction: column;
           height: 100%;
           justify-content: center;
-          transform: translateY(-30px);
+          transform: translateY(-6%); /* Raised total 6% per user request */
+        }
+               @media (max-height: 950px) {
+          .console-body { gap: 32px !important; }
+          .metadata-stage { transform: scale(0.95); }
+        }
+
+        @media (max-height: 850px) {
+          .dp-player-console { transform: scale(0.9) translateY(-6%); transform-origin: left center; }
+          .console-body { gap: 24px !important; }
+          .metadata-stage { transform: scale(0.9); margin-top: -10px; }
+          .transport-section { margin-top: 10px; }
+        }
+        
+        @media (max-height: 750px) {
+          .dp-player-console { transform: scale(0.85) translateY(-6%); transform-origin: left center; }
+          .console-body { gap: 16px !important; }
+          .metadata-stage { transform: scale(0.85); margin-top: -20px; }
+          .transport-section { margin-top: 0; }
+        }
+
+        @media (max-height: 680px) {
+          .dp-player-console { transform: scale(0.75) translateY(-6%); transform-origin: left center; }
+          .console-header-v3 { margin-bottom: 0 !important; }
         }
 
         .console-body { 
@@ -578,6 +640,16 @@ export default function DesktopFullPlayer({ onClose }: { onClose: () => void }) 
 
         @media (max-width: 1360px) {
           .vinyl-disc-v8 { width: 220px; height: 220px; }
+        }
+        
+        @media (max-height: 900px) {
+          .vinyl-disc-v8 { width: 180px; height: 180px; }
+          .timeline-strip-pro-v13 { transform: translateY(0) !important; margin-bottom: 0px !important; }
+        }
+        
+        @media (max-height: 800px) {
+          .vinyl-disc-v8 { width: 140px; height: 140px; }
+          .timeline-strip-pro-v13 { transform: translateY(-16px) !important; scale: 0.8; }
         }
 
         .disc-inner-glow-v8 {
@@ -723,8 +795,9 @@ export default function DesktopFullPlayer({ onClose }: { onClose: () => void }) 
           align-items: center; 
           gap: 24px; 
           width: 740px; 
+          bottom: calc(80px + 24px + env(safe-area-inset-bottom));
           margin-bottom: 32px; 
-          transform: translateY(-32px); 
+          transform: translateY(0); 
         }
 
         @media (max-width: 1360px) {
@@ -903,10 +976,14 @@ export default function DesktopFullPlayer({ onClose }: { onClose: () => void }) 
           color: white; /* Changed from green to white for better contrast */
         }
         .track-idx-pro { font-weight: 900; opacity: 0.15; font-size: 11.4px; width: 24px; }
-        .track-blob { flex: 1; display: flex; flex-direction: column; }
-        .track-name { font-weight: 900; font-size: 13.3px; }
-        .track-origin { font-size: 10.45px; opacity: 0.4; text-transform: uppercase; font-weight: 700; }
-        .track-tag-pro { font-weight: 900; font-size: 9.5px; opacity: 0.3; }
+        .track-blob { flex: 1; min-width: 0; display: flex; flex-direction: column; overflow: hidden; }
+        .track-name { font-weight: 900; font-size: 13.3px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; display: block; }
+        .queue-marquee-wrap, .track-marquee-wrap { width: 100%; overflow: hidden; height: 1.2em; display: flex; align-items: center; }
+        .track-name-marquee { font-weight: 900 !important; font-size: 13.3px; color: inherit; width: 100%; }
+        .track-name-marquee :global(.marquee-text) { font-weight: 900 !important; display: inline-block; }
+        .track-origin { font-size: 10.45px; opacity: 0.4; text-transform: uppercase; font-weight: 700; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+        .track-tag-pro { font-weight: 900; font-size: 9.5px; opacity: 0.3; flex-shrink: 0; }
+        .track-name-marquee :global(.marquee-content) { font-weight: 900 !important; }
 
         .deck-spinner { width: 24px; height: 24px; border: 3px solid rgba(0,0,0,0.1); border-top: 3px solid black; border-radius: 50%; animation: spin 1s linear infinite; }
         @keyframes smooth-spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }

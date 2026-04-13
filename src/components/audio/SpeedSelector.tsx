@@ -8,9 +8,10 @@ interface SpeedSelectorProps {
   onSelect: (bpm: number, persistent?: boolean) => void;
   onClose: () => void;
   onDragStateChange?: (isDragging: boolean) => void;
+  isFinalMode?: boolean;
 }
 
-const SpeedSelector: React.FC<SpeedSelectorProps> = React.memo(({ currentBpm, onSelect, onClose, onDragStateChange }) => {
+const SpeedSelector: React.FC<SpeedSelectorProps> = React.memo(({ currentBpm, onSelect, onClose, onDragStateChange, isFinalMode }) => {
   // OPTIMIZATION: Use local state for immediate slider feedback to avoid iPad lag
   const [localBpm, setLocalBpm] = React.useState(currentBpm);
   const displayRef = React.useRef<HTMLSpanElement>(null);
@@ -107,6 +108,7 @@ const SpeedSelector: React.FC<SpeedSelectorProps> = React.memo(({ currentBpm, on
         .speed-container {
           width: 100%;
           padding: 8px 0;
+          --accent: ${isFinalMode ? '#ef4444' : 'var(--primary, #1db954)'};
         }
 
         .speed-header {
@@ -119,7 +121,7 @@ const SpeedSelector: React.FC<SpeedSelectorProps> = React.memo(({ currentBpm, on
         .current-display {
           font-size: 24px;
           font-weight: 900;
-          color: var(--primary);
+          color: var(--accent);
           letter-spacing: -1px;
         }
 
@@ -132,7 +134,7 @@ const SpeedSelector: React.FC<SpeedSelectorProps> = React.memo(({ currentBpm, on
           opacity: 0.6;
           transition: all 0.2s;
         }
-        .reset-btn:hover { opacity: 1; color: var(--primary); }
+        .reset-btn:hover { opacity: 1; color: var(--accent); }
 
         .slider-wrapper {
           display: flex;
@@ -154,7 +156,7 @@ const SpeedSelector: React.FC<SpeedSelectorProps> = React.memo(({ currentBpm, on
         }
 
         .adjust-btn:active { transform: scale(0.9); }
-        .adjust-btn:hover { background: rgba(255, 255, 255, 0.1); border-color: var(--primary); color: var(--primary); }
+        .adjust-btn:hover { background: rgba(255, 255, 255, 0.1); border-color: var(--accent); color: var(--accent); }
 
         .speed-slider {
           flex: 1;
@@ -170,7 +172,7 @@ const SpeedSelector: React.FC<SpeedSelectorProps> = React.memo(({ currentBpm, on
           width: 24px;
           height: 24px;
           border-radius: 50%;
-          background: var(--primary);
+          background: var(--accent);
           cursor: pointer;
           border: 4px solid #121212;
           box-shadow: 0 0 10px rgba(0,0,0,0.5);

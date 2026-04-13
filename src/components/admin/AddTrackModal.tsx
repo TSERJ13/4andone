@@ -9,12 +9,12 @@ import { useStudio } from './StudioProvider';
 interface AddTrackModalProps {
   isOpen: boolean;
   onClose: () => void;
-  onAdd: (track: any) => void;
+  onAdd: (track: any) => Promise<void> | void;
   initialData?: any;
 }
 
 const AddTrackModal = ({ isOpen, onClose, onAdd, initialData }: AddTrackModalProps) => {
-  const { styles, tags } = useStudio();
+  const { styles, tags, refreshData } = useStudio();
   
   const [formData, setFormData] = useState({
     title: initialData?.title || '',
@@ -235,8 +235,8 @@ const AddTrackModal = ({ isOpen, onClose, onAdd, initialData }: AddTrackModalPro
          }
       }
 
-      // 3. Save Metadata to Supabase
-      onAdd({ 
+      // Save Metadata to Supabase
+      await onAdd({ 
         ...formData,
         tags: formData.isClosed 
           ? [...formData.tags.filter((t: string) => t.toLowerCase() !== 'closed' && t !== 'დახურული'), 'Closed']
@@ -247,6 +247,9 @@ const AddTrackModal = ({ isOpen, onClose, onAdd, initialData }: AddTrackModalPro
         duration,
         date: initialData?.date || new Date().toISOString().split('T')[0] 
       });
+      
+      // Force refresh data to ensure consistency with DB
+      await refreshData();
 
       setIsSuccess(true);
       setTimeout(() => {

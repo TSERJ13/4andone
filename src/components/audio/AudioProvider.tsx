@@ -224,12 +224,22 @@ export const AudioProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       document.removeEventListener('mousedown', unlockAudio);
     };
 
-    document.addEventListener('touchstart', unlockAudio);
-    document.addEventListener('mousedown', unlockAudio);
+    // PWA Resume Support
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === 'visible') {
+        // App backgrounding/foregrounding can pause heartbeat on some iOS versions
+        if (heartbeatRef.current && heartbeatRef.current.paused && isPlayingRef.current) {
+          heartbeatRef.current.play().catch(() => {});
+        }
+      }
+    };
+
+    document.addEventListener('visibilitychange', handleVisibilityChange);
 
     return () => {
       document.removeEventListener('touchstart', unlockAudio);
       document.removeEventListener('mousedown', unlockAudio);
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
     };
   }, []);
 

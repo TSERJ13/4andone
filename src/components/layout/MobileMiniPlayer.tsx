@@ -133,7 +133,7 @@ const MobileMiniPlayer = ({ onExpand }: { onExpand: () => void }) => {
       <style jsx>{`
         .mini-player-outer-wrapper {
           position: fixed;
-          bottom: calc(80px + 12px + env(safe-area-inset-bottom));
+          bottom: calc(96px + 12px + env(safe-area-inset-bottom));
           left: 12px;
           right: 12px;
           z-index: 1000;
@@ -175,7 +175,7 @@ const MobileMiniPlayer = ({ onExpand }: { onExpand: () => void }) => {
           align-items: center;
           justify-content: center;
           background: rgba(255,255,255,0.05);
-          color: var(--primary);
+          color: ${isFinalMode ? '#ef4444' : '#1db954'};
           overflow: hidden;
           border: 2px solid ${isFinalMode ? '#ef4444' : '#1db954'};
           box-shadow: 0 0 15px ${isFinalMode ? 'rgba(239, 68, 68, 0.4)' : 'rgba(29, 185, 84, 0.4)'};

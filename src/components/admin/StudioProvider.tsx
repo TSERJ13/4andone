@@ -59,9 +59,9 @@ interface StudioContextType {
   isLoading: boolean;
   
   // Tracks
-  addTrack: (track: Partial<Track>) => void;
-  removeTrack: (id: string) => void;
-  updateTrack: (id: string, updates: Partial<Track>) => void;
+  addTrack: (track: Partial<Track>) => Promise<Track | undefined>;
+  removeTrack: (id: string) => Promise<void>;
+  updateTrack: (id: string, updates: Partial<Track>) => Promise<void>;
   toggleFavorite: (id: string) => Promise<void>;
   
   // Folders
@@ -99,6 +99,7 @@ interface StudioContextType {
     totalPlaylists: number;
     activeUsers: number;
   };
+  refreshData: () => Promise<void>;
 }
 
 const DANCE_ORDER: Record<string, number> = {
@@ -129,60 +130,60 @@ export const StudioProvider: React.FC<{ children: React.ReactNode }> = ({ childr
   const [finalFolderTracksMap, setFinalFolderTracksMap] = useState<Record<string, string[]>>({}); // folderId -> [trackIds]
   const [isLoading, setIsLoading] = useState(true);
 
+  const fetchData = async () => {
+    setIsLoading(true);
+    try {
+      // 1. Fetch Global Tracks (Shared for now)
+      const { data: tracksData } = await supabase.from('tracks').select('*').order('created_at', { ascending: false });
+      
+      // 2. Fetch User Specific Collections
+      let foldersData = [];
+      let finalFoldersData = [];
+
+      if (isAuthenticated && user) {
+        const { data: fData } = await supabase.from('folders').select('*').eq('user_id', user.id).order('name');
+        if (fData) foldersData = fData;
+
+        const { data: ffData } = await supabase.from('final_folders').select('*').eq('user_id', user.id);
+        if (ffData) finalFoldersData = ffData;
+        
+        // Final Tracks Queue
+        const { data: ftData } = await supabase.from('final_tracks').select('track_id').eq('user_id', user.id);
+        if (ftData) {
+           const ftIds = ftData.map(f => f.track_id);
+           const ftTracks = tracksData?.filter(t => ftIds.includes(t.id)) || [];
+           setFinalTracks(ftTracks);
+        }
+      }
+
+      if (tracksData) {
+        setTracks(tracksData.map(t => ({
+          ...t,
+          audioUrl: t.audio_url,
+          artworkUrl: t.artwork_url,
+          folderId: t.folder_id,
+          globalOrder: t.global_order || 0,
+          duration: t.duration || 0,
+          isFavorite: t.is_favorite || false
+        })));
+      }
+
+      // Fetch Folders, Styles, Tags
+      setFolders(foldersData);
+      setFinalFolders(finalFoldersData);
+
+      const { data: stylesData } = await supabase.from('styles').select('*').order('order');
+      if (stylesData) setStyles(stylesData);
+
+      const { data: tagsData } = await supabase.from('tags').select('*').order('name');
+      if (tagsData) setTags(tagsData);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
   // Load from Supabase and Subscribe to Real-Time Updates
   useEffect(() => {
-    const fetchData = async () => {
-      setIsLoading(true);
-      try {
-        // 1. Fetch Global Tracks (Shared for now)
-        const { data: tracksData } = await supabase.from('tracks').select('*').order('created_at', { ascending: false });
-        
-        // 2. Fetch User Specific Collections
-        let foldersData = [];
-        let finalFoldersData = [];
-
-        if (isAuthenticated && user) {
-          const { data: fData } = await supabase.from('folders').select('*').eq('user_id', user.id).order('name');
-          if (fData) foldersData = fData;
-
-          const { data: ffData } = await supabase.from('final_folders').select('*').eq('user_id', user.id);
-          if (ffData) finalFoldersData = ffData;
-          
-          // Final Tracks Queue
-          const { data: ftData } = await supabase.from('final_tracks').select('track_id').eq('user_id', user.id);
-          if (ftData) {
-             const ftIds = ftData.map(f => f.track_id);
-             const ftTracks = tracksData?.filter(t => ftIds.includes(t.id)) || [];
-             setFinalTracks(ftTracks);
-          }
-        }
-
-        if (tracksData) {
-          setTracks(tracksData.map(t => ({
-            ...t,
-            audioUrl: t.audio_url,
-            artworkUrl: t.artwork_url,
-            folderId: t.folder_id,
-            globalOrder: t.global_order || 0,
-            duration: t.duration || 0,
-            isFavorite: t.is_favorite || false
-          })));
-        }
-
-        // Fetch Folders, Styles, Tags (same as before)
-        setFolders(foldersData);
-        setFinalFolders(finalFoldersData);
-
-        const { data: stylesData } = await supabase.from('styles').select('*').order('order');
-        if (stylesData) setStyles(stylesData);
-
-        const { data: tagsData } = await supabase.from('tags').select('*').order('name');
-        if (tagsData) setTags(tagsData);
-      } finally {
-        setIsLoading(false);
-      }
-    };
-
     fetchData();
 
     // Enable Real-Time Subscription
@@ -194,10 +195,29 @@ export const StudioProvider: React.FC<{ children: React.ReactNode }> = ({ childr
         (payload) => {
           if (payload.eventType === 'INSERT') {
             const nt = payload.new as any;
-            setTracks(prev => [{ ...nt, audioUrl: nt.audio_url, folderId: nt.folder_id }, ...prev]);
+            setTracks(prev => {
+              if (prev.some(t => t.id === nt.id)) return prev;
+              return [{ 
+                ...nt, 
+                audioUrl: nt.audio_url, 
+                artworkUrl: nt.artwork_url,
+                folderId: nt.folder_id,
+                duration: nt.duration || 0,
+                isFavorite: nt.is_favorite || false,
+                globalOrder: nt.global_order || 0
+              }, ...prev];
+            });
           } else if (payload.eventType === 'UPDATE') {
             const ut = payload.new as any;
-            setTracks(prev => prev.map(t => t.id === ut.id ? { ...ut, audioUrl: ut.audio_url, artworkUrl: ut.artwork_url, folderId: ut.folder_id, isFavorite: ut.is_favorite } : t));
+            setTracks(prev => prev.map(t => t.id === ut.id ? { 
+              ...ut, 
+              audioUrl: ut.audio_url, 
+              artworkUrl: ut.artwork_url, 
+              folderId: ut.folder_id, 
+              isFavorite: ut.is_favorite,
+              duration: ut.duration || 0,
+              globalOrder: ut.global_order || 0
+            } : t));
           } else if (payload.eventType === 'DELETE') {
             setTracks(prev => prev.filter(t => t.id !== payload.old.id));
           }
@@ -223,11 +243,15 @@ export const StudioProvider: React.FC<{ children: React.ReactNode }> = ({ childr
         tags: trackData.tags || [],
         duration: trackData.duration || 0,
         global_order: trackData.globalOrder || 0,
+        date: trackData.date || new Date().toISOString().split('T')[0]
       }])
       .select();
 
     if (error) {
-      console.error("[STUDIO-ERROR] addTrack failed:", error);
+      if (error.code === 'PGRST204') {
+        console.error("[STUDIO-ERROR] Schema mismatch! artwork_url column might be missing from 'tracks' table.");
+      }
+      console.error("[STUDIO-ERROR] addTrack failed:", JSON.stringify(error, null, 2));
       throw error;
     }
 
@@ -254,30 +278,38 @@ export const StudioProvider: React.FC<{ children: React.ReactNode }> = ({ childr
 
   const removeTrack = async (id: string) => {
     const { error } = await supabase.from('tracks').delete().eq('id', id);
+    if (error) {
+      console.error("[STUDIO-ERROR] removeTrack failed:", JSON.stringify(error, null, 2));
+      throw error;
+    }
+    setTracks(prev => prev.filter(t => t.id !== id));
   };
 
   const updateTrack = async (id: string, updates: Partial<Track>) => {
-    const dbUpdates: any = { 
-      title: updates.title,
-      artist: updates.artist,
-      style: updates.style,
-      bpm: updates.bpm,
-      album: updates.album,
-      tags: updates.tags,
-      duration: updates.duration,
-      artwork_url: updates.artworkUrl
-    };
-    
-    if (updates.audioUrl !== undefined) dbUpdates.audio_url = updates.audioUrl;
-    if (updates.folderId !== undefined) dbUpdates.folder_id = updates.folderId;
-    if (updates.globalOrder !== undefined) dbUpdates.global_order = updates.globalOrder;
+    const { error } = await supabase
+      .from('tracks')
+      .update({
+        title: updates.title,
+        artist: updates.artist,
+        style: updates.style,
+        album: updates.album,
+        bpm: updates.bpm,
+        audio_url: updates.audioUrl,
+        artwork_url: updates.artworkUrl,
+        folder_id: updates.folderId,
+        tags: updates.tags,
+        duration: updates.duration,
+        global_order: updates.globalOrder,
+        is_favorite: updates.isFavorite,
+        date: updates.date
+      })
+      .eq('id', id);
 
-    Object.keys(dbUpdates).forEach(key => dbUpdates[key] === undefined && delete dbUpdates[key]);
-
-    const { error } = await supabase.from('tracks').update(dbUpdates).eq('id', id);
-    
     if (error) {
+      console.error("[STUDIO-ERROR] updateTrack failed:", JSON.stringify(error, null, 2));
+      throw error;
     }
+    setTracks(prev => prev.map(t => t.id === id ? { ...t, ...updates } : t));
   };
 
   const toggleFavorite = async (id: string) => {
@@ -519,7 +551,8 @@ export const StudioProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       addToFinal, removeFromFinal, reorderFinalTracks, setFinalTracks,
       reorderGlobalTracks, addTrackToFinalFolder, getTracksForFinalFolder,
       stats,
-      isLoading
+      isLoading,
+      refreshData: fetchData
     }}>
       {children}
     </StudioContext.Provider>

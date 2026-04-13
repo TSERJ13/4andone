@@ -352,13 +352,13 @@ const AdminLibrary = () => {
       <AddTrackModal 
         isOpen={isAddModalOpen}
         onClose={() => setIsAddModalOpen(false)}
-        onAdd={(newTrack) => {
+        onAdd={async (newTrack) => {
           if (selectedTrack) {
             // Updating existing (Repair)
-            updateTrack(selectedTrack.id, newTrack);
+            await updateTrack(selectedTrack.id, newTrack);
           } else {
             // Adding new
-            addTrack(newTrack);
+            await addTrack(newTrack);
           }
           showToast(selectedTrack ? `Repaired "${newTrack.title}"` : `Added "${newTrack.title}"`);
         }}

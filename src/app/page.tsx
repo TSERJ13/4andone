@@ -40,6 +40,15 @@ export default function Home() {
     onConfirm: () => { }
   });
 
+  const [visibleTrackCount, setVisibleTrackCount] = useState(25);
+
+  const newArrivals = React.useMemo(() => {
+    return tracks.filter(t =>
+      t.style?.toLowerCase() !== 'fitness' &&
+      !t.tags?.some(tag => tag.toLowerCase() === 'closed' || tag === 'დახურული')
+    );
+  }, [tracks]);
+
   const checkAuthAndExecute = (action: () => void, actionName: string) => {
     if (!isAuthenticated) {
       setInfoModal({
@@ -220,66 +229,75 @@ export default function Home() {
           <div className="tracks-list">
             {isLoading ? (
               Array(5).fill(0).map((_, i) => <SkeletonRow key={i} />)
-            ) : tracks.filter(t =>
-              t.style?.toLowerCase() !== 'fitness' &&
-              !t.tags?.some(tag => tag.toLowerCase() === 'closed' || tag === 'დახურული')
-            ).length > 0 ? tracks.filter(t =>
-              t.style?.toLowerCase() !== 'fitness' &&
-              !t.tags?.some(tag => tag.toLowerCase() === 'closed' || tag === 'დახურული')
-            ).slice(0, 10).map((track, i) => (
-              <div
-                key={track.id}
-                className={`track-row ${isPlaying && (playingTitle === track.title || playingTitle === track.id) ? 'is-active' : ''}`}
-                onClick={() => handlePlay(track)}
-              >
-                <div className="track-index">{i + 1}</div>
-                <div className="track-icon-col">
-                  <Disc size={18} />
-                </div>
-                <div className="track-info-col">
-                  <Marquee 
-                    text={track.title} 
-                    className="track-name" 
-                    isActive={isPlaying && (playingTitle === track.title || playingTitle === track.id)}
-                  />
-                  <div className="artist-badge-row">
-                    <p className="track-artist">{track.artist}</p>
-                    {styles.find(s => s.title.toLowerCase() === track.style?.toLowerCase()) && (
-                      <span 
-                        className="style-badge-pill" 
-                        style={{ backgroundColor: styles.find(s => s.title.toLowerCase() === track.style?.toLowerCase())?.color }}
-                      >
-                        {track.style}
-                      </span>
-                    )}
-                  </div>
-                </div>
-                
-                <div className="track-meta-col">
-                  {track.bpm ? `${getMPMFromBPM(Number(track.bpm), track.style)} BPM` : formatDuration(track.duration)}
-                </div>
-
-                <div className="track-actions-col">
-                  <button
-                    className={`fav-action ${track.isFavorite ? 'active-heart' : ''}`}
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      checkAuthAndExecute(() => toggleFavorite?.(track.id), 'favorite tracks');
-                    }}
-                    title="Like Song"
+            ) : newArrivals.length > 0 ? (
+              <>
+                {newArrivals.slice(0, visibleTrackCount).map((track, i) => (
+                  <div
+                    key={track.id}
+                    className={`track-row ${isPlaying && (playingTitle === track.title || playingTitle === track.id) ? 'is-active' : ''}`}
+                    onClick={() => handlePlay(track)}
                   >
-                    <Heart size={16} fill={track.isFavorite ? "#ff4b2b" : "none"} color={track.isFavorite ? "#ff4b2b" : "currentColor"} />
-                  </button>
-                  <div className="play-action">
-                    {isPlaying && (playingTitle === track.title || playingTitle === track.id) ? (
-                      <div className="playing-bars"><span></span><span></span><span></span></div>
-                    ) : (
-                      <Play size={18} fill="currentColor" />
-                    )}
+                    <div className="track-index">{i + 1}</div>
+                    <div className="track-icon-col">
+                      <Disc size={18} />
+                    </div>
+                    <div className="track-info-col">
+                      <Marquee 
+                        text={track.title} 
+                        className="track-name" 
+                        isActive={isPlaying && (playingTitle === track.title || playingTitle === track.id)}
+                      />
+                      <div className="artist-badge-row">
+                        <p className="track-artist">{track.artist}</p>
+                        {styles.find(s => s.title.toLowerCase() === track.style?.toLowerCase()) && (
+                          <span 
+                            className="style-badge-pill" 
+                            style={{ backgroundColor: styles.find(s => s.title.toLowerCase() === track.style?.toLowerCase())?.color }}
+                          >
+                            {track.style}
+                          </span>
+                        )}
+                      </div>
+                    </div>
+                    
+                    <div className="track-meta-col">
+                      {track.bpm ? `${getMPMFromBPM(Number(track.bpm), track.style)} BPM` : formatDuration(track.duration)}
+                    </div>
+
+                    <div className="track-actions-col">
+                      <button
+                        className={`fav-action ${track.isFavorite ? 'active-heart' : ''}`}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          checkAuthAndExecute(() => toggleFavorite?.(track.id), 'favorite tracks');
+                        }}
+                        title="Like Song"
+                      >
+                        <Heart size={16} fill={track.isFavorite ? "#ff4b2b" : "none"} color={track.isFavorite ? "#ff4b2b" : "currentColor"} />
+                      </button>
+                      <div className="play-action">
+                        {isPlaying && (playingTitle === track.title || playingTitle === track.id) ? (
+                          <div className="playing-bars"><span></span><span></span><span></span></div>
+                        ) : (
+                          <Play size={18} fill="currentColor" />
+                        )}
+                      </div>
+                    </div>
                   </div>
-                </div>
-              </div>
-            )) : (
+                ))}
+
+                {newArrivals.length > visibleTrackCount && (
+                  <div className="load-more-container">
+                    <button 
+                      className="load-more-btn glass" 
+                      onClick={() => setVisibleTrackCount(prev => prev + 25)}
+                    >
+                      Load More
+                    </button>
+                  </div>
+                )}
+              </>
+            ) : (
               <div className="empty-home-state glass">
                 <Music2 size={48} className="text-secondary" />
                 <p>Your studio library is currently empty.</p>
@@ -676,6 +694,35 @@ export default function Home() {
         }
 
         .text-secondary { color: var(--text-secondary); }
+
+        .load-more-container {
+          display: flex;
+          justify-content: center;
+          margin-top: 24px;
+          padding-bottom: 24px;
+        }
+
+        .load-more-btn {
+          padding: 12px 32px;
+          border-radius: 30px;
+          font-weight: 700;
+          font-size: 0.9rem;
+          color: rgba(255, 255, 255, 0.6);
+          border: 1px solid rgba(255, 255, 255, 0.1);
+          background: rgba(255, 255, 255, 0.05);
+          transition: all 0.2s ease;
+        }
+
+        .load-more-btn:hover {
+          color: white;
+          background: rgba(255, 255, 255, 0.1);
+          border-color: rgba(255, 255, 255, 0.2);
+          transform: translateY(-2px);
+        }
+
+        .load-more-btn:active {
+          transform: translateY(0);
+        }
 
         /* Skeletons */
         .skeleton { pointer-events: none; border-color: rgba(255,255,255,0.05) !important; }

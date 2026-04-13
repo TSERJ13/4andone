@@ -6,7 +6,10 @@ import AppLayout from "@/components/layout/AppLayout";
 import AnalyticsTracker from "@/components/analytics/AnalyticsTracker";
 import Script from "next/script";
 
-const inter = Inter({ subsets: ['latin'] });
+const inter = Inter({ 
+  subsets: ['latin'],
+  weight: ['400', '500', '600', '700', '800', '900'] 
+});
 
 export const metadata: Metadata = {
   title: "4and.one Music | Dancesport Player",
@@ -23,7 +26,13 @@ export const metadata: Metadata = {
     capable: true,
     statusBarStyle: "black-translucent",
     title: "4and.one Music",
+    startupImage: "/icon.png",
   },
+  other: {
+    "mobile-web-app-capable": "yes",
+    "apple-mobile-web-app-capable": "yes",
+    "apple-mobile-web-app-status-bar-style": "black-translucent",
+  }
 };
 
 export const viewport: Viewport = {
@@ -44,7 +53,7 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="ka" suppressHydrationWarning>
-      <body className={inter.className}>
+      <body className={inter.className} suppressHydrationWarning>
         <AuthProvider>
           <StudioProvider>
             <AudioProvider>
@@ -55,6 +64,19 @@ export default function RootLayout({
             </AudioProvider>
           </StudioProvider>
         </AuthProvider>
+        <Script
+          src="https://www.googletagmanager.com/gtag/js?id=G-YP8Z77FGX1"
+          strategy="afterInteractive"
+        />
+        <Script id="google-analytics" strategy="afterInteractive">
+          {`
+            window.dataLayer = window.dataLayer || [];
+            function gtag(){dataLayer.push(arguments);}
+            gtag('js', new Date());
+
+            gtag('config', 'G-YP8Z77FGX1');
+          `}
+        </Script>
         <Script
           src="https://telegram.org/js/telegram-web-app.js"
           strategy="beforeInteractive"

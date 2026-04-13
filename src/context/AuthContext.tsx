@@ -32,10 +32,17 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const syncWithSupabase = async (userData: TelegramUser) => {
     try {
+      // 1. Check if we already have a valid session to avoid redundant password sign-ins
+      const { data: { session } } = await supabase.auth.getSession();
+      
+      if (session && session.user.email === `tg_${userData.id}@4and.one`) {
+        return; // Session already active and matches
+      }
+
       const email = `tg_${userData.id}@4and.one`;
       const password = `tg_pass_${userData.id}_secure_99`; 
       
-      const { data, error } = await supabase.auth.signInWithPassword({
+      const { error } = await supabase.auth.signInWithPassword({
         email,
         password,
       });

@@ -161,14 +161,14 @@ const BulkUpload = () => {
           };
         });
 
-        // 3. Match Style
         const bestStyle = getStyleFromBPM(detectedBpm, staged.file.name);
 
         setFiles(current => current.map(f => f.id === staged.id ? {
           ...f,
           bpm: detectedBpm > 0 ? detectedBpm.toString() : f.bpm,
           duration: duration || f.duration, 
-          style: (bestStyle && bestStyle !== 'Samba') ? bestStyle : f.style,
+          // Only override if detected style is more specific than a generic default
+          style: (bestStyle && bestStyle !== '') ? bestStyle : f.style,
           isAnalyzing: false
         } : f));
 
@@ -356,12 +356,13 @@ const BulkUpload = () => {
         <>
           <div className="batch-header-bar glass">
             <div className="batch-main-meta">
+              {/* ROW 1: Album and Artist */}
               <div className="inputs-row">
                 <div className="meta-field">
                   <FolderPlus size={16} className="meta-icon" />
                   <input 
                     type="text" 
-                    placeholder="Album / Collection (Optional)" 
+                    placeholder="Collection / Album" 
                     value={batchAlbum}
                     onChange={(e) => setBatchAlbum(e.target.value)}
                   />
@@ -371,20 +372,24 @@ const BulkUpload = () => {
                     <User size={16} className="meta-icon" />
                     <input 
                       type="text" 
-                      placeholder="Artist (Optional)" 
+                      placeholder="Artist / Composer" 
                       value={batchArtist}
                       onChange={(e) => setBatchArtist(e.target.value)}
                     />
                   </div>
                   {recentArtists.length > 0 && (
                     <div className="recent-artists-suggestions">
-                      {recentArtists.slice(0, 6).map(a => (
+                      {recentArtists.slice(0, 10).map(a => (
                         <button type="button" key={a} className="artist-suggestion-chip" onClick={() => setBatchArtist(a)}>{a}</button>
                       ))}
                     </div>
                   )}
                 </div>
-                <div className="meta-field">
+              </div>
+
+              {/* ROW 2: Style and Apply to All */}
+              <div className="inputs-row">
+                <div className="meta-field style-flex">
                   <Layers size={16} className="meta-icon" />
                   <select 
                     className="meta-select"
@@ -410,8 +415,19 @@ const BulkUpload = () => {
                     )}
                   </select>
                 </div>
+                
+                <button 
+                  type="button" 
+                  className="btn-apply-batch-v2" 
+                  onClick={applyBatchMetadata}
+                  disabled={files.length === 0}
+                >
+                  <CheckCircle2 size={18} />
+                  <span>Apply All</span>
+                </button>
               </div>
 
+              {/* ROW 3: Tags */}
               <div className="batch-tags-row">
                  <div className="tags-label">
                    <TagIcon size={14} />
@@ -431,7 +447,6 @@ const BulkUpload = () => {
                         {tag.name}
                       </button>
                     ))}
-                   {!availableTags.length && <span className="no-tags">No tags defined in taxonomy</span>}
                  </div>
               </div>
             </div>
@@ -476,16 +491,6 @@ const BulkUpload = () => {
                     ))}
                   </select>
                </div>
-               
-               <button 
-                 type="button" 
-                 className="btn-apply-batch" 
-                 onClick={applyBatchMetadata}
-                 disabled={files.length === 0}
-               >
-                 <CheckCircle2 size={16} />
-                 <span>Apply to all Tracks</span>
-               </button>
             </div>
           </div>
 
@@ -671,17 +676,21 @@ const BulkUpload = () => {
         }
         .batch-tag-pill.active { background: var(--tag-color); color: black; border-color: transparent; }
 
-        .batch-actions-side { display: flex; flex-direction: column; gap: 16px; justify-content: center; align-items: flex-end; }
-        .btn-apply-batch { 
+        .btn-apply-batch-v2 { 
           display: flex; align-items: center; gap: 8px;
-          height: 48px; padding: 0 24px; border-radius: 12px; font-size: 13px; 
+          height: 44px; padding: 0 40px; border-radius: 12px; font-size: 14px; 
           font-weight: 950; background: #1db954; color: black; border: none;
           white-space: nowrap; cursor: pointer; transition: all 0.2s cubic-bezier(0.175, 0.885, 0.32, 1.275);
-          box-shadow: 0 4px 12px rgba(29, 185, 84, 0.2);
+          box-shadow: 0 4px 12px rgba(29, 185, 84, 0.15);
         }
-        .btn-apply-batch:hover:not(:disabled) { transform: translateY(-2px); background: #1ed760; box-shadow: 0 6px 16px rgba(29, 185, 84, 0.3); }
-        .btn-apply-batch:active:not(:disabled) { transform: translateY(0); }
-        .btn-apply-batch:disabled { opacity: 0.3; cursor: not-allowed; filter: grayscale(1); }
+        .btn-apply-batch-v2:hover:not(:disabled) { 
+          transform: translateY(-2px) scale(1.02); 
+          background: #1ed760; 
+          box-shadow: 0 8px 24px rgba(29, 185, 84, 0.3); 
+        }
+        .btn-apply-batch-v2:disabled { opacity: 0.1; cursor: not-allowed; filter: grayscale(1); }
+
+        .style-flex { flex: 1.5; }
         
         .batch-cover-side { display: flex; flex-direction: column; gap: 8px; align-items: center; }
         .batch-dest-label { font-size: 10px; font-weight: 900; color: #52525b; text-transform: uppercase; }

@@ -189,7 +189,7 @@ export function getStyleFromBPM(bpm: number, filename?: string): string {
       return style.name;
     }
   }
-  return 'Samba'; 
+  return ''; 
 }
 
 export function getMPMFromBPM(bpm: number, styleName: string): number {

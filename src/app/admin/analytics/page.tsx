@@ -58,6 +58,7 @@ export default function AdminAnalytics() {
   const [period, setPeriod] = useState<Period>('week');
   const [buckets, setBuckets] = useState<VisitBucket[]>([]);
   const [totals, setTotals] = useState({ today: 0, week: 0, month: 0, year: 0 });
+  const [uniqueTotals, setUniqueTotals] = useState({ today: 0, week: 0, month: 0, year: 0 });
   const [avgDuration, setAvgDuration] = useState(0);
   const [countries, setCountries] = useState<CountryStat[]>([]);
   const [tgUsers, setTgUsers] = useState<TelegramUser[]>([]);
@@ -74,12 +75,17 @@ export default function AdminAnalytics() {
       const monthStart = new Date(now); monthStart.setDate(1); monthStart.setHours(0,0,0,0);
       const yearStart = new Date(now); yearStart.setMonth(0,1); yearStart.setHours(0,0,0,0);
 
-      const [chartData, td, wk, mo, yr, durData, countryData, tgData, playData] = await Promise.all([
+      const [chartData, td, wk, mo, yr, utd, uwk, umo, uyr, durData, countryData, tgData, playData] = await Promise.all([
         supabase.from('page_visits').select('created_at').gte('created_at', start.toISOString()).order('created_at'),
         supabase.from('page_visits').select('id', { count:'exact', head:true }).gte('created_at', todayStart.toISOString()),
         supabase.from('page_visits').select('id', { count:'exact', head:true }).gte('created_at', weekStart.toISOString()),
         supabase.from('page_visits').select('id', { count:'exact', head:true }).gte('created_at', monthStart.toISOString()),
         supabase.from('page_visits').select('id', { count:'exact', head:true }).gte('created_at', yearStart.toISOString()),
+        // Unique sessions
+        supabase.from('page_visits').select('session_id', { count:'exact', head:true }).gte('created_at', todayStart.toISOString()),
+        supabase.from('page_visits').select('session_id', { count:'exact', head:true }).gte('created_at', weekStart.toISOString()),
+        supabase.from('page_visits').select('session_id', { count:'exact', head:true }).gte('created_at', monthStart.toISOString()),
+        supabase.from('page_visits').select('session_id', { count:'exact', head:true }).gte('created_at', yearStart.toISOString()),
         supabase.from('page_visits').select('duration_seconds').gt('duration_seconds', 0).gte('created_at', monthStart.toISOString()),
         supabase.from('page_visits').select('country_code,country_name').not('country_code','is',null).gte('created_at', yearStart.toISOString()),
         supabase.from('telegram_users').select('*').order('visit_count', { ascending: false }).limit(10),
@@ -99,6 +105,7 @@ export default function AdminAnalytics() {
 
       setBuckets(buildBuckets(chartData.data || [], period));
       setTotals({ today: td.count??0, week: wk.count??0, month: mo.count??0, year: yr.count??0 });
+      setUniqueTotals({ today: utd.count??0, week: uwk.count??0, month: umo.count??0, year: uyr.count??0 });
 
       // Avg duration in seconds
       const durations = (durData.data || []).map((d: any) => d.duration_seconds).filter(Boolean);
@@ -152,10 +159,10 @@ export default function AdminAnalytics() {
       {/* Summary strip */}
       <div className="summary-strip">
         {[
-          { label:'Today', value: totals.today, icon:<Calendar size={16}/> },
-          { label:'This Week', value: totals.week, icon:<TrendingUp size={16}/> },
-          { label:'This Month', value: totals.month, icon:<Users size={16}/> },
-          { label:'This Year', value: totals.year, icon:<BarChart3 size={16}/> },
+          { label:'Visits Today', value: totals.today, sub:`${uniqueTotals.today} unique`, icon:<Calendar size={16}/> },
+          { label:'This Week', value: totals.week, sub:`${uniqueTotals.week} unique`, icon:<TrendingUp size={16}/> },
+          { label:'This Month', value: totals.month, sub:`${uniqueTotals.month} unique`, icon:<Users size={16}/> },
+          { label:'This Year', value: totals.year, sub:`${uniqueTotals.year} unique`, icon:<BarChart3 size={16}/> },
           { label:'Avg Session', value: fmtDuration(avgDuration), icon:<Clock size={16}/>, isStr:true },
           { label:'TG Users', value: tgUsers.length, icon:<Users size={16}/>, color:'#1db954' },
         ].map(item => (
@@ -163,6 +170,7 @@ export default function AdminAnalytics() {
             <div className="sum-icon" style={{ color: item.color||'#1db954' }}>{item.icon}</div>
             <div className="sum-val">{loading ? '—' : (item as any).isStr ? item.value : Number(item.value).toLocaleString()}</div>
             <div className="sum-label">{item.label}</div>
+            {(item as any).sub && <div className="sum-sub">{(item as any).sub}</div>}
           </div>
         ))}
       </div>
@@ -329,6 +337,7 @@ export default function AdminAnalytics() {
         .sum-icon { width:28px; height:28px; display:flex; align-items:center; justify-content:center; }
         .sum-val { font-size:24px; font-weight:900; letter-spacing:-1px; line-height:1; }
         .sum-label { font-size:10px; font-weight:800; color:#52525b; text-transform:uppercase; letter-spacing:0.5px; }
+        .sum-sub { font-size:11px; font-weight:700; color:#1db954; margin-top:2px; }
 
         /* Chart */
         .chart-card { padding:28px; border-radius:24px; }

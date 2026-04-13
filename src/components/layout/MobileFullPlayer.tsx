@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState, useRef, useEffect, useCallback } from 'react';
+import { createPortal } from 'react-dom';
 import { 
   Play, 
   Pause, 
@@ -12,7 +13,9 @@ import {
   SkipForward,
   Shuffle,
   Repeat,
-  Heart
+  Heart,
+  Disc,
+  Tally3
 } from 'lucide-react';
 import { useAudio } from '@/components/audio/AudioProvider';
 import { useStudio } from '@/components/admin/StudioProvider';
@@ -38,8 +41,6 @@ const MobileFullPlayer = ({ isOpen, onClose }: MobileFullPlayerProps) => {
     artist,
     currentTime,
     duration,
-    isFinalMode,
-    toggleFinalMode,
     seek,
     playNext,
     playPrevious,
@@ -48,12 +49,18 @@ const MobileFullPlayer = ({ isOpen, onClose }: MobileFullPlayerProps) => {
     toggleShuffle,
     toggleRepeat,
     sessionDuration,
+    volume,
+    setVolume,
+    isFinalMode,
+    toggleFinalMode,
     sessionTracks,
     isPauseCountdown,
-    pauseTime
+    pauseTime,
+    loadTrack,
+    activeMode
   } = useAudio();
 
-  const { tracks, toggleFavorite } = useStudio();
+  const { tracks, styles, toggleFavorite } = useStudio();
   const { isAuthenticated, setIsAuthModalOpen } = useAuth();
 
   const [showSpeed, setShowSpeed] = useState(false);
@@ -133,7 +140,6 @@ const MobileFullPlayer = ({ isOpen, onClose }: MobileFullPlayerProps) => {
 
   if (!isOpen) return null;
 
-  // Determine the correct effective duration for the progress bar
   let activeDuration = duration;
   if (isFinalMode) {
     const isTrackInSession = sessionTracks && sessionTracks.some((t: any) => t.title === title);
@@ -141,7 +147,6 @@ const MobileFullPlayer = ({ isOpen, onClose }: MobileFullPlayerProps) => {
     if (sessionDuration > 0 && isTrackInSession) {
       activeDuration = sessionDuration;
     } else {
-      // Single track fallback logic (Not in a queue, but Final Mode is manually toggled)
       const lowerTitle = title?.toLowerCase() || '';
       const isPaso = lowerTitle.includes('paso');
       const isVW = lowerTitle.includes('viennese') || lowerTitle.includes('waltz') && lowerTitle.includes('v');
@@ -149,12 +154,12 @@ const MobileFullPlayer = ({ isOpen, onClose }: MobileFullPlayerProps) => {
     }
   }
 
-  const effectiveDuration = activeDuration;
-  const displayProgress = isDragging ? dragProgress : (currentTime / (effectiveDuration || 1)) * 100;
+  const totalDur = isFinalMode ? sessionDuration : duration;
+  const displayProgress = isDragging ? dragProgress : (currentTime / (totalDur || 1)) * 100;
+  const currentTrack = tracks.find(t => t.title === title);
 
-
-  return (
-    <div className="mfp-overlay animate-slide-up">
+  return createPortal(
+    <div className="mfp-overlay animate-slide-up" style={{ zIndex: 9999, background: '#121212' }}>
       <div className="mfp-header">
         <button onClick={onClose} className="mfp-header-btn"><ChevronDown size={32} /></button>
         <span className="mfp-now-playing-label">Now Playing</span>
@@ -162,22 +167,31 @@ const MobileFullPlayer = ({ isOpen, onClose }: MobileFullPlayerProps) => {
       </div>
 
       <div className="mfp-content">
-        <div className="mfp-album-art-container" style={{ position: 'relative' }}>
-          <div className={`mfp-disc-art glass ${isFinalMode ? 'mfp-final-active' : ''}`} style={isPlaying && !isFinalMode && !isPauseCountdown ? { animation: 'mfp-rotate 10s linear infinite' } : {}}>
-            <div className="mfp-disc-center"></div>
-          </div>
-          {isPauseCountdown && (
-            <div className="mfp-rest-timer">
-              {pauseTime}
-            </div>
-          )}
+        <div className="art-container">
+           <div 
+             className={`vinyl-disc-v8 ${isFinalMode ? 'final-active' : 'standard-active'}`} 
+             style={isPlaying && !isPauseCountdown ? { animation: 'spin 12s linear infinite' } : {}}
+           >
+              {currentTrack?.artworkUrl && (
+                <img src={currentTrack.artworkUrl} alt="Artwork" className="disc-art-img-v8" />
+              )}
+              <div className="disc-inner-glow-v8"></div>
+           </div>
+           {isPauseCountdown && (
+             <div className="countdown-ring-mobile">
+                <span className="count">{pauseTime}</span>
+                <span className="label">Next Round</span>
+             </div>
+           )}
         </div>
 
         <div className="mfp-track-meta">
           <div className="mfp-meta-top">
             <div className="mfp-header-btn-placeholder" />
             <div className="mfp-text-center">
-              <Marquee text={title} className="mfp-title" isActive={isPlaying} />
+              <div className="mfp-title-wrapper truncate">
+                {title}
+              </div>
               <p className="mfp-artist truncate">{artist}</p>
             </div>
             <button 
@@ -218,8 +232,8 @@ const MobileFullPlayer = ({ isOpen, onClose }: MobileFullPlayerProps) => {
             <div className={`mfp-progress-knob ${isDragging ? 'active' : ''} ${isFinalMode ? 'mfp-final-active' : ''}`} style={{ left: `${displayProgress}%` }}></div>
           </div>
           <div className="mfp-time-labels">
-            <span>{formatDuration(isDragging ? (dragProgress / 100) * (effectiveDuration || 0) : currentTime)}</span>
-            <span>{formatDuration(effectiveDuration)}</span>
+            <span>{formatDuration(isDragging ? (dragProgress / 100) * (totalDur || 0) : currentTime)}</span>
+            <span>{formatDuration(totalDur)}</span>
           </div>
         </div>
 
@@ -277,7 +291,12 @@ const MobileFullPlayer = ({ isOpen, onClose }: MobileFullPlayerProps) => {
             <span>Final Mode</span>
           </div>
           <label className="mfp-switch">
-            <input type="checkbox" checked={isFinalMode} onChange={toggleFinalMode} />
+            <input 
+              type="checkbox" 
+              checked={isFinalMode} 
+              onChange={toggleFinalMode} 
+              disabled={!!activeMode}
+            />
             <span className="mfp-slider mfp-round"></span>
           </label>
         </div>
@@ -314,7 +333,71 @@ const MobileFullPlayer = ({ isOpen, onClose }: MobileFullPlayerProps) => {
           setIsAuthModalOpen(true);
         }}
       />
-    </div>
+
+      <style jsx>{`
+        .art-container {
+          position: relative;
+          display: flex;
+          justify-content: center;
+          margin-bottom: 24px;
+        }
+
+        .vinyl-disc-v8 { 
+          width: 280px; 
+          height: 280px; 
+          border-radius: 50%; 
+          background: #121212; 
+          position: relative; 
+          box-shadow: 0 20px 60px rgba(0,0,0,0.6), inset 0 0 0 1px rgba(255,255,255,0.1); 
+          overflow: hidden; 
+          transition: all 0.5s cubic-bezier(0.16, 1, 0.3, 1);
+          border: 4px solid var(--accent);
+          --accent: #1db954;
+        }
+
+        .vinyl-disc-v8.final-active { --accent: #ef4444; border-color: #ef4444; box-shadow: 0 20px 60px rgba(0,0,0,0.6), inset 0 0 0 1px rgba(255,255,255,0.1); }
+        .vinyl-disc-v8.standard-active { border-color: #1db954; box-shadow: 0 20px 60px rgba(0,0,0,0.6), inset 0 0 0 1px rgba(255,255,255,0.1); }
+
+        .disc-inner-glow-v8 {
+          position: absolute;
+          inset: 0;
+          background: radial-gradient(circle at center, rgba(29, 185, 84, 0.3) 0%, transparent 70%);
+          z-index: 2;
+        }
+        .final-active .disc-inner-glow-v8 { background: radial-gradient(circle at center, rgba(239, 68, 68, 0.3) 0%, transparent 70%); }
+
+        .disc-art-img-v8 { width: 100%; height: 100%; object-fit: cover; opacity: 0.9; position: relative; z-index: 1; }
+        
+        .countdown-ring-mobile {
+          position: absolute;
+          inset: 0;
+          background: rgba(0,0,0,0.92);
+          border-radius: 50%;
+          display: flex;
+          flex-direction: column;
+          align-items: center;
+          justify-content: center;
+          z-index: 10;
+          backdrop-filter: blur(20px);
+          border: 2px solid var(--accent);
+          width: 280px;
+          height: 280px;
+          left: 50%;
+          transform: translateX(-50%);
+        }
+        .countdown-ring-mobile .count { font-size: 80px; font-weight: 900; color: var(--accent); }
+        .countdown-ring-mobile .label { font-size: 10px; font-weight: 900; text-transform: uppercase; letter-spacing: 5px; opacity: 0.3; }
+
+        .mfp-title-wrapper {
+          font-size: 22.8px;
+          font-weight: 800;
+          color: white;
+          text-align: center;
+          max-width: 80vw;
+        }
+      `}</style>
+    </div>,
+    document.body
   );
 };
 

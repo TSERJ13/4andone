@@ -23,9 +23,12 @@ const AddTrackModal = ({ isOpen, onClose, onAdd, initialData }: AddTrackModalPro
     tags: initialData?.tags || ([] as string[]),
     bpm: initialData?.bpm || '',
     album: initialData?.album || '',
+    artworkUrl: initialData?.artworkUrl || '',
     isClosed: initialData?.tags?.some((t: string) => t.toLowerCase() === 'closed' || t === 'დახურული') || false
   });
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
+  const [coverFile, setCoverFile] = useState<File | null>(null);
+  const [coverPreview, setCoverPreview] = useState<string | null>(initialData?.artworkUrl || null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [isStyleDropdownOpen, setIsStyleDropdownOpen] = useState(false);
@@ -33,6 +36,7 @@ const AddTrackModal = ({ isOpen, onClose, onAdd, initialData }: AddTrackModalPro
   const [mpm, setMpmState] = useState<string>('');
   const [validationError, setValidationError] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const coverInputRef = useRef<HTMLInputElement>(null);
   const dropdownRef = useRef<HTMLDivElement>(null);
 
   React.useEffect(() => {
@@ -45,8 +49,10 @@ const AddTrackModal = ({ isOpen, onClose, onAdd, initialData }: AddTrackModalPro
         tags: initialData.tags || [],
         bpm: initialData.bpm,
         album: initialData.album,
+        artworkUrl: initialData.artworkUrl || '',
         isClosed: initialData.tags?.some((t: string) => t.toLowerCase() === 'closed' || t === 'დახურული') || false
       });
+      setCoverPreview(initialData.artworkUrl || null);
       setMpmState(getMPMFromBPM(Number(initialData.bpm), initialData.style).toString());
     } else if (isOpen && !initialData) {
       setValidationError(null);
@@ -58,8 +64,11 @@ const AddTrackModal = ({ isOpen, onClose, onAdd, initialData }: AddTrackModalPro
         tags: [],
         bpm: '', 
         album: '',
+        artworkUrl: '',
         isClosed: false 
       });
+      setCoverPreview(null);
+      setCoverFile(null);
       setMpmState('');
     }
   }, [isOpen, initialData, styles]);
@@ -133,6 +142,14 @@ const AddTrackModal = ({ isOpen, onClose, onAdd, initialData }: AddTrackModalPro
     }
   };
 
+  const handleCoverChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (e.target.files && e.target.files[0]) {
+      const file = e.target.files[0];
+      setCoverFile(file);
+      setCoverPreview(URL.createObjectURL(file));
+    }
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setValidationError(null);
@@ -198,6 +215,25 @@ const AddTrackModal = ({ isOpen, onClose, onAdd, initialData }: AddTrackModalPro
           };
         });
       }
+      
+      let artworkUrl = formData.artworkUrl;
+      if (coverFile) {
+         // Upload Cover Image
+         const signRes = await fetch('/api/upload', {
+           method: 'POST',
+           headers: { 'Content-Type': 'application/json' },
+           body: JSON.stringify({
+             fileName: `covers/${Date.now()}_${coverFile.name}`,
+             fileType: coverFile.type || 'image/jpeg'
+           })
+         });
+         
+         if (signRes.ok) {
+           const { uploadUrl, publicUrl } = await signRes.json();
+           await fetch(uploadUrl, { method: 'PUT', body: coverFile, headers: { 'Content-Type': coverFile.type } });
+           artworkUrl = publicUrl;
+         }
+      }
 
       // 3. Save Metadata to Supabase
       onAdd({ 
@@ -206,6 +242,7 @@ const AddTrackModal = ({ isOpen, onClose, onAdd, initialData }: AddTrackModalPro
           ? [...formData.tags.filter((t: string) => t.toLowerCase() !== 'closed' && t !== 'დახურული'), 'Closed']
           : formData.tags.filter((t: string) => t.toLowerCase() !== 'closed' && t !== 'დახურული'),
         audioUrl,
+        artworkUrl,
         id: trackId, 
         duration,
         date: initialData?.date || new Date().toISOString().split('T')[0] 
@@ -280,15 +317,26 @@ const AddTrackModal = ({ isOpen, onClose, onAdd, initialData }: AddTrackModalPro
                 </div>
               </div>
 
-              <div className="form-group">
-                <label>Album (Optional)</label>
-                <div className="input-wrapper">
-                  <Globe size={16} />
-                  <input
-                    type="text"
-                    placeholder="e.g. Latin Gold"
-                    value={formData.album}
-                    onChange={e => setFormData({ ...formData, album: e.target.value })}
+              <div className="form-group album-cover-upload">
+                <label>Album Cover (Image)</label>
+                <div 
+                  className={`cover-upload-zone glass ${coverPreview ? 'has-preview' : ''}`}
+                  onClick={() => coverInputRef.current?.click()}
+                >
+                  {coverPreview ? (
+                    <img src={coverPreview} alt="Cover Preview" className="cover-img-preview" />
+                  ) : (
+                    <div className="empty-cover">
+                       <Plus size={20} />
+                       <span>Upload Cover</span>
+                    </div>
+                  )}
+                  <input 
+                    type="file" 
+                    ref={coverInputRef} 
+                    className="hidden" 
+                    accept="image/*" 
+                    onChange={handleCoverChange} 
                   />
                 </div>
               </div>
@@ -508,6 +556,45 @@ const AddTrackModal = ({ isOpen, onClose, onAdd, initialData }: AddTrackModalPro
           justify-content: center;
           z-index: 2000;
           padding: 20px;
+        }
+
+        .modal-content {
+          position: relative;
+        }
+
+        .cover-upload-zone {
+          height: 48px;
+          border-radius: 12px;
+          border: 1px solid rgba(255,255,255,0.08);
+          cursor: pointer;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          overflow: hidden;
+          background: rgba(255,255,255,0.02);
+          transition: all 0.2s;
+        }
+
+        .cover-upload-zone:hover {
+          background: rgba(255,255,255,0.05);
+          border-color: rgba(29, 185, 84, 0.3);
+        }
+
+        .cover-upload-zone.has-preview { border-color: #1db954; }
+
+        .cover-img-preview {
+          width: 100%;
+          height: 100%;
+          object-fit: cover;
+        }
+
+        .empty-cover {
+          display: flex;
+          align-items: center;
+          gap: 8px;
+          color: #71717a;
+          font-size: 13px;
+          font-weight: 700;
         }
 
         .modal-content {

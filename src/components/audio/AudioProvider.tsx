@@ -57,6 +57,19 @@ export const AudioProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   const [trackCurrentTime, setTrackCurrentTime] = useState(0); // For round-specific progress
   const [duration, setDuration] = useState(0);
   const [isLoaded, setIsLoaded] = useState(false);
+  // Silent Heartbeat for iOS PWA background support
+  const SILENT_TRACK = "data:audio/wav;base64,UklGRigAAABXQVZFZm10IBAAAAABAAEARKwAAIhYAQACABAAZGF0YQQAAAAAAA==";
+  const heartbeatAudioRef = useRef<HTMLAudioElement | null>(null);
+
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+        const audio = new Audio(SILENT_TRACK);
+        audio.loop = true;
+        audio.volume = 0.001;
+        heartbeatAudioRef.current = audio;
+    }
+  }, []);
+
   const [title, setTitle] = useState("No Track Selected");
   const [artist, setArtist] = useState("Upload or select a track");
   const [error, setError] = useState<string | null>(null);
@@ -96,6 +109,7 @@ export const AudioProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   const isShuffleRef = useRef(isShuffle);
   const bpmRef = useRef(bpm);
   const volumeRef = useRef(volume);
+  const activeModeRef = useRef(activeMode);
   const fadeStartedRef = useRef(false); // Guard: prevent multiple fade intervals
 
   useEffect(() => { isPlayingRef.current = isPlaying; }, [isPlaying]);
@@ -107,6 +121,7 @@ export const AudioProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   useEffect(() => { isFitnessRef.current = isFitness; }, [isFitness]);
   useEffect(() => { isRepeatRef.current = isRepeat; }, [isRepeat]);
   useEffect(() => { isShuffleRef.current = isShuffle; }, [isShuffle]);
+  useEffect(() => { activeModeRef.current = activeMode; }, [activeMode]);
   useEffect(() => { bpmRef.current = bpm; }, [bpm]);
   useEffect(() => { volumeRef.current = volume; }, [volume]);
 
@@ -114,29 +129,35 @@ export const AudioProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   // This ensures the total time is known immediately when sessionTracks changes,
   // preventing the "duration flicker" from one track's time to the full session time.
   useEffect(() => {
-    if (isFinalMode && sessionTracks.length > 0) {
-      const getLimitForTrack = (track: Track) => {
-        const style = track.style?.toLowerCase() || '';
-        if (style.includes('paso')) return track.duration || 210; // Standard Paso length approx
-        if (style.includes('viennese')) return 85;
-        return 105;
-      };
+    if (isFinalMode) {
+      if (sessionTracks.length > 0) {
+        const getLimitForTrack = (track: Track) => {
+          const style = track.style?.toLowerCase() || '';
+          if (style.includes('paso')) return track.duration || 210; 
+          return 105; // Standardized to 1:45 per user request
+        };
 
-      const total = sessionTracks.reduce((acc, t, idx) => {
-        if (!t) return acc;
-        const limit = getLimitForTrack(t);
-        const safeLimit = Number.isFinite(limit) && limit > 0 ? limit : 0;
-        const rest = (idx < sessionTracks.length - 1 && !isFitness) ? 15 : 0;
-        return acc + safeLimit + rest;
-      }, 0);
-      
-      const safeTotal = Number.isFinite(total) && total >= 0 ? total : 0;
-      setSessionDuration(safeTotal);
-    } else if (!isFinalMode) {
+        const total = sessionTracks.reduce((acc, t, idx) => {
+          if (!t) return acc;
+          const limit = getLimitForTrack(t);
+          const safeLimit = Number.isFinite(limit) && limit > 0 ? limit : 0;
+          const rest = (idx < sessionTracks.length - 1 && !isFitness) ? 15 : 0;
+          return acc + safeLimit + rest;
+        }, 0);
+        
+        const safeTotal = Number.isFinite(total) && total >= 0 ? total : 0;
+        setSessionDuration(safeTotal);
+      } else {
+        // Single track Final Mode logic
+        const style = playingTrackRef.current?.style?.toLowerCase() || '';
+        const limit = style.includes('paso') ? (duration || 210) : 105;
+        setSessionDuration(limit);
+      }
+    } else {
       const safeDur = Number.isFinite(duration) && duration >= 0 ? duration : 0;
       setSessionDuration(safeDur);
     }
-  }, [sessionTracks, isFinalMode, isFitness, duration]);
+  }, [sessionTracks, isFinalMode, isFitness, duration, title]);
 
   // Tab synchronization for audio control
   useEffect(() => {
@@ -415,8 +436,7 @@ export const AudioProvider: React.FC<{ children: React.ReactNode }> = ({ childre
             if (isFinalModeRef.current && !isPauseCountdownRef.current && isPlayingRef.current) {
               const style = playingTrackRef.current?.style?.toLowerCase() || '';
               const isPasoDoble = style.includes('paso');
-              const isViennese = style.includes('viennese');
-              const timeLimit = isPasoDoble ? Infinity : (isViennese ? 85 : 105);
+              const timeLimit = isPasoDoble ? Infinity : 105; // Standardized to 1:45
 
               // NATIVE FADE-OUT Logic (runs ONCE, 3 seconds before limit)
               if (audio && !isPasoDoble && !fadeStartedRef.current) {
@@ -447,25 +467,29 @@ export const AudioProvider: React.FC<{ children: React.ReactNode }> = ({ childre
                 // Guard: only trigger once
                 if (isPauseCountdownRef.current) return;
 
-                audio.onended = null; // Detach to prevent double firing
+                audio.onended = null;
                 audio.pause();
                 setIsPlaying(false);
                 isPlayingRef.current = false;
 
-                const currentIdx = sessionTracksRef.current.findIndex(t => t.id === trackIdRef.current || t.title === title);
-                const isLastTrack = currentIdx === sessionTracksRef.current.length - 1;
+                if (activeModeRef.current) {
+                  const currentIdx = sessionTracksRef.current.findIndex(t => t.id === trackIdRef.current || t.title === title);
+                  const isLastTrack = currentIdx === sessionTracksRef.current.length - 1;
 
-                if (isLastTrack) { 
-                  stop(); 
-                  return; 
+                  if (isLastTrack) { stop(); return; }
+                  if (isFitnessRef.current) { playNext(); return; }
+
+                  setIsPauseCountdown(true);
+                  isPauseCountdownRef.current = true;
+                  setPauseTime(15);
+                  pauseTimeRef.current = 15;
+                } else {
+                  // Regular Player Logic: Just Auto-Stop
+                  audio.pause();
+                  setIsPlaying(false);
+                  audio.currentTime = 0;
+                  setCurrentTime(0);
                 }
-                
-                if (isFitnessRef.current) { playNext(); return; }
-
-                setIsPauseCountdown(true);
-                isPauseCountdownRef.current = true;
-                setPauseTime(15);
-                pauseTimeRef.current = 15;
               }
             }
           };
@@ -482,12 +506,13 @@ export const AudioProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       try {
         const audio = await setupPlayer(finalUrl);
 
-        if (currentToken !== loadingTokenRef.current) {
-          audio.pause();
-          return;
+        playPromiseRef.current = audio.play();
+        
+        // Start heartbeat for iOS backgrounding
+        if (heartbeatAudioRef.current) {
+            heartbeatAudioRef.current.play().catch(() => {});
         }
 
-        playPromiseRef.current = audio.play();
         playPromiseRef.current.catch(e => {
         }).finally(() => {
           playPromiseRef.current = null;
@@ -506,10 +531,25 @@ export const AudioProvider: React.FC<{ children: React.ReactNode }> = ({ childre
           title: track.title,
           artist: track.artist,
           album: track.album || '4and.one Music',
-          artwork: [
+          artwork: track.artworkUrl ? [
+            { src: track.artworkUrl, sizes: '512x512', type: 'image/jpeg' },
+          ] : [
             { src: '/icons/icon-192x192.png', sizes: '192x192', type: 'image/png' },
             { src: '/icons/icon-512x512.png', sizes: '512x512', type: 'image/png' },
           ]
+        });
+
+        // ACTION HANDLERS: Crucial for background playback on iOS PWA
+        navigator.mediaSession.setActionHandler('play', () => { togglePlay(); });
+        navigator.mediaSession.setActionHandler('pause', () => { togglePlay(); });
+        navigator.mediaSession.setActionHandler('previoustrack', () => { playPrevious(); });
+        navigator.mediaSession.setActionHandler('nexttrack', () => { playNext(); });
+        
+        // Seek handlers
+        navigator.mediaSession.setActionHandler('seekto', (details) => {
+            if (details.seekTime !== undefined) {
+               seek(details.seekTime);
+            }
         });
       }
 
@@ -673,7 +713,7 @@ export const AudioProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         playPromiseRef.current = nativePlayerRef.current.play();
         playPromiseRef.current.catch(() => {}).finally(() => { playPromiseRef.current = null; });
       }
-      if (heartbeatRef.current) heartbeatRef.current.play().catch(() => {});
+      if (heartbeatAudioRef.current) heartbeatAudioRef.current.play().catch(() => {});
       if ('wakeLock' in navigator) {
         (navigator as any).wakeLock.request('screen').then((lock: any) => {
           wakeLockRef.current = lock;
@@ -768,8 +808,11 @@ export const AudioProvider: React.FC<{ children: React.ReactNode }> = ({ childre
 
   const stop = React.useCallback(() => {
     if (nativePlayerRef.current) {
-      nativePlayerRef.current.pause();
-      nativePlayerRef.current.src = '';
+        nativePlayerRef.current.pause();
+        nativePlayerRef.current.src = "";
+    }
+    if (heartbeatAudioRef.current) {
+        heartbeatAudioRef.current.pause();
     }
     setIsPlaying(false);
     setCurrentTime(0);

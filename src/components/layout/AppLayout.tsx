@@ -7,40 +7,60 @@ import MobileNav from "@/components/layout/MobileNav";
 import PlayerBar from "@/components/layout/PlayerBar";
 import { useAuth } from '@/context/AuthContext';
 import { useAudio } from '@/components/audio/AudioProvider';
-import { TelegramLogin } from '@/components/auth/TelegramLogin';
-import { User, LogOut, ShieldCheck } from 'lucide-react';
 import { useVisitTracker } from '@/hooks/useVisitTracker';
 import { AuthModal } from '@/components/auth/AuthModal';
 import MobileFullPlayer from './MobileFullPlayer';
+import DesktopFullPlayer from './DesktopFullPlayer';
 
 export default function AppLayout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const [mounted, setMounted] = useState(false);
+  const [isFullPlayerOpen, setIsFullPlayerOpen] = useState(false);
+  const [isDesktopExpanded, setIsDesktopExpanded] = useState(false);
+
+  // Hooks must ALWAYS be at the top level and in the same order
+  useVisitTracker(); // Track one visit per session
+  const { title } = useAudio();
+  const { isAuthModalOpen, setIsAuthModalOpen } = useAuth();
   
   useEffect(() => {
     setMounted(true);
   }, []);
 
-  const [isFullPlayerOpen, setIsFullPlayerOpen] = useState(false);
-
-  useVisitTracker(); // Track one visit per session
-
-  const { title } = useAudio();
-  const { isAuthModalOpen, setIsAuthModalOpen } = useAuth();
+  // Orientation/Resize-Aware State Synchronization - MUST be before conditional returns
+  useEffect(() => {
+    const handleResize = () => {
+      const isMobile = window.innerWidth <= 1024;
+      if (isMobile && isDesktopExpanded) {
+        setIsDesktopExpanded(false);
+        setIsFullPlayerOpen(true);
+      } else if (!isMobile && isFullPlayerOpen) {
+        setIsFullPlayerOpen(false);
+        setIsDesktopExpanded(true);
+      }
+    };
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, [isDesktopExpanded, isFullPlayerOpen]);
 
   const isNoLayout = pathname?.startsWith('/admin') || pathname === '/sa-login';
   const isPlayerActive = title !== "No Track Selected";
 
-  // Prevent hydration "jitter" - Restoring the beautiful loading sequence
   if (!mounted) {
     return <div className="layout-stabilizer" style={{ background: '#000', height: '100vh', width: '100vw' }} />;
   }
 
-  // Bypass public site layout for Admin pages
-  // This allows the Admin layout to take 100% width and manage its own sidebar
   if (isNoLayout) {
     return <>{children}</>;
   }
+
+  const handleExpand = () => {
+    if (window.innerWidth > 1024) {
+      setIsDesktopExpanded(!isDesktopExpanded);
+    } else {
+      setIsFullPlayerOpen(true);
+    }
+  };
 
   return (
     <div className={`app-container ${mounted && isPlayerActive ? 'player-active' : ''}`}>
@@ -48,16 +68,25 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
       <main className="main-content">
         {children}
       </main>
-      <PlayerBar />
+      <PlayerBar onExpand={handleExpand} />
       <MobileNav onExpand={() => setIsFullPlayerOpen(true)} />
+      
       <AuthModal 
         isOpen={isAuthModalOpen} 
         onClose={() => setIsAuthModalOpen(false)} 
       />
+      
       <MobileFullPlayer 
         isOpen={isFullPlayerOpen}
         onClose={() => setIsFullPlayerOpen(false)}
       />
+
+      {/* Desktop/iPad Full Player Overlay */}
+      {isDesktopExpanded && (
+        <DesktopFullPlayer 
+            onClose={() => setIsDesktopExpanded(false)} 
+        />
+      )}
     </div>
   );
 }

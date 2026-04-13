@@ -23,7 +23,7 @@ import { Marquee } from '@/components/layout/Marquee';
 
 export default function LibraryPage() {
   const router = useRouter();
-  const { tracks, folders, finalTracks, addToFinal, removeFromFinal, toggleFavorite } = useStudio();
+  const { tracks, folders, styles, finalTracks, addToFinal, removeFromFinal, toggleFavorite } = useStudio();
   const { isPlaying, title: playingTitle, loadTrack } = useAudio();
   const { isAuthenticated, setIsAuthModalOpen } = useAuth();
 
@@ -146,7 +146,17 @@ export default function LibraryPage() {
                   className="track-name" 
                   isActive={isPlaying && (playingTitle === track.title || playingTitle === track.id)}
                 />
-                <p className="track-artist">{track.artist}</p>
+                <div className="artist-badge-row">
+                  <p className="track-artist">{track.artist}</p>
+                  {styles.find(s => s.title.toLowerCase() === track.style?.toLowerCase()) && (
+                    <span 
+                      className="style-badge-pill" 
+                      style={{ backgroundColor: styles.find(s => s.title.toLowerCase() === track.style?.toLowerCase())?.color }}
+                    >
+                      {track.style}
+                    </span>
+                  )}
+                </div>
               </div>
               
               <div className="track-meta-col">
@@ -314,10 +324,9 @@ export default function LibraryPage() {
 
         .tracks-list { display: flex; flex-direction: column; gap: 8px; }
 
-        .track-index { font-size: 13px; font-weight: 800; opacity: 0.3; text-align: left; }
         .track-icon-col { display: flex; align-items: center; justify-content: flex-start; }
         .track-info-col { min-width: 0; overflow: hidden; }
-        .track-name { font-weight: 600; font-size: 15px; }
+        .track-name { font-weight: 600; font-size: 14.25px; }
         .track-artist { font-size: 12px; opacity: 0.5; margin-top: 2px; }
         
         .track-meta-col { font-size: 13px; font-weight: 600; }

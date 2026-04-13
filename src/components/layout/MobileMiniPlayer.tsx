@@ -80,13 +80,11 @@ const MobileMiniPlayer = ({ onExpand }: { onExpand: () => void }) => {
                 <div className="mini-art glass">
                   <Disc size={20} className={isPlaying ? 'rotating' : ''} />
                 </div>
-                <div className="text-info">
-                  <Marquee 
-                    text={title} 
-                    className="title" 
-                    isActive={isPlaying}
-                  />
-                  <span className="artist truncate">
+                <div className="text-info truncate">
+                  <div className="title truncate font-bold text-sm text-white" title={title}>
+                    {title}
+                  </div>
+                  <span className="artist truncate text-xs text-white/50">
                     {artist}
                     {currentTrack && currentTrack.bpm && (
                       <span className="text-primary font-bold ml-1">({getMPMFromBPM(Number(currentTrack.bpm), currentTrack.style)} BPM)</span>
@@ -169,17 +167,24 @@ const MobileMiniPlayer = ({ onExpand }: { onExpand: () => void }) => {
         }
 
         .mini-art {
-          width: 40px;
-          height: 40px;
-          border-radius: 8px;
+          width: 44px;
+          height: 44px;
+          flex-shrink: 0;
+          border-radius: 10px;
           display: flex;
           align-items: center;
           justify-content: center;
           background: rgba(255,255,255,0.05);
           color: var(--primary);
+          overflow: hidden;
+          border: 2px solid ${isFinalMode ? '#ef4444' : '#1db954'};
+          box-shadow: 0 0 15px ${isFinalMode ? 'rgba(239, 68, 68, 0.4)' : 'rgba(29, 185, 84, 0.4)'};
+          transition: all 0.5s ease;
         }
 
-        .rotating { animation: rotate 3s linear infinite; }
+        .mini-art :global(svg) {
+          animation: ${isPlaying ? 'rotate 4s linear infinite' : 'none'};
+        }
         @keyframes rotate { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
 
         .text-info { display: flex; flex-direction: column; min-width: 0; }
@@ -215,7 +220,7 @@ const MobileMiniPlayer = ({ onExpand }: { onExpand: () => void }) => {
           to { transform: translateY(0); opacity: 1; }
         }
 
-        @media (min-width: 769px) { .mini-player-wrapper { display: none; } }
+        @media (min-width: 1025px) { .mini-player-wrapper { display: none; } }
       `}</style>
     </>
   );

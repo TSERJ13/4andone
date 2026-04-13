@@ -14,7 +14,7 @@ import { Marquee } from '@/components/layout/Marquee';
 
 const PlaylistPage = () => {
   const { id } = useParams();
-  const { tracks, folders, reorderGlobalTracks, finalTracks, addToFinal, removeFromFinal, toggleFavorite } = useStudio();
+  const { tracks, folders, styles, reorderGlobalTracks, finalTracks, addToFinal, removeFromFinal, toggleFavorite } = useStudio();
   const { isPlaying, title: playingTitle, loadTrack } = useAudio();
   const { isAuthenticated, setIsAuthModalOpen } = useAuth();
 
@@ -127,7 +127,17 @@ const PlaylistPage = () => {
                   className="track-name" 
                   isActive={isPlaying && (playingTitle === track.title || playingTitle === track.id)}
                 />
-                <p className="track-artist">{track.artist}</p>
+                <div className="artist-badge-row">
+                  <p className="track-artist">{track.artist}</p>
+                  {styles.find(s => s.title.toLowerCase() === track.style?.toLowerCase()) && (
+                    <span 
+                      className="style-badge-pill" 
+                      style={{ backgroundColor: styles.find(s => s.title.toLowerCase() === track.style?.toLowerCase())?.color }}
+                    >
+                      {track.style}
+                    </span>
+                  )}
+                </div>
               </div>
               
               <div className="track-meta-col">

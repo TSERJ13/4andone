@@ -114,7 +114,7 @@ const PlaylistModal: React.FC<PlaylistModalProps> = ({ trackTitle, isOpen, onClo
         }
 
         .header-info h3 { font-size: 20px; font-weight: 800; margin-bottom: 4px; }
-        .track-name-display { color: #1db954; font-size: 14px; font-weight: 600; }
+        .track-name-display { color: #1db954; font-size: 13.3px; font-weight: 600; }
 
         .close-btn { color: #71717a; transition: color 0.2s; }
         .close-btn:hover { color: white; }

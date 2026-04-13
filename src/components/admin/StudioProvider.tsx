@@ -28,6 +28,7 @@ export interface Track {
   date: string;
   folderId?: string;
   audioUrl?: string;
+  artworkUrl?: string; // artwork_url in DB
   tags?: string[];
   duration?: number;
   globalOrder?: number;
@@ -160,6 +161,7 @@ export const StudioProvider: React.FC<{ children: React.ReactNode }> = ({ childr
           setTracks(tracksData.map(t => ({
             ...t,
             audioUrl: t.audio_url,
+            artworkUrl: t.artwork_url,
             folderId: t.folder_id,
             globalOrder: t.global_order || 0,
             duration: t.duration || 0,
@@ -195,7 +197,7 @@ export const StudioProvider: React.FC<{ children: React.ReactNode }> = ({ childr
             setTracks(prev => [{ ...nt, audioUrl: nt.audio_url, folderId: nt.folder_id }, ...prev]);
           } else if (payload.eventType === 'UPDATE') {
             const ut = payload.new as any;
-            setTracks(prev => prev.map(t => t.id === ut.id ? { ...ut, audioUrl: ut.audio_url, folderId: ut.folder_id, isFavorite: ut.is_favorite } : t));
+            setTracks(prev => prev.map(t => t.id === ut.id ? { ...ut, audioUrl: ut.audio_url, artworkUrl: ut.artwork_url, folderId: ut.folder_id, isFavorite: ut.is_favorite } : t));
           } else if (payload.eventType === 'DELETE') {
             setTracks(prev => prev.filter(t => t.id !== payload.old.id));
           }
@@ -216,6 +218,7 @@ export const StudioProvider: React.FC<{ children: React.ReactNode }> = ({ childr
         album: trackData.album,
         bpm: trackData.bpm,
         audio_url: trackData.audioUrl,
+        artwork_url: trackData.artworkUrl,
         folder_id: trackData.folderId,
         tags: trackData.tags || [],
         duration: trackData.duration || 0,
@@ -233,6 +236,7 @@ export const StudioProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       const newTrack: Track = {
          ...nt,
          audioUrl: nt.audio_url,
+         artworkUrl: nt.artwork_url,
          folderId: nt.folder_id,
          duration: nt.duration || 0,
          isFavorite: nt.is_favorite || false
@@ -260,7 +264,8 @@ export const StudioProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       bpm: updates.bpm,
       album: updates.album,
       tags: updates.tags,
-      duration: updates.duration
+      duration: updates.duration,
+      artwork_url: updates.artworkUrl
     };
     
     if (updates.audioUrl !== undefined) dbUpdates.audio_url = updates.audioUrl;

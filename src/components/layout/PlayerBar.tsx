@@ -14,7 +14,13 @@ import {
   Gauge,
   Heart,
   VolumeX,
-  ListMusic
+  ListMusic,
+  Settings,
+  Plus,
+  Maximize2,
+  Maximize,
+  LayoutGrid,
+  ChevronsUp
 } from 'lucide-react';
 import { useAudio } from '@/components/audio/AudioProvider';
 import SpeedSelector from '@/components/audio/SpeedSelector';
@@ -24,7 +30,7 @@ import ConfirmModal from '@/components/admin/ConfirmModal';
 import { getMPMFromBPM } from '@/utils/audio';
 import { Marquee } from '@/components/layout/Marquee';
 
-const PlayerBar = () => {
+const PlayerBar = ({ onExpand }: { onExpand?: () => void }) => {
   const pathname = usePathname();
   const isAdmin = pathname.startsWith('/admin');
 
@@ -50,8 +56,14 @@ const PlayerBar = () => {
     seek,
     isLoading,
     isFinalMode,
-    sessionDuration
+    sessionDuration,
+    sessionTracks,
+    isPauseCountdown,
+    pauseTime,
+    loadTrack
   } = useAudio();
+
+  const { finalTracks, tracks, styles, toggleFavorite } = useStudio();
 
   const [showSpeedSelector, setShowSpeedSelector] = useState(false);
   const speedSelectorRef = useRef<HTMLDivElement>(null);
@@ -163,7 +175,6 @@ const PlayerBar = () => {
   const totalDur = isFinalMode ? sessionDuration : duration;
   const displayProgress = isDragging ? dragProgress : (currentTime / (totalDur || 1)) * 100;
 
-  const { finalTracks, addToFinal, removeFromFinal, tracks, toggleFavorite } = useStudio();
   const currentTrack = tracks.find(t => t.title === title) || finalTracks.find(t => t.title === title);
 
   if (isAdmin) return null;
@@ -182,32 +193,50 @@ const PlayerBar = () => {
 
   return (
     <>
-      <footer className={`player-bar glass ${title === "No Track Selected" ? 'is-hidden' : ''} ${isDraggingSpeed ? 'optimizing-gpu' : ''}`}>
+    <footer 
+      className={`player-bar glass ${title === "No Track Selected" ? 'is-hidden' : ''} ${isDraggingSpeed ? 'optimizing-gpu' : ''}`}
+      onDoubleClick={onExpand}
+    >
         {/* Track Info */}
         <div className="track-info">
-          <div className="album-art glass">
-            <Tally3 size={24} className="text-primary" />
+          <div className="album-art glass" style={{ overflow: 'hidden', padding: 0 }}>
+             {/* Dynamic Artwork with Fixed Aspect Ratio Fix */}
+             {currentTrack?.artworkUrl ? (
+               <img 
+                 src={currentTrack.artworkUrl} 
+                 alt="Artwork" 
+                 style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+               />
+             ) : (
+               <Tally3 size={24} className="text-primary" />
+             )}
           </div>
-          <div className="track-details">
-            <div className="track-row-header">
-              <Marquee 
-                text={title} 
-                className="track-title" 
-                isActive={isPlaying}
-              />
+          <div className="track-details px-4 min-w-0">
+            <div className="track-title truncate font-bold text-[13.3px]" title={title}>
+              {title}
             </div>
-            <p className="track-artist truncate">
-              {error ? (
-                <span className="error-text text-red-500 font-bold">{error}</span>
-              ) : (
-                artist
-              )}
+            <div className="track-artist truncate text-xs text-white/50 flex items-center gap-2">
+              <div className="artist-badge-row">
+                {error ? (
+                  <span className="error-text text-red-500 font-bold">{error}</span>
+                ) : (
+                  artist
+                )}
+                {styles.find(s => s.title.toLowerCase() === currentTrack?.style?.toLowerCase()) && (
+                  <span 
+                    className="style-badge-pill" 
+                    style={{ backgroundColor: styles.find(s => s.title.toLowerCase() === currentTrack?.style?.toLowerCase())?.color }}
+                  >
+                    {currentTrack?.style}
+                  </span>
+                )}
+              </div>
               {currentTrack && currentTrack.bpm && (
-                <span className="track-tempo-inline ml-2 text-primary font-bold">
+                <span className="track-tempo-inline text-primary font-bold">
                   • {getMPMFromBPM(Number(currentTrack.bpm), currentTrack.style)} BPM
                 </span>
               )}
-            </p>
+            </div>
           </div>
         </div>
 
@@ -352,6 +381,14 @@ const PlayerBar = () => {
               className="volume-slider"
             />
           </div>
+
+          <button
+            className="expand-trigger-btn w-12 h-12 rounded-xl bg-white/5 hover:bg-white/10 border border-white/5 hover:border-primary/50 transition-all hidden md:flex items-center justify-center group shadow-lg"
+            onClick={onExpand}
+            title="Open Now Playing"
+          >
+            <Maximize2 size={24} className="text-white/40 group-hover:text-primary group-hover:scale-110 transition-all" />
+          </button>
         </div>
       </footer>
 
@@ -370,10 +407,9 @@ const PlayerBar = () => {
 
       <style jsx>{`
         .player-bar {
-          display: grid;
-          grid-template-columns: 1fr 2.2fr 1fr;
+          grid-template-columns: 1fr auto 1fr;
           align-items: center;
-          padding: 0 60px; /* Symmetrical padding for balanced look */
+          padding: 0 20px 0 60px; 
           height: 110px; 
           background: rgba(10, 10, 10, 0.85);
           backdrop-filter: blur(28px);
@@ -421,16 +457,34 @@ const PlayerBar = () => {
           height: 32px;
         }
         .album-art {
-          width: 56px;
-          height: 56px;
-          border-radius: 4px;
+          width: 52px;
+          height: 52px;
+          border-radius: 8px;
           display: flex;
           align-items: center;
           justify-content: center;
+          padding: 2px; /* Precision padding for glow */
+          background: rgba(255,255,255,0.02);
+          border: 2px solid rgba(255, 255, 255, 0.1);
+          box-shadow: 0 0 15px rgba(255, 255, 255, 0.05);
+          transition: all 0.5s ease;
+        }
+        .album-art img {
+          border-radius: 6px;
+        }
+        .track-index {
+          font-size: 13px;
+          font-weight: 950;
+          opacity: 0.7;
+          text-align: left;
+          width: 16px;
+        }
+        @media (max-width: 768px) {
+          .track-index { font-size: 12px; width: 14px; }
         }
         .track-title {
           font-weight: 600;
-          font-size: 14px;
+          font-size: 13.3px;
         }
         .track-artist {
           font-size: 12px;
@@ -446,11 +500,40 @@ const PlayerBar = () => {
           font-weight: 700;
         }
 
+        .studio-expand-btn {
+          display: flex;
+          align-items: center;
+          gap: 10px;
+          padding: 8px 16px;
+          border-radius: 12px;
+          border: 1px solid rgba(255,255,255,0.08);
+          font-weight: 800;
+          font-size: 11px;
+          text-transform: uppercase;
+          letter-spacing: 1px;
+          transition: all 0.2s;
+          color: rgba(255,255,255,0.6);
+        }
+
+        .studio-expand-btn:hover {
+          background: rgba(29, 185, 84, 0.1);
+          border-color: rgba(29, 185, 84, 0.3);
+          color: white;
+          transform: translateY(-2px);
+          box-shadow: 0 4px 20px rgba(0,0,0,0.3);
+        }
+
+        .studio-expand-btn span {
+          margin-top: 1px;
+        }
+
         .player-controls {
           display: flex;
           flex-direction: column;
           align-items: center;
-          gap: 8px;
+          gap: 4px;
+          min-width: 600px;
+          justify-self: center;
         }
         .control-buttons {
           display: flex;
@@ -678,7 +761,7 @@ const PlayerBar = () => {
           flex: 1;
           height: 4px;
           -webkit-appearance: none;
-          background: var(--border);
+          background: linear-gradient(to right, var(--primary) ${volume * 100}%, rgba(255,255,255,0.1) ${volume * 100}%);
           border-radius: 2px;
           outline: none;
         }
@@ -687,8 +770,9 @@ const PlayerBar = () => {
           width: 12px;
           height: 12px;
           border-radius: 50%;
-          background: var(--primary);
+          background: white; /* White dot per request */
           cursor: pointer;
+          box-shadow: 0 0 10px rgba(0,0,0,0.5);
         }
 
         .quick-actions-bar {
@@ -716,8 +800,13 @@ const PlayerBar = () => {
           display: flex;
           align-items: center;
           justify-content: flex-end;
-          gap: 20px;
-          margin-right: 60px !important; /* PERFECT BALANCE: No hitting wall or player */
+          gap: 20px; 
+          margin-right: 175px; /* Locked Speed/Volume group approx 4cm from edge */
+        }
+
+        .expand-trigger-btn {
+          position: absolute;
+          right: 25px; /* Precision balanced position */
         }
 
         .action-btn-speed.icon-only {
@@ -731,39 +820,15 @@ const PlayerBar = () => {
           position: relative;
         }
 
-        .speed-badge {
-          position: absolute;
-          top: -4px;
-          right: -4px;
-          background: rgb(34, 197, 94);
-          color: black;
-          font-size: 9px;
-          font-weight: 800;
-          padding: 2px 4px;
-          border-radius: 6px;
-          line-height: 1;
-        }
-
-        .action-btn-speed.active {
-          background: rgba(34, 197, 94, 0.15);
-          border-color: rgba(34, 197, 94, 0.5);
-          color: rgb(34, 197, 94) !important;
-        }
-
-        .action-btn-speed:hover {
-          background: rgba(255, 255, 255, 0.1);
-          transform: translateY(-1px);
-        }
-
         .volume-control {
           display: flex;
           align-items: center;
           gap: 12px;
-          flex: none; /* Let it take its natural width */
-          margin-left: 0;
-          padding-left: 0;
-          border-left: none; /* Removing the divider as requested */
+          flex: none; 
+          width: 120px; 
+          margin-right: 40px; /* Keeps volume separated and fixed */
         }
+
 
         .mute-toggle-btn {
           color: var(--text-secondary);
@@ -795,7 +860,7 @@ const PlayerBar = () => {
         .text-primary { color: var(--primary); }
         @media (max-width: 1400px) and (orientation: landscape) {
           .player-bar {
-            grid-template-columns: 1fr 2fr 1fr;
+            grid-template-columns: 1fr auto 1fr;
             padding: 0 40px;
             height: 160px; /* PRO SPACIOUS HEIGHT: increased for iPad per user request */
             bottom: 24px;
@@ -812,14 +877,14 @@ const PlayerBar = () => {
           } 
           .track-info { justify-self: start; gap: 16px; min-width: 0; padding-top: 8px; }
           .album-art { width: 52px; height: 52px; }
-          .track-title { font-size: 15px; }
+          .track-title { font-size: 14.25px; }
           .track-artist { font-size: 12px; }
           .progress-container { max-width: 500px; margin-top: 4px; }
           .control-buttons { gap: 24px; margin-bottom: 4px; }
           .play-btn { width: 54px; height: 54px; } /* Slightly more balanced size */
           .play-btn-wrapper { padding-bottom: 0px !important; margin-bottom: 8px; }
           .extra-controls { gap: 24px; margin-right: 80px; padding-top: 8px; }
-          .volume-control { width: 120px; gap: 12px; }
+          .volume-control { width: 90px; gap: 12px; }
           .feature-btn { padding: 10px 18px; }
         }
 
@@ -894,28 +959,31 @@ const PlayerBar = () => {
           }
         }
 
-        /* iPad specific optimizations */
-        @media (min-width: 769px) and (max-width: 1180px) {
+        @media (min-width: 769px) and (max-width: 1400px) {
           .player-bar {
-            padding: 0 16px;
+            padding: 0 24px;
             padding-bottom: env(safe-area-inset-bottom);
-            grid-template-columns: 1fr 1.6fr 1fr;
-            height: 80px;
+            grid-template-columns: 1fr auto 1fr;
+            height: 140px;
           }
           .track-info { gap: 10px; }
           .album-art { width: 44px; height: 44px; }
           .track-title { font-size: 13px; }
           .track-artist { font-size: 11px; }
-          .metadata-actions-group { padding-left: 8px; margin-left: 4px; }
-          .progress-container { max-width: 360px; }
-          .control-buttons { gap: 16px; }
-          .play-btn { width: 44px; height: 44px; }
+          
+        @media (min-width: 769px) and (max-width: 1100px) {
+          .player-bar {
+            padding: 0 24px;
+            padding-bottom: env(safe-area-inset-bottom);
+            grid-template-columns: 1fr auto 1fr;
+            height: 140px;
+          }
+          .track-info { gap: 10px; }
+          .album-art { width: 44px; height: 44px; }
+          .track-title { font-size: 13px; }
+          .track-artist { font-size: 11px; }
           .extra-controls { gap: 12px; }
-          .feature-btn .label { font-size: 0; }
-          .feature-btn .label::after { content: attr(data-bpm) "%"; font-size: 11px; }
-          .volume-control { width: 120px; margin-left: 8px; gap: 10px; }
-          .volume-slider { height: 6px; }
-          .volume-slider::-webkit-slider-thumb { width: 16px; height: 16px; }
+          .volume-control { width: 90px; margin-left: 8px; gap: 10px; }
         }
       `}</style>
     </>

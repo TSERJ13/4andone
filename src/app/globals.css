@@ -1,5 +1,5 @@
 :root {
-  --background: #000000;
+  --background: #121212;
   --surface: #121212;
   --surface-hover: #282828;
   --primary: #1db954;
@@ -138,13 +138,16 @@ button {
   display: grid;
   grid-template-columns: 1fr 2fr 1fr;
   align-items: center;
-  padding: 0 8px;
-  margin-top: -8px; /* Stitch to bottom */
+  padding: 0 16px;
+  height: 96px; /* Increased height for iPad/Web */
+  margin-top: 0;
+  border-top: 1px solid rgba(255, 255, 255, 0.08);
   transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
   overflow: visible;
   opacity: 0;
   transform: translateY(20px);
   pointer-events: none;
+  z-index: 1000;
 }
 
 .player-active .player-bar {
@@ -153,8 +156,8 @@ button {
   pointer-events: auto;
 }
 
-/* Responsive Media Queries */
-@media (max-width: 768px) {
+/* Responsive Media Queries - Updated for iPad Portrait Sync */
+@media (max-width: 1024px) {
   .search-page { padding: 16px; padding-bottom: 120px; }
   .search-header-container { padding: 10px 0 20px; }
   .search-header { 
@@ -189,8 +192,8 @@ button {
   }
 }
 
-/* Tablet Optimizations */
-@media (min-width: 769px) and (max-width: 1024px) {
+/* Tablet Optimizations - Landscape iPad */
+@media (min-width: 1025px) and (max-width: 1200px) {
   :root {
     --sidebar-width: 240px;
   }
@@ -218,7 +221,7 @@ button {
   bottom: 0;
   left: 0;
   right: 0;
-  height: 80px; /* Adjusted height for grounded look */
+  height: 96px; /* Match PlayerBar height */
   z-index: 1000;
   grid-template-columns: repeat(4, 1fr);
   align-items: stretch; /* Stretch items to full height */
@@ -226,13 +229,13 @@ button {
   backdrop-filter: blur(25px);
   -webkit-backdrop-filter: blur(25px);
   border-top: 1px solid rgba(255, 255, 255, 0.1);
-  border-radius: 0; /* Removed rounding as requested */
+  border-radius: 0; /* Flat bottom as requested */
   box-shadow: 0 -4px 30px rgba(0, 0, 0, 0.5);
   padding: 8px 12px;
   padding-bottom: calc(8px + env(safe-area-inset-bottom)); /* Safe Area Support */
 }
 
-@media (max-width: 768px) {
+@media (max-width: 1024px) {
   .mobile-nav {
     display: grid; /* Only visible on Mobile viewports */
   }
@@ -334,11 +337,21 @@ button {
 }
 
 .track-index {
-  font-size: 16px;
+  font-size: 13px; /* Reduced for better 3-digit support */
   font-weight: 950;
   opacity: 0.7;
   text-align: left;
-  width: 22px; /* Fixed width for better control */
+  width: 16px; /* Optimized width */
+  margin-right: 8px; /* Added spacing from disk icon */
+}
+
+@media (max-width: 768px) {
+  .track-index {
+    font-size: 10.5px !important; /* Enforced ultra-compact for 3-digit support */
+    width: 14px !important;
+    opacity: 0.5 !important;
+    margin-right: 6px !important; /* Consistent spacing on mobile */
+  }
 }
 
 .track-icon-col {
@@ -363,18 +376,38 @@ button {
 
 .track-name {
   font-weight: 600;
-  font-size: 15px;
+  font-size: 14.25px;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
 }
 
 .track-artist {
-  font-size: 12px;
+  font-size: 11.4px; /* Calibrated 5% reduction */
   opacity: 0.5;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+}
+
+.artist-badge-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+
+.style-badge-pill {
+  font-size: 8.5px;
+  font-weight: 950;
+  text-transform: uppercase;
+  padding: 1px 5px;
+  border-radius: 4px;
+  color: #000;
+  flex-shrink: 0;
+  letter-spacing: 0.2px;
+  line-height: 1;
+  box-shadow: 0 2px 4px rgba(0,0,0,0.1);
 }
 
 .track-meta-col {
@@ -473,7 +506,7 @@ button {
   }
 
   .track-name {
-    font-size: 15px;
+    font-size: 14.25px;
     font-weight: 750;
     margin-left: 2px; /* Shift name 2px right as requested */
   }
@@ -658,7 +691,7 @@ button {
 .mfp-meta-btn.mfp-favorite.active { color: #f43f5e; }
 .mfp-meta-btn.mfp-flag.active { color: #1db954; }
 
-.mfp-title { font-size: 22px; font-weight: 900; margin-bottom: 2px; }
+.mfp-title { font-size: 20.9px; font-weight: 900; margin-bottom: 2px; }
 .mfp-artist { font-size: 15px; color: #b3b3b3; font-weight: 500; margin-bottom: 8px; }
 
 .mfp-speed-tag {

@@ -115,7 +115,17 @@ const StylePage = () => {
                 className="track-name" 
                 isActive={isPlaying && (playingTitle === track.title || playingTitle === track.id)}
               />
-              <p className="track-artist">{track.artist}</p>
+              <div className="artist-badge-row">
+                <p className="track-artist">{track.artist}</p>
+                {styles.find(s => s.title.toLowerCase() === track.style?.toLowerCase()) && (
+                  <span 
+                    className="style-badge-pill" 
+                    style={{ backgroundColor: styles.find(s => s.title.toLowerCase() === track.style?.toLowerCase())?.color }}
+                  >
+                    {track.style}
+                  </span>
+                )}
+              </div>
             </div>
             
             <div className="track-meta-col">

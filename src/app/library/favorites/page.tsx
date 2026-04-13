@@ -46,6 +46,11 @@ const FavoritesPage = () => {
             <span className="text-primary">4and.one User</span> • {likedTracks.length} Tracks
           </p>
         </div>
+        <div className="header-actions">
+          <button className="play-btn-large main-play-trigger" onClick={handlePlayAll}>
+            <Play fill="currentColor" size={24} />
+          </button>
+        </div>
       </header>
 
       {likedTracks.length > 0 ? (
@@ -125,6 +130,7 @@ const FavoritesPage = () => {
       <style jsx>{`
         .favorites-page { padding: 40px; padding-bottom: 120px; }
         .page-header { display: flex; align-items: flex-end; gap: 32px; margin-bottom: 40px; }
+        .head-content { display: flex; flex-direction: column; gap: 8px; flex: 1; }
         .icon-large { 
           width: 180px; height: 180px; border-radius: 20px; 
           background: linear-gradient(135deg, var(--primary, #1db954), #191414);
@@ -164,13 +170,15 @@ const FavoritesPage = () => {
 
         @media (max-width: 768px) {
           .favorites-page { padding: 12px; padding-bottom: 20px; }
-          .page-header { flex-direction: row; align-items: center; text-align: left; gap: 16px; margin-top: 20px; margin-bottom: 24px; }
-          .icon-large { width: 100px; height: 100px; border-radius: 12px; }
-          .title { font-size: 24px; font-weight: 900; letter-spacing: -0.5px; }
-          .head-content { gap: 2px; }
-          .head-content .label { font-size: 9px; }
-          .head-content .stats { font-size: 11px; }
-          .actions { display: none; }
+          .page-header { flex-direction: row; align-items: center; text-align: left; gap: 12px; margin-top: 20px; margin-bottom: 24px; position: relative; }
+          .icon-large { width: 80px; height: 80px; border-radius: 12px; }
+          .title { font-size: 20px; font-weight: 950; letter-spacing: -0.5px; }
+          .head-content { gap: 1px; min-width: 0; }
+          .head-content .label { font-size: 8px; }
+          .head-content .stats { font-size: 10px; }
+          .header-actions { padding-bottom: 0; margin-left: 10px; }
+          .play-btn-large { width: 44px; height: 44px; }
+          .play-btn-large svg { width: 18px; height: 18px; }
         }
       `}</style>
     </div>

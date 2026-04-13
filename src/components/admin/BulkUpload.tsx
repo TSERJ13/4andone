@@ -59,9 +59,13 @@ const BulkUpload = () => {
   const [batchStyle, setBatchStyle] = useState('Samba');
   const [batchTags, setBatchTags] = useState<string[]>([]);
   const [targetFolderId, setTargetFolderId] = useState('');
+  const [batchCoverFile, setBatchCoverFile] = useState<File | null>(null);
+  const [batchCoverPreview, setBatchCoverPreview] = useState<string | null>(null);
+  const [isUploadingCover, setIsUploadingCover] = useState(false);
   
   const [showValidation, setShowValidation] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const coverInputRef = useRef<HTMLInputElement>(null);
 
   const processFiles = async (fileList: FileList | null) => {
     if (!fileList) return;
@@ -94,8 +98,8 @@ const BulkUpload = () => {
 
         // 2. Logic: If at least 2 parts remain, parts[0] is Artist, others are Title.
         if (parts.length >= 2) {
-          autoArtist = parts[0];
-          titleParts = parts.slice(1);
+          titleParts = [parts[0]];
+          autoArtist = parts.slice(1).join(' - ');
         } else {
           // If only 1 part remains, it's the Title. Artist comes from the Batch setting.
           autoArtist = batchArtist || 'Unknown Artist';
@@ -210,8 +214,37 @@ const BulkUpload = () => {
   };
 
   const startUpload = async () => {
-    // Validation is now more relaxed
     setShowValidation(false);
+    let commonArtworkUrl = '';
+
+    // 1. Upload Batch Cover if exists
+    if (batchCoverFile) {
+      setIsUploadingCover(true);
+      try {
+        const signRes = await fetch('/api/upload', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            fileName: `covers/bulk_${Date.now()}_${batchCoverFile.name}`,
+            fileType: batchCoverFile.type || 'image/jpeg'
+          })
+        });
+        
+        if (signRes.ok) {
+          const { uploadUrl, publicUrl } = await signRes.json();
+          await fetch(uploadUrl, { 
+            method: 'PUT', 
+            body: batchCoverFile, 
+            headers: { 'Content-Type': batchCoverFile.type } 
+          });
+          commonArtworkUrl = publicUrl;
+        }
+      } catch (err) {
+        console.error("[BULK-COVER-ERROR] Failed to upload batch cover:", err);
+      } finally {
+        setIsUploadingCover(false);
+      }
+    }
 
     for (const f of files) {
       if (f.status !== 'pending') continue;
@@ -267,6 +300,7 @@ const BulkUpload = () => {
           bpm: f.bpm || '0',
           duration: f.duration || 0,
           audioUrl: publicUrl,
+          artworkUrl: commonArtworkUrl, // Apply batch artwork
           folderId: targetFolderId || undefined,
           tags: f.tags
         });
@@ -380,6 +414,32 @@ const BulkUpload = () => {
               </div>
             </div>
             
+            <div className="batch-cover-side">
+               <div className="batch-dest-label">Batch Cover</div>
+               <div 
+                 className={`batch-cover-zone glass ${batchCoverPreview ? 'has-preview' : ''}`}
+                 onClick={() => coverInputRef.current?.click()}
+               >
+                 {batchCoverPreview ? (
+                   <img src={batchCoverPreview} alt="Batch Cover" className="batch-cover-img" />
+                 ) : (
+                   <Plus size={20} />
+                 )}
+                 <input 
+                   type="file" 
+                   ref={coverInputRef} 
+                   className="hidden" 
+                   accept="image/*" 
+                   onChange={(e) => {
+                     if (e.target.files && e.target.files[0]) {
+                       setBatchCoverFile(e.target.files[0]);
+                       setBatchCoverPreview(URL.createObjectURL(e.target.files[0]));
+                     }
+                   }} 
+                 />
+               </div>
+            </div>
+
             <div className="batch-actions-side">
                <div className="target-folder-box">
                   <span className="dest-label">Target Folder</span>
@@ -579,6 +639,17 @@ const BulkUpload = () => {
         }
         .btn-apply:hover { transform: translateY(-1px); background: #1ed760; }
         
+        .batch-cover-side { display: flex; flex-direction: column; gap: 8px; align-items: center; }
+        .batch-dest-label { font-size: 10px; font-weight: 900; color: #52525b; text-transform: uppercase; }
+        .batch-cover-zone { 
+           width: 80px; height: 80px; border-radius: 12px; border: 1px dashed rgba(255,255,255,0.1); 
+           display: flex; align-items: center; justify-content: center; cursor: pointer; overflow: hidden;
+           transition: all 0.2s;
+        }
+        .batch-cover-zone:hover { border-color: #1db954; background: rgba(29, 185, 84, 0.05); }
+        .batch-cover-zone.has-preview { border: 1px solid #1db954; }
+        .batch-cover-img { width: 100%; height: 100%; object-fit: cover; }
+
         .target-folder-box { display: flex; flex-direction: column; gap: 6px; }
         .dest-label { font-size: 10px; font-weight: 900; color: #52525b; text-transform: uppercase; text-align: right; }
         .meta-select-sm { 

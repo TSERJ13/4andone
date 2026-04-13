@@ -230,7 +230,7 @@ export default function DesktopFullPlayer({ onClose }: { onClose: () => void }) 
                       <Heart size={36} fill={currentTrack?.isFavorite ? "#ef4444" : "none"} />
                     </button>
                     
-                    <div className="text-center min-w-0 px-20">
+                    <div className="text-center min-w-0 px-64">
                        <h1 className="refined-title-v8 truncate">{title}</h1>
                        <p className="refined-artist-v8 truncate">{artist}</p>
                     </div>
@@ -678,7 +678,7 @@ export default function DesktopFullPlayer({ onClose }: { onClose: () => void }) 
         .countdown-ring .count { font-size: 80px; font-weight: 900; color: var(--accent); }
         .countdown-ring .label { font-size: 10px; font-weight: 900; text-transform: uppercase; letter-spacing: 5px; opacity: 0.2; }
 
-        .metadata-stage { width: 100%; max-width: 900px; display: flex; flex-direction: column; align-items: center; }
+        .metadata-stage { width: 100%; max-width: 900px; display: flex; flex-direction: column; align-items: center; position: relative; z-index: 1000; }
         .metadata-actions-refined { display: flex; align-items: center; justify-content: center; width: 100%; }
         
         .refined-title-v8 { font-size: 22.8px; font-weight: 900; letter-spacing: -0.4px; line-height: 1.2; color: white; text-align: center; }
@@ -690,7 +690,11 @@ export default function DesktopFullPlayer({ onClose }: { onClose: () => void }) 
         }
         
         .console-action-btn-v13 { color: rgba(255,255,255,0.6); transition: all 0.2s; padding: 12px; transform: translateY(48px); cursor: pointer; }
-        .console-action-btn-v13:hover { color: white; transform: translateY(48px) scale(1.1); }
+        .favorite-btn-pro { transform: translate(-120px, 48px) !important; }
+        .gauge-trigger-v19 { transform: translate(120px, 48px) !important; }
+        .console-action-btn-v13:hover { color: white; opacity: 1; }
+        .favorite-btn-pro:hover { transform: translate(-120px, 48px) scale(1.1) !important; }
+        .gauge-trigger-v19:hover { transform: translate(120px, 48px) scale(1.1) !important; }
         .console-action-btn-v13.active { color: var(--accent); opacity: 1; }
         .favorite-btn-pro.active { color: #ef4444 !important; }
 
@@ -700,9 +704,8 @@ export default function DesktopFullPlayer({ onClose }: { onClose: () => void }) 
           right: 0;
           transform: translateY(380px);
           margin-bottom: 0;
-          z-index: 1000;
-          background: rgba(0,0,0,0.85);
-          backdrop-filter: blur(20px);
+          z-index: 99999;
+          background: #0d0d0d;
           border: 1px solid rgba(255,255,255,0.1);
           border-radius: 20px;
           padding: 24px;

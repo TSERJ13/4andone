@@ -328,7 +328,11 @@ const PlayerBar = ({ onExpand }: { onExpand?: () => void }) => {
             <div className="speed-control-wrapper">
               <button
                 className={`action-btn-speed icon-only ${bpm !== 100 ? 'active' : ''}`}
-                onClick={() => setShowSpeedSelector(!showSpeedSelector)}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setShowSpeedSelector(!showSpeedSelector);
+                }}
+                onDoubleClick={(e) => e.stopPropagation()}
                 title={`Playback Speed: ${bpm}%`}
               >
                 <div className="flex flex-col items-center">
@@ -339,7 +343,7 @@ const PlayerBar = ({ onExpand }: { onExpand?: () => void }) => {
               </button>
 
               {showSpeedSelector && (
-                <div ref={speedSelectorRef}>
+                <div ref={speedSelectorRef} onDoubleClick={(e) => e.stopPropagation()}>
                   <SpeedSelector
                     currentBpm={bpm}
                     onSelect={onSelectSpeed}
@@ -419,7 +423,7 @@ const PlayerBar = ({ onExpand }: { onExpand?: () => void }) => {
           bottom: 12px;
           left: 12px;
           right: 12px;
-          z-index: 1000;
+          z-index: 9999;
           transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
           padding-bottom: env(safe-area-inset-bottom);
         }
@@ -492,6 +496,29 @@ const PlayerBar = ({ onExpand }: { onExpand?: () => void }) => {
         }
         .track-row-header { display: flex; align-items: center; gap: 8px; }
         .quick-actions { display: flex; gap: 8px; }
+        .action-btn-speed { 
+          color: rgba(255,255,255,0.4); 
+          transition: all 0.2s; 
+          cursor: pointer;
+          position: relative;
+        }
+        .action-btn-speed.active { color: #1db954 !important; }
+        .action-btn-speed:hover { color: white; transform: scale(1.1); }
+        
+        .speed-badge {
+          position: absolute;
+          top: -10px;
+          right: -10px;
+          background: #1db954;
+          color: black;
+          font-size: 9px;
+          font-weight: 900;
+          padding: 2px 6px;
+          border-radius: 10px;
+          box-shadow: 0 4px 10px rgba(0,0,0,0.3);
+          min-width: 32px;
+          text-align: center;
+        }
         .action-btn { color: #555; transition: color 0.2s; }
         .action-btn:hover { color: #888; }
         .action-btn.active-flag { color: var(--primary); }
@@ -732,8 +759,7 @@ const PlayerBar = ({ onExpand }: { onExpand?: () => void }) => {
           bottom: 120px;
           right: 24px;
           width: 320px;
-          background: rgba(18, 18, 18, 0.95);
-          backdrop-filter: blur(20px);
+          background: #0a0a0a;
           border: 1px solid rgba(29, 185, 84, 0.5);
           border-radius: 20px;
           padding: 24px;

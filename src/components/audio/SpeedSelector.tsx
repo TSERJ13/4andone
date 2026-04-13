@@ -66,7 +66,7 @@ const SpeedSelector: React.FC<SpeedSelectorProps> = React.memo(({ currentBpm, on
   };
 
   return (
-    <div className="speed-container animate-in">
+    <div className="speed-container animate-in" onDoubleClick={(e) => e.stopPropagation()}>
       <div className="speed-header">
         <span ref={displayRef} className="current-display">
            {localBpm - 100 > 0 ? `+${localBpm - 100}` : localBpm - 100}%

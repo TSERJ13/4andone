@@ -402,7 +402,7 @@ const MobileFullPlayer = ({ isOpen, onClose }: MobileFullPlayerProps) => {
             align-items: center !important;
             justify-content: center !important;
             margin: 0 auto; 
-            gap: 0;
+            gap: 16px; /* Increased from 0 for vertical breathing room */
             padding-top: 5px;
             width: 100% !important;
             min-height: 40px;

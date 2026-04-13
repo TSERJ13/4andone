@@ -90,25 +90,18 @@ const FavoritesPage = () => {
                   {track.bpm ? `${getMPMFromBPM(Number(track.bpm), track.style)} MPM` : formatDuration(track.duration)}
                 </div>
 
-                <div className="track-actions-col">
-                  <button
-                    className={`fav-action active-heart`}
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      checkAuthAndExecute(() => toggleFavorite(track.id), 'favorite tracks');
-                    }}
-                    title="Unlike"
-                  >
-                    <Heart size={16} fill="#ff4b2b" color="#ff4b2b" />
-                  </button>
-                  <div className="play-action">
-                    {isPlaying && (playingTitle === track.title || playingTitle === track.id) ? (
-                      <div className="playing-bars"><span></span><span></span><span></span></div>
-                    ) : (
-                      <Play size={18} fill="currentColor" />
-                    )}
+                  <div className="track-only-fav">
+                    <button
+                      className={`fav-action active-heart`}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        checkAuthAndExecute(() => toggleFavorite(track.id), 'favorite tracks');
+                      }}
+                      title="Unlike"
+                    >
+                      <Heart size={18} fill="#ff4b2b" color="#ff4b2b" />
+                    </button>
                   </div>
-                </div>
               </div>
             ))}
           </div>
@@ -158,7 +151,8 @@ const FavoritesPage = () => {
         }
         .play-btn-large:hover { transform: scale(1.05); }
 
-        .fav-action { opacity: 0.4; transition: all 0.2s; background: none; border: none; cursor: pointer; color: #555; }
+        .track-only-fav { display: flex; align-items: center; justify-content: flex-end; }
+        .fav-action { opacity: 0.8; transition: all 0.2s; background: none; border: none; cursor: pointer; color: #555; padding: 10px; }
         .fav-action:hover, .fav-action.active-heart { opacity: 1; transform: scale(1.1); }
         .fav-action.active-heart { color: #f43f5e; }
         @keyframes dance {
@@ -174,8 +168,8 @@ const FavoritesPage = () => {
         .empty-state p { max-width: 300px; line-height: 1.5; font-size: 14px; }
 
         @media (max-width: 768px) {
-          .playlist-page { padding: 20px; padding-bottom: 120px; }
-          .page-header { flex-direction: column; align-items: center; text-align: center; gap: 24px; margin-top: 20px; }
+          .favorites-page { padding: 0; padding-bottom: 20px; }
+          .page-header { flex-direction: column; align-items: center; text-align: center; gap: 24px; margin-top: 20px; padding: 0 16px; }
           .icon-large { width: 140px; height: 140px; border-radius: 20px; }
           .title { font-size: 2.2rem; letter-spacing: -1px; }
           .actions { justify-content: center; height: 80px; }

@@ -518,13 +518,46 @@ const MobileFullPlayer = ({ isOpen, onClose }: MobileFullPlayerProps) => {
         }
 
         .mfp-practice-mode {
-          transform: translateY(-3mm);
+          margin-top: 4px;
         }
         
         /* Volume section is hidden in portrait */
         .mfp-landscape-volume { display: none; }
         .mfp-landscape-speed-btn { display: none; }
         .mfp-header-btn-placeholder { display: block !important; width: 32px; visibility: hidden; }
+
+        /* TABLET / iPad FIX (portrait & large landscape).
+           On big screens 'justify-content: space-around' on .mfp-content spread the
+           controls vertically and pushed the buttons up into empty space. Here we
+           cap the content width, center it, and group the elements with fixed gaps
+           so the player looks tidy on iPad instead of stretched. */
+        @media screen and (min-width: 700px) and (min-height: 600px) {
+          :global(.mfp-content) {
+            justify-content: center !important;
+            gap: 28px !important;
+            max-width: 540px;
+            margin: 0 auto;
+            width: 100%;
+            padding-top: 12px;
+          }
+          .vinyl-disc-v8 {
+            width: 300px;
+            height: 300px;
+          }
+          .countdown-ring-mobile {
+            width: 300px !important;
+            height: 300px !important;
+          }
+          :global(.mfp-progress-section) {
+            margin-top: 0 !important;
+          }
+          :global(.mfp-main-controls) {
+            margin: 4px 0 !important;
+          }
+          .mfp-practice-mode {
+            margin-top: 8px;
+          }
+        }
 
         .art-container {
           position: relative;

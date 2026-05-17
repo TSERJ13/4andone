@@ -111,6 +111,9 @@ export const AudioProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   const volumeRef = useRef(volume);
   const activeModeRef = useRef(activeMode);
   const fadeStartedRef = useRef(false); // Guard: prevent multiple fade intervals
+  const finalEndHandledRef = useRef(false); // Guard: prevent double-advance on track end
+  const sessionIndexRef = useRef<number>(-1); // Position in the Final Mode session (handles duplicate tracks)
+  const pauseDeadlineRef = useRef<number>(0); // Wall-clock deadline for pause countdown (survives screen-off)
 
   useEffect(() => { isPlayingRef.current = isPlaying; }, [isPlaying]);
   useEffect(() => { currentTimeRef.current = currentTime; }, [currentTime]);
@@ -183,6 +186,54 @@ export const AudioProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     return null;
   };
 
+  // CENTRAL FINAL-MODE ADVANCE LOGIC
+  // Decides what happens when a Final Mode track finishes (by natural end OR by 1:45 limit).
+  // Fixes three bugs:
+  //  1. Duplicate tracks: uses sessionIndexRef (position) instead of searching by id/title,
+  //     so two identical tracks no longer make the session loop forever.
+  //  2. Last track: stops cleanly with NO 15s pause countdown — Final Mode just ends.
+  //  3. Short tracks: this is reached via onended for tracks shorter than 1:45 too.
+  // NOTE: loadTrack and stop are defined later in this component, so we call them
+  // through refs to avoid the temporal-dead-zone / stale-closure problem.
+  const loadTrackRef = useRef<(track: any, isRetry?: boolean, forceFinalMode?: boolean) => void>(() => {});
+  const stopRef = useRef<() => void>(() => {});
+
+  const advanceFinalSession = React.useCallback(() => {
+    const tracksList = sessionTracksRef.current;
+
+    // Resolve current position. Prefer the tracked index; fall back to a search only if needed.
+    let currentIdx = sessionIndexRef.current;
+    if (currentIdx < 0 || currentIdx >= tracksList.length || tracksList[currentIdx]?.id !== trackIdRef.current) {
+      currentIdx = tracksList.findIndex(t => t.id === trackIdRef.current);
+    }
+
+    const isLastTrack = currentIdx === -1 || currentIdx >= tracksList.length - 1;
+
+    // BUG FIX: On the last track, Final Mode must STOP — no 15s countdown.
+    if (isLastTrack) {
+      stopRef.current();
+      return;
+    }
+
+    // Fitness mode: skip the rest pause, jump straight to next track.
+    if (isFitnessRef.current) {
+      const nextIdx = currentIdx + 1;
+      sessionIndexRef.current = nextIdx;
+      const next = tracksList[nextIdx];
+      if (nativePlayerRef.current) nativePlayerRef.current.volume = volumeRef.current * 0.8;
+      loadTrackRef.current(next, false, true);
+      return;
+    }
+
+    // Standard Final Mode: start the 15s rest countdown before the next track.
+    setIsPauseCountdown(true);
+    isPauseCountdownRef.current = true;
+    setPauseTime(15);
+    pauseTimeRef.current = 15;
+    pauseDeadlineRef.current = Date.now() + 15000; // wall-clock deadline (screen-off safe)
+  }, []);
+
+
   useEffect(() => {
     // Initialize Persistent Player & Heartbeat
     if (typeof window !== 'undefined') {
@@ -231,6 +282,36 @@ export const AudioProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         if (heartbeatRef.current && heartbeatRef.current.paused && isPlayingRef.current) {
           heartbeatRef.current.play().catch(() => {});
         }
+
+        // PAUSE COUNTDOWN CATCH-UP: setInterval is frozen while the screen is off,
+        // so when we come back we must re-evaluate the wall-clock deadline immediately.
+        // If the rest period already elapsed in the background, advance right away.
+        if (isPauseCountdownRef.current && pauseDeadlineRef.current) {
+          const remainingMs = pauseDeadlineRef.current - Date.now();
+          if (remainingMs <= 0) {
+            pauseDeadlineRef.current = 0;
+            const tracksList = sessionTracksRef.current;
+            let currentIndex = sessionIndexRef.current;
+            if (currentIndex < 0 || currentIndex >= tracksList.length ||
+                tracksList[currentIndex]?.id !== trackIdRef.current) {
+              currentIndex = tracksList.findIndex(t => t.id === trackIdRef.current);
+            }
+            if (currentIndex !== -1 && currentIndex < tracksList.length - 1) {
+              const nextIndex = currentIndex + 1;
+              sessionIndexRef.current = nextIndex;
+              if (nativePlayerRef.current) {
+                nativePlayerRef.current.volume = volumeRef.current * 0.8;
+              }
+              loadTrack(tracksList[nextIndex], false, true);
+            } else {
+              stop();
+            }
+          } else {
+            // Still counting — sync the visible number to the real remaining time
+            pauseTimeRef.current = remainingMs / 1000;
+            setPauseTime(Math.ceil(remainingMs / 1000));
+          }
+        }
       }
     };
 
@@ -257,6 +338,28 @@ export const AudioProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         setIsFinalMode(forceFinalMode);
         isFinalModeRef.current = forceFinalMode; // IMMEDIATE SYNC for closure
       }
+
+      // SESSION INDEX TRACKING (duplicate-track safe).
+      // When a Final Mode program starts, loadTrack is always called with the first
+      // track (index 0). advanceFinalSession / the pause timer then increment the
+      // index themselves. If loadTrack is called some other way during a session,
+      // we keep the index in sync by matching the track object identity first,
+      // and only fall back to a title/id search when that fails.
+      if (sessionTracksRef.current.length > 0) {
+        const exactIdx = sessionTracksRef.current.indexOf(track);
+        if (exactIdx !== -1) {
+          sessionIndexRef.current = exactIdx;
+        } else {
+          const byId = sessionTracksRef.current.findIndex(t => t.id === track.id);
+          sessionIndexRef.current = byId; // -1 if not part of the session
+        }
+      } else {
+        sessionIndexRef.current = -1;
+      }
+      // A brand-new program always begins at index 0.
+      if (forceFinalMode === true && sessionIndexRef.current < 0) {
+        sessionIndexRef.current = 0;
+      }
       // Context start
 
       // Cleanup previous state immediately
@@ -272,6 +375,7 @@ export const AudioProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         isPauseCountdownRef.current = false;
         setPauseTime(15);
         pauseTimeRef.current = 15;
+        finalEndHandledRef.current = false; // Allow end-handling for the new track
       };
 
       stopAndPrepare();
@@ -390,39 +494,25 @@ export const AudioProvider: React.FC<{ children: React.ReactNode }> = ({ childre
           };
 
           // NATURAL END HANDLING
-          // NOTE: In Final Mode, ontimeupdate handles the 1:45 cutoff.
-          // onended only fires naturally for Paso Doble (full track) or if audio loops to end unexpectedly.
-          // We guard with pauseTriggeredRef to prevent double-pause.
+          // NOTE: In Final Mode, ontimeupdate handles the 1:45 cutoff for tracks LONGER than 1:45.
+          // onended fires for: Paso Doble (full track) AND for any track SHORTER than 1:45
+          // (which never reaches the 105s limit). This is the fix for the "freeze" bug.
+          // We guard with isPauseCountdownRef + finalEndHandledRef to prevent double-pause.
           audio.onended = () => {
             if (currentToken !== loadingTokenRef.current) return;
-            
+
             if (isFinalModeRef.current) {
               // If pause was already triggered by ontimeupdate, do nothing
               if (isPauseCountdownRef.current) return;
+              // Guard: prevent this handler running twice for the same track
+              if (finalEndHandledRef.current) return;
+              finalEndHandledRef.current = true;
 
-              const style = playingTrackRef.current?.style?.toLowerCase() || '';
-              const isPasoDoble = style.includes('paso');
-
-              // Only handle natural end for Paso Doble here
-              if (!isPasoDoble) return;
-
-              const currentIdx = sessionTracksRef.current.findIndex(t => t.id === trackIdRef.current || t.title === title);
-              const isLastTrack = currentIdx === sessionTracksRef.current.length - 1;
-
-              if (isLastTrack) {
-                stop();
-                return;
-              }
-
-              if (isFitnessRef.current) {
-                playNext();
-                return;
-              }
-
-              setIsPauseCountdown(true);
-              isPauseCountdownRef.current = true;
-              setPauseTime(15);
-              pauseTimeRef.current = 15;
+              // This handler now covers BOTH cases:
+              //  1. Paso Doble — plays the full track, ends naturally.
+              //  2. Any track shorter than 1:45 — ends before reaching the 105s limit.
+              // In both cases we must advance the session (or finish it).
+              advanceFinalSession();
             } else {
               if (!isRepeat) {
                 audio.pause();
@@ -471,11 +561,14 @@ export const AudioProvider: React.FC<{ children: React.ReactNode }> = ({ childre
                   }
               }
 
-              // TRIGGER NEXT or END at 1:45 limit (ontimeupdate handles non-Paso tracks)
+              // TRIGGER NEXT or END at 1:45 limit (ontimeupdate handles non-Paso tracks
+              // that are LONGER than 1:45). Tracks shorter than 1:45 are handled by onended.
               // isPasoDoble is handled by onended, skip it here
               if (!isPasoDoble && currentTimeVal >= timeLimit) {
                 // Guard: only trigger once
                 if (isPauseCountdownRef.current) return;
+                if (finalEndHandledRef.current) return;
+                finalEndHandledRef.current = true;
 
                 audio.onended = null;
                 audio.pause();
@@ -483,20 +576,9 @@ export const AudioProvider: React.FC<{ children: React.ReactNode }> = ({ childre
                 isPlayingRef.current = false;
 
                 if (activeModeRef.current) {
-                  const currentIdx = sessionTracksRef.current.findIndex(t => t.id === trackIdRef.current || t.title === title);
-                  const isLastTrack = currentIdx === sessionTracksRef.current.length - 1;
-
-                  if (isLastTrack) { stop(); return; }
-                  if (isFitnessRef.current) { playNext(); return; }
-
-                  setIsPauseCountdown(true);
-                  isPauseCountdownRef.current = true;
-                  setPauseTime(15);
-                  pauseTimeRef.current = 15;
+                  advanceFinalSession();
                 } else {
-                  // Regular Player Logic: Just Auto-Stop
-                  audio.pause();
-                  setIsPlaying(false);
+                  // Single-track Final Mode (no program): just auto-stop cleanly
                   audio.currentTime = 0;
                   setCurrentTime(0);
                 }
@@ -604,17 +686,32 @@ export const AudioProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     if (isPlaying || isPauseCountdown || isLoading) {
       timerRef.current = setInterval(() => {
         if (isPauseCountdownRef.current) {
-          const newPauseTime = Math.max(0, pauseTimeRef.current - 0.1);
+          // WALL-CLOCK COUNTDOWN: derive remaining time from a real timestamp deadline
+          // instead of decrementing a counter. setInterval is throttled/frozen when the
+          // screen is off (iOS), so a counter would "pause" with it. Date.now() keeps
+          // advancing, so when the screen wakes the countdown is already correct.
+          if (!pauseDeadlineRef.current) {
+            pauseDeadlineRef.current = Date.now() + pauseTimeRef.current * 1000;
+          }
+          const remainingMs = pauseDeadlineRef.current - Date.now();
+          const newPauseTime = Math.max(0, remainingMs / 1000);
           pauseTimeRef.current = newPauseTime;
           setPauseTime(Math.ceil(newPauseTime));
 
           if (newPauseTime <= 0) {
-            // CRITICAL: Use refs (not stale state) to find the correct next track
+            pauseDeadlineRef.current = 0;
+            // CRITICAL: use the tracked session index (duplicate-safe), with a fallback search
             const tracksList = sessionTracksRef.current;
-            const currentIndex = tracksList.findIndex(t => t.id === trackIdRef.current);
+            let currentIndex = sessionIndexRef.current;
+            if (currentIndex < 0 || currentIndex >= tracksList.length ||
+                tracksList[currentIndex]?.id !== trackIdRef.current) {
+              currentIndex = tracksList.findIndex(t => t.id === trackIdRef.current);
+            }
 
             if (currentIndex !== -1 && currentIndex < tracksList.length - 1) {
-              const nextTrack = tracksList[currentIndex + 1];
+              const nextIndex = currentIndex + 1;
+              sessionIndexRef.current = nextIndex;
+              const nextTrack = tracksList[nextIndex];
               // Restore volume before loading next track
               if (nativePlayerRef.current) {
                 nativePlayerRef.current.volume = volumeRef.current * 0.8;
@@ -831,11 +928,21 @@ export const AudioProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     isPauseCountdownRef.current = false;
     setPauseTime(15);
     pauseTimeRef.current = 15;
+    pauseDeadlineRef.current = 0;
+    finalEndHandledRef.current = false;
+    sessionIndexRef.current = -1;
     setActiveMode(null);
     setSessionTracks([]);
     setIsFinalMode(false);
     isFinalModeRef.current = false;
   }, []);
+
+  // Keep the function refs current so advanceFinalSession (defined earlier) can
+  // safely call loadTrack/stop without a temporal-dead-zone error.
+  useEffect(() => {
+    loadTrackRef.current = loadTrack;
+    stopRef.current = stop;
+  });
 
   // REGISTER MEDIA SESSION ACTIONS
   useEffect(() => {

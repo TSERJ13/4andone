@@ -996,18 +996,6 @@ const PlayerBar = ({ onExpand }: { onExpand?: () => void }) => {
           .album-art { width: 44px; height: 44px; }
           .track-title { font-size: 13px; }
           .track-artist { font-size: 11px; }
-          
-        @media (min-width: 769px) and (max-width: 1100px) {
-          .player-bar {
-            padding: 0 24px;
-            padding-bottom: env(safe-area-inset-bottom);
-            grid-template-columns: 1fr auto 1fr;
-            height: 140px;
-          }
-          .track-info { gap: 10px; }
-          .album-art { width: 44px; height: 44px; }
-          .track-title { font-size: 13px; }
-          .track-artist { font-size: 11px; }
           .extra-controls { gap: 12px; }
           .volume-control { width: 90px; margin-left: 8px; gap: 10px; }
         }

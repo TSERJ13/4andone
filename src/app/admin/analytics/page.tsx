@@ -63,6 +63,7 @@ export default function AdminAnalytics() {
   const [countries, setCountries] = useState<CountryStat[]>([]);
   const [tgUsers, setTgUsers] = useState<TelegramUser[]>([]);
   const [topTracks, setTopTracks] = useState<{ id: string, title: string, artist: string, count: number }[]>([]);
+  const [styleStats, setStyleStats] = useState<{ style: string, count: number }[]>([]);
   const [loading, setLoading] = useState(true);
 
   const fetch_ = useCallback(async () => {
@@ -75,37 +76,95 @@ export default function AdminAnalytics() {
       const monthStart = new Date(now); monthStart.setDate(1); monthStart.setHours(0,0,0,0);
       const yearStart = new Date(now); yearStart.setMonth(0,1); yearStart.setHours(0,0,0,0);
 
-      const [chartData, td, wk, mo, yr, utd, uwk, umo, uyr, durData, countryData, tgData, playData] = await Promise.all([
-        supabase.from('page_visits').select('created_at').gte('created_at', start.toISOString()).order('created_at'),
-        supabase.from('page_visits').select('id', { count:'exact', head:true }).gte('created_at', todayStart.toISOString()),
-        supabase.from('page_visits').select('id', { count:'exact', head:true }).gte('created_at', weekStart.toISOString()),
-        supabase.from('page_visits').select('id', { count:'exact', head:true }).gte('created_at', monthStart.toISOString()),
-        supabase.from('page_visits').select('id', { count:'exact', head:true }).gte('created_at', yearStart.toISOString()),
-        // Unique sessions
-        supabase.from('page_visits').select('session_id', { count:'exact', head:true }).gte('created_at', todayStart.toISOString()),
-        supabase.from('page_visits').select('session_id', { count:'exact', head:true }).gte('created_at', weekStart.toISOString()),
-        supabase.from('page_visits').select('session_id', { count:'exact', head:true }).gte('created_at', monthStart.toISOString()),
-        supabase.from('page_visits').select('session_id', { count:'exact', head:true }).gte('created_at', yearStart.toISOString()),
-        supabase.from('page_visits').select('duration_seconds').gt('duration_seconds', 0).gte('created_at', monthStart.toISOString()),
-        supabase.from('page_visits').select('country_code,country_name').not('country_code','is',null).gte('created_at', yearStart.toISOString()),
-        supabase.from('telegram_users').select('*').order('visit_count', { ascending: false }).limit(10),
-        supabase.from('track_plays').select('track_id').gte('created_at', monthStart.toISOString()),
+      // NOTE: unique-visitor counts cannot be done with { count:'exact', head:true }
+      // because that counts ROWS, not DISTINCT session_id values — so "unique" used
+      // to equal "total". We now pull session_id + created_at for the whole year once
+      // and derive every period's totals + unique counts on the client.
+      const [yearRows, chartData, durData, countryData, tgData, playData] = await Promise.all([
+        supabase.from('page_visits')
+          .select('session_id, created_at')
+          .gte('created_at', yearStart.toISOString()),
+        supabase.from('page_visits')
+          .select('created_at')
+          .gte('created_at', start.toISOString())
+          .order('created_at'),
+        supabase.from('page_visits')
+          .select('duration_seconds')
+          .gt('duration_seconds', 0)
+          .gte('created_at', monthStart.toISOString()),
+        supabase.from('page_visits')
+          .select('country_code,country_name')
+          .not('country_code','is',null)
+          .gte('created_at', yearStart.toISOString()),
+        // All Telegram users (no artificial 10-row cap). Ordered by activity.
+        supabase.from('telegram_users')
+          .select('*')
+          .order('visit_count', { ascending: false }),
+        supabase.from('track_plays')
+          .select('track_id, style, created_at')
+          .gte('created_at', monthStart.toISOString()),
       ]);
 
-      const plays = (playData.data || []) as { track_id: string }[];
-      const trackCounts: Record<string, number> = {};
-      plays.forEach(p => trackCounts[p.track_id] = (trackCounts[p.track_id] || 0) + 1);
-      
-      const sortedTrackIds = Object.entries(trackCounts).sort((a,b) => b[1] - a[1]).slice(0, 5);
-      const topTracksDetailed = sortedTrackIds.map(([id, count]) => {
-        const t = tracks.find(tt => tt.id === id);
-        return { id, count, title: t?.title || 'Unknown Track', artist: t?.artist || 'Unknown' };
+      // ---- Visits: totals + unique sessions per period (computed client-side) ----
+      const rows = (yearRows.data || []) as { session_id: string | null; created_at: string }[];
+      const inRange = (d: string, from: Date) => new Date(d) >= from;
+
+      const countTotals = (from: Date) => rows.filter(r => inRange(r.created_at, from)).length;
+      const countUnique = (from: Date) => {
+        const set = new Set<string>();
+        rows.forEach(r => {
+          if (inRange(r.created_at, from) && r.session_id) set.add(r.session_id);
+        });
+        return set.size;
+      };
+
+      setTotals({
+        today: countTotals(todayStart),
+        week:  countTotals(weekStart),
+        month: countTotals(monthStart),
+        year:  countTotals(yearStart),
       });
+      setUniqueTotals({
+        today: countUnique(todayStart),
+        week:  countUnique(weekStart),
+        month: countUnique(monthStart),
+        year:  countUnique(yearStart),
+      });
+
+      // ---- Track plays: most played + style popularity (from the FULL month dataset) ----
+      const plays = (playData.data || []) as { track_id: string; style: string | null }[];
+
+      const trackCounts: Record<string, number> = {};
+      plays.forEach(p => { trackCounts[p.track_id] = (trackCounts[p.track_id] || 0) + 1; });
+
+      const topTracksDetailed = Object.entries(trackCounts)
+        .sort((a,b) => b[1] - a[1])
+        .slice(0, 8)
+        .map(([id, count]) => {
+          const t = tracks.find(tt => tt.id === id);
+          return { id, count, title: t?.title || 'Unknown Track', artist: t?.artist || 'Unknown' };
+        });
       setTopTracks(topTracksDetailed);
 
+      // Style popularity: count EVERY play, using the denormalized style on track_plays
+      // and falling back to the track's style from the library if it's missing.
+      const styleCounts: Record<string, number> = {};
+      plays.forEach(p => {
+        let s = (p.style || '').trim();
+        if (!s || s.toLowerCase() === 'unknown') {
+          s = tracks.find(tt => tt.id === p.track_id)?.style || 'Unknown';
+        }
+        if (!s) s = 'Unknown';
+        styleCounts[s] = (styleCounts[s] || 0) + 1;
+      });
+      const styleSorted = Object.entries(styleCounts)
+        .filter(([s]) => s.toLowerCase() !== 'unknown')
+        .sort((a,b) => b[1] - a[1])
+        .slice(0, 8)
+        .map(([style, count]) => ({ style, count }));
+      setStyleStats(styleSorted);
+
       setBuckets(buildBuckets(chartData.data || [], period));
-      setTotals({ today: td.count??0, week: wk.count??0, month: mo.count??0, year: yr.count??0 });
-      setUniqueTotals({ today: utd.count??0, week: uwk.count??0, month: umo.count??0, year: uyr.count??0 });
 
       // Avg duration in seconds
       const durations = (durData.data || []).map((d: any) => d.duration_seconds).filter(Boolean);
@@ -126,7 +185,7 @@ export default function AdminAnalytics() {
     } finally {
       setLoading(false);
     }
-  }, [period]);
+  }, [period, tracks]);
 
   useEffect(() => { fetch_(); }, [fetch_]);
 
@@ -239,19 +298,23 @@ export default function AdminAnalytics() {
             <h3>Telegram Users ({tgUsers.length})</h3>
           </div>
           {loading ? <div className="panel-empty">Loading...</div> :
-           tgUsers.length === 0 ? <div className="panel-empty">No auth users yet</div> :
-           tgUsers.map(u => (
-            <div key={u.telegram_id} className="tg-row">
-              <div className="tg-avatar">{u.first_name?.charAt(0) || '?'}</div>
-              <div className="tg-info">
-                <div className="tg-name">{u.first_name}{u.last_name ? ' '+u.last_name : ''}</div>
-                <div className="tg-meta">
-                  {u.username ? `@${u.username} · ` : ''}{u.country_name || 'Unknown'} · {fmtDate(u.last_seen)}
+           tgUsers.length === 0 ? <div className="panel-empty">No auth users yet</div> : (
+            <div className="scroll-list">
+              {tgUsers.map((u, i) => (
+                <div key={u.telegram_id} className="tg-row">
+                  <span className="rank-num">{i + 1}</span>
+                  <div className="tg-avatar">{u.first_name?.charAt(0) || '?'}</div>
+                  <div className="tg-info">
+                    <div className="tg-name">{u.first_name}{u.last_name ? ' '+u.last_name : ''}</div>
+                    <div className="tg-meta">
+                      {u.username ? `@${u.username} · ` : ''}{u.country_name || 'Unknown'} · {fmtDate(u.last_seen)}
+                    </div>
+                  </div>
+                  <div className="tg-visits">{u.visit_count}x</div>
                 </div>
-              </div>
-              <div className="tg-visits">{u.visit_count}x</div>
+              ))}
             </div>
-          ))}
+          )}
         </div>
       </div>
 
@@ -263,42 +326,45 @@ export default function AdminAnalytics() {
             <h3>Most Played Tracks (30D)</h3>
           </div>
           {loading ? <div className="panel-empty">Loading...</div> :
-           topTracks.length === 0 ? <div className="panel-empty">No play data yet</div> :
-           topTracks.map(t => (
-            <div key={t.id} className="tg-row">
-              <div className="tg-avatar"><Music size={14}/></div>
-              <div className="tg-info">
-                <div className="tg-name">{t.title}</div>
-                <div className="tg-meta">{t.artist}</div>
-              </div>
-              <div className="tg-visits">{t.count} plays</div>
+           topTracks.length === 0 ? <div className="panel-empty">No play data yet</div> : (
+            <div className="scroll-list">
+              {topTracks.map((t, i) => (
+                <div key={t.id} className="tg-row">
+                  <span className="rank-num">{i + 1}</span>
+                  <div className="tg-avatar"><Music size={14}/></div>
+                  <div className="tg-info">
+                    <div className="tg-name">{t.title}</div>
+                    <div className="tg-meta">{t.artist}</div>
+                  </div>
+                  <div className="tg-visits">{t.count} plays</div>
+                </div>
+              ))}
             </div>
-          ))}
+          )}
         </div>
 
         <div className="panel glass">
           <div className="panel-head">
             <TrendingUp size={18} className="text-primary"/>
-            <h3>Style Popularity</h3>
+            <h3>Style Popularity (30D)</h3>
           </div>
-          <div className="style-bars">
-            {['Samba','Cha Cha','Rumba','Paso','Jive'].map(s => {
-              const count = topTracks.filter(t => {
-                const tr = tracks.find(tt => tt.id === t.id);
-                return tr?.style?.toLowerCase().includes(s.toLowerCase());
-              }).reduce((acc, curr) => acc + curr.count, 0);
-              const maxCount = Math.max(...topTracks.map(t => t.count), 1) * 2;
-              return (
-                <div key={s} className="style-bar-row">
-                  <span className="style-name">{s}</span>
-                  <div className="s-bar-wrap">
-                    <div className="s-bar" style={{ width: `${Math.min(100, (count/maxCount)*100)}%` }} />
+          {loading ? <div className="panel-empty">Loading...</div> :
+           styleStats.length === 0 ? <div className="panel-empty">No play data yet</div> : (
+            <div className="style-bars">
+              {styleStats.map(s => {
+                const maxCount = Math.max(...styleStats.map(x => x.count), 1);
+                return (
+                  <div key={s.style} className="style-bar-row">
+                    <span className="style-name">{s.style}</span>
+                    <div className="s-bar-wrap">
+                      <div className="s-bar" style={{ width: `${Math.max(4, (s.count/maxCount)*100)}%` }} />
+                    </div>
+                    <span className="style-count">{s.count}</span>
                   </div>
-                  <span className="style-count">{count}</span>
-                </div>
-              );
-            })}
-          </div>
+                );
+              })}
+            </div>
+          )}
         </div>
       </div>
 
@@ -374,6 +440,13 @@ export default function AdminAnalytics() {
         .country-bar-wrap { flex:1; height:6px; background:rgba(255,255,255,0.06); border-radius:3px; overflow:hidden; }
         .country-bar { height:100%; background:#1db954; border-radius:3px; transition:width 0.6s ease; }
         .country-count { font-size:13px; font-weight:800; color:#a1a1aa; min-width:28px; text-align:right; }
+
+        /* Scrollable user/track list — caps panel height so long lists don't blow up the page */
+        .scroll-list { display:flex; flex-direction:column; max-height:340px; overflow-y:auto; margin:-4px -8px 0; padding:0 8px; }
+        .scroll-list::-webkit-scrollbar { width:5px; }
+        .scroll-list::-webkit-scrollbar-thumb { background:rgba(255,255,255,0.12); border-radius:3px; }
+        .scroll-list::-webkit-scrollbar-track { background:transparent; }
+        .rank-num { font-size:11px; font-weight:800; color:#52525b; min-width:18px; text-align:center; flex-shrink:0; }
 
         /* Telegram rows */
         .tg-row { display:flex; align-items:center; gap:12px; padding:8px 0; border-bottom:1px solid rgba(255,255,255,0.04); }

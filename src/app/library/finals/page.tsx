@@ -26,6 +26,26 @@ import ConfirmModal from '@/components/admin/ConfirmModal';
 import { formatDuration } from '@/utils/format';
 import { Marquee } from '@/components/layout/Marquee';
 
+// Program card definitions — single source of truth for the Final Mode grid.
+// Order here = display order on screen. To add/remove a program, edit this list.
+const PROGRAMS: { key: string; label: string; cls: string; icon: React.ReactNode }[] = [
+  { key: 'Latin',             label: 'Latin',          cls: 'latin',          icon: <Zap size={24} /> },
+  { key: 'Standard',          label: 'Standard',       cls: 'standard',       icon: <Activity size={24} /> },
+  { key: '10Dance',           label: '10-Dance',       cls: 'all-dance',      icon: <Disc size={24} /> },
+  { key: '2Dance',            label: '2-Dance',        cls: 'two-dance',      icon: <Music2 size={24} /> },
+  { key: '4Dance',            label: '4-Dance',        cls: 'four-dance',     icon: <Music2 size={24} /> },
+  { key: '8Dance',            label: '8-Dance',        cls: 'eight-dance',    icon: <Music2 size={24} /> },
+  { key: '6Dance',            label: '6-Dance',        cls: 'six-dance',      icon: <Zap size={20} /> },
+  { key: 'InstLatin',         label: 'Inst. Latin',    cls: 'inst-latin',     icon: <MicOff size={24} /> },
+  { key: 'InstStandard',      label: 'Inst. Standard', cls: 'inst-std',       icon: <MicOff size={24} /> },
+  { key: 'JiveLatin',         label: 'Jive Mode',      cls: 'jive-mode',      icon: <Zap size={24} /> },
+  { key: 'QuickstepStandard', label: 'Quickstep Mode', cls: 'quickstep-mode', icon: <Activity size={24} /> },
+  { key: 'BlackpoolLt',       label: 'Blackpool Lt',   cls: 'blackpool-lt',   icon: <Disc size={24} /> },
+  { key: 'BlackpoolSt',       label: 'Blackpool St',   cls: 'blackpool-st',   icon: <Disc size={24} /> },
+  { key: 'LikedSongs',        label: 'Liked Songs',    cls: 'liked-songs',    icon: <Heart size={24} /> },
+  { key: 'Fitness',           label: 'Fitness',        cls: 'fitness',        icon: <Dumbbell size={24} /> },
+];
+
 const FinalsPage = () => {
   const { 
     tracks,
@@ -125,12 +145,49 @@ const FinalsPage = () => {
       case '10Dance':
         order = [...standardOrder, ...latinOrder];
         break;
+      // NEW: 2-Dance — Slow Waltz + Cha Cha Cha
+      case '2Dance':
+        order = ['Slow Waltz', 'Cha-cha-cha'];
+        break;
+      // NEW: 4-Dance — Slow Waltz, Quickstep, Cha Cha Cha, Jive
+      case '4Dance':
+        order = ['Slow Waltz', 'Quickstep', 'Cha-cha-cha', 'Jive'];
+        break;
       case '8Dance':
         order = [...standardOrder, ...latinOrder].filter(s => s !== "Slow Foxtrot" && s !== "Paso Doble");
         break;
       case '6Dance':
         order = [...standardOrder, ...latinOrder].filter(s => !["Slow Foxtrot", "Paso Doble", "Viennese Waltz", "Rumba"].includes(s));
         break;
+      // NEW: Blackpool Latin — full Latin, but only tracks tagged "blackpool"
+      case 'BlackpoolLt':
+        order = latinOrder;
+        filterFn = (t) => t.tags?.some(tag => tag.toLowerCase() === 'blackpool') || false;
+        break;
+      // NEW: Blackpool Standard — full Standard, but only tracks tagged "blackpool"
+      case 'BlackpoolSt':
+        order = standardOrder;
+        filterFn = (t) => t.tags?.some(tag => tag.toLowerCase() === 'blackpool') || false;
+        break;
+      // NEW: Liked Songs — builds a program from the user's favorited tracks
+      case 'LikedSongs': {
+        const liked = tracks.filter(t => t.isFavorite);
+        if (liked.length === 0) {
+          alert("No liked songs yet. Tap the heart on tracks to add them here.");
+          return;
+        }
+        // Order liked tracks by dance discipline: Standard first, then Latin.
+        const danceOrder = [...standardOrder, ...latinOrder];
+        const likedOrdered = [...liked].sort((a, b) => {
+          const ai = danceOrder.findIndex(s => s.toLowerCase() === (a.style || '').toLowerCase());
+          const bi = danceOrder.findIndex(s => s.toLowerCase() === (b.style || '').toLowerCase());
+          return (ai === -1 ? 99 : ai) - (bi === -1 ? 99 : bi);
+        });
+        setActiveMode('LikedSongs');
+        setSessionTracks(likedOrdered);
+        loadTrack(likedOrdered[0], false, true);
+        return;
+      }
       case 'InstLatin':
         order = latinOrder;
         filterFn = (t) => t.tags?.some(tag => tag.toLowerCase() === 'instrumental') || false;
@@ -228,6 +285,13 @@ const FinalsPage = () => {
       setSessionTracks(selectedTracks);
       // Ensure we start playing
       loadTrack(selectedTracks[0], false, true);
+    } else {
+      // No track matched the program's filter (e.g. no tracks tagged "blackpool"
+      // or no tracks for the requested styles) — tell the user instead of failing silently.
+      const isBlackpool = type === 'BlackpoolLt' || type === 'BlackpoolSt';
+      alert(isBlackpool
+        ? "No tracks tagged 'Blackpool' found. Add the 'Blackpool' tag to tracks in the Admin Panel."
+        : "No tracks found for this program. Add tracks for these styles in the Admin Panel.");
     }
   };
 
@@ -303,406 +367,48 @@ const FinalsPage = () => {
           </header>
           
           <div className="programs-grid">
-            <div className="prog-card-wrapper">
-              <div 
-                className={`prog-card latin glass ${activeMode === 'Latin' ? 'active' : ''}`} 
-                onClick={() => activeMode === 'Latin' ? setShowStopConfirm(true) : handleProgramShuffle('Latin')}
-                role="button"
-                tabIndex={0}
-                onKeyDown={(e) => e.key === 'Enter' && (activeMode === 'Latin' ? setShowStopConfirm(true) : handleProgramShuffle('Latin'))}
-              >
-                {activeMode === 'Latin' && (
-                  <>
-                    <div className="rectangular-timer-border" ref={activeCardRef}>
-                       <svg 
-                         width={cardDim.w} 
-                         height={cardDim.h} 
-                         viewBox={`0 0 ${cardDim.w} ${cardDim.h}`} 
-                         className="timer-svg"
-                       >
-                         <path 
-                           d={generateDynamicPath(cardDim.w, cardDim.h, 20)}
-                           className={`border-rect-progress ${isPauseCountdown ? 'resting' : 'playing'}`}
-                           vectorEffect="non-scaling-stroke"
-                           pathLength="1"
-                           style={{ 
-                             strokeDasharray: `${totalProgress} 10`,
-                             strokeDashoffset: '0'
-                           }}
-                         />
-                       </svg>
+            {PROGRAMS.map(({ key, label, cls, icon }) => {
+              const isActive = activeMode === key;
+              return (
+                <div className="prog-card-wrapper" key={key}>
+                  <div
+                    className={`prog-card ${cls} glass ${isActive ? 'active' : ''}`}
+                    onClick={() => isActive ? setShowStopConfirm(true) : handleProgramShuffle(key)}
+                    role="button"
+                    tabIndex={0}
+                    onKeyDown={(e) => e.key === 'Enter' && (isActive ? setShowStopConfirm(true) : handleProgramShuffle(key))}
+                  >
+                    {isActive && (
+                      <>
+                        <div className="rectangular-timer-border" ref={activeCardRef}>
+                          <svg
+                            width={cardDim.w}
+                            height={cardDim.h}
+                            viewBox={`0 0 ${cardDim.w} ${cardDim.h}`}
+                            className="timer-svg"
+                          >
+                            <path
+                              d={generateDynamicPath(cardDim.w, cardDim.h, 20)}
+                              className={`border-rect-progress ${isPauseCountdown ? 'resting' : 'playing'}`}
+                              vectorEffect="non-scaling-stroke"
+                              pathLength="1"
+                              style={{ strokeDasharray: `${totalProgress} 10`, strokeDashoffset: '0' }}
+                            />
+                          </svg>
+                        </div>
+                        {isPauseCountdown && <div className="rest-timer-overlay pulse-intense">{pauseTime}</div>}
+                      </>
+                    )}
+                    <div className="card-icon">{icon}</div>
+                    <div className="card-info">
+                      <h4>{label}</h4>
+                      {isActive && <p className="session-timer">{formatTime(displayElapsedTime)} / {formatTime(displayTotalDuration)}</p>}
                     </div>
-                    {isPauseCountdown && <div className="rest-timer-overlay pulse-intense">{pauseTime}</div>}
-                  </>
-                )}
-                <div className="card-icon"><Zap size={24} /></div>
-                <div className="card-info">
-                  <h4>Latin</h4>
-                  {activeMode === 'Latin' && <p className="session-timer">{formatTime(displayElapsedTime)} / {formatTime(displayTotalDuration)}</p>}
+                  </div>
                 </div>
-              </div>
-            </div>
-
-            <div className="prog-card-wrapper">
-              <div 
-                className={`prog-card standard glass ${activeMode === 'Standard' ? 'active' : ''}`} 
-                onClick={() => activeMode === 'Standard' ? setShowStopConfirm(true) : handleProgramShuffle('Standard')}
-                role="button"
-                tabIndex={0}
-                onKeyDown={(e) => e.key === 'Enter' && (activeMode === 'Standard' ? setShowStopConfirm(true) : handleProgramShuffle('Standard'))}
-              >
-                {activeMode === 'Standard' && (
-                  <>
-                    <div className="rectangular-timer-border" ref={activeCardRef}>
-                       <svg 
-                         width={cardDim.w} 
-                         height={cardDim.h} 
-                         viewBox={`0 0 ${cardDim.w} ${cardDim.h}`} 
-                         className="timer-svg"
-                       >
-                         <path 
-                           d={generateDynamicPath(cardDim.w, cardDim.h, 20)}
-                           className={`border-rect-progress ${isPauseCountdown ? 'resting' : 'playing'}`}
-                           vectorEffect="non-scaling-stroke"
-                           pathLength="1"
-                           style={{ 
-                             strokeDasharray: `${totalProgress} 10`,
-                             strokeDashoffset: '0'
-                           }}
-                         />
-                       </svg>
-                    </div>
-                    {isPauseCountdown && <div className="rest-timer-overlay pulse-intense">{pauseTime}</div>}
-                  </>
-                )}
-                <div className="card-icon"><Activity size={24} /></div>
-                <div className="card-info">
-                  <h4>Standard</h4>
-                  {activeMode === 'Standard' && <p className="session-timer">{formatTime(displayElapsedTime)} / {formatTime(displayTotalDuration)}</p>}
-                </div>
-              </div>
-            </div>
-
-            <div className="prog-card-wrapper">
-              <div 
-                className={`prog-card all-dance glass ${activeMode === '10Dance' ? 'active' : ''}`} 
-                onClick={() => activeMode === '10Dance' ? setShowStopConfirm(true) : handleProgramShuffle('10Dance')}
-                role="button"
-                tabIndex={0}
-                onKeyDown={(e) => e.key === 'Enter' && (activeMode === '10Dance' ? setShowStopConfirm(true) : handleProgramShuffle('10Dance'))}
-              >
-                {activeMode === '10Dance' && (
-                  <>
-                    <div className="rectangular-timer-border" ref={activeCardRef}>
-                       <svg 
-                         width={cardDim.w} 
-                         height={cardDim.h} 
-                         viewBox={`0 0 ${cardDim.w} ${cardDim.h}`} 
-                         className="timer-svg"
-                       >
-                         <path 
-                           d={generateDynamicPath(cardDim.w, cardDim.h, 20)}
-                           className={`border-rect-progress ${isPauseCountdown ? 'resting' : 'playing'}`}
-                           vectorEffect="non-scaling-stroke"
-                           pathLength="1"
-                           style={{ 
-                             strokeDasharray: `${totalProgress} 10`,
-                             strokeDashoffset: '0'
-                           }}
-                         />
-                       </svg>
-                    </div>
-                    {isPauseCountdown && <div className="rest-timer-overlay pulse-intense">{pauseTime}</div>}
-                  </>
-                )}
-                <div className="card-icon"><Disc size={24} /></div>
-                <div className="card-info">
-                  <h4>10-Dance</h4>
-                  {activeMode === '10Dance' && <p className="session-timer">{formatTime(displayElapsedTime)} / {formatTime(displayTotalDuration)}</p>}
-                </div>
-              </div>
-            </div>
-
-            <div className="prog-card-wrapper">
-              <div 
-                className={`prog-card eight-dance glass ${activeMode === '8Dance' ? 'active' : ''}`} 
-                onClick={() => activeMode === '8Dance' ? setShowStopConfirm(true) : handleProgramShuffle('8Dance')}
-                role="button"
-                tabIndex={0}
-                onKeyDown={(e) => e.key === 'Enter' && (activeMode === '8Dance' ? setShowStopConfirm(true) : handleProgramShuffle('8Dance'))}
-              >
-                {activeMode === '8Dance' && (
-                  <>
-                    <div className="rectangular-timer-border" ref={activeCardRef}>
-                       <svg 
-                         width={cardDim.w} 
-                         height={cardDim.h} 
-                         viewBox={`0 0 ${cardDim.w} ${cardDim.h}`} 
-                         className="timer-svg"
-                       >
-                         <path 
-                           d={generateDynamicPath(cardDim.w, cardDim.h, 20)}
-                           className={`border-rect-progress ${isPauseCountdown ? 'resting' : 'playing'}`}
-                           vectorEffect="non-scaling-stroke"
-                           pathLength="1"
-                           style={{ 
-                             strokeDasharray: `${totalProgress} 10`,
-                             strokeDashoffset: '0'
-                           }}
-                         />
-                       </svg>
-                    </div>
-                    {isPauseCountdown && <div className="rest-timer-overlay pulse-intense">{pauseTime}</div>}
-                  </>
-                )}
-                <div className="card-icon"><Music2 size={24} /></div>
-                <div className="card-info">
-                  <h4>8-Dance</h4>
-                  {activeMode === '8Dance' && <p className="session-timer">{formatTime(displayElapsedTime)} / {formatTime(displayTotalDuration)}</p>}
-                </div>
-              </div>
-            </div>
-
-            <div className="prog-card-wrapper">
-              <div 
-                className={`prog-card six-dance glass ${activeMode === '6Dance' ? 'active' : ''}`} 
-                onClick={() => activeMode === '6Dance' ? setShowStopConfirm(true) : handleProgramShuffle('6Dance')}
-                role="button"
-                tabIndex={0}
-                onKeyDown={(e) => e.key === 'Enter' && (activeMode === '6Dance' ? setShowStopConfirm(true) : handleProgramShuffle('6Dance'))}
-              >
-                {activeMode === '6Dance' && (
-                  <>
-                    <div className="rectangular-timer-border" ref={activeCardRef}>
-                       <svg 
-                         width={cardDim.w} 
-                         height={cardDim.h} 
-                         viewBox={`0 0 ${cardDim.w} ${cardDim.h}`} 
-                         className="timer-svg"
-                       >
-                         <path 
-                           d={generateDynamicPath(cardDim.w, cardDim.h, 20)}
-                           className={`border-rect-progress ${isPauseCountdown ? 'resting' : 'playing'}`}
-                           vectorEffect="non-scaling-stroke"
-                           pathLength="1"
-                           style={{ 
-                             strokeDasharray: `${totalProgress} 10`,
-                             strokeDashoffset: '0'
-                           }}
-                         />
-                       </svg>
-                    </div>
-                    {isPauseCountdown && <div className="rest-timer-overlay pulse-intense">{pauseTime}</div>}
-                  </>
-                )}
-                <div className="card-icon"><Zap size={20} /></div>
-                <div className="card-info">
-                  <h4>6-Dance</h4>
-                  {activeMode === '6Dance' && <p className="session-timer">{formatTime(displayElapsedTime)} / {formatTime(displayTotalDuration)}</p>}
-                </div>
-              </div>
-            </div>
-
-            <div className="prog-card-wrapper">
-              <div 
-                className={`prog-card inst-latin glass ${activeMode === 'InstLatin' ? 'active' : ''}`} 
-                onClick={() => activeMode === 'InstLatin' ? setShowStopConfirm(true) : handleProgramShuffle('InstLatin')}
-                role="button"
-                tabIndex={0}
-                onKeyDown={(e) => e.key === 'Enter' && (activeMode === 'InstLatin' ? setShowStopConfirm(true) : handleProgramShuffle('InstLatin'))}
-              >
-                {activeMode === 'InstLatin' && (
-                  <>
-                    <div className="rectangular-timer-border" ref={activeCardRef}>
-                       <svg 
-                         width={cardDim.w} 
-                         height={cardDim.h} 
-                         viewBox={`0 0 ${cardDim.w} ${cardDim.h}`} 
-                         className="timer-svg"
-                       >
-                         <path 
-                           d={generateDynamicPath(cardDim.w, cardDim.h, 20)}
-                           className={`border-rect-progress ${isPauseCountdown ? 'resting' : 'playing'}`}
-                           vectorEffect="non-scaling-stroke"
-                           pathLength="1"
-                           style={{ 
-                             strokeDasharray: `${totalProgress} 10`,
-                             strokeDashoffset: '0'
-                           }}
-                         />
-                       </svg>
-                    </div>
-                    {isPauseCountdown && <div className="rest-timer-overlay pulse-intense">{pauseTime}</div>}
-                  </>
-                )}
-                <div className="card-icon"><MicOff size={24} /></div>
-                <div className="card-info">
-                  <h4>Inst. Latin</h4>
-                  {activeMode === 'InstLatin' && <p className="session-timer">{formatTime(displayElapsedTime)} / {formatTime(displayTotalDuration)}</p>}
-                </div>
-              </div>
-            </div>
-
-            <div className="prog-card-wrapper">
-              <div 
-                className={`prog-card inst-std glass ${activeMode === 'InstStandard' ? 'active' : ''}`} 
-                onClick={() => activeMode === 'InstStandard' ? setShowStopConfirm(true) : handleProgramShuffle('InstStandard')}
-                role="button"
-                tabIndex={0}
-                onKeyDown={(e) => e.key === 'Enter' && (activeMode === 'InstStandard' ? setShowStopConfirm(true) : handleProgramShuffle('InstStandard'))}
-              >
-                {activeMode === 'InstStandard' && (
-                  <>
-                    <div className="rectangular-timer-border" ref={activeCardRef}>
-                       <svg 
-                         width={cardDim.w} 
-                         height={cardDim.h} 
-                         viewBox={`0 0 ${cardDim.w} ${cardDim.h}`} 
-                         className="timer-svg"
-                       >
-                         <path 
-                           d={generateDynamicPath(cardDim.w, cardDim.h, 20)}
-                           className={`border-rect-progress ${isPauseCountdown ? 'resting' : 'playing'}`}
-                           vectorEffect="non-scaling-stroke"
-                           pathLength="1"
-                           style={{ 
-                             strokeDasharray: `${totalProgress} 10`,
-                             strokeDashoffset: '0'
-                           }}
-                         />
-                       </svg>
-                    </div>
-                    {isPauseCountdown && <div className="rest-timer-overlay pulse-intense">{pauseTime}</div>}
-                  </>
-                )}
-                <div className="card-icon"><MicOff size={24} /></div>
-                <div className="card-info">
-                  <h4>Inst. Standard</h4>
-                  {activeMode === 'InstStandard' && <p className="session-timer">{formatTime(displayElapsedTime)} / {formatTime(displayTotalDuration)}</p>}
-                </div>
-              </div>
-            </div>
-
-            <div className="prog-card-wrapper">
-              <div 
-                className={`prog-card jive-mode glass ${activeMode === 'JiveLatin' ? 'active' : ''}`} 
-                onClick={() => activeMode === 'JiveLatin' ? setShowStopConfirm(true) : handleProgramShuffle('JiveLatin')}
-                role="button"
-                tabIndex={0}
-                onKeyDown={(e) => e.key === 'Enter' && (activeMode === 'JiveLatin' ? setShowStopConfirm(true) : handleProgramShuffle('JiveLatin'))}
-              >
-                {activeMode === 'JiveLatin' && (
-                  <>
-                    <div className="rectangular-timer-border" ref={activeCardRef}>
-                       <svg 
-                         width={cardDim.w} 
-                         height={cardDim.h} 
-                         viewBox={`0 0 ${cardDim.w} ${cardDim.h}`} 
-                         className="timer-svg"
-                       >
-                         <path 
-                           d={generateDynamicPath(cardDim.w, cardDim.h, 20)}
-                           className={`border-rect-progress ${isPauseCountdown ? 'resting' : 'playing'}`}
-                           vectorEffect="non-scaling-stroke"
-                           pathLength="1"
-                           style={{ 
-                             strokeDasharray: `${totalProgress} 10`,
-                             strokeDashoffset: '0'
-                           }}
-                         />
-                       </svg>
-                    </div>
-                    {isPauseCountdown && <div className="rest-timer-overlay pulse-intense">{pauseTime}</div>}
-                  </>
-                )}
-                <div className="card-icon"><Zap size={24} /></div>
-                <div className="card-info">
-                  <h4>Jive Mode</h4>
-                  {activeMode === 'JiveLatin' && <p className="session-timer">{formatTime(displayElapsedTime)} / {formatTime(displayTotalDuration)}</p>}
-                </div>
-              </div>
-            </div>
-
-            <div className="prog-card-wrapper">
-              <div 
-                className={`prog-card quickstep-mode glass ${activeMode === 'QuickstepStandard' ? 'active' : ''}`} 
-                onClick={() => activeMode === 'QuickstepStandard' ? setShowStopConfirm(true) : handleProgramShuffle('QuickstepStandard')}
-                role="button"
-                tabIndex={0}
-                onKeyDown={(e) => e.key === 'Enter' && (activeMode === 'QuickstepStandard' ? setShowStopConfirm(true) : handleProgramShuffle('QuickstepStandard'))}
-              >
-                {activeMode === 'QuickstepStandard' && (
-                  <>
-                    <div className="rectangular-timer-border" ref={activeCardRef}>
-                       <svg 
-                         width={cardDim.w} 
-                         height={cardDim.h} 
-                         viewBox={`0 0 ${cardDim.w} ${cardDim.h}`} 
-                         className="timer-svg"
-                       >
-                         <path 
-                           d={generateDynamicPath(cardDim.w, cardDim.h, 20)}
-                           className={`border-rect-progress ${isPauseCountdown ? 'resting' : 'playing'}`}
-                           vectorEffect="non-scaling-stroke"
-                           pathLength="1"
-                           style={{ 
-                             strokeDasharray: `${totalProgress} 10`,
-                             strokeDashoffset: '0'
-                           }}
-                         />
-                       </svg>
-                    </div>
-                    {isPauseCountdown && <div className="rest-timer-overlay pulse-intense">{pauseTime}</div>}
-                  </>
-                )}
-                <div className="card-icon"><Activity size={24} /></div>
-                <div className="card-info">
-                  <h4>Quickstep Mode</h4>
-                  {activeMode === 'QuickstepStandard' && <p className="session-timer">{formatTime(displayElapsedTime)} / {formatTime(displayTotalDuration)}</p>}
-                </div>
-              </div>
-            </div>
-
-            <div className="prog-card-wrapper">
-              <div 
-                className={`prog-card fitness glass ${activeMode === 'Fitness' ? 'active' : ''}`} 
-                onClick={() => activeMode === 'Fitness' ? setShowStopConfirm(true) : handleProgramShuffle('Fitness')}
-                role="button"
-                tabIndex={0}
-                onKeyDown={(e) => e.key === 'Enter' && (activeMode === 'Fitness' ? setShowStopConfirm(true) : handleProgramShuffle('Fitness'))}
-              >
-                {activeMode === 'Fitness' && (
-                  <>
-                    <div className="rectangular-timer-border" ref={activeCardRef}>
-                       <svg 
-                         width={cardDim.w} 
-                         height={cardDim.h} 
-                         viewBox={`0 0 ${cardDim.w} ${cardDim.h}`} 
-                         className="timer-svg"
-                       >
-                         <path 
-                           d={generateDynamicPath(cardDim.w, cardDim.h, 20)}
-                           className={`border-rect-progress ${isPauseCountdown ? 'resting' : 'playing'}`}
-                           vectorEffect="non-scaling-stroke"
-                           pathLength="1"
-                           style={{ 
-                             strokeDasharray: `${totalProgress} 10`,
-                             strokeDashoffset: '0'
-                           }}
-                         />
-                       </svg>
-                    </div>
-                    {isPauseCountdown && <div className="rest-timer-overlay pulse-intense">{pauseTime}</div>}
-                  </>
-                )}
-                <div className="card-icon"><Dumbbell size={24} /></div>
-                <div className="card-info">
-                  <h4>Fitness</h4>
-                  {activeMode === 'Fitness' && <p className="session-timer">{formatTime(displayElapsedTime)} / {formatTime(displayTotalDuration)}</p>}
-                </div>
-              </div>
-            </div>
-            </div>
+              );
+            })}
+          </div>
           </section>
         
         {sessionList.length > 0 && (
@@ -919,6 +625,13 @@ const FinalsPage = () => {
         .prog-card.inst-latin .card-icon { color: #9c27b0; background: rgba(156, 39, 176, 0.1); }
         .prog-card.inst-std .card-icon { color: #3f51b5; background: rgba(63, 81, 181, 0.1); }
         .prog-card.fitness .card-icon { color: #ff5722; background: rgba(255, 87, 34, 0.1); }
+        .prog-card.jive-mode .card-icon { color: #ff9800; background: rgba(255, 152, 0, 0.1); }
+        .prog-card.quickstep-mode .card-icon { color: #26c6da; background: rgba(38, 198, 218, 0.1); }
+        .prog-card.two-dance .card-icon { color: #66bb6a; background: rgba(102, 187, 106, 0.1); }
+        .prog-card.four-dance .card-icon { color: #ab47bc; background: rgba(171, 71, 188, 0.1); }
+        .prog-card.blackpool-lt .card-icon { color: #ec407a; background: rgba(236, 64, 122, 0.1); }
+        .prog-card.blackpool-st .card-icon { color: #5c6bc0; background: rgba(92, 107, 192, 0.1); }
+        .prog-card.liked-songs .card-icon { color: #ef5350; background: rgba(239, 83, 80, 0.1); }
 
         .card-info h4 { font-size: 14px; font-weight: 800; margin-bottom: 2px; }
         .card-info p { font-size: 11px; opacity: 0.5; font-weight: 600; }

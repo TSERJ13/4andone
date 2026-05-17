@@ -100,6 +100,8 @@ export const AudioProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   // Refs to avoid circular re-renders on every tick
   const isPlayingRef = useRef(isPlaying);
   const currentTimeRef = useRef(currentTime);
+  const trackCurrentTimeRef = useRef(0); // PERF: skip no-op renders in the tick timer
+  const lastPositionSyncRef = useRef(0); // PERF: throttle mediaSession.setPositionState
   const isPauseCountdownRef = useRef(isPauseCountdown);
   const pauseTimeRef = useRef(pauseTime);
   const isFinalModeRef = useRef(isFinalMode);
@@ -257,6 +259,18 @@ export const AudioProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     const savedVol = localStorage.getItem('4andone-volume');
     if (savedVol) setVolumeState(parseFloat(savedVol));
 
+    // SPEED PERSISTENCE FIX: restore the user's last chosen speed on startup.
+    // It was being saved to localStorage but never read back, so every reload
+    // reset the speed to 100%.
+    const savedBpm = localStorage.getItem('4andone-bpm');
+    if (savedBpm) {
+      const parsed = parseFloat(savedBpm);
+      if (!isNaN(parsed) && parsed > 0) {
+        setBpmState(parsed);
+        bpmRef.current = parsed;
+      }
+    }
+
     // Global "Unlock" for mobile audio + Safari Optimizations
     const unlockAudio = async () => {
       // PRO-TIP: "playback" latency hint is much more stable on iOS/Safari 
@@ -392,6 +406,8 @@ export const AudioProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       setError(null);
       setCurrentTime(0);
       setTrackCurrentTime(0);
+      currentTimeRef.current = 0;
+      trackCurrentTimeRef.current = 0;
       setTitle(track.title);
       setArtist(track.artist);
       trackIdRef.current = track.id;
@@ -538,15 +554,27 @@ export const AudioProvider: React.FC<{ children: React.ReactNode }> = ({ childre
               const isPasoDoble = style.includes('paso');
               const timeLimit = isPasoDoble ? Infinity : 105; // Standardized to 1:45
 
-              // NATIVE FADE-OUT Logic (runs ONCE, 3 seconds before limit)
-              if (audio && !isPasoDoble && !fadeStartedRef.current) {
-                  const isNearLimit = (timeLimit - currentTimeVal <= 3.5) && (timeLimit - currentTimeVal > 0);
-                  
+              // EFFECTIVE END = whichever comes first: the 1:45 limit OR the track's
+              // natural end. This is the fix for "fade doesn't run on every track":
+              // tracks shorter than 1:45 never reached the 105s mark, so the fade
+              // never started. Now short tracks fade out before their real end too.
+              const trackDuration = (audio.duration && isFinite(audio.duration)) ? audio.duration : timeLimit;
+              const effectiveEnd = Math.min(timeLimit, trackDuration);
+
+              // NATIVE FADE-OUT Logic (runs ONCE, 3 seconds before the effective end)
+              if (audio && !isPasoDoble && !fadeStartedRef.current && isFinite(effectiveEnd)) {
+                  const timeLeft = effectiveEnd - currentTimeVal;
+                  const isNearLimit = timeLeft <= 3.2 && timeLeft > 0;
+
                   if (isNearLimit) {
                     fadeStartedRef.current = true; // Prevent re-entry on future ticks
-                    const targetVol = volumeRef.current * 0.8;
+                    const startVol = nativePlayerRef.current
+                      ? nativePlayerRef.current.volume
+                      : volumeRef.current * 0.8;
                     const steps = 30;
-                    const stepDuration = (3000) / steps; // spread over full 3 seconds
+                    // Spread the fade over the ACTUAL time remaining (not a fixed 3s),
+                    // so the volume reaches 0 exactly when the track ends.
+                    const stepDuration = Math.max(40, (timeLeft * 1000) / steps);
                     let stepCount = 0;
 
                     const volumeInterval = setInterval(() => {
@@ -555,7 +583,7 @@ export const AudioProvider: React.FC<{ children: React.ReactNode }> = ({ childre
                         clearInterval(volumeInterval);
                         if (nativePlayerRef.current) nativePlayerRef.current.volume = 0;
                       } else {
-                        nativePlayerRef.current.volume = Math.max(0, targetVol - (targetVol / steps) * stepCount);
+                        nativePlayerRef.current.volume = Math.max(0, startVol - (startVol / steps) * stepCount);
                       }
                     }, stepDuration);
                   }
@@ -588,7 +616,10 @@ export const AudioProvider: React.FC<{ children: React.ReactNode }> = ({ childre
 
           // NATIVE SPEED CONTROL: No bridge needed
           audio.preservesPitch = true;
-          audio.playbackRate = bpm / 100;
+          // SPEED PERSISTENCE FIX: use the live bpmRef (user-selected speed), NOT the
+          // stale `bpm` closure value. Previously a new track could reset the rate,
+          // so the speed the user picked was lost on every track change.
+          audio.playbackRate = bpmRef.current / 100;
           audio.loop = !isFinalMode;
           audio.src = url;
           audio.load();
@@ -727,7 +758,14 @@ export const AudioProvider: React.FC<{ children: React.ReactNode }> = ({ childre
 
         if (nativePlayerRef.current) {
           const currentTimeVal = nativePlayerRef.current.currentTime;
-          setTrackCurrentTime(currentTimeVal);
+          // PERF: only push a state update when the displayed value actually
+          // changes by a noticeable amount. Previously this fired ~10x/sec
+          // unconditionally, re-rendering the whole component tree and starving
+          // the main thread — that's why buttons felt unresponsive / CPU spiked.
+          if (Math.abs((trackCurrentTimeRef.current ?? -1) - currentTimeVal) >= 0.2) {
+            trackCurrentTimeRef.current = currentTimeVal;
+            setTrackCurrentTime(currentTimeVal);
+          }
 
           if (isFinalModeRef.current) {
             // Calculate Session-wide metrics for display if in a program
@@ -749,19 +787,30 @@ export const AudioProvider: React.FC<{ children: React.ReactNode }> = ({ childre
 
               const currentTrackLimit = getLimitForTrack(sessionTracksRef.current[currentIdx]);
               sessionElapsed += isPauseCountdownRef.current ? (currentTrackLimit + (15 - pauseTimeRef.current)) : currentTimeVal;
-              
+
               const safeSessionElapsed = Number.isFinite(sessionElapsed) ? Math.max(0, sessionElapsed) : 0;
-              setCurrentTime(safeSessionElapsed);
-            } else {
+              if (Math.abs((currentTimeRef.current ?? -1) - safeSessionElapsed) >= 0.2) {
+                currentTimeRef.current = safeSessionElapsed;
+                setCurrentTime(safeSessionElapsed);
+              }
+            } else if (Math.abs((currentTimeRef.current ?? -1) - currentTimeVal) >= 0.2) {
+              currentTimeRef.current = currentTimeVal;
               setCurrentTime(currentTimeVal);
             }
           } else {
             // Normal Mode: Simply track the relative file time
-            setCurrentTime(currentTimeVal);
+            if (Math.abs((currentTimeRef.current ?? -1) - currentTimeVal) >= 0.2) {
+              currentTimeRef.current = currentTimeVal;
+              setCurrentTime(currentTimeVal);
+            }
           }
 
-          // SAFE MEDIASESSION UPDATE: Guard against NaN, Infinity, and unsupported methods
-          if ('mediaSession' in navigator && (navigator.mediaSession as any).setPositionState) {
+          // SAFE MEDIASESSION UPDATE: throttled to ~once per second (it does not
+          // need 10x/sec updates and the native call is comparatively expensive).
+          const nowTs = Date.now();
+          if ('mediaSession' in navigator && (navigator.mediaSession as any).setPositionState
+              && nowTs - (lastPositionSyncRef.current || 0) > 1000) {
+            lastPositionSyncRef.current = nowTs;
             try {
               // Ensure all values are finite and valid numbers before calling native API
               const rawDurationVal = isFinalMode && sessionTracks.length > 0 ? (sessionDuration || 0) : (nativePlayerRef.current?.duration || 0);
@@ -793,7 +842,7 @@ export const AudioProvider: React.FC<{ children: React.ReactNode }> = ({ childre
               .then(() => {});
               */
         }
-      }, 100);
+      }, 250);
     } else {
       if (timerRef.current) clearInterval(timerRef.current);
     }

@@ -77,6 +77,7 @@ const FinalsPage = () => {
   const [showFitnessModal, setShowFitnessModal] = useState(false);
   const [fitnessDuration, setFitnessDuration] = useState(10); // Minutes
   const [fitnessDurationSecs, setFitnessDurationSecs] = useState(0); // Seconds
+  const [showLikedSongsModal, setShowLikedSongsModal] = useState(false);
 
   const checkAuthAndExecute = (action: () => void, actionName: string) => {
     if (!isAuthenticated) {
@@ -183,23 +184,14 @@ const FinalsPage = () => {
       case 'BlackpoolSt':
         order = standardOrder;
         break;
-      // Liked Songs — builds a program from the user's favorited tracks
+      // Liked Songs — opens a modal to select Latin or Standard
       case 'LikedSongs': {
         const liked = tracks.filter(t => t.isFavorite);
         if (liked.length === 0) {
           alert("No liked songs yet. Tap the heart on tracks to add them here.");
           return;
         }
-        // Order liked tracks by dance discipline: Standard first, then Latin.
-        const danceOrder = [...standardOrder, ...latinOrder];
-        const likedOrdered = [...liked].sort((a, b) => {
-          const ai = danceOrder.findIndex(s => s.toLowerCase() === (a.style || '').toLowerCase());
-          const bi = danceOrder.findIndex(s => s.toLowerCase() === (b.style || '').toLowerCase());
-          return (ai === -1 ? 99 : ai) - (bi === -1 ? 99 : bi);
-        });
-        setActiveMode('LikedSongs');
-        setSessionTracks(likedOrdered);
-        loadTrack(likedOrdered[0], false, true);
+        setShowLikedSongsModal(true);
         return;
       }
       case 'InstLatin':
@@ -320,6 +312,35 @@ const FinalsPage = () => {
     stop(); // stop() in context now handles setActiveMode(null) and setSessionTracks([])
     setShowStopConfirm(false);
     setIsFitness(false);
+  };
+
+  const startLikedSongsProgram = (discipline: 'Latin' | 'Standard') => {
+    const liked = tracks.filter(t => t.isFavorite);
+    if (liked.length === 0) {
+      alert("No liked songs yet. Tap the heart on tracks to add them here.");
+      setShowLikedSongsModal(false);
+      return;
+    }
+
+    const order = discipline === 'Latin' ? latinOrder : standardOrder;
+    const selectedTracks: Track[] = [];
+
+    order.forEach(styleName => {
+      const styleTracks = liked.filter(t => t.style?.toLowerCase() === styleName.toLowerCase());
+      if (styleTracks.length > 0) {
+        const randomTrack = styleTracks[Math.floor(Math.random() * styleTracks.length)];
+        selectedTracks.push(randomTrack);
+      }
+    });
+
+    if (selectedTracks.length > 0) {
+      setActiveMode('LikedSongs');
+      setSessionTracks(selectedTracks);
+      loadTrack(selectedTracks[0], false, true);
+    } else {
+      alert(`No liked songs found for ${discipline} styles.`);
+    }
+    setShowLikedSongsModal(false);
   };
 
   const startFitness = (selectedTargetSeconds: number) => {
@@ -879,6 +900,39 @@ const FinalsPage = () => {
             </button>
 
             <button className="cancel-btn text-btn" onClick={() => setShowFitnessModal(false)}>
+              Cancel
+            </button>
+          </div>
+        </div>
+      )}
+
+      {showLikedSongsModal && (
+        <div className="modal-overlay" onClick={() => setShowLikedSongsModal(false)}>
+          <div className="modal-content fitness-modal glass" onClick={e => e.stopPropagation()}>
+            <div className="modal-header">
+              <Heart size={48} className="text-[#ef5350] mb-2" />
+              <h2>Liked Songs</h2>
+              <p>Choose your discipline</p>
+            </div>
+            
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '16px', marginTop: '24px' }}>
+              <button 
+                className="primary-btn"
+                style={{ backgroundColor: 'rgba(247,151,30,0.2)', borderColor: 'rgba(247,151,30,0.5)', width: '100%' }}
+                onClick={() => startLikedSongsProgram('Latin')}
+              >
+                Latin Program
+              </button>
+              <button 
+                className="primary-btn"
+                style={{ backgroundColor: 'rgba(0,210,255,0.2)', borderColor: 'rgba(0,210,255,0.5)', width: '100%' }}
+                onClick={() => startLikedSongsProgram('Standard')}
+              >
+                Standard Program
+              </button>
+            </div>
+            
+            <button className="cancel-btn text-btn" style={{ marginTop: '24px' }} onClick={() => setShowLikedSongsModal(false)}>
               Cancel
             </button>
           </div>

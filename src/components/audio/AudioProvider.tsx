@@ -377,12 +377,17 @@ export const AudioProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       // we keep the index in sync by matching the track object identity first,
       // and only fall back to a title/id search when that fails.
       if (sessionTracksRef.current.length > 0) {
-        const exactIdx = sessionTracksRef.current.indexOf(track);
-        if (exactIdx !== -1) {
-          sessionIndexRef.current = exactIdx;
+        if (sessionIndexRef.current >= 0 && 
+            sessionTracksRef.current[sessionIndexRef.current]?.id === track.id) {
+          // Trust the existing index (it was set by advance logic)
         } else {
-          const byId = sessionTracksRef.current.findIndex(t => t.id === track.id);
-          sessionIndexRef.current = byId; // -1 if not part of the session
+          const exactIdx = sessionTracksRef.current.indexOf(track);
+          if (exactIdx !== -1) {
+            sessionIndexRef.current = exactIdx;
+          } else {
+            const byId = sessionTracksRef.current.findIndex(t => t.id === track.id);
+            sessionIndexRef.current = byId; // -1 if not part of the session
+          }
         }
       } else {
         sessionIndexRef.current = -1;

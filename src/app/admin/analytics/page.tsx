@@ -222,11 +222,14 @@ export default function AdminAnalytics() {
   // presenceState() returns everyone currently online, in real time.
   // Defensive: if realtime is unavailable the page must still render fine.
   useEffect(() => {
-    let channel: ReturnType<typeof supabase.channel> | null = null;
+    let channel: ReturnType<typeof supabase.channel> | undefined;
     try {
-      channel = supabase.channel('4andone-live', {
-        config: { presence: { key: 'admin-dashboard' } },
-      });
+      // Find the existing channel created by AnalyticsTracker to avoid duplicate channel conflicts
+      channel = supabase.getChannels().find(c => c.topic === 'realtime:4andone-live');
+      
+      if (!channel) {
+        channel = supabase.channel('4andone-live');
+      }
 
       const syncLive = () => {
         if (!channel) return;
@@ -256,15 +259,24 @@ export default function AdminAnalytics() {
       channel
         .on('presence', { event: 'sync' }, syncLive)
         .on('presence', { event: 'join' }, syncLive)
-        .on('presence', { event: 'leave' }, syncLive)
-        .subscribe();
+        .on('presence', { event: 'leave' }, syncLive);
+
+      if (channel.state !== 'joined' && channel.state !== 'joining') {
+        channel.subscribe();
+      } else {
+        syncLive(); // If already joined, just pull the current state
+      }
     } catch (err) {
       console.warn('[ANALYTICS] presence channel init failed:', err);
     }
 
     return () => {
+      // We do NOT remove the channel here because AnalyticsTracker in layout.tsx is still using it!
+      // We only remove the event listeners.
       if (channel) {
-        try { supabase.removeChannel(channel); } catch { /* ignore */ }
+        channel.off('presence', 'sync');
+        channel.off('presence', 'join');
+        channel.off('presence', 'leave');
       }
     };
   }, []);

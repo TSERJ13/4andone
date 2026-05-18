@@ -8,8 +8,16 @@ import {
   Lock, 
   Cloud 
 } from 'lucide-react';
+import { useStudio } from '@/components/admin/StudioProvider';
 
 export default function AdminSettings() {
+  const { tracks } = useStudio();
+  
+  const totalBytes = tracks.reduce((acc, t) => acc + (t.size || 0), 0);
+  const usedGB = totalBytes / (1024 ** 3);
+  const maxGB = 10; // Cloudflare Free Tier
+  const percentUsed = Math.min(100, Math.max(0, (usedGB / maxGB) * 100));
+
   const sections = [
     { title: 'General Settings', icon: <Globe size={20} />, description: 'Platform language, timezone, and regional defaults.' },
     { title: 'Admin Controls', icon: <Shield size={20} />, description: 'Manage permissions, access logs, and security protocols.' },
@@ -27,6 +35,22 @@ export default function AdminSettings() {
         <button className="btn-primary">
           Save All Changes
         </button>
+      </div>
+
+      <div className="storage-card glass">
+        <div className="section-header">
+          <Cloud size={20} className="text-primary" />
+          <h3>Cloudflare R2 Storage Quota</h3>
+        </div>
+        <div className="storage-info">
+          <div className="storage-text">
+            <span className="font-bold text-white">{usedGB.toFixed(2)} GB Used</span>
+            <span className="text-secondary">{(maxGB - usedGB).toFixed(2)} GB Free (of {maxGB} GB)</span>
+          </div>
+          <div className="storage-bar-wrap">
+            <div className="storage-bar" style={{ width: `${percentUsed}%` }} />
+          </div>
+        </div>
       </div>
 
       <div className="settings-grid">
@@ -80,6 +104,14 @@ export default function AdminSettings() {
 
         .card-actions { margin-top: auto; }
         .btn-secondary { padding: 8px 20px; border-radius: 10px; font-size: 12px; font-weight: 700; }
+
+        .storage-card { padding: 32px; border-radius: 24px; margin-bottom: 32px; }
+        .storage-info { margin-top: 16px; }
+        .storage-text { display: flex; justify-content: space-between; font-size: 14px; margin-bottom: 12px; }
+        .storage-bar-wrap { height: 8px; background: rgba(255,255,255,0.05); border-radius: 4px; overflow: hidden; }
+        .storage-bar { height: 100%; background: #1db954; border-radius: 4px; transition: width 0.5s ease; }
+        .font-bold { font-weight: 700; }
+        .text-white { color: #ffffff; }
 
         .danger-zone { padding: 40px; border-radius: 28px; border: 1px solid rgba(239, 68, 68, 0.2); background: rgba(239, 68, 68, 0.05); }
         .section-header { display: flex; align-items: center; gap: 12px; margin-bottom: 16px; }

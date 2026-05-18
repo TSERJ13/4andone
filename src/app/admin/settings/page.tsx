@@ -13,7 +13,9 @@ import { useStudio } from '@/components/admin/StudioProvider';
 export default function AdminSettings() {
   const { tracks } = useStudio();
   
-  const totalBytes = tracks.reduce((acc, t) => acc + (t.size || 0), 0);
+  // Estimate: 5 MB per track (avg for 3-minute 192kbps MP3s)
+  const estimatedBytesPerTrack = 5 * 1024 * 1024;
+  const totalBytes = tracks.length * estimatedBytesPerTrack;
   const usedGB = totalBytes / (1024 ** 3);
   const maxGB = 10; // Cloudflare Free Tier
   const percentUsed = Math.min(100, Math.max(0, (usedGB / maxGB) * 100));

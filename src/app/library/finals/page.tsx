@@ -186,12 +186,14 @@ const FinalsPage = () => {
         break;
       // Liked Songs — opens a modal to select Latin or Standard
       case 'LikedSongs': {
-        const liked = tracks.filter(t => t.isFavorite);
-        if (liked.length === 0) {
-          alert("No liked songs yet. Tap the heart on tracks to add them here.");
-          return;
-        }
-        setShowLikedSongsModal(true);
+        checkAuthAndExecute(() => {
+          const liked = tracks.filter(t => t.isFavorite);
+          if (liked.length === 0) {
+            alert("No liked songs yet. Tap the heart on tracks to add them here.");
+            return;
+          }
+          setShowLikedSongsModal(true);
+        }, 'use Liked Songs program');
         return;
       }
       case 'InstLatin':

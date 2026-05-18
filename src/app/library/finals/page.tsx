@@ -784,6 +784,8 @@ const FinalsPage = () => {
           max-width: 400px;
           padding: 32px;
           text-align: center;
+          border-radius: 16px;
+          border: 1px solid rgba(29, 185, 84, 0.5) !important;
         }
 
         .modal-header {

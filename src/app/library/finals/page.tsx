@@ -40,8 +40,8 @@ const PROGRAMS: { key: string; label: string; cls: string; icon: React.ReactNode
   { key: 'Latin',             label: 'Latin',          cls: 'latin',          icon: <Zap size={24} /> },
   { key: 'Standard',          label: 'Standard',       cls: 'standard',       icon: <Activity size={24} /> },
   { key: '10Dance',           label: '10-Dance',       cls: 'all-dance',      icon: <Disc size={24} /> },
-  { key: '2Dance',            label: '2-Dance',        cls: 'two-dance',      icon: <Music2 size={24} />, tag: '2 Dance' },
-  { key: '4Dance',            label: '4-Dance',        cls: 'four-dance',     icon: <Music2 size={24} />, tag: '4 Dance' },
+  { key: '2Dance',            label: '2-Dance',        cls: 'two-dance',      icon: <Music2 size={24} /> },
+  { key: '4Dance',            label: '4-Dance',        cls: 'four-dance',     icon: <Music2 size={24} /> },
   { key: '8Dance',            label: '8-Dance',        cls: 'eight-dance',    icon: <Music2 size={24} /> },
   { key: '6Dance',            label: '6-Dance',        cls: 'six-dance',      icon: <Zap size={20} /> },
   { key: 'InstLatin',         label: 'Inst. Latin',    cls: 'inst-latin',     icon: <MicOff size={24} />, tag: 'Instrumental' },
@@ -162,11 +162,11 @@ const FinalsPage = () => {
       case '10Dance':
         order = [...standardOrder, ...latinOrder];
         break;
-      // 2-Dance — Slow Waltz + Cha Cha Cha (tag-filtered via PROGRAMS config)
+      // 2-Dance — Slow Waltz + Cha Cha Cha
       case '2Dance':
         order = ['Slow Waltz', 'Cha-cha-cha'];
         break;
-      // 4-Dance — Slow Waltz, Quickstep, Cha Cha Cha, Jive (tag-filtered)
+      // 4-Dance — Slow Waltz, Quickstep, Cha Cha Cha, Jive
       case '4Dance':
         order = ['Slow Waltz', 'Quickstep', 'Cha-cha-cha', 'Jive'];
         break;

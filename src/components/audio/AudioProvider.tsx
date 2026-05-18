@@ -351,7 +351,24 @@ export const AudioProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       if (forceFinalMode !== undefined) {
         setIsFinalMode(forceFinalMode);
         isFinalModeRef.current = forceFinalMode; // IMMEDIATE SYNC for closure
+      } else {
+        // PLAIN PLAYBACK: loadTrack called WITHOUT forceFinalMode means the user
+        // picked a normal track (e.g. after a Final Mode session ended). Final
+        // Mode must be turned OFF here — otherwise the 1:45 cutoff stayed active
+        // and kept trimming normal tracks. Final Mode sessions always pass
+        // forceFinalMode === true, so this never affects a real session.
+        if (isFinalModeRef.current) {
+          setIsFinalMode(false);
+          isFinalModeRef.current = false;
+        }
+        setActiveMode(null);
+        setSessionTracks([]);
+        sessionIndexRef.current = -1;
+        setIsPauseCountdown(false);
+        isPauseCountdownRef.current = false;
+        pauseDeadlineRef.current = 0;
       }
+      finalEndHandledRef.current = false;
 
       // SESSION INDEX TRACKING (duplicate-track safe).
       // When a Final Mode program starts, loadTrack is always called with the first
@@ -488,6 +505,14 @@ export const AudioProvider: React.FC<{ children: React.ReactNode }> = ({ childre
             setDuration(realDuration);
             setIsLoaded(true);
             setIsLoading(false);
+            // SPEED PERSISTENCE FIX (real cause): audio.load() resets playbackRate
+            // back to 1.0, so setting it before load() was always wiped. We re-apply
+            // the user's chosen speed here, AFTER the resource has finished loading.
+            audio.preservesPitch = true;
+            const desiredRate = bpmRef.current / 100;
+            if (desiredRate > 0 && Math.abs(audio.playbackRate - desiredRate) > 0.001) {
+              audio.playbackRate = desiredRate;
+            }
             resolve(audio);
           };
 
@@ -501,7 +526,9 @@ export const AudioProvider: React.FC<{ children: React.ReactNode }> = ({ childre
                 if (fileName) {
                   const R2_PUBLIC = process.env.NEXT_PUBLIC_R2_PUBLIC_URL || 'https://pub-c41b1121b311f676bdc114d143278d18.r2.dev';
                   const fallbackUrl = `${R2_PUBLIC}/${fileName}`;
-                  loadTrack({ ...track, audioUrl: fallbackUrl }, true);
+                  // Preserve the current Final Mode flag on retry — otherwise a
+                  // mid-session load failure would silently drop out of Final Mode.
+                  loadTrack({ ...track, audioUrl: fallbackUrl }, true, isFinalModeRef.current);
                   return;
                 }
               }
@@ -562,31 +589,28 @@ export const AudioProvider: React.FC<{ children: React.ReactNode }> = ({ childre
               const effectiveEnd = Math.min(timeLimit, trackDuration);
 
               // NATIVE FADE-OUT Logic (runs ONCE, 3 seconds before the effective end)
-              if (audio && !isPasoDoble && !fadeStartedRef.current && isFinite(effectiveEnd)) {
-                  const timeLeft = effectiveEnd - currentTimeVal;
-                  const isNearLimit = timeLeft <= 3.2 && timeLeft > 0;
+              // CONTINUOUS FADE-OUT (fix for "fade worked on some tracks, not others").
+              // The old version started a setInterval timer once. That was unreliable:
+              //  - setInterval freezes when the screen is off (common in Final Mode)
+              //  - it ignored playbackRate, so at high speed the fade lagged the audio
+              //  - if an ontimeupdate tick skipped the trigger window, it never started.
+              // Now the volume is derived directly from currentTime on EVERY tick, so
+              // it always tracks the real playback position regardless of speed or
+              // screen state. The 3s fade window is based on the effective end.
+              if (audio && !isPasoDoble && isFinite(effectiveEnd) && nativePlayerRef.current) {
+                const FADE_DURATION = 3; // seconds
+                const timeLeft = effectiveEnd - currentTimeVal;
+                const baseVol = volumeRef.current * 0.8;
 
-                  if (isNearLimit) {
-                    fadeStartedRef.current = true; // Prevent re-entry on future ticks
-                    const startVol = nativePlayerRef.current
-                      ? nativePlayerRef.current.volume
-                      : volumeRef.current * 0.8;
-                    const steps = 30;
-                    // Spread the fade over the ACTUAL time remaining (not a fixed 3s),
-                    // so the volume reaches 0 exactly when the track ends.
-                    const stepDuration = Math.max(40, (timeLeft * 1000) / steps);
-                    let stepCount = 0;
-
-                    const volumeInterval = setInterval(() => {
-                      stepCount++;
-                      if (!nativePlayerRef.current || stepCount >= steps) {
-                        clearInterval(volumeInterval);
-                        if (nativePlayerRef.current) nativePlayerRef.current.volume = 0;
-                      } else {
-                        nativePlayerRef.current.volume = Math.max(0, startVol - (startVol / steps) * stepCount);
-                      }
-                    }, stepDuration);
-                  }
+                if (timeLeft <= FADE_DURATION && timeLeft > 0) {
+                  // Inside the fade window: volume scales linearly with time left.
+                  fadeStartedRef.current = true;
+                  const ratio = timeLeft / FADE_DURATION; // 1 → 0
+                  nativePlayerRef.current.volume = Math.max(0, Math.min(baseVol, baseVol * ratio));
+                } else if (timeLeft <= 0 && fadeStartedRef.current) {
+                  // Past the end: make sure it is fully silent.
+                  nativePlayerRef.current.volume = 0;
+                }
               }
 
               // TRIGGER NEXT or END at 1:45 limit (ontimeupdate handles non-Paso tracks
@@ -677,25 +701,31 @@ export const AudioProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       }
 
       // ANALYTICS: Log track play event
+      // Previously this whole block was commented out, so track_plays never received
+      // any rows — that's why "Most Played" and "Style Popularity" stayed empty.
       try {
         const sessionId = typeof window !== 'undefined' ? sessionStorage.getItem('4andone_session_id') : null;
         const tgUser = typeof window !== 'undefined' ? (window as any).Telegram?.WebApp?.initDataUnsafe?.user : null;
         const userRef = user?.id?.toString() || tgUser?.id?.toString() || null;
-        
-        /*
+
+        trackLogIdRef.current = null;
         supabase.from('track_plays').insert({
-          track_title: track.title,
           track_id: track.id,
           user_ref: userRef,
           session_id: sessionId,
           style: track.style || 'Unknown',
           bpm: track.bpm?.toString() || '0',
           duration_seconds: 0
-        }).select('id').single().then(({ data }) => {
+        }).select('id').single().then(({ data, error }) => {
+          if (error) {
+            console.warn('[ANALYTICS] track_plays insert failed:', error.message);
+            return;
+          }
           if (data) trackLogIdRef.current = data.id;
         });
-        */
-      } catch (e) {}
+      } catch (e) {
+        console.warn('[ANALYTICS] track play logging error:', e);
+      }
 
     } catch (err: any) {
       setError(err.message || "Failed to load track");
@@ -950,7 +980,10 @@ export const AudioProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     }
 
     const nextIndex = (currentIndex + 1) % list.length;
-    loadTrack(list[nextIndex]);
+    // Pass forceFinalMode so navigating inside a Final Mode session stays in it,
+    // and a normal next-track stays normal. (Without this, a plain loadTrack call
+    // would now always drop out of Final Mode.)
+    loadTrack(list[nextIndex], false, isFinalModeRef.current);
   }, [tracks, loadTrack]);
 
   const playPrevious = React.useCallback(() => {
@@ -959,7 +992,7 @@ export const AudioProvider: React.FC<{ children: React.ReactNode }> = ({ childre
 
     const currentIndex = list.findIndex(t => t.id === trackIdRef.current || t.title === playingTrackRef.current?.title);
     const prevIndex = currentIndex <= 0 ? list.length - 1 : currentIndex - 1;
-    loadTrack(list[prevIndex]);
+    loadTrack(list[prevIndex], false, isFinalModeRef.current);
   }, [tracks, loadTrack]);
 
   const stop = React.useCallback(() => {
@@ -971,8 +1004,13 @@ export const AudioProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         heartbeatAudioRef.current.pause();
     }
     setIsPlaying(false);
+    isPlayingRef.current = false;
     setCurrentTime(0);
     setTrackCurrentTime(0);
+    currentTimeRef.current = 0;
+    trackCurrentTimeRef.current = 0;
+    setDuration(0);
+    setIsLoaded(false);
     setIsPauseCountdown(false);
     isPauseCountdownRef.current = false;
     setPauseTime(15);
@@ -984,6 +1022,21 @@ export const AudioProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     setSessionTracks([]);
     setIsFinalMode(false);
     isFinalModeRef.current = false;
+    // FULL RESET: clear the track identity too. The bottom PlayerBar and the
+    // full player both key their visibility off title === "No Track Selected",
+    // so without this the last track stayed on screen after Final Mode ended.
+    setTitle("No Track Selected");
+    setArtist("Upload or select a track");
+    setError(null);
+    trackIdRef.current = null;
+    playingTrackRef.current = null;
+    // Clear OS media-session metadata so lock-screen controls also disappear.
+    if ('mediaSession' in navigator) {
+      try {
+        navigator.mediaSession.metadata = null;
+        navigator.mediaSession.playbackState = 'none';
+      } catch { /* ignore */ }
+    }
   }, []);
 
   // Keep the function refs current so advanceFinalSession (defined earlier) can

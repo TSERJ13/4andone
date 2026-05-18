@@ -378,7 +378,7 @@ export default function DesktopFullPlayer({ onClose }: { onClose: () => void }) 
                           <div 
                             key={`${t.id}-${i}`} 
                             className={`session-track-row ${isActive ? 'is-active' : ''} ${isPlayed ? 'is-played' : ''}`}
-                            onClick={() => loadTrack(t)}
+                            onClick={() => loadTrack(t, false, true)}
                           >
                             <span className="queue-idx">{(i + 1).toString().padStart(2, '0')}</span>
                             <div className="queue-blob">
@@ -644,12 +644,10 @@ export default function DesktopFullPlayer({ onClose }: { onClose: () => void }) 
         
         @media (max-height: 900px) {
           .vinyl-disc-v8 { width: 180px; height: 180px; }
-          .timeline-strip-pro-v13 { transform: translateY(0) !important; margin-bottom: 0px !important; }
         }
         
         @media (max-height: 800px) {
           .vinyl-disc-v8 { width: 140px; height: 140px; }
-          .timeline-strip-pro-v13 { transform: translateY(-16px) !important; scale: 0.8; }
         }
 
         .disc-inner-glow-v8 {
@@ -792,19 +790,32 @@ export default function DesktopFullPlayer({ onClose }: { onClose: () => void }) 
           border: 1px solid rgba(255,255,255,0.1);
         }
 
+        /* CONTROL STAGE: stacks the timeline and the transport deck with a
+           guaranteed vertical gap. Previously control-stage had no styling, so
+           the progress bar and the buttons could collide on shorter screens
+           (e.g. iPad, or a desktop window with the bookmarks bar showing). */
+        .control-stage {
+          display: flex;
+          flex-direction: column;
+          align-items: center;
+          gap: 28px;
+          width: 100%;
+        }
+        @media (max-height: 850px) { .control-stage { gap: 20px; } }
+        @media (max-height: 750px) { .control-stage { gap: 14px; } }
+
         /* TIMELINE V13 */
         .timeline-strip-pro-v13 { 
           display: flex; 
           align-items: center; 
           gap: 24px; 
           width: 740px; 
-          bottom: calc(80px + 24px + env(safe-area-inset-bottom));
-          margin-bottom: 32px; 
-          transform: translateY(0); 
+          margin-bottom: 0;
+          transform: none;
         }
 
         @media (max-width: 1360px) {
-          .timeline-strip-pro-v13 { width: 100%; max-width: 600px; transform: translateY(-16px); margin-bottom: 24px; gap: 16px; }
+          .timeline-strip-pro-v13 { width: 100%; max-width: 600px; gap: 16px; }
         }
         .time-code { font-family: 'JetBrains Mono', monospace; font-size: 10.45px; opacity: 0.15; width: 44px; text-align: center; }
         .timeline-track-thick { flex: 1; height: 10px; background: rgba(255,255,255,0.06); border-radius: 5px; position: relative; cursor: pointer; display: flex; align-items: center; }

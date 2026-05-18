@@ -527,35 +527,37 @@ const MobileFullPlayer = ({ isOpen, onClose }: MobileFullPlayerProps) => {
         .mfp-header-btn-placeholder { display: block !important; width: 32px; visibility: hidden; }
 
         /* TABLET / iPad FIX (portrait & large landscape).
-           On big screens 'justify-content: space-around' on .mfp-content spread the
-           controls vertically and pushed the buttons up into empty space. Here we
-           cap the content width, center it, and group the elements with fixed gaps
-           so the player looks tidy on iPad instead of stretched. */
+           The player content was grouped near the top, leaving a large black void
+           at the bottom on tall iPad screens. We cap the width for tidiness but
+           distribute the elements evenly across the FULL available height so the
+           layout fills the screen instead of clustering up top. */
         @media screen and (min-width: 700px) and (min-height: 600px) {
           :global(.mfp-content) {
-            justify-content: center !important;
-            gap: 28px !important;
-            max-width: 540px;
+            justify-content: space-evenly !important;
+            gap: 0 !important;
+            max-width: 560px;
             margin: 0 auto;
             width: 100%;
-            padding-top: 12px;
+            height: 100%;
+            padding: 24px 0 32px !important;
+            box-sizing: border-box;
           }
           .vinyl-disc-v8 {
-            width: 300px;
-            height: 300px;
+            width: min(340px, 42vh);
+            height: min(340px, 42vh);
           }
           .countdown-ring-mobile {
-            width: 300px !important;
-            height: 300px !important;
+            width: min(340px, 42vh) !important;
+            height: min(340px, 42vh) !important;
           }
           :global(.mfp-progress-section) {
             margin-top: 0 !important;
           }
           :global(.mfp-main-controls) {
-            margin: 4px 0 !important;
+            margin: 0 !important;
           }
           .mfp-practice-mode {
-            margin-top: 8px;
+            margin-top: 0;
           }
         }
 

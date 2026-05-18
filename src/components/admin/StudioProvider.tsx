@@ -286,23 +286,35 @@ export const StudioProvider: React.FC<{ children: React.ReactNode }> = ({ childr
   };
 
   const updateTrack = async (id: string, updates: Partial<Track>) => {
+    // PARTIAL-UPDATE SAFETY: only include fields that were actually passed in.
+    // Previously every column was sent unconditionally, so a partial update like
+    // { tags: [...] } would write `title: undefined` etc. and WIPE those columns.
+    // This maps Track fields → DB columns and skips anything that is undefined.
+    const fieldMap: Record<string, any> = {
+      title: updates.title,
+      artist: updates.artist,
+      style: updates.style,
+      album: updates.album,
+      bpm: updates.bpm,
+      audio_url: updates.audioUrl,
+      artwork_url: updates.artworkUrl,
+      folder_id: updates.folderId,
+      tags: updates.tags,
+      duration: updates.duration,
+      global_order: updates.globalOrder,
+      is_favorite: updates.isFavorite,
+      date: updates.date,
+    };
+    const payload: Record<string, any> = {};
+    Object.entries(fieldMap).forEach(([col, val]) => {
+      if (val !== undefined) payload[col] = val;
+    });
+
+    if (Object.keys(payload).length === 0) return; // nothing to update
+
     const { error } = await supabase
       .from('tracks')
-      .update({
-        title: updates.title,
-        artist: updates.artist,
-        style: updates.style,
-        album: updates.album,
-        bpm: updates.bpm,
-        audio_url: updates.audioUrl,
-        artwork_url: updates.artworkUrl,
-        folder_id: updates.folderId,
-        tags: updates.tags,
-        duration: updates.duration,
-        global_order: updates.globalOrder,
-        is_favorite: updates.isFavorite,
-        date: updates.date
-      })
+      .update(payload)
       .eq('id', id);
 
     if (error) {

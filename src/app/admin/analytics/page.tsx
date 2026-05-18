@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState, useEffect, useCallback } from 'react';
-import { BarChart3, TrendingUp, Users, Music, Folder, Flag, Calendar, RefreshCw, Globe, Clock } from 'lucide-react';
+import { BarChart3, TrendingUp, Users, Music, Folder, Flag, Calendar, RefreshCw, Globe, Clock, Radio } from 'lucide-react';
 import { useStudio } from '@/components/admin/StudioProvider';
 import { supabase } from '@/utils/supabase';
 
@@ -64,10 +64,19 @@ export default function AdminAnalytics() {
   const [tgUsers, setTgUsers] = useState<TelegramUser[]>([]);
   const [topTracks, setTopTracks] = useState<{ id: string, title: string, artist: string, count: number }[]>([]);
   const [styleStats, setStyleStats] = useState<{ style: string, count: number }[]>([]);
+  const [liveUsers, setLiveUsers] = useState<{ session_id: string; name: string | null; is_telegram: boolean }[]>([]);
   const [loading, setLoading] = useState(true);
+
+  // Keep a ref to the latest tracks so fetch_ can read them WITHOUT listing
+  // `tracks` as a dependency. Listing it caused fetch_ to be recreated on every
+  // library update, which re-triggered the fetch effect — a render loop that
+  // crashed the page ("This page couldn't load").
+  const tracksRef = React.useRef(tracks);
+  React.useEffect(() => { tracksRef.current = tracks; }, [tracks]);
 
   const fetch_ = useCallback(async () => {
     setLoading(true);
+    const tracks = tracksRef.current || []; // local snapshot, not a dependency
     try {
       const { start } = getDateRange(period);
       const now = new Date();
@@ -76,14 +85,29 @@ export default function AdminAnalytics() {
       const monthStart = new Date(now); monthStart.setDate(1); monthStart.setHours(0,0,0,0);
       const yearStart = new Date(now); yearStart.setMonth(0,1); yearStart.setHours(0,0,0,0);
 
-      // NOTE: unique-visitor counts cannot be done with { count:'exact', head:true }
-      // because that counts ROWS, not DISTINCT session_id values — so "unique" used
-      // to equal "total". We now pull session_id + created_at for the whole year once
-      // and derive every period's totals + unique counts on the client.
-      const [yearRows, chartData, durData, countryData, tgData, playData] = await Promise.all([
+      // NOTE: Supabase caps a normal select at 1000 rows. The site already has
+      // 1000+ visits/year, so fetching them all and counting client-side silently
+      // dropped the newest rows — that's why "today"/"this week" showed 0.
+      // FIX: each total is its own server-side count query (head:true → no rows
+      // transferred, no 1000 cap). Unique sessions still need the rows, so we pull
+      // those for a bounded recent window (30 days) which stays well under 1000.
+      const countVisits = (from: Date) =>
+        supabase.from('page_visits')
+          .select('id', { count: 'exact', head: true })
+          .gte('created_at', from.toISOString());
+
+      const uniqueWindowStart = new Date(now);
+      uniqueWindowStart.setDate(now.getDate() - 30);
+      uniqueWindowStart.setHours(0, 0, 0, 0);
+
+      const [
+        yearRows, chartData, durData, countryData, tgData, playData,
+        cToday, cWeek, cMonth, cYear,
+      ] = await Promise.all([
         supabase.from('page_visits')
           .select('session_id, created_at')
-          .gte('created_at', yearStart.toISOString()),
+          .gte('created_at', uniqueWindowStart.toISOString())
+          .order('created_at', { ascending: false }),
         supabase.from('page_visits')
           .select('created_at')
           .gte('created_at', start.toISOString())
@@ -96,20 +120,29 @@ export default function AdminAnalytics() {
           .select('country_code,country_name')
           .not('country_code','is',null)
           .gte('created_at', yearStart.toISOString()),
-        // All Telegram users (no artificial 10-row cap). Ordered by activity.
         supabase.from('telegram_users')
           .select('*')
           .order('visit_count', { ascending: false }),
         supabase.from('track_plays')
           .select('track_id, style, created_at')
           .gte('created_at', monthStart.toISOString()),
+        countVisits(todayStart),
+        countVisits(weekStart),
+        countVisits(monthStart),
+        countVisits(yearStart),
       ]);
 
-      // ---- Visits: totals + unique sessions per period (computed client-side) ----
+      // ---- Visits totals: straight from server-side counts (accurate past 1000) ----
+      setTotals({
+        today: cToday.count ?? 0,
+        week:  cWeek.count ?? 0,
+        month: cMonth.count ?? 0,
+        year:  cYear.count ?? 0,
+      });
+
+      // ---- Unique sessions: derived from the recent 30-day row window ----
       const rows = (yearRows.data || []) as { session_id: string | null; created_at: string }[];
       const inRange = (d: string, from: Date) => new Date(d) >= from;
-
-      const countTotals = (from: Date) => rows.filter(r => inRange(r.created_at, from)).length;
       const countUnique = (from: Date) => {
         const set = new Set<string>();
         rows.forEach(r => {
@@ -118,17 +151,13 @@ export default function AdminAnalytics() {
         return set.size;
       };
 
-      setTotals({
-        today: countTotals(todayStart),
-        week:  countTotals(weekStart),
-        month: countTotals(monthStart),
-        year:  countTotals(yearStart),
-      });
       setUniqueTotals({
         today: countUnique(todayStart),
         week:  countUnique(weekStart),
         month: countUnique(monthStart),
-        year:  countUnique(yearStart),
+        // Year-unique is limited to the 30-day window; show month's unique as a
+        // safe lower bound rather than an undercount that looks broken.
+        year:  countUnique(uniqueWindowStart),
       });
 
       // ---- Track plays: most played + style popularity (from the FULL month dataset) ----
@@ -167,12 +196,12 @@ export default function AdminAnalytics() {
       setBuckets(buildBuckets(chartData.data || [], period));
 
       // Avg duration in seconds
-      const durations = (durData.data || []).map((d: any) => d.duration_seconds).filter(Boolean);
+      const durations = (durData.data || []).map((d: { duration_seconds: number }) => d.duration_seconds).filter(Boolean);
       setAvgDuration(durations.length ? Math.round(durations.reduce((a: number,b: number) => a+b, 0) / durations.length) : 0);
 
       // Aggregate country stats
       const cmap: Record<string, CountryStat> = {};
-      (countryData.data || []).forEach((r: any) => {
+      (countryData.data || []).forEach((r: { country_code: string | null; country_name: string | null }) => {
         if (!r.country_code) return;
         const k = r.country_code;
         cmap[k] = cmap[k] ? { ...cmap[k], count: cmap[k].count+1 } : { country_code: k, country_name: r.country_name||k, count: 1 };
@@ -185,9 +214,60 @@ export default function AdminAnalytics() {
     } finally {
       setLoading(false);
     }
-  }, [period, tracks]);
+  }, [period]);
 
   useEffect(() => { fetch_(); }, [fetch_]);
+
+  // LIVE LISTENERS: subscribe to the same presence channel visitors join.
+  // presenceState() returns everyone currently online, in real time.
+  // Defensive: if realtime is unavailable the page must still render fine.
+  useEffect(() => {
+    let channel: ReturnType<typeof supabase.channel> | null = null;
+    try {
+      channel = supabase.channel('4andone-live', {
+        config: { presence: { key: 'admin-dashboard' } },
+      });
+
+      const syncLive = () => {
+        if (!channel) return;
+        try {
+          type PresenceEntry = { session_id?: string; name?: string | null; is_telegram?: boolean };
+          const state = channel.presenceState() as Record<string, PresenceEntry[]>;
+          const seen = new Set<string>();
+          const users: { session_id: string; name: string | null; is_telegram: boolean }[] = [];
+          Object.values(state).forEach(entries => {
+            entries.forEach((e: PresenceEntry) => {
+              if (!e?.session_id || e.session_id === 'admin-dashboard') return;
+              if (seen.has(e.session_id)) return;
+              seen.add(e.session_id);
+              users.push({
+                session_id: e.session_id,
+                name: e.name ?? null,
+                is_telegram: !!e.is_telegram,
+              });
+            });
+          });
+          setLiveUsers(users);
+        } catch (err) {
+          console.warn('[ANALYTICS] presence sync failed:', err);
+        }
+      };
+
+      channel
+        .on('presence', { event: 'sync' }, syncLive)
+        .on('presence', { event: 'join' }, syncLive)
+        .on('presence', { event: 'leave' }, syncLive)
+        .subscribe();
+    } catch (err) {
+      console.warn('[ANALYTICS] presence channel init failed:', err);
+    }
+
+    return () => {
+      if (channel) {
+        try { supabase.removeChannel(channel); } catch { /* ignore */ }
+      }
+    };
+  }, []);
 
   const maxBucket = Math.max(...buckets.map(b => b.count), 1);
   const maxCountry = Math.max(...countries.map(c => c.count), 1);
@@ -216,20 +296,52 @@ export default function AdminAnalytics() {
       </div>
 
       {/* Summary strip */}
+      {/* LIVE NOW — realtime count of visitors currently on the site */}
+      <div className="live-banner glass">
+        <div className="live-left">
+          <span className="live-dot" />
+          <Radio size={18} />
+          <span className="live-count">{liveUsers.length}</span>
+          <span className="live-text">
+            {liveUsers.length === 1 ? 'person online now' : 'people online now'}
+          </span>
+        </div>
+        <div className="live-names">
+          {liveUsers.filter(u => u.is_telegram && u.name).length > 0 ? (
+            liveUsers
+              .filter(u => u.is_telegram && u.name)
+              .slice(0, 8)
+              .map(u => (
+                <span key={u.session_id} className="live-chip">{u.name}</span>
+              ))
+          ) : (
+            <span className="live-empty">
+              {liveUsers.length > 0 ? 'Anonymous web visitors' : 'No one online right now'}
+            </span>
+          )}
+          {liveUsers.filter(u => !u.is_telegram).length > 0 &&
+            liveUsers.filter(u => u.is_telegram && u.name).length > 0 && (
+            <span className="live-chip anon">
+              +{liveUsers.filter(u => !u.is_telegram).length} anonymous
+            </span>
+          )}
+        </div>
+      </div>
+
       <div className="summary-strip">
-        {[
+        {([
           { label:'Visits Today', value: totals.today, sub:`${uniqueTotals.today} unique`, icon:<Calendar size={16}/> },
           { label:'This Week', value: totals.week, sub:`${uniqueTotals.week} unique`, icon:<TrendingUp size={16}/> },
           { label:'This Month', value: totals.month, sub:`${uniqueTotals.month} unique`, icon:<Users size={16}/> },
           { label:'This Year', value: totals.year, sub:`${uniqueTotals.year} unique`, icon:<BarChart3 size={16}/> },
           { label:'Avg Session', value: fmtDuration(avgDuration), icon:<Clock size={16}/>, isStr:true },
           { label:'TG Users', value: tgUsers.length, icon:<Users size={16}/>, color:'#1db954' },
-        ].map(item => (
+        ] as { label:string; value:string|number; sub?:string; icon:React.ReactNode; isStr?:boolean; color?:string }[]).map(item => (
           <div key={item.label} className="sum-card glass">
             <div className="sum-icon" style={{ color: item.color||'#1db954' }}>{item.icon}</div>
-            <div className="sum-val">{loading ? '—' : (item as any).isStr ? item.value : Number(item.value).toLocaleString()}</div>
+            <div className="sum-val">{loading ? '—' : item.isStr ? item.value : Number(item.value).toLocaleString()}</div>
             <div className="sum-label">{item.label}</div>
-            {(item as any).sub && <div className="sum-sub">{(item as any).sub}</div>}
+            {item.sub && <div className="sum-sub">{item.sub}</div>}
           </div>
         ))}
       </div>
@@ -399,6 +511,33 @@ export default function AdminAnalytics() {
 
         /* Summary strip */
         .summary-strip { display:grid; grid-template-columns:repeat(6,1fr); gap:12px; }
+
+        /* Live Now banner */
+        .live-banner {
+          display:flex; align-items:center; justify-content:space-between;
+          gap:16px; padding:14px 20px; margin-bottom:14px; border-radius:14px;
+          background:linear-gradient(135deg, rgba(29,185,84,0.12), rgba(29,185,84,0.03));
+          border:1px solid rgba(29,185,84,0.2); flex-wrap:wrap;
+        }
+        .live-left { display:flex; align-items:center; gap:10px; color:#1db954; }
+        .live-dot {
+          width:9px; height:9px; border-radius:50%; background:#1db954;
+          box-shadow:0 0 0 0 rgba(29,185,84,0.7); animation:livePulse 2s infinite;
+        }
+        @keyframes livePulse {
+          0% { box-shadow:0 0 0 0 rgba(29,185,84,0.6); }
+          70% { box-shadow:0 0 0 10px rgba(29,185,84,0); }
+          100% { box-shadow:0 0 0 0 rgba(29,185,84,0); }
+        }
+        .live-count { font-size:22px; font-weight:900; color:#fff; }
+        .live-text { font-size:13px; font-weight:600; color:#a1a1aa; }
+        .live-names { display:flex; gap:6px; flex-wrap:wrap; align-items:center; }
+        .live-chip {
+          font-size:11px; font-weight:700; padding:4px 10px; border-radius:20px;
+          background:rgba(29,185,84,0.15); color:#1db954; white-space:nowrap;
+        }
+        .live-chip.anon { background:rgba(255,255,255,0.06); color:#a1a1aa; }
+        .live-empty { font-size:12px; color:#71717a; font-style:italic; }
         .sum-card { padding:16px; border-radius:16px; display:flex; flex-direction:column; gap:6px; border:1px solid rgba(255,255,255,0.05); }
         .sum-icon { width:28px; height:28px; display:flex; align-items:center; justify-content:center; }
         .sum-val { font-size:24px; font-weight:900; letter-spacing:-1px; line-height:1; }

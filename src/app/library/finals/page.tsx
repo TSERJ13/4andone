@@ -28,20 +28,28 @@ import { Marquee } from '@/components/layout/Marquee';
 
 // Program card definitions — single source of truth for the Final Mode grid.
 // Order here = display order on screen. To add/remove a program, edit this list.
-const PROGRAMS: { key: string; label: string; cls: string; icon: React.ReactNode }[] = [
+//
+// `tag` (optional): if set, the program ONLY uses tracks that carry this tag.
+//   - The match is case-insensitive and substring-based, so the tag "Blackpool"
+//     also matches "Blackpool 2024", etc.
+//   - Programs WITHOUT a `tag` keep the old behaviour: they pick from the whole
+//     library by dance style. This keeps Latin/Standard working unchanged.
+// To make a program tag-driven: add `tag: 'YourTagName'` and create that tag in
+// Admin → Taxonomy, then assign it to tracks in Admin → Library.
+const PROGRAMS: { key: string; label: string; cls: string; icon: React.ReactNode; tag?: string }[] = [
   { key: 'Latin',             label: 'Latin',          cls: 'latin',          icon: <Zap size={24} /> },
   { key: 'Standard',          label: 'Standard',       cls: 'standard',       icon: <Activity size={24} /> },
   { key: '10Dance',           label: '10-Dance',       cls: 'all-dance',      icon: <Disc size={24} /> },
-  { key: '2Dance',            label: '2-Dance',        cls: 'two-dance',      icon: <Music2 size={24} /> },
-  { key: '4Dance',            label: '4-Dance',        cls: 'four-dance',     icon: <Music2 size={24} /> },
+  { key: '2Dance',            label: '2-Dance',        cls: 'two-dance',      icon: <Music2 size={24} />, tag: '2 Dance' },
+  { key: '4Dance',            label: '4-Dance',        cls: 'four-dance',     icon: <Music2 size={24} />, tag: '4 Dance' },
   { key: '8Dance',            label: '8-Dance',        cls: 'eight-dance',    icon: <Music2 size={24} /> },
   { key: '6Dance',            label: '6-Dance',        cls: 'six-dance',      icon: <Zap size={20} /> },
-  { key: 'InstLatin',         label: 'Inst. Latin',    cls: 'inst-latin',     icon: <MicOff size={24} /> },
-  { key: 'InstStandard',      label: 'Inst. Standard', cls: 'inst-std',       icon: <MicOff size={24} /> },
+  { key: 'InstLatin',         label: 'Inst. Latin',    cls: 'inst-latin',     icon: <MicOff size={24} />, tag: 'Instrumental' },
+  { key: 'InstStandard',      label: 'Inst. Standard', cls: 'inst-std',       icon: <MicOff size={24} />, tag: 'Instrumental' },
   { key: 'JiveLatin',         label: 'Jive Mode',      cls: 'jive-mode',      icon: <Zap size={24} /> },
   { key: 'QuickstepStandard', label: 'Quickstep Mode', cls: 'quickstep-mode', icon: <Activity size={24} /> },
-  { key: 'BlackpoolLt',       label: 'Blackpool Lt',   cls: 'blackpool-lt',   icon: <Disc size={24} /> },
-  { key: 'BlackpoolSt',       label: 'Blackpool St',   cls: 'blackpool-st',   icon: <Disc size={24} /> },
+  { key: 'BlackpoolLt',       label: 'Blackpool Lt',   cls: 'blackpool-lt',   icon: <Disc size={24} />, tag: 'Blackpool' },
+  { key: 'BlackpoolSt',       label: 'Blackpool St',   cls: 'blackpool-st',   icon: <Disc size={24} />, tag: 'Blackpool' },
   { key: 'LikedSongs',        label: 'Liked Songs',    cls: 'liked-songs',    icon: <Heart size={24} /> },
   { key: 'Fitness',           label: 'Fitness',        cls: 'fitness',        icon: <Dumbbell size={24} /> },
 ];
@@ -134,6 +142,15 @@ const FinalsPage = () => {
     let order: string[] = [];
     let filterFn: (t: Track) => boolean = () => true;
 
+    // TAG-DRIVEN FILTERING: if this program has a `tag` in the PROGRAMS config,
+    // restrict it to tracks carrying that tag (case-insensitive substring match).
+    // Programs without a tag fall through to using the whole library by style.
+    const programDef = PROGRAMS.find(p => p.key === type);
+    const requiredTag = programDef?.tag?.toLowerCase();
+    if (requiredTag) {
+      filterFn = (t) => t.tags?.some(tag => tag.toLowerCase().includes(requiredTag)) || false;
+    }
+
     setIsFitness(false);
     switch (type) {
       case 'Latin':
@@ -145,11 +162,11 @@ const FinalsPage = () => {
       case '10Dance':
         order = [...standardOrder, ...latinOrder];
         break;
-      // NEW: 2-Dance — Slow Waltz + Cha Cha Cha
+      // 2-Dance — Slow Waltz + Cha Cha Cha (tag-filtered via PROGRAMS config)
       case '2Dance':
         order = ['Slow Waltz', 'Cha-cha-cha'];
         break;
-      // NEW: 4-Dance — Slow Waltz, Quickstep, Cha Cha Cha, Jive
+      // 4-Dance — Slow Waltz, Quickstep, Cha Cha Cha, Jive (tag-filtered)
       case '4Dance':
         order = ['Slow Waltz', 'Quickstep', 'Cha-cha-cha', 'Jive'];
         break;
@@ -159,17 +176,14 @@ const FinalsPage = () => {
       case '6Dance':
         order = [...standardOrder, ...latinOrder].filter(s => !["Slow Foxtrot", "Paso Doble", "Viennese Waltz", "Rumba"].includes(s));
         break;
-      // NEW: Blackpool Latin — full Latin, but only tracks tagged "blackpool"
+      // Blackpool Latin / Standard — full discipline, tag-filtered via PROGRAMS config
       case 'BlackpoolLt':
         order = latinOrder;
-        filterFn = (t) => t.tags?.some(tag => tag.toLowerCase() === 'blackpool') || false;
         break;
-      // NEW: Blackpool Standard — full Standard, but only tracks tagged "blackpool"
       case 'BlackpoolSt':
         order = standardOrder;
-        filterFn = (t) => t.tags?.some(tag => tag.toLowerCase() === 'blackpool') || false;
         break;
-      // NEW: Liked Songs — builds a program from the user's favorited tracks
+      // Liked Songs — builds a program from the user's favorited tracks
       case 'LikedSongs': {
         const liked = tracks.filter(t => t.isFavorite);
         if (liked.length === 0) {
@@ -190,11 +204,9 @@ const FinalsPage = () => {
       }
       case 'InstLatin':
         order = latinOrder;
-        filterFn = (t) => t.tags?.some(tag => tag.toLowerCase() === 'instrumental') || false;
         break;
       case 'InstStandard':
         order = standardOrder;
-        filterFn = (t) => t.tags?.some(tag => tag.toLowerCase() === 'instrumental') || false;
         break;
       case 'JiveLatin':
         const jivePool = tracks.filter(t => t.style.toLowerCase() === 'jive');
@@ -286,12 +298,21 @@ const FinalsPage = () => {
       // Ensure we start playing
       loadTrack(selectedTracks[0], false, true);
     } else {
-      // No track matched the program's filter (e.g. no tracks tagged "blackpool"
-      // or no tracks for the requested styles) — tell the user instead of failing silently.
-      const isBlackpool = type === 'BlackpoolLt' || type === 'BlackpoolSt';
-      alert(isBlackpool
-        ? "No tracks tagged 'Blackpool' found. Add the 'Blackpool' tag to tracks in the Admin Panel."
-        : "No tracks found for this program. Add tracks for these styles in the Admin Panel.");
+      // No track matched the program's filter — tell the user how to fix it
+      // instead of failing silently.
+      if (requiredTag && programDef) {
+        const tagName = programDef.tag;
+        alert(
+          `"${programDef.label}" program is empty.\n\n` +
+          `This program only uses tracks tagged "${tagName}".\n\n` +
+          `To add tracks:\n` +
+          `1. Open Admin → Taxonomy and create a tag named "${tagName}" (if it doesn't exist).\n` +
+          `2. Open Admin → Library, edit a track, and select the "${tagName}" tag.\n\n` +
+          `Tracks with that tag will then appear in this program.`
+        );
+      } else {
+        alert("No tracks found for this program. Add tracks for these styles in the Admin Panel.");
+      }
     }
   };
 
@@ -417,7 +438,7 @@ const FinalsPage = () => {
               <div 
                 key={`${track.id}-${i}`} 
                 className={`track-row ${isPlaying && (playingTitle === track.title || playingTitle === track.id) ? 'is-active' : ''}`}
-                onClick={() => loadTrack(track)}
+                onClick={() => loadTrack(track, false, true)}
               >
                 <div className="track-index">{i + 1}</div>
                 <div className="track-icon-col">

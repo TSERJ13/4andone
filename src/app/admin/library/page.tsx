@@ -17,7 +17,11 @@ import {
   List as ListIcon,
   Folder as FolderIcon,
   ChevronRight,
-  GripVertical
+  GripVertical,
+  Tag as TagIcon,
+  X as XIcon,
+  CheckSquare,
+  Square
 } from 'lucide-react';
 import AddTrackModal from '@/components/admin/AddTrackModal';
 import ConfirmModal from '@/components/admin/ConfirmModal';
@@ -39,6 +43,10 @@ const AdminLibrary = () => {
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
   const [trackToDelete, setTrackToDelete] = useState<Track | null>(null);
   const [toast, setToast] = useState<string | null>(null);
+  // BULK TAGGING: track which rows are selected so tags can be applied to many
+  // tracks at once (instead of editing each track individually).
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const [bulkBusy, setBulkBusy] = useState(false);
 
   const showToast = (message: string) => {
     setToast(message);
@@ -66,6 +74,47 @@ const AdminLibrary = () => {
   const handleEdit = (track: Track) => {
     setSelectedTrack(track);
     setIsAddModalOpen(true);
+  };
+
+  // ---- BULK TAGGING ----
+  const toggleSelect = (id: string) => {
+    setSelectedIds(prev => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id); else next.add(id);
+      return next;
+    });
+  };
+
+  const clearSelection = () => setSelectedIds(new Set());
+
+  // Apply or remove a tag across every selected track in one pass.
+  const bulkApplyTag = async (tagName: string, mode: 'add' | 'remove') => {
+    if (selectedIds.size === 0) return;
+    setBulkBusy(true);
+    try {
+      const targets = tracks.filter(t => selectedIds.has(t.id));
+      for (const t of targets) {
+        const current = t.tags || [];
+        let nextTags: string[];
+        if (mode === 'add') {
+          if (current.some(tg => tg.toLowerCase() === tagName.toLowerCase())) continue; // already has it
+          nextTags = [...current, tagName];
+        } else {
+          nextTags = current.filter(tg => tg.toLowerCase() !== tagName.toLowerCase());
+        }
+        await updateTrack(t.id, { tags: nextTags });
+      }
+      showToast(
+        mode === 'add'
+          ? `Added "${tagName}" to ${targets.length} track(s)`
+          : `Removed "${tagName}" from ${targets.length} track(s)`
+      );
+      clearSelection();
+    } catch (e: any) {
+      showToast(`Bulk tag failed: ${e?.message || 'error'}`);
+    } finally {
+      setBulkBusy(false);
+    }
   };
 
   const handlePlayToggle = (track: any) => {
@@ -222,6 +271,43 @@ const AdminLibrary = () => {
         </div>
       </div>
 
+      {/* BULK TAGGING BAR — appears when one or more tracks are selected */}
+      {selectedIds.size > 0 && (
+        <div className="bulk-bar glass">
+          <div className="bulk-info">
+            <CheckSquare size={16} />
+            <span>{selectedIds.size} selected</span>
+            <button className="bulk-clear" onClick={clearSelection} title="Clear selection">
+              <XIcon size={14} />
+            </button>
+          </div>
+          <div className="bulk-actions">
+            <span className="bulk-label"><TagIcon size={13} /> Apply tag:</span>
+            {tags.length === 0 && <span className="bulk-empty">No tags yet — create one in Taxonomy</span>}
+            {tags.map(t => (
+              <span key={t.id} className="bulk-tag-group">
+                <button
+                  className="bulk-tag-add"
+                  disabled={bulkBusy}
+                  style={{ '--tag-color': t.color || '#1db954' } as React.CSSProperties}
+                  onClick={() => bulkApplyTag(t.name, 'add')}
+                >
+                  + {t.name}
+                </button>
+                <button
+                  className="bulk-tag-remove"
+                  disabled={bulkBusy}
+                  title={`Remove "${t.name}" from selected`}
+                  onClick={() => bulkApplyTag(t.name, 'remove')}
+                >
+                  −
+                </button>
+              </span>
+            ))}
+          </div>
+        </div>
+      )}
+
       {viewMode === 'list' ? (
         <div className="tracks-container glass">
           <table className="admin-table">
@@ -251,6 +337,15 @@ const AdminLibrary = () => {
                   >
                     <td className="col-play">
                       <div className="play-cell">
+                        <button
+                          className="row-select-btn"
+                          title={selectedIds.has(track.id) ? 'Deselect' : 'Select'}
+                          onClick={() => toggleSelect(track.id)}
+                        >
+                          {selectedIds.has(track.id)
+                            ? <CheckSquare size={16} className="sel-on" />
+                            : <Square size={16} className="sel-off" />}
+                        </button>
                         <span className="row-idx">{i + 1}</span>
                         <GripVertical size={16} className="drag-handle-icon" />
                         <button className="row-play-btn" onClick={() => handlePlayToggle(track)}>
@@ -525,6 +620,43 @@ const AdminLibrary = () => {
 
         .track-tags-mini { display: flex; gap: 4px; align-items: center; margin-left: 8px; flex-wrap: wrap; max-width: 150px; }
         .mini-tag { font-size: 9px; padding: 2px 6px; border-radius: 4px; background: rgba(255,255,255,0.05); color: #a1a1aa; white-space: nowrap; }
+
+        /* Row selection checkbox */
+        .row-select-btn { background: none; border: none; cursor: pointer; padding: 2px; display: flex; align-items: center; }
+        .row-select-btn .sel-on { color: #1db954; }
+        .row-select-btn .sel-off { color: #52525b; }
+        .row-select-btn:hover .sel-off { color: #a1a1aa; }
+
+        /* Bulk tagging bar */
+        .bulk-bar {
+          display: flex; align-items: center; gap: 18px; flex-wrap: wrap;
+          padding: 12px 18px; margin-bottom: 14px; border-radius: 12px;
+          border: 1px solid rgba(29,185,84,0.25);
+          background: linear-gradient(135deg, rgba(29,185,84,0.1), rgba(29,185,84,0.02));
+        }
+        .bulk-info { display: flex; align-items: center; gap: 8px; color: #1db954; font-weight: 800; font-size: 13px; }
+        .bulk-clear {
+          display: flex; align-items: center; justify-content: center;
+          width: 20px; height: 20px; border-radius: 50%; border: none; cursor: pointer;
+          background: rgba(255,255,255,0.08); color: #a1a1aa;
+        }
+        .bulk-clear:hover { background: rgba(255,255,255,0.15); color: #fff; }
+        .bulk-actions { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+        .bulk-label { display: flex; align-items: center; gap: 5px; font-size: 12px; font-weight: 700; color: #a1a1aa; }
+        .bulk-empty { font-size: 12px; color: #71717a; font-style: italic; }
+        .bulk-tag-group { display: inline-flex; align-items: stretch; border-radius: 8px; overflow: hidden; }
+        .bulk-tag-add {
+          padding: 6px 12px; border: none; cursor: pointer; font-size: 12px; font-weight: 800;
+          background: rgba(255,255,255,0.06); color: var(--tag-color, #1db954);
+          border-left: 3px solid var(--tag-color, #1db954);
+        }
+        .bulk-tag-add:hover:not(:disabled) { background: rgba(255,255,255,0.12); }
+        .bulk-tag-remove {
+          padding: 6px 10px; border: none; cursor: pointer; font-size: 14px; font-weight: 900;
+          background: rgba(255,255,255,0.03); color: #ef5350;
+        }
+        .bulk-tag-remove:hover:not(:disabled) { background: rgba(239,83,80,0.15); }
+        .bulk-tag-add:disabled, .bulk-tag-remove:disabled { opacity: 0.5; cursor: not-allowed; }
 
         @media (max-width: 1024px) {
           .library-header-actions { flex-direction: column; align-items: flex-start; }

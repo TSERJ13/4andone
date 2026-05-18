@@ -3,6 +3,15 @@
 import { useEffect, useRef } from "react";
 import { supabase } from "@/utils/supabase";
 
+// Shape of the Telegram Mini App user object we read from window.Telegram.
+interface TelegramWebAppUser {
+  id: number;
+  first_name: string;
+  last_name?: string;
+  username?: string;
+  photo_url?: string;
+}
+
 export default function AnalyticsTracker() {
   const visitIdRef = useRef<string | null>(null);
   const sessionIdRef = useRef<string | null>(null);
@@ -36,7 +45,7 @@ export default function AnalyticsTracker() {
 
         // 3. Telegram WebApp Integration
         let userRef = null;
-        const tg = (window as any).Telegram?.WebApp;
+        const tg = (window as Window & { Telegram?: { WebApp?: { initDataUnsafe?: { user?: TelegramWebAppUser } } } }).Telegram?.WebApp;
         if (tg?.initDataUnsafe?.user) {
           const user = tg.initDataUnsafe.user;
           userRef = user.id.toString();
@@ -91,8 +100,40 @@ export default function AnalyticsTracker() {
 
     logVisit();
 
+    // LIVE PRESENCE: join a realtime presence channel so the admin dashboard can
+    // count who is currently online. Presence auto-clears when the tab closes —
+    // no database table or cron cleanup needed.
+    let presenceChannel: ReturnType<typeof supabase.channel> | null = null;
+    try {
+      const tg = (window as Window & { Telegram?: { WebApp?: { initDataUnsafe?: { user?: TelegramWebAppUser } } } }).Telegram?.WebApp?.initDataUnsafe?.user;
+      const displayName = tg
+        ? [tg.first_name, tg.last_name].filter(Boolean).join(' ') || (tg.username ? '@' + tg.username : 'Telegram user')
+        : null;
+
+      presenceChannel = supabase.channel('4andone-live', {
+        config: { presence: { key: sessionId } },
+      });
+
+      presenceChannel.subscribe((status) => {
+        if (status === 'SUBSCRIBED') {
+          presenceChannel?.track({
+            session_id: sessionId,
+            name: displayName,            // null = anonymous web visitor
+            is_telegram: !!tg,
+            online_at: new Date().toISOString(),
+          });
+        }
+      });
+    } catch (e) {
+      console.warn('[ANALYTICS] presence init failed:', e);
+    }
+
     return () => {
       if (updateIntervalRef.current) clearInterval(updateIntervalRef.current);
+      if (presenceChannel) {
+        presenceChannel.untrack();
+        supabase.removeChannel(presenceChannel);
+      }
     };
   }, []);
 

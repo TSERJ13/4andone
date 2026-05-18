@@ -505,6 +505,39 @@ const FinalsPage = () => {
     </div>
 
       <style jsx>{`
+        .program-selector-btn {
+          font-size: 14px;
+          font-weight: 800;
+          text-transform: uppercase;
+          padding: 16px;
+          border-radius: 16px;
+          background: rgba(255, 255, 255, 0.03);
+          letter-spacing: 1.5px;
+          width: 100%;
+          cursor: pointer;
+          transition: all 0.2s ease;
+        }
+        
+        .program-selector-btn:hover {
+          background: rgba(255, 255, 255, 0.08);
+          transform: translateY(-2px);
+        }
+
+        .program-selector-btn.latin { 
+          color: #f7971e; 
+          border: 1px solid rgba(247, 151, 30, 0.3); 
+        }
+        .program-selector-btn.latin:hover {
+          box-shadow: 0 4px 20px rgba(247, 151, 30, 0.2);
+        }
+
+        .program-selector-btn.standard { 
+          color: #2193b0; 
+          border: 1px solid rgba(33, 147, 176, 0.3); 
+        }
+        .program-selector-btn.standard:hover {
+          box-shadow: 0 4px 20px rgba(33, 147, 176, 0.2);
+        }
         .finals-container {
           padding: 32px;
           padding-bottom: 140px;
@@ -917,18 +950,16 @@ const FinalsPage = () => {
             
             <div style={{ display: 'flex', flexDirection: 'column', gap: '16px', marginTop: '24px' }}>
               <button 
-                className="primary-btn"
-                style={{ backgroundColor: 'rgba(247,151,30,0.2)', borderColor: 'rgba(247,151,30,0.5)', width: '100%' }}
+                className="program-selector-btn latin"
                 onClick={() => startLikedSongsProgram('Latin')}
               >
-                Latin Program
+                International Latin
               </button>
               <button 
-                className="primary-btn"
-                style={{ backgroundColor: 'rgba(0,210,255,0.2)', borderColor: 'rgba(0,210,255,0.5)', width: '100%' }}
+                className="program-selector-btn standard"
                 onClick={() => startLikedSongsProgram('Standard')}
               >
-                Standard Program
+                International Standard
               </button>
             </div>
             

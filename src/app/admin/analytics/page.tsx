@@ -222,6 +222,7 @@ export default function AdminAnalytics() {
   // presenceState() returns everyone currently online, in real time.
   // Defensive: if realtime is unavailable the page must still render fine.
   useEffect(() => {
+    let mounted = true;
     let channel: ReturnType<typeof supabase.channel> | undefined;
     try {
       // Find the existing channel created by AnalyticsTracker to avoid duplicate channel conflicts
@@ -232,7 +233,7 @@ export default function AdminAnalytics() {
       }
 
       const syncLive = () => {
-        if (!channel) return;
+        if (!channel || !mounted) return;
         try {
           type PresenceEntry = { session_id?: string; name?: string | null; is_telegram?: boolean };
           const state = channel.presenceState() as Record<string, PresenceEntry[]>;
@@ -271,13 +272,7 @@ export default function AdminAnalytics() {
     }
 
     return () => {
-      // We do NOT remove the channel here because AnalyticsTracker in layout.tsx is still using it!
-      // We only remove the event listeners.
-      if (channel) {
-        channel.off('presence', 'sync');
-        channel.off('presence', 'join');
-        channel.off('presence', 'leave');
-      }
+      mounted = false;
     };
   }, []);
 

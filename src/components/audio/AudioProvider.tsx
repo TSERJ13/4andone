@@ -1001,9 +1001,17 @@ export const AudioProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   }, [tracks, loadTrack]);
 
   const stop = React.useCallback(() => {
+    loadingTokenRef.current += 1; // Invalidate any pending async callbacks like onerror
     if (nativePlayerRef.current) {
         nativePlayerRef.current.pause();
+        // Remove event handlers to prevent onerror from firing when src is cleared
+        nativePlayerRef.current.onerror = null;
+        nativePlayerRef.current.onended = null;
+        nativePlayerRef.current.ontimeupdate = null;
+        nativePlayerRef.current.onplay = null;
+        nativePlayerRef.current.onpause = null;
         nativePlayerRef.current.src = "";
+        nativePlayerRef.current.removeAttribute('src');
     }
     if (heartbeatAudioRef.current) {
         heartbeatAudioRef.current.pause();

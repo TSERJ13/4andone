@@ -116,12 +116,27 @@ export const AudioProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   const finalEndHandledRef = useRef(false); // Guard: prevent double-advance on track end
   const sessionIndexRef = useRef<number>(-1); // Position in the Final Mode session (handles duplicate tracks)
   const pauseDeadlineRef = useRef<number>(0); // Wall-clock deadline for pause countdown (survives screen-off)
+  const customTimeLimitRef = useRef<number | null>(null); // Custom dynamic limit when Finals Mode is toggled mid-playback
 
   useEffect(() => { isPlayingRef.current = isPlaying; }, [isPlaying]);
   useEffect(() => { currentTimeRef.current = currentTime; }, [currentTime]);
   useEffect(() => { isPauseCountdownRef.current = isPauseCountdown; }, [isPauseCountdown]);
   useEffect(() => { pauseTimeRef.current = pauseTime; }, [pauseTime]);
-  useEffect(() => { isFinalModeRef.current = isFinalMode; }, [isFinalMode]);
+  useEffect(() => {
+    isFinalModeRef.current = isFinalMode;
+    if (isFinalMode) {
+      if (isPlayingRef.current && nativePlayerRef.current) {
+        const style = playingTrackRef.current?.style?.toLowerCase() || '';
+        const isPasoDoble = style.includes('paso');
+        const timeLimit = 105; // 1:45
+        if (!isPasoDoble && nativePlayerRef.current.currentTime >= (timeLimit - 3)) {
+          customTimeLimitRef.current = nativePlayerRef.current.currentTime + 3;
+        }
+      }
+    } else {
+      customTimeLimitRef.current = null;
+    }
+  }, [isFinalMode]);
   useEffect(() => { sessionTracksRef.current = sessionTracks; }, [sessionTracks]);
   useEffect(() => { isFitnessRef.current = isFitness; }, [isFitness]);
   useEffect(() => { isRepeatRef.current = isRepeat; }, [isRepeat]);
@@ -416,6 +431,7 @@ export const AudioProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         setPauseTime(15);
         pauseTimeRef.current = 15;
         finalEndHandledRef.current = false; // Allow end-handling for the new track
+        customTimeLimitRef.current = null;
       };
 
       stopAndPrepare();
@@ -587,7 +603,7 @@ export const AudioProvider: React.FC<{ children: React.ReactNode }> = ({ childre
             if (isFinalModeRef.current && !isPauseCountdownRef.current && isPlayingRef.current) {
               const style = playingTrackRef.current?.style?.toLowerCase() || '';
               const isPasoDoble = style.includes('paso');
-              const timeLimit = isPasoDoble ? Infinity : 105; // Standardized to 1:45
+              const timeLimit = isPasoDoble ? Infinity : (customTimeLimitRef.current || 105); // Standardized to 1:45
 
               // EFFECTIVE END = whichever comes first: the 1:45 limit OR the track's
               // natural end. This is the fix for "fade doesn't run on every track":

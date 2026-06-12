@@ -162,7 +162,9 @@ const MobileFullPlayer = ({ isOpen, onClose }: MobileFullPlayerProps) => {
     <div className="mfp-overlay animate-slide-up" style={{ zIndex: 9999, background: '#121212' }}>
       <div className="mfp-header">
         <button onClick={onClose} className="mfp-header-btn"><ChevronDown size={32} /></button>
-        <span className="mfp-now-playing-label">Now Playing</span>
+        <span className={`mfp-now-playing-label ${isFinalMode ? 'final-active-text' : ''}`}>
+          {isFinalMode ? 'Final Mode On' : 'Now Playing'}
+        </span>
         <div className="mfp-header-btn-placeholder" />
       </div>
 
@@ -188,7 +190,13 @@ const MobileFullPlayer = ({ isOpen, onClose }: MobileFullPlayerProps) => {
 
         <div className="mfp-track-meta">
           <div className="mfp-meta-top">
-            <div className="mfp-header-btn-placeholder" />
+            <button
+              className={`mfp-meta-btn mfp-final-toggle ${isFinalMode ? 'active-final' : ''}`}
+              onClick={toggleFinalMode}
+              disabled={!!activeMode}
+            >
+              <Timer size={32} />
+            </button>
             <div className="mfp-text-center">
               <div className="mfp-title-wrapper truncate">
                 {title}
@@ -308,21 +316,7 @@ const MobileFullPlayer = ({ isOpen, onClose }: MobileFullPlayerProps) => {
           </div>
         </div>
 
-        <div className="mfp-practice-mode glass">
-          <div className="mfp-practice-info">
-            <Timer size={20} />
-            <span>Final Mode</span>
-          </div>
-          <label className="mfp-switch">
-            <input
-              type="checkbox"
-              checked={isFinalMode}
-              onChange={toggleFinalMode}
-              disabled={!!activeMode}
-            />
-            <span className="mfp-slider mfp-round"></span>
-          </label>
-        </div>
+
       </div>
 
       {showSpeed && (
@@ -615,6 +609,8 @@ const MobileFullPlayer = ({ isOpen, onClose }: MobileFullPlayerProps) => {
         .countdown-ring-mobile .label { font-size: 10px; font-weight: 900; text-transform: uppercase; letter-spacing: 5px; opacity: 0.3; }
 
         .mfp-now-playing-label { font-size: 10px; font-weight: 800; text-transform: uppercase; letter-spacing: 2px; opacity: 0.4; }
+        .mfp-now-playing-label.final-active-text { color: #ef4444; opacity: 1; }
+        .mfp-meta-btn.mfp-final-toggle.active-final { color: #ef4444; opacity: 1; }
         
         .mfp-play-pause-btn {
           width: 80px;

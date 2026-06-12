@@ -69,12 +69,12 @@ const MobileMiniPlayer = ({ onExpand }: { onExpand: () => void }) => {
 
   return (
     <>
-      <div className="mini-player-outer-wrapper" 
-           style={{ pointerEvents: isLoaded ? 'auto' : 'none' }} 
-           onClick={onExpand}
-      >
+      <div className="mini-player-outer-wrapper" style={{ pointerEvents: 'none' }}>
         {(isLoaded || isLoading) && (
-          <div className="mini-player-wrapper animate-in">
+          <div className="mini-player-wrapper animate-in" 
+               style={{ pointerEvents: 'auto' }} 
+               onClick={onExpand}
+          >
             <div className="mini-player glass">
               <div className="track-info">
                 <div className="mini-art glass">
@@ -136,7 +136,8 @@ const MobileMiniPlayer = ({ onExpand }: { onExpand: () => void }) => {
           bottom: calc(96px + 12px + env(safe-area-inset-bottom));
           left: 12px;
           right: 12px;
-          z-index: 1000;
+          z-index: 9990;
+          pointer-events: none;
         }
 
         .mini-player-wrapper {

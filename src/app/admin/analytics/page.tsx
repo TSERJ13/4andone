@@ -248,7 +248,7 @@ export default function AdminAnalytics() {
 
     try {
       // Create clean isolated presence subscription channel for the admin dashboard
-      channel = supabase.channel('4andone-live-admin', {
+      channel = supabase.channel('4andone-live', {
         config: { presence: { key: 'admin-dashboard-' + Math.random().toString(36).substring(2, 7) } }
       });
 

@@ -2,6 +2,7 @@
 
 import { useEffect, useRef } from "react";
 import { supabase } from "@/utils/supabase";
+import { usePathname } from "next/navigation";
 
 // Shape of the Telegram Mini App user object we read from window.Telegram.
 interface TelegramWebAppUser {
@@ -13,11 +14,17 @@ interface TelegramWebAppUser {
 }
 
 export default function AnalyticsTracker() {
+  const pathname = usePathname();
   const visitIdRef = useRef<string | null>(null);
   const sessionIdRef = useRef<string | null>(null);
   const updateIntervalRef = useRef<NodeJS.Timeout | null>(null);
 
   useEffect(() => {
+    // Prevent logging or presence sync for admin pages
+    if (pathname?.startsWith("/admin") || pathname === "/sa-login") {
+      return;
+    }
+
     // 1. Initialize Session
     let sessionId = sessionStorage.getItem("4andone_session_id");
     if (!sessionId) {

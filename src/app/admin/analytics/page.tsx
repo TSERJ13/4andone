@@ -53,6 +53,16 @@ const COUNTRY_FLAGS: Record<string, string> = {
   ES:'🇪🇸', CA:'🇨🇦', AU:'🇦🇺', JP:'🇯🇵', KR:'🇰🇷', CN:'🇨🇳', BR:'🇧🇷',
 };
 
+interface RecentActivity {
+  id: string;
+  created_at: string;
+  session_id: string;
+  user_ref: string | null;
+  duration_seconds: number;
+  country_code: string;
+  country_name: string;
+}
+
 export default function AdminAnalytics() {
   const { tracks, folders, finalFolders, styles } = useStudio();
   const [period, setPeriod] = useState<Period>('week');
@@ -62,21 +72,18 @@ export default function AdminAnalytics() {
   const [avgDuration, setAvgDuration] = useState(0);
   const [countries, setCountries] = useState<CountryStat[]>([]);
   const [tgUsers, setTgUsers] = useState<TelegramUser[]>([]);
+  const [recentActivity, setRecentActivity] = useState<RecentActivity[]>([]);
   const [topTracks, setTopTracks] = useState<{ id: string, title: string, artist: string, count: number }[]>([]);
   const [styleStats, setStyleStats] = useState<{ style: string, count: number }[]>([]);
   const [liveUsers, setLiveUsers] = useState<{ session_id: string; name: string | null; is_telegram: boolean }[]>([]);
   const [loading, setLoading] = useState(true);
 
-  // Keep a ref to the latest tracks so fetch_ can read them WITHOUT listing
-  // `tracks` as a dependency. Listing it caused fetch_ to be recreated on every
-  // library update, which re-triggered the fetch effect — a render loop that
-  // crashed the page ("This page couldn't load").
   const tracksRef = React.useRef(tracks);
   React.useEffect(() => { tracksRef.current = tracks; }, [tracks]);
 
   const fetch_ = useCallback(async () => {
     setLoading(true);
-    const tracks = tracksRef.current || []; // local snapshot, not a dependency
+    const tracks = tracksRef.current || [];
     try {
       const { start } = getDateRange(period);
       const now = new Date();
@@ -85,84 +92,91 @@ export default function AdminAnalytics() {
       const monthStart = new Date(now); monthStart.setDate(1); monthStart.setHours(0,0,0,0);
       const yearStart = new Date(now); yearStart.setMonth(0,1); yearStart.setHours(0,0,0,0);
 
-      // NOTE: Supabase caps a normal select at 1000 rows. The site already has
-      // 1000+ visits/year, so fetching them all and counting client-side silently
-      // dropped the newest rows — that's why "today"/"this week" showed 0.
-      // FIX: each total is its own server-side count query (head:true → no rows
-      // transferred, no 1000 cap). Unique sessions still need the rows, so we pull
-      // those for a bounded recent window (30 days) which stays well under 1000.
-      const countVisits = (from: Date) =>
-        supabase.from('page_visits')
-          .select('id', { count: 'exact', head: true })
-          .gte('created_at', from.toISOString());
-
-      const uniqueWindowStart = new Date(now);
-      uniqueWindowStart.setDate(now.getDate() - 30);
-      uniqueWindowStart.setHours(0, 0, 0, 0);
-
+      // 1. Fetch metrics from RPC
       const [
-        yearRows, chartData, durData, countryData, tgData, playData,
-        cToday, cWeek, cMonth, cYear,
+        metricsRes, countryRes, trafficRes, recentRes, tgData, playData
       ] = await Promise.all([
-        supabase.from('page_visits')
-          .select('session_id, created_at')
-          .gte('created_at', uniqueWindowStart.toISOString())
-          .order('created_at', { ascending: false }),
-        supabase.from('page_visits')
-          .select('created_at')
-          .gte('created_at', start.toISOString())
-          .order('created_at'),
-        supabase.from('page_visits')
-          .select('duration_seconds')
-          .gt('duration_seconds', 0)
-          .gte('created_at', monthStart.toISOString()),
-        supabase.from('page_visits')
-          .select('country_code,country_name')
-          .not('country_code','is',null)
-          .gte('created_at', yearStart.toISOString()),
+        supabase.rpc('get_platform_metrics', {
+          today_start: todayStart.toISOString(),
+          week_start: weekStart.toISOString(),
+          month_start: monthStart.toISOString(),
+          year_start: yearStart.toISOString(),
+        }),
+        supabase.rpc('get_country_stats', {
+          start_time: yearStart.toISOString()
+        }),
+        supabase.rpc('get_traffic_buckets', {
+          period_type: period,
+          start_time: start.toISOString()
+        }),
+        supabase.rpc('get_recent_activity', {
+          limit_val: 12
+        }),
         supabase.from('telegram_users')
           .select('*')
           .order('visit_count', { ascending: false }),
         supabase.from('track_plays')
           .select('track_id, style, created_at')
           .gte('created_at', monthStart.toISOString()),
-        countVisits(todayStart),
-        countVisits(weekStart),
-        countVisits(monthStart),
-        countVisits(yearStart),
       ]);
 
-      // ---- Visits totals: straight from server-side counts (accurate past 1000) ----
-      setTotals({
-        today: cToday.count ?? 0,
-        week:  cWeek.count ?? 0,
-        month: cMonth.count ?? 0,
-        year:  cYear.count ?? 0,
-      });
-
-      // ---- Unique sessions: derived from the recent 30-day row window ----
-      const rows = (yearRows.data || []) as { session_id: string | null; created_at: string }[];
-      const inRange = (d: string, from: Date) => new Date(d) >= from;
-      const countUnique = (from: Date) => {
-        const set = new Set<string>();
-        rows.forEach(r => {
-          if (inRange(r.created_at, from) && r.session_id) set.add(r.session_id);
+      // Handle metrics aggregation
+      if (metricsRes.data && metricsRes.data.length > 0) {
+        const m = metricsRes.data[0];
+        setTotals({
+          today: Number(m.visits_today) || 0,
+          week:  Number(m.visits_week) || 0,
+          month: Number(m.visits_month) || 0,
+          year:  Number(m.visits_year) || 0,
         });
-        return set.size;
-      };
+        setUniqueTotals({
+          today: Number(m.unique_today) || 0,
+          week:  Number(m.unique_week) || 0,
+          month: Number(m.unique_month) || 0,
+          year:  Number(m.unique_year) || 0,
+        });
+        setAvgDuration(Math.round(m.avg_duration_seconds || 0));
+      }
 
-      setUniqueTotals({
-        today: countUnique(todayStart),
-        week:  countUnique(weekStart),
-        month: countUnique(monthStart),
-        // Year-unique is limited to the 30-day window; show month's unique as a
-        // safe lower bound rather than an undercount that looks broken.
-        year:  countUnique(uniqueWindowStart),
-      });
+      // Handle country stats
+      setCountries((countryRes.data || []) as CountryStat[]);
 
-      // ---- Track plays: most played + style popularity (from the FULL month dataset) ----
+      // Handle recent visitor logs
+      setRecentActivity((recentRes.data || []) as RecentActivity[]);
+
+      // Handle traffic buckets mapping
+      const dbBuckets = (trafficRes.data || []) as { bucket_label: string; visit_count: number }[];
+      let resolvedBuckets: VisitBucket[] = [];
+      if (period === 'day') {
+        resolvedBuckets = Array.from({ length: 24 }).map((_, h) => {
+          const label = `${h.toString().padStart(2, '0')}h`;
+          const dbMatch = dbBuckets.find(x => x.bucket_label === label);
+          return { label, count: dbMatch ? Number(dbMatch.visit_count) : 0 };
+        });
+      } else if (period === 'week') {
+        const days = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
+        resolvedBuckets = days.map(day => {
+          const dbMatch = dbBuckets.find(x => x.bucket_label.toLowerCase() === day.toLowerCase());
+          return { label: day, count: dbMatch ? Number(dbMatch.visit_count) : 0 };
+        });
+      } else if (period === 'month') {
+        const dim = new Date(now.getFullYear(), now.getMonth()+1, 0).getDate();
+        resolvedBuckets = Array.from({ length: dim }).map((_, i) => {
+          const d = (i + 1).toString().padStart(2, '0');
+          const dbMatch = dbBuckets.find(x => x.bucket_label === d);
+          return { label: (i + 1).toString(), count: dbMatch ? Number(dbMatch.visit_count) : 0 };
+        });
+      } else {
+        const months = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+        resolvedBuckets = months.map(m => {
+          const dbMatch = dbBuckets.find(x => x.bucket_label.toLowerCase() === m.toLowerCase());
+          return { label: m, count: dbMatch ? Number(dbMatch.visit_count) : 0 };
+        });
+      }
+      setBuckets(resolvedBuckets);
+
+      // Handle track plays & style popularity
       const plays = (playData.data || []) as { track_id: string; style: string | null }[];
-
       const trackCounts: Record<string, number> = {};
       plays.forEach(p => { trackCounts[p.track_id] = (trackCounts[p.track_id] || 0) + 1; });
 
@@ -175,8 +189,6 @@ export default function AdminAnalytics() {
         });
       setTopTracks(topTracksDetailed);
 
-      // Style popularity: count EVERY play, using the denormalized style on track_plays
-      // and falling back to the track's style from the library if it's missing.
       const styleCounts: Record<string, number> = {};
       plays.forEach(p => {
         let s = (p.style || '').trim();
@@ -193,21 +205,6 @@ export default function AdminAnalytics() {
         .map(([style, count]) => ({ style, count }));
       setStyleStats(styleSorted);
 
-      setBuckets(buildBuckets(chartData.data || [], period));
-
-      // Avg duration in seconds
-      const durations = (durData.data || []).map((d: { duration_seconds: number }) => d.duration_seconds).filter(Boolean);
-      setAvgDuration(durations.length ? Math.round(durations.reduce((a: number,b: number) => a+b, 0) / durations.length) : 0);
-
-      // Aggregate country stats
-      const cmap: Record<string, CountryStat> = {};
-      (countryData.data || []).forEach((r: { country_code: string | null; country_name: string | null }) => {
-        if (!r.country_code) return;
-        const k = r.country_code;
-        cmap[k] = cmap[k] ? { ...cmap[k], count: cmap[k].count+1 } : { country_code: k, country_name: r.country_name||k, count: 1 };
-      });
-      setCountries(Object.values(cmap).sort((a,b) => b.count - a.count).slice(0, 8));
-
       setTgUsers((tgData.data || []) as TelegramUser[]);
     } catch(e) {
       console.error('Analytics error:', e);
@@ -218,61 +215,62 @@ export default function AdminAnalytics() {
 
   useEffect(() => { fetch_(); }, [fetch_]);
 
-  // LIVE LISTENERS: subscribe to the same presence channel visitors join.
-  // presenceState() returns everyone currently online, in real time.
-  // Defensive: if realtime is unavailable the page must still render fine.
+  // LIVE LISTENERS: Realtime Presence Sync (Isolated Admin Dashboard Subscription)
   useEffect(() => {
     let mounted = true;
     let channel: ReturnType<typeof supabase.channel> | undefined;
-    try {
-      // Find the existing channel created by AnalyticsTracker to avoid duplicate channel conflicts
-      channel = supabase.getChannels().find(c => c.topic === 'realtime:4andone-live');
-      
-      if (!channel) {
-        channel = supabase.channel('4andone-live');
-      }
 
-      const syncLive = () => {
-        if (!channel || !mounted) return;
-        try {
-          type PresenceEntry = { session_id?: string; name?: string | null; is_telegram?: boolean };
-          const state = channel.presenceState() as Record<string, PresenceEntry[]>;
-          const seen = new Set<string>();
-          const users: { session_id: string; name: string | null; is_telegram: boolean }[] = [];
-          Object.values(state).forEach(entries => {
-            entries.forEach((e: PresenceEntry) => {
-              if (!e?.session_id || e.session_id === 'admin-dashboard') return;
-              if (seen.has(e.session_id)) return;
-              seen.add(e.session_id);
-              users.push({
-                session_id: e.session_id,
-                name: e.name ?? null,
-                is_telegram: !!e.is_telegram,
-              });
+    const syncLive = () => {
+      if (!channel || !mounted) return;
+      try {
+        type PresenceEntry = { session_id?: string; name?: string | null; is_telegram?: boolean };
+        const state = channel.presenceState() as Record<string, PresenceEntry[]>;
+        const seen = new Set<string>();
+        const users: { session_id: string; name: string | null; is_telegram: boolean }[] = [];
+        
+        Object.values(state).forEach(entries => {
+          entries.forEach((e: PresenceEntry) => {
+            if (!e?.session_id || e.session_id.startsWith('admin-') || e.session_id === 'admin-dashboard') return;
+            if (seen.has(e.session_id)) return;
+            seen.add(e.session_id);
+            users.push({
+              session_id: e.session_id,
+              name: e.name ?? null,
+              is_telegram: !!e.is_telegram,
             });
           });
-          setLiveUsers(users);
-        } catch (err) {
-          console.warn('[ANALYTICS] presence sync failed:', err);
-        }
-      };
+        });
+        setLiveUsers(users);
+      } catch (err) {
+        console.warn('[ANALYTICS] presence sync failed:', err);
+      }
+    };
+
+    try {
+      // Create clean isolated presence subscription channel for the admin dashboard
+      channel = supabase.channel('4andone-live-admin', {
+        config: { presence: { key: 'admin-dashboard-' + Math.random().toString(36).substring(2, 7) } }
+      });
 
       channel
         .on('presence', { event: 'sync' }, syncLive)
         .on('presence', { event: 'join' }, syncLive)
         .on('presence', { event: 'leave' }, syncLive);
 
-      if (channel.state !== 'joined' && channel.state !== 'joining') {
-        channel.subscribe();
-      } else {
-        syncLive(); // If already joined, just pull the current state
-      }
+      channel.subscribe((status) => {
+        if (status === 'SUBSCRIBED') {
+          syncLive();
+        }
+      });
     } catch (err) {
-      console.warn('[ANALYTICS] presence channel init failed:', err);
+      console.warn('[ANALYTICS] presence init failed:', err);
     }
 
     return () => {
       mounted = false;
+      if (channel) {
+        supabase.removeChannel(channel);
+      }
     };
   }, []);
 
@@ -283,6 +281,17 @@ export default function AdminAnalytics() {
     if (!s) return '—';
     const m = Math.floor(s/60), sec = s%60;
     return m > 0 ? `${m}m ${sec}s` : `${sec}s`;
+  };
+
+  const timeAgo = (dateStr: string) => {
+    const diff = Date.now() - new Date(dateStr).getTime();
+    const m = Math.floor(diff / 60000);
+    const h = Math.floor(m / 60);
+    const d = Math.floor(h / 24);
+    if (d > 0) return `${d}d ago`;
+    if (h > 0) return `${h}h ago`;
+    if (m > 0) return `${m}m ago`;
+    return 'just now';
   };
 
   const fmtDate = (d: string) => new Date(d).toLocaleDateString('en', { month:'short', day:'numeric' });
@@ -385,29 +394,51 @@ export default function AdminAnalytics() {
         )}
       </div>
 
-      {/* Two-column: Countries + Telegram users */}
+      {/* Three panels: Countries, Live Activity feed, and Registered TG Users */}
       <div className="two-col">
 
-        {/* Country stats */}
+        {/* Recent Visitor Activity (Live Feed) */}
         <div className="panel glass">
           <div className="panel-head">
-            <Globe size={18} className="text-primary"/>
-            <h3>Top Countries</h3>
+            <Clock size={18} className="text-primary"/>
+            <h3>Recent Visitor Activity (Live Feed)</h3>
           </div>
           {loading ? <div className="panel-empty">Loading...</div> :
-           countries.length === 0 ? <div className="panel-empty">No geodata yet</div> :
-           countries.map(c => (
-            <div key={c.country_code} className="country-row">
-              <div className="country-left">
-                <span className="flag">{COUNTRY_FLAGS[c.country_code] || '🌍'}</span>
-                <span className="country-name">{c.country_name}</span>
-              </div>
-              <div className="country-bar-wrap">
-                <div className="country-bar" style={{ width:`${Math.round((c.count/maxCountry)*100)}%` }}/>
-              </div>
-              <span className="country-count">{c.count}</span>
+           recentActivity.length === 0 ? <div className="panel-empty">No activity logged yet</div> : (
+            <div className="scroll-list">
+              {recentActivity.map((r) => {
+                const tgUser = tgUsers.find(u => u.telegram_id.toString() === r.user_ref);
+                const isOnline = liveUsers.some(lu => lu.session_id === r.session_id);
+                return (
+                  <div key={r.id} className="tg-row">
+                    <div className="tg-avatar" style={{ background: tgUser ? '#1db954' : '#27272a' }}>
+                      {tgUser ? tgUser.first_name?.charAt(0) || 'T' : '🌍'}
+                    </div>
+                    <div className="tg-info">
+                      <div className="tg-name" style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                        {tgUser ? (
+                          <>
+                            <span>{tgUser.first_name}{tgUser.last_name ? ' ' + tgUser.last_name : ''}</span>
+                            {tgUser.username && <span style={{ color: '#1db954', fontSize: '11px' }}>@{tgUser.username}</span>}
+                          </>
+                        ) : (
+                          <span style={{ color: '#a1a1aa', fontWeight: '500' }}>Anonymous Visitor</span>
+                        )}
+                        {isOnline && <span className="online-badge-dot" title="Active on site" />}
+                      </div>
+                      <div className="tg-meta">
+                        <span className="flag">{COUNTRY_FLAGS[r.country_code] || '🌍'}</span>
+                        <span> {r.country_name || 'Unknown'} · {timeAgo(r.created_at)}</span>
+                      </div>
+                    </div>
+                    <div className="tg-visits" style={{ color: isOnline ? '#1db954' : '#71717a', fontSize: '12px' }}>
+                      {isOnline ? 'Online now' : r.duration_seconds > 0 ? fmtDuration(r.duration_seconds) : 'just joined'}
+                    </div>
+                  </div>
+                );
+              })}
             </div>
-          ))}
+          )}
         </div>
 
         {/* Telegram top users */}
@@ -432,6 +463,56 @@ export default function AdminAnalytics() {
                   <div className="tg-visits">{u.visit_count}x</div>
                 </div>
               ))}
+            </div>
+          )}
+        </div>
+      </div>
+
+      {/* Two-column: Countries + Style Popularity */}
+      <div className="two-col">
+        {/* Country stats */}
+        <div className="panel glass">
+          <div className="panel-head">
+            <Globe size={18} className="text-primary"/>
+            <h3>Top Countries</h3>
+          </div>
+          {loading ? <div className="panel-empty">Loading...</div> :
+           countries.length === 0 ? <div className="panel-empty">No geodata yet</div> :
+           countries.map(c => (
+            <div key={c.country_code} className="country-row">
+              <div className="country-left">
+                <span className="flag">{COUNTRY_FLAGS[c.country_code] || '🌍'}</span>
+                <span className="country-name">{c.country_name}</span>
+              </div>
+              <div className="country-bar-wrap">
+                <div className="country-bar" style={{ width:`${Math.round((c.count/maxCountry)*100)}%` }}/>
+              </div>
+              <span className="country-count">{c.count}</span>
+            </div>
+          ))}
+        </div>
+
+        {/* Style Popularity */}
+        <div className="panel glass">
+          <div className="panel-head">
+            <TrendingUp size={18} className="text-primary"/>
+            <h3>Style Popularity (30D)</h3>
+          </div>
+          {loading ? <div className="panel-empty">Loading...</div> :
+           styleStats.length === 0 ? <div className="panel-empty">No play data yet</div> : (
+            <div className="style-bars">
+              {styleStats.map(s => {
+                const maxCount = Math.max(...styleStats.map(x => x.count), 1);
+                return (
+                  <div key={s.style} className="style-bar-row">
+                    <span className="style-name">{s.style}</span>
+                    <div className="s-bar-wrap">
+                      <div className="s-bar" style={{ width: `${Math.max(4, (s.count/maxCount)*100)}%` }} />
+                    </div>
+                    <span className="style-count">{s.count}</span>
+                  </div>
+                );
+              })}
             </div>
           )}
         </div>
@@ -462,45 +543,25 @@ export default function AdminAnalytics() {
           )}
         </div>
 
-        <div className="panel glass">
-          <div className="panel-head">
-            <TrendingUp size={18} className="text-primary"/>
-            <h3>Style Popularity (30D)</h3>
+        {/* Library Stats */}
+        <div className="lib-grid-wrapper">
+          <div className="lib-grid" style={{ gridTemplateColumns: '1fr', height: '100%', gap: '12px' }}>
+            {[
+              { label:'Total Tracks', value:tracks.length, sub:`${tracks.filter(t=>t.style?.toLowerCase()==='fitness').length} in Fitness`, icon:<Music size={18}/> },
+              { label:'Dance Styles', value:folders.length, sub:`${styles.length} style types`, icon:<Folder size={18}/> },
+              { label:'Finals Queues', value:finalFolders.length, sub:`${tracks.filter(t=>t.isFavorite).length} Liked Songs`, icon:<Flag size={18}/> },
+            ].map(s => (
+              <div key={s.label} className="lib-card glass" style={{ display: 'flex', alignItems: 'center', gap: '16px', padding: '16px 24px' }}>
+                <div className="lib-icon text-primary" style={{ marginBottom: 0 }}>{s.icon}</div>
+                <div>
+                  <div className="lib-val" style={{ fontSize: '24px' }}>{s.value}</div>
+                  <div className="lib-label" style={{ marginTop: '2px', fontSize: '9px' }}>{s.label}</div>
+                  <div className="lib-sub" style={{ marginTop: '2px', fontSize: '11px' }}>{s.sub}</div>
+                </div>
+              </div>
+            ))}
           </div>
-          {loading ? <div className="panel-empty">Loading...</div> :
-           styleStats.length === 0 ? <div className="panel-empty">No play data yet</div> : (
-            <div className="style-bars">
-              {styleStats.map(s => {
-                const maxCount = Math.max(...styleStats.map(x => x.count), 1);
-                return (
-                  <div key={s.style} className="style-bar-row">
-                    <span className="style-name">{s.style}</span>
-                    <div className="s-bar-wrap">
-                      <div className="s-bar" style={{ width: `${Math.max(4, (s.count/maxCount)*100)}%` }} />
-                    </div>
-                    <span className="style-count">{s.count}</span>
-                  </div>
-                );
-              })}
-            </div>
-          )}
         </div>
-      </div>
-
-      {/* Library Stats */}
-      <div className="lib-grid">
-        {[
-          { label:'Total Tracks', value:tracks.length, sub:`${tracks.filter(t=>t.style?.toLowerCase()==='fitness').length} in Fitness`, icon:<Music size={18}/> },
-          { label:'Dance Styles', value:folders.length, sub:`${styles.length} style types`, icon:<Folder size={18}/> },
-          { label:'Finals Queues', value:finalFolders.length, sub:`${tracks.filter(t=>t.isFavorite).length} Liked Songs`, icon:<Flag size={18}/> },
-        ].map(s => (
-          <div key={s.label} className="lib-card glass">
-            <div className="lib-icon text-primary">{s.icon}</div>
-            <div className="lib-val">{s.value}</div>
-            <div className="lib-label">{s.label}</div>
-            <div className="lib-sub">{s.sub}</div>
-          </div>
-        ))}
       </div>
 
       <style jsx>{`
@@ -550,6 +611,12 @@ export default function AdminAnalytics() {
         .sum-val { font-size:24px; font-weight:900; letter-spacing:-1px; line-height:1; }
         .sum-label { font-size:10px; font-weight:800; color:#52525b; text-transform:uppercase; letter-spacing:0.5px; }
         .sum-sub { font-size:11px; font-weight:700; color:#1db954; margin-top:2px; }
+
+        /* Online badge dot for live activity */
+        .online-badge-dot {
+          width: 7px; height: 7px; border-radius: 50%; background: #1db954;
+          box-shadow: 0 0 8px #1db954; display: inline-block;
+        }
 
         /* Chart */
         .chart-card { padding:28px; border-radius:24px; }

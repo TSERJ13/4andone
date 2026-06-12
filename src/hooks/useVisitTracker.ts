@@ -2,6 +2,7 @@
 
 import { useEffect, useRef } from 'react';
 import { supabase } from '@/utils/supabase';
+import { usePathname } from 'next/navigation';
 
 async function getCountry(): Promise<{ code: string; name: string } | null> {
   try {
@@ -15,11 +16,17 @@ async function getCountry(): Promise<{ code: string; name: string } | null> {
 }
 
 export function useVisitTracker() {
+  const pathname = usePathname();
   const visitIdRef = useRef<string | null>(null);
   const startTimeRef = useRef<number>(Date.now());
 
   useEffect(() => {
     if (typeof window === 'undefined') return;
+    
+    // Prevent tracking on admin pages
+    if (pathname?.startsWith('/admin') || pathname === '/sa-login') {
+      return;
+    }
 
     const SESSION_KEY = '4andone_visit_id';
     const existingId = sessionStorage.getItem(SESSION_KEY);

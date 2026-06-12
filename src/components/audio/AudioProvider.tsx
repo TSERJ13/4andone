@@ -124,16 +124,7 @@ export const AudioProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   useEffect(() => { pauseTimeRef.current = pauseTime; }, [pauseTime]);
   useEffect(() => {
     isFinalModeRef.current = isFinalMode;
-    if (isFinalMode) {
-      if (isPlayingRef.current && nativePlayerRef.current) {
-        const style = playingTrackRef.current?.style?.toLowerCase() || '';
-        const isPasoDoble = style.includes('paso');
-        const timeLimit = 105; // 1:45
-        if (!isPasoDoble && nativePlayerRef.current.currentTime >= (timeLimit - 3)) {
-          customTimeLimitRef.current = nativePlayerRef.current.currentTime + 3;
-        }
-      }
-    } else {
+    if (!isFinalMode) {
       customTimeLimitRef.current = null;
     }
   }, [isFinalMode]);
@@ -603,11 +594,24 @@ export const AudioProvider: React.FC<{ children: React.ReactNode }> = ({ childre
             if (isFinalModeRef.current && !isPauseCountdownRef.current && isPlayingRef.current) {
               const style = playingTrackRef.current?.style?.toLowerCase() || '';
               const isPasoDoble = style.includes('paso');
-              const timeLimit = isPasoDoble ? Infinity : (customTimeLimitRef.current || 105); // Standardized to 1:45
+              const isVW = style.includes('viennese') || (style.includes('waltz') && style.includes('v'));
+              const standardLimit = isPasoDoble ? Infinity : (isVW ? 85 : 105);
 
-              // EFFECTIVE END = whichever comes first: the 1:45 limit OR the track's
+              // Dynamically set custom override limit if playing past standard limit - 3
+              if (!isPasoDoble && currentTimeVal > (standardLimit - 3) && customTimeLimitRef.current === null) {
+                customTimeLimitRef.current = currentTimeVal + 3;
+              }
+
+              // Reset override limit if seeking back before standard limit - 3
+              if (!isPasoDoble && currentTimeVal < (standardLimit - 3) && customTimeLimitRef.current !== null) {
+                customTimeLimitRef.current = null;
+              }
+
+              const timeLimit = isPasoDoble ? Infinity : (customTimeLimitRef.current || standardLimit);
+
+              // EFFECTIVE END = whichever comes first: the limit OR the track's
               // natural end. This is the fix for "fade doesn't run on every track":
-              // tracks shorter than 1:45 never reached the 105s mark, so the fade
+              // tracks shorter than the limit never reached the limit mark, so the fade
               // never started. Now short tracks fade out before their real end too.
               const trackDuration = (audio.duration && isFinite(audio.duration)) ? audio.duration : timeLimit;
               const effectiveEnd = Math.min(timeLimit, trackDuration);

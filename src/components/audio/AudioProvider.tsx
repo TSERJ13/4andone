@@ -112,7 +112,7 @@ export const AudioProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   const bpmRef = useRef(bpm);
   const volumeRef = useRef(volume);
   const activeModeRef = useRef(activeMode);
-  const fadeStartedRef = useRef(false); // Guard: prevent multiple fade intervals
+  const fadeIntervalRef = useRef<NodeJS.Timeout | null>(null); // Interval for smooth acoustic fade-out
   const finalEndHandledRef = useRef(false); // Guard: prevent double-advance on track end
   const sessionIndexRef = useRef<number>(-1); // Position in the Final Mode session (handles duplicate tracks)
   const pauseDeadlineRef = useRef<number>(0); // Wall-clock deadline for pause countdown (survives screen-off)
@@ -407,6 +407,10 @@ export const AudioProvider: React.FC<{ children: React.ReactNode }> = ({ childre
           nativePlayerRef.current.onended = null;
           nativePlayerRef.current.pause();
         }
+        if (fadeIntervalRef.current) {
+          clearInterval(fadeIntervalRef.current);
+          fadeIntervalRef.current = null;
+        }
         setIsPauseCountdown(false);
         isPauseCountdownRef.current = false;
         setPauseTime(15);
@@ -502,7 +506,6 @@ export const AudioProvider: React.FC<{ children: React.ReactNode }> = ({ childre
           
           // RESET VOLUME: Ensure any previous fade-out is reversed
           audio.volume = volumeRef.current * 0.8;
-          fadeStartedRef.current = false; // Allow fade to trigger for new track
 
           audio.oncanplay = () => {
             if (currentToken !== loadingTokenRef.current) return;
@@ -607,14 +610,40 @@ export const AudioProvider: React.FC<{ children: React.ReactNode }> = ({ childre
                 const timeLeft = effectiveEnd - currentTimeVal;
                 const baseVol = volumeRef.current * 0.8;
 
-                if (timeLeft <= FADE_DURATION) {
-                  fadeStartedRef.current = true;
-                  const ratio = Math.max(0, timeLeft) / FADE_DURATION; // 1 → 0
-                  nativePlayerRef.current.volume = Math.max(0, Math.min(baseVol, baseVol * ratio));
-                } else if (fadeStartedRef.current) {
-                  // If we were fading but now we are before the fade window (e.g. user seeked back), restore volume
+                if (timeLeft <= FADE_DURATION && timeLeft > 0) {
+                  if (!fadeIntervalRef.current) {
+                    const fadeTimeMs = (timeLeft * 1000) / (audio.playbackRate || 1);
+                    const fadeStartTimestamp = Date.now();
+                    const startVol = nativePlayerRef.current.volume;
+
+                    fadeIntervalRef.current = setInterval(() => {
+                      if (!nativePlayerRef.current || nativePlayerRef.current.paused) {
+                        if (fadeIntervalRef.current) {
+                          clearInterval(fadeIntervalRef.current);
+                          fadeIntervalRef.current = null;
+                        }
+                        return;
+                      }
+                      const elapsedRealMs = Date.now() - fadeStartTimestamp;
+                      const progress = Math.min(1, elapsedRealMs / fadeTimeMs); // 0 -> 1
+
+                      // Acoustic cosine curve fade (1 to 0)
+                      const ratio = Math.cos(progress * Math.PI / 2);
+                      nativePlayerRef.current.volume = startVol * ratio;
+
+                      if (progress >= 1) {
+                        if (fadeIntervalRef.current) {
+                          clearInterval(fadeIntervalRef.current);
+                          fadeIntervalRef.current = null;
+                        }
+                      }
+                    }, 30);
+                  }
+                } else if (timeLeft > FADE_DURATION && fadeIntervalRef.current) {
+                  // User seeked back before the fade window: clear interval and restore volume
+                  clearInterval(fadeIntervalRef.current);
+                  fadeIntervalRef.current = null;
                   nativePlayerRef.current.volume = baseVol;
-                  fadeStartedRef.current = false;
                 }
               }
 
@@ -1014,7 +1043,10 @@ export const AudioProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         nativePlayerRef.current.src = "";
         nativePlayerRef.current.removeAttribute('src');
     }
-    fadeStartedRef.current = false;
+    if (fadeIntervalRef.current) {
+      clearInterval(fadeIntervalRef.current);
+      fadeIntervalRef.current = null;
+    }
     if (heartbeatAudioRef.current) {
         heartbeatAudioRef.current.pause();
     }

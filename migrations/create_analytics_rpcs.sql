@@ -32,7 +32,7 @@ BEGIN
     (SELECT COUNT(DISTINCT session_id) FROM public.page_visits WHERE created_at >= week_start) as unique_week,
     (SELECT COUNT(DISTINCT session_id) FROM public.page_visits WHERE created_at >= month_start) as unique_month,
     (SELECT COUNT(DISTINCT session_id) FROM public.page_visits WHERE created_at >= year_start) as unique_year,
-    COALESCE((SELECT AVG(duration_seconds) FROM public.page_visits WHERE created_at >= month_start AND duration_seconds > 0), 0) as avg_duration_seconds;
+    COALESCE((SELECT AVG(duration_seconds)::double precision FROM public.page_visits WHERE created_at >= month_start AND duration_seconds > 0), 0::double precision) as avg_duration_seconds;
 END;
 $$ LANGUAGE plpgsql SECURITY DEFINER;
 

@@ -607,14 +607,14 @@ export const AudioProvider: React.FC<{ children: React.ReactNode }> = ({ childre
                 const timeLeft = effectiveEnd - currentTimeVal;
                 const baseVol = volumeRef.current * 0.8;
 
-                if (timeLeft <= FADE_DURATION && timeLeft > 0) {
-                  // Inside the fade window: volume scales linearly with time left.
+                if (timeLeft <= FADE_DURATION) {
                   fadeStartedRef.current = true;
-                  const ratio = timeLeft / FADE_DURATION; // 1 → 0
+                  const ratio = Math.max(0, timeLeft) / FADE_DURATION; // 1 → 0
                   nativePlayerRef.current.volume = Math.max(0, Math.min(baseVol, baseVol * ratio));
-                } else if (timeLeft <= 0 && fadeStartedRef.current) {
-                  // Past the end: make sure it is fully silent.
-                  nativePlayerRef.current.volume = 0;
+                } else if (fadeStartedRef.current) {
+                  // If we were fading but now we are before the fade window (e.g. user seeked back), restore volume
+                  nativePlayerRef.current.volume = baseVol;
+                  fadeStartedRef.current = false;
                 }
               }
 
@@ -1004,6 +1004,7 @@ export const AudioProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     loadingTokenRef.current += 1; // Invalidate any pending async callbacks like onerror
     if (nativePlayerRef.current) {
         nativePlayerRef.current.pause();
+        nativePlayerRef.current.volume = volumeRef.current * 0.8;
         // Remove event handlers to prevent onerror from firing when src is cleared
         nativePlayerRef.current.onerror = null;
         nativePlayerRef.current.onended = null;
@@ -1013,6 +1014,7 @@ export const AudioProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         nativePlayerRef.current.src = "";
         nativePlayerRef.current.removeAttribute('src');
     }
+    fadeStartedRef.current = false;
     if (heartbeatAudioRef.current) {
         heartbeatAudioRef.current.pause();
     }

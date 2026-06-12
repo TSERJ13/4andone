@@ -198,8 +198,8 @@ const MobileFullPlayer = ({ isOpen, onClose }: MobileFullPlayerProps) => {
               <Timer size={32} />
             </button>
             <div className="mfp-text-center">
-              <div className="mfp-title-wrapper truncate">
-                {title}
+              <div className="mfp-title-wrapper">
+                <Marquee text={title || ''} speed={30} isActive={isPlaying} className="mfp-title-marquee" />
               </div>
               <p className="mfp-artist truncate">{artist}</p>
             </div>
@@ -361,6 +361,26 @@ const MobileFullPlayer = ({ isOpen, onClose }: MobileFullPlayerProps) => {
           max-width: 85vw;
           line-height: 1.2;
           margin: 0 auto;
+          overflow: hidden;
+          width: 100%;
+          height: 1.3em;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+        }
+        .mfp-title-marquee {
+          font-size: inherit;
+          font-weight: inherit;
+          color: inherit;
+          text-align: center;
+          width: 100%;
+        }
+        .mfp-title-marquee :global(.marquee-text) {
+          font-weight: inherit;
+          display: inline-block;
+        }
+        .mfp-title-marquee :global(.marquee-content) {
+          font-weight: inherit;
         }
 
         .disc-final-overlay-red {

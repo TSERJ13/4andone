@@ -396,6 +396,11 @@ const MobileFullPlayer = ({ isOpen, onClose }: MobileFullPlayerProps) => {
           margin-bottom: 20px !important;
         }
 
+        :global(.mfp-content) {
+          justify-content: center !important;
+          gap: 15px !important;
+        }
+
         .mfp-practice-mode {
           margin-top: 4px;
         }

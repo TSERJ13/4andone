@@ -599,16 +599,16 @@ export const AudioProvider: React.FC<{ children: React.ReactNode }> = ({ childre
               const isVW = style.includes('viennese') || (style.includes('waltz') && style.includes('v'));
               const standardLimit = isPasoDoble ? Infinity : (isVW ? 85 : 105);
 
-              // Dynamically set custom override limit if playing past standard limit - 3
-              if (!isPasoDoble && currentTimeVal > (standardLimit - 3) && customTimeLimitRef.current === null) {
-                customTimeLimitRef.current = currentTimeVal + 3;
+              // Dynamically set custom override limit if playing past standard limit - 2
+              if (!isPasoDoble && currentTimeVal > (standardLimit - 2) && customTimeLimitRef.current === null) {
+                customTimeLimitRef.current = currentTimeVal + 2;
                 if (currentTimeVal >= standardLimit) {
                   toggledPastLimitRef.current = true;
                 }
               }
 
-              // Reset override limit if seeking back before standard limit - 3
-              if (!isPasoDoble && currentTimeVal < (standardLimit - 3) && customTimeLimitRef.current !== null) {
+              // Reset override limit if seeking back before standard limit - 2
+              if (!isPasoDoble && currentTimeVal < (standardLimit - 2) && customTimeLimitRef.current !== null) {
                 customTimeLimitRef.current = null;
                 toggledPastLimitRef.current = false;
               }
@@ -622,53 +622,21 @@ export const AudioProvider: React.FC<{ children: React.ReactNode }> = ({ childre
               const trackDuration = (audio.duration && isFinite(audio.duration)) ? audio.duration : timeLimit;
               const effectiveEnd = Math.min(timeLimit, trackDuration);
 
-              // NATIVE FADE-OUT Logic (runs ONCE, 3 seconds before the effective end)
-              // CONTINUOUS FADE-OUT (fix for "fade worked on some tracks, not others").
-              // The old version started a setInterval timer once. That was unreliable:
-              //  - setInterval freezes when the screen is off (common in Final Mode)
-              //  - it ignored playbackRate, so at high speed the fade lagged the audio
-              //  - if an ontimeupdate tick skipped the trigger window, it never started.
-              // Now the volume is derived directly from currentTime on EVERY tick, so
-              // it always tracks the real playback position regardless of speed or
-              // screen state. The 3s fade window is based on the effective end.
+              // Smooth Acoustic Fade-Out derived DIRECTLY from currentTime (no setInterval, background-safe)
               if (audio && !isPasoDoble && isFinite(effectiveEnd) && nativePlayerRef.current) {
-                const FADE_DURATION = 3; // seconds
+                const FADE_DURATION = 2; // fade starts 2 seconds before the effective end (e.g. 1:43 to 1:45)
                 const timeLeft = effectiveEnd - currentTimeVal;
                 const baseVol = volumeRef.current * 0.8;
 
                 if (timeLeft <= FADE_DURATION && timeLeft > 0) {
-                  if (!fadeIntervalRef.current) {
-                    const fadeTimeMs = (timeLeft * 1000) / (audio.playbackRate || 1);
-                    const fadeStartTimestamp = Date.now();
-                    const startVol = nativePlayerRef.current.volume;
-
-                    fadeIntervalRef.current = setInterval(() => {
-                      if (!nativePlayerRef.current || nativePlayerRef.current.paused) {
-                        if (fadeIntervalRef.current) {
-                          clearInterval(fadeIntervalRef.current);
-                          fadeIntervalRef.current = null;
-                        }
-                        return;
-                      }
-                      const elapsedRealMs = Date.now() - fadeStartTimestamp;
-                      const progress = Math.min(1, elapsedRealMs / fadeTimeMs); // 0 -> 1
-
-                      // Acoustic cosine curve fade (1 to 0)
-                      const ratio = Math.cos(progress * Math.PI / 2);
-                      nativePlayerRef.current.volume = startVol * ratio;
-
-                      if (progress >= 1) {
-                        if (fadeIntervalRef.current) {
-                          clearInterval(fadeIntervalRef.current);
-                          fadeIntervalRef.current = null;
-                        }
-                      }
-                    }, 30);
-                  }
-                } else if (timeLeft > FADE_DURATION && fadeIntervalRef.current) {
-                  // User seeked back before the fade window: clear interval and restore volume
-                  clearInterval(fadeIntervalRef.current);
-                  fadeIntervalRef.current = null;
+                  const elapsed = FADE_DURATION - timeLeft; // 0 to 2
+                  const progress = Math.min(1, Math.max(0, elapsed / FADE_DURATION)); // 0 to 1
+                  
+                  // Acoustic cosine curve fade (1 to 0)
+                  const ratio = Math.cos(progress * Math.PI / 2);
+                  nativePlayerRef.current.volume = baseVol * ratio;
+                } else if (timeLeft > FADE_DURATION) {
+                  // Restore volume if not in fade window
                   nativePlayerRef.current.volume = baseVol;
                 }
               }
@@ -1035,7 +1003,37 @@ export const AudioProvider: React.FC<{ children: React.ReactNode }> = ({ childre
 
   const toggleRepeat = React.useCallback(() => setIsRepeat(prev => !prev), []);
   const toggleShuffle = React.useCallback(() => setIsShuffle(prev => !prev), []);
-  const toggleFinalMode = React.useCallback(() => setIsFinalMode(prev => !prev), []);
+  const toggleFinalMode = React.useCallback(() => {
+    setIsFinalMode(prev => {
+      const nextVal = !prev;
+      if (nextVal) {
+        // Turning ON: if we are already past (standardLimit - 2), set custom time limit
+        const audio = nativePlayerRef.current;
+        if (audio && playingTrackRef.current) {
+          const style = playingTrackRef.current.style?.toLowerCase() || '';
+          const isPasoDoble = style.includes('paso');
+          const isVW = style.includes('viennese') || (style.includes('waltz') && style.includes('v'));
+          const standardLimit = isPasoDoble ? Infinity : (isVW ? 85 : 105);
+          
+          if (!isPasoDoble && audio.currentTime > (standardLimit - 2)) {
+            customTimeLimitRef.current = audio.currentTime + 2;
+            if (audio.currentTime >= standardLimit) {
+              toggledPastLimitRef.current = true;
+            }
+          }
+        }
+      } else {
+        // Turning OFF: clear it
+        customTimeLimitRef.current = null;
+        toggledPastLimitRef.current = false;
+        // Restore volume in case it was fading
+        if (nativePlayerRef.current) {
+          nativePlayerRef.current.volume = volumeRef.current * 0.8;
+        }
+      }
+      return nextVal;
+    });
+  }, []);
 
   const playNext = React.useCallback(() => {
     const list = isFinalModeRef.current ? sessionTracksRef.current : tracks;

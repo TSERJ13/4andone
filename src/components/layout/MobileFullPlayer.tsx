@@ -449,8 +449,8 @@ const MobileFullPlayer = ({ isOpen, onClose }: MobileFullPlayerProps) => {
           position: relative;
           display: flex;
           justify-content: center;
-          margin-bottom: 12px;
-          margin-top: -15px !important;
+          margin-bottom: 8px;
+          margin-top: -50px !important;
         }
 
         .vinyl-disc-v8 { 

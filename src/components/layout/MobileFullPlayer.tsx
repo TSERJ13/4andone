@@ -155,7 +155,7 @@ const MobileFullPlayer = ({ isOpen, onClose }: MobileFullPlayerProps) => {
   }
 
   const totalDur = isFinalMode ? sessionDuration : duration;
-  const displayProgress = isDragging ? dragProgress : (currentTime / (totalDur || 1)) * 100;
+  const displayProgress = isDragging ? dragProgress : (Math.min(currentTime, totalDur) / (totalDur || 1)) * 100;
   const currentTrack = tracks.find(t => t.title === title);
 
   return createPortal(
@@ -246,7 +246,7 @@ const MobileFullPlayer = ({ isOpen, onClose }: MobileFullPlayerProps) => {
             <div className={`mfp-progress-knob ${isDragging ? 'active' : ''} ${isFinalMode ? 'mfp-final-active' : ''}`} style={{ left: `${displayProgress}%` }}></div>
           </div>
           <div className="mfp-time-labels">
-            <span>{formatDuration(isDragging ? (dragProgress / 100) * (totalDur || 0) : currentTime)}</span>
+            <span>{formatDuration(isDragging ? (dragProgress / 100) * (totalDur || 0) : Math.min(currentTime, totalDur))}</span>
             <span>{formatDuration(totalDur)}</span>
           </div>
         </div>
@@ -392,143 +392,8 @@ const MobileFullPlayer = ({ isOpen, onClose }: MobileFullPlayerProps) => {
           pointer-events: none;
         }
 
-        /* NEW COMPREHENSIVE LANDSCAPE DASHBOARD */
-        @media screen and (orientation: landscape) and (max-height: 500px) {
-          .mfp-header { display: none !important; }
-          .mfp-now-playing-label { display: none !important; }
-          
-          .mfp-content { 
-            padding: 20px 40px !important; 
-            height: 100vh; 
-            display: flex; 
-            flex-direction: column; 
-            justify-content: center; 
-            gap: 12px;
-            background: #0a0a0a; 
-          }
-          
-          .art-container { display: none !important; }
-
-          /* Metadata: Top Center - Minimalist & Perfectly Centered */
-          .mfp-track-meta { 
-            display: flex !important; 
-            flex-direction: column !important; 
-            align-items: center !important;
-            justify-content: center !important;
-            margin: 0 auto; 
-            gap: 16px; /* Increased from 0 for vertical breathing room */
-            padding-top: 5px;
-            width: 100% !important;
-            min-height: 40px;
-          }
-          .mfp-meta-top { 
-            width: 100% !important; 
-            display: flex !important; 
-            justify-content: center !important; 
-            align-items: center !important; 
-            position: relative !important; 
-          }
-          .mfp-text-center { margin: 0 !important; padding: 0 !important; width: auto !important; }
-          .mfp-title-wrapper { 
-            font-size: 15px !important; 
-            max-width: 55vw !important; 
-            text-align: center !important; 
-            font-weight: 900 !important;
-            margin: 0 !important;
-          }
-          .mfp-artist { display: none !important; }
-          .mfp-speed-tag { display: none !important; }
-          
-          /* Mini Row: Heart & Speed Only - Pushed to edges of metadata row */
-          .mfp-meta-btn.mfp-favorite { 
-            position: absolute !important; 
-            left: calc(50% - 290px) !important; 
-            transform: scale(0.6) !important; 
-            opacity: 0.9 !important;
-            color: white !important;
-            margin: 0 !important;
-          }
-          
-          .mfp-landscape-speed-btn { 
-            display: block !important;
-            position: absolute !important; 
-            right: calc(50% - 290px) !important; 
-            background: none !important; 
-            border: none !important; 
-            color: white !important; 
-            opacity: 0.9 !important; 
-            transform: scale(0.6) !important;
-            margin: 0 !important;
-          }
-          .mfp-header-btn-placeholder { display: none !important; }
-
-          /* Progress Bar: Middle - Compact */
-          .mfp-progress-section { 
-            display: flex !important; 
-            flex-direction: column !important;
-            width: 100%; 
-            max-width: 550px; 
-            margin: 0 auto; 
-            padding: 0;
-          }
-          .mfp-progress-bar-container { height: 4px !important; margin: 8px 0 !important; }
-          .mfp-time-labels { font-size: 9px; margin-top: 0 !important; opacity: 0.6; }
-          
-          /* Controls Row: Shuffle | Prev/Play/Next | Volume */
-          .mfp-main-controls { 
-            display: flex !important;
-            position: relative; 
-            width: 100%;
-            max-width: 650px;
-            margin: 5px auto 0;
-            padding: 0;
-            justify-content: space-between !important;
-            align-items: center;
-          }
-          
-          /* Hide repeat in full landscape to match screenshot */
-          .mfp-main-controls .mfp-secondary-ctrl:last-of-type { display: none !important; }
-          
-          .mfp-play-pause-btn { width: 70px !important; height: 70px !important; }
-          .mfp-secondary-ctrl { transform: scale(1); opacity: 0.6; }
-          .mfp-secondary-ctrl.active { opacity: 1; color: var(--accent); }
-          
-          /* Volume Section */
-          .mfp-landscape-volume { 
-            display: flex !important; 
-            align-items: center; 
-            gap: 12px; 
-            width: 140px; 
-          }
-          .mfp-volume-slider {
-            -webkit-appearance: none;
-            width: 100%;
-            height: 4px;
-            background: rgba(255,255,255,0.1);
-            border-radius: 2px;
-          }
-          .mfp-volume-slider::-webkit-slider-thumb {
-            -webkit-appearance: none;
-            width: 12px;
-            height: 12px;
-            background: white;
-            border-radius: 50%;
-          }
-
-          /* Final Mode: bottom right */
-          /* Final Mode: bottom right */
-          .mfp-practice-mode { 
-            display: flex !important;
-            position: fixed;
-            bottom: 20px;
-            right: 20px;
-            background: rgba(255,255,255,0.05) !important;
-            padding: 8px 16px !important;
-            border-radius: 20px !important;
-            width: auto !important;
-            border: 1px solid rgba(255,255,255,0.1) !important;
-          }
-          .mfp-practice-info span { font-size: 11px; }
+        :global(.mfp-header) {
+          margin-bottom: 20px !important;
         }
 
         .mfp-practice-mode {
@@ -579,12 +444,12 @@ const MobileFullPlayer = ({ isOpen, onClose }: MobileFullPlayerProps) => {
           position: relative;
           display: flex;
           justify-content: center;
-          margin-bottom: 20px;
+          margin-bottom: 12px;
         }
 
         .vinyl-disc-v8 { 
-          width: 250px; 
-          height: 250px; 
+          width: 212px; 
+          height: 212px; 
           border-radius: 50%; 
           background: #121212; 
           position: relative; 
@@ -620,8 +485,8 @@ const MobileFullPlayer = ({ isOpen, onClose }: MobileFullPlayerProps) => {
           z-index: 10;
           backdrop-filter: blur(20px);
           border: 2px solid var(--accent);
-          width: 250px;
-          height: 250px;
+          width: 212px;
+          height: 212px;
           left: 50%;
           transform: translateX(-50%);
         }

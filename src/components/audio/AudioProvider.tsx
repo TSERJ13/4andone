@@ -117,6 +117,7 @@ export const AudioProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   const sessionIndexRef = useRef<number>(-1); // Position in the Final Mode session (handles duplicate tracks)
   const pauseDeadlineRef = useRef<number>(0); // Wall-clock deadline for pause countdown (survives screen-off)
   const customTimeLimitRef = useRef<number | null>(null); // Custom dynamic limit when Finals Mode is toggled mid-playback
+  const toggledPastLimitRef = useRef(false); // Flag indicating if Finals Mode was manually toggled past the 1:45 mark
 
   useEffect(() => { isPlayingRef.current = isPlaying; }, [isPlaying]);
   useEffect(() => { currentTimeRef.current = currentTime; }, [currentTime]);
@@ -423,6 +424,7 @@ export const AudioProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         pauseTimeRef.current = 15;
         finalEndHandledRef.current = false; // Allow end-handling for the new track
         customTimeLimitRef.current = null;
+        toggledPastLimitRef.current = false;
       };
 
       stopAndPrepare();
@@ -600,11 +602,15 @@ export const AudioProvider: React.FC<{ children: React.ReactNode }> = ({ childre
               // Dynamically set custom override limit if playing past standard limit - 3
               if (!isPasoDoble && currentTimeVal > (standardLimit - 3) && customTimeLimitRef.current === null) {
                 customTimeLimitRef.current = currentTimeVal + 3;
+                if (currentTimeVal >= standardLimit) {
+                  toggledPastLimitRef.current = true;
+                }
               }
 
               // Reset override limit if seeking back before standard limit - 3
               if (!isPasoDoble && currentTimeVal < (standardLimit - 3) && customTimeLimitRef.current !== null) {
                 customTimeLimitRef.current = null;
+                toggledPastLimitRef.current = false;
               }
 
               const timeLimit = isPasoDoble ? Infinity : (customTimeLimitRef.current || standardLimit);
@@ -681,12 +687,24 @@ export const AudioProvider: React.FC<{ children: React.ReactNode }> = ({ childre
                 setIsPlaying(false);
                 isPlayingRef.current = false;
 
+                if (toggledPastLimitRef.current) {
+                  toggledPastLimitRef.current = false;
+                  audio.currentTime = 0;
+                  setCurrentTime(0);
+                  trackCurrentTimeRef.current = 0;
+                  // Restore volume
+                  audio.volume = volumeRef.current * 0.8;
+                  return;
+                }
+
                 if (activeModeRef.current) {
                   advanceFinalSession();
                 } else {
                   // Single-track Final Mode (no program): just auto-stop cleanly
                   audio.currentTime = 0;
                   setCurrentTime(0);
+                  // Restore volume
+                  audio.volume = volumeRef.current * 0.8;
                 }
               }
             }

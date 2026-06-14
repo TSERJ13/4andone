@@ -11,6 +11,8 @@ const inter = Inter({
   weight: ['400', '500', '600', '700', '800', '900'] 
 });
 
+import { headers } from "next/headers";
+
 export const metadata: Metadata = {
   title: "4and.one Music | Dancesport Player",
   description: "The ultimate tool for dancers and coaches. High-fidelity BPM control and professional practice modes.",
@@ -46,11 +48,15 @@ export const viewport: Viewport = {
 import { StudioProvider } from "@/components/admin/StudioProvider";
 import { AuthProvider } from "@/context/AuthContext";
 
-export default function RootLayout({
+export default async function RootLayout({
   children,
 }: Readonly<{
   children: React.ReactNode;
 }>) {
+  const headersList = await headers();
+  const pathname = headersList.get('x-pathname') || '/';
+  const isHome = pathname === '/';
+
   return (
     <html lang="ka" suppressHydrationWarning>
       <body className={inter.className} suppressHydrationWarning>
@@ -81,6 +87,13 @@ export default function RootLayout({
           src="https://telegram.org/js/telegram-web-app.js"
           strategy="beforeInteractive"
         />
+        {isHome && (
+          <script
+            async
+            src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-2697205988789699"
+            crossOrigin="anonymous"
+          />
+        )}
       </body>
     </html>
 );

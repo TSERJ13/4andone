@@ -113,11 +113,6 @@ export default function Home() {
 
   return (
     <div className="page-wrapper">
-      <script 
-        async 
-        src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-2697205988789699"
-        crossOrigin="anonymous"
-      />
       <div className="home-container">
         {/* ... Hero Section remains ... */}
         <header className="hero-section glass">

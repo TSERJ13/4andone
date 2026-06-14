@@ -13,7 +13,6 @@ import { useState } from 'react';
 import { UserBadge } from '@/components/auth/UserBadge';
 import { useRouter } from 'next/navigation';
 import { Marquee } from '@/components/layout/Marquee';
-import Script from 'next/script';
 
 export default function Home() {
   const {
@@ -114,11 +113,10 @@ export default function Home() {
 
   return (
     <div className="page-wrapper">
-      <Script 
+      <script 
         async 
         src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-2697205988789699"
         crossOrigin="anonymous"
-        strategy="afterInteractive"
       />
       <div className="home-container">
         {/* ... Hero Section remains ... */}

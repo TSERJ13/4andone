@@ -154,7 +154,7 @@ const MobileFullPlayer = ({ isOpen, onClose }: MobileFullPlayerProps) => {
     }
   }
 
-  const totalDur = isFinalMode ? sessionDuration : duration;
+  const totalDur = isFinalMode ? (sessionTracks && sessionTracks.length > 0 ? sessionDuration : activeDuration) : duration;
   const displayProgress = isDragging ? dragProgress : (Math.min(currentTime, totalDur) / (totalDur || 1)) * 100;
   const currentTrack = tracks.find(t => t.title === title);
 
@@ -450,6 +450,7 @@ const MobileFullPlayer = ({ isOpen, onClose }: MobileFullPlayerProps) => {
           display: flex;
           justify-content: center;
           margin-bottom: 12px;
+          margin-top: -15px !important;
         }
 
         .vinyl-disc-v8 { 

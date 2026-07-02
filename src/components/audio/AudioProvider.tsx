@@ -321,8 +321,9 @@ export const AudioProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       }
 
       // Remove listeners once unlocked
-      document.removeEventListener('touchstart', unlockAudio);
-      document.removeEventListener('mousedown', unlockAudio);
+      document.removeEventListener('touchstart', unlockAudio, { capture: true } as EventListenerOptions);
+      document.removeEventListener('mousedown', unlockAudio, { capture: true } as EventListenerOptions);
+      document.removeEventListener('click', unlockAudio, { capture: true } as EventListenerOptions);
     };
 
     // PWA Resume Support
@@ -366,15 +367,23 @@ export const AudioProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     };
 
     document.addEventListener('visibilitychange', handleVisibilityChange);
+    document.addEventListener('touchstart', unlockAudio, { passive: true, capture: true });
+    document.addEventListener('mousedown', unlockAudio, { passive: true, capture: true });
+    document.addEventListener('click', unlockAudio, { passive: true, capture: true });
 
     return () => {
-      document.removeEventListener('touchstart', unlockAudio);
-      document.removeEventListener('mousedown', unlockAudio);
+      document.removeEventListener('touchstart', unlockAudio, { capture: true } as EventListenerOptions);
+      document.removeEventListener('mousedown', unlockAudio, { capture: true } as EventListenerOptions);
+      document.removeEventListener('click', unlockAudio, { capture: true } as EventListenerOptions);
       document.removeEventListener('visibilitychange', handleVisibilityChange);
     };
   }, []);
 
   const loadTrack = async (track: any, isRetry = false, forceFinalMode?: boolean) => {
+    if (audioCtxRef.current && audioCtxRef.current.state === 'suspended') {
+      audioCtxRef.current.resume().catch(() => {});
+    }
+
     // If the same track is clicked and it's already loaded, toggle play/pause instead of reloading
     if (trackIdRef.current === track.id && isLoaded) {
       togglePlay();

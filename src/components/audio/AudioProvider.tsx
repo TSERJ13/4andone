@@ -668,14 +668,14 @@ export const AudioProvider: React.FC<{ children: React.ReactNode }> = ({ childre
                   const newVol = baseVol * ratio;
                   
                   nativePlayerRef.current.volume = newVol; // Desktop fallback
-                  if (gainNodeRef.current) {
-                    gainNodeRef.current.gain.value = newVol; // Mobile iOS override
+                  if (gainNodeRef.current && audioCtxRef.current) {
+                    gainNodeRef.current.gain.setTargetAtTime(Math.max(0.001, newVol), audioCtxRef.current.currentTime, 0.1);
                   }
                 } else if (timeLeft > FADE_DURATION) {
                   // Restore volume if not in fade window
                   nativePlayerRef.current.volume = baseVol;
-                  if (gainNodeRef.current) {
-                    gainNodeRef.current.gain.value = baseVol;
+                  if (gainNodeRef.current && audioCtxRef.current) {
+                    gainNodeRef.current.gain.setTargetAtTime(Math.max(0.001, baseVol), audioCtxRef.current.currentTime, 0.1);
                   }
                 }
               }

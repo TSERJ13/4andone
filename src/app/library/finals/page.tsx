@@ -15,7 +15,8 @@ import {
   Info,
   ArrowRight,
   Heart,
-  MoreHorizontal
+  MoreHorizontal,
+  Settings
 } from 'lucide-react';
 import Link from 'next/link';
 import { useAudio } from '@/components/audio/AudioProvider';
@@ -79,6 +80,31 @@ const FinalsPage = () => {
   const [fitnessDurationSecs, setFitnessDurationSecs] = useState(0); // Seconds
   const [showLikedSongsModal, setShowLikedSongsModal] = useState(false);
 
+  const [showSettingsModal, setShowSettingsModal] = useState(false);
+  const [latinStartDance, setLatinStartDance] = useState('Samba');
+  const [pasoDuration, setPasoDuration] = useState('All');
+  const [pasoVersion, setPasoVersion] = useState('All');
+
+  useEffect(() => {
+    const savedPrefs = localStorage.getItem('final_mode_prefs');
+    if (savedPrefs) {
+      try {
+        const parsed = JSON.parse(savedPrefs);
+        if (parsed.latinStartDance) setLatinStartDance(parsed.latinStartDance);
+        if (parsed.pasoDuration) setPasoDuration(parsed.pasoDuration);
+        if (parsed.pasoVersion) setPasoVersion(parsed.pasoVersion);
+      } catch (e) {}
+    }
+  }, []);
+
+  const saveSettings = (prefs: any) => {
+    setLatinStartDance(prefs.latinStartDance);
+    setPasoDuration(prefs.pasoDuration);
+    setPasoVersion(prefs.pasoVersion);
+    localStorage.setItem('final_mode_prefs', JSON.stringify(prefs));
+    setShowSettingsModal(false);
+  };
+
   const checkAuthAndExecute = (action: () => void, actionName: string) => {
     if (!isAuthenticated) {
       setIsAuthModalOpen(true);
@@ -136,7 +162,9 @@ const FinalsPage = () => {
     return `${mins}:${secs.toString().padStart(2, '0')}`;
   };
   
-  const latinOrder = ["Samba", "Cha-cha-cha", "Rumba", "Paso Doble", "Jive"];
+  const latinOrder = latinStartDance === 'Cha-cha-cha' 
+    ? ["Cha-cha-cha", "Samba", "Rumba", "Paso Doble", "Jive"]
+    : ["Samba", "Cha-cha-cha", "Rumba", "Paso Doble", "Jive"];
   const standardOrder = ["Slow Waltz", "Tango", "Viennese Waltz", "Slow Foxtrot", "Quickstep"];
 
   const handleProgramShuffle = (type: string) => {
@@ -277,9 +305,23 @@ const FinalsPage = () => {
 
     const selectedTracks: Track[] = [];
     order.forEach((styleName: string) => {
-      const styleTracks = tracks.filter((t: Track) => 
+      let styleTracks = tracks.filter((t: Track) => 
         t.style.toLowerCase() === styleName.toLowerCase() && filterFn(t)
       );
+
+      // Apply Paso Doble specific filtering
+      if (styleName.toLowerCase() === 'paso doble') {
+         if (pasoDuration !== 'All') {
+            const hasTheme = styleTracks.filter(t => t.tags?.includes(`paso-${pasoDuration}`));
+            if (hasTheme.length > 0) styleTracks = hasTheme;
+         }
+         
+         if (pasoVersion !== 'All') {
+            const hasWdsf = styleTracks.filter(t => t.tags?.includes('paso-wdsf'));
+            if (pasoVersion === 'WDSF' && hasWdsf.length > 0) styleTracks = hasWdsf;
+         }
+      }
+
       if (styleTracks.length > 0) {
         const randomTrack = styleTracks[Math.floor(Math.random() * styleTracks.length)];
         selectedTracks.push(randomTrack);
@@ -393,15 +435,18 @@ const FinalsPage = () => {
     <div className="page-wrapper">
       <div className="finals-container animate-in">
         <header className="page-header-unified">
-          <div>
-            <h1>Final Mode</h1>
-            <p className="text-secondary">Tournament Simulation & Practice</p>
+          <h1>Finals Practice</h1>
+          <div style={{ display: 'flex', gap: '12px' }}>
+            <button className="learn-finals-btn" onClick={() => setShowSettingsModal(true)}>
+              <Settings size={18} />
+              <span>&nbsp;Settings</span>
+            </button>
+            <Link href="/learn-final-mode" className="learn-finals-btn">
+              <Info size={18} />
+              <span>&nbsp;How it works?</span>
+              <ArrowRight size={16} className="arrow" />
+            </Link>
           </div>
-          <Link href="/learn-final-mode" className="learn-finals-btn">
-            <Info size={18} />
-            <span>&nbsp;How it works?</span>
-            <ArrowRight size={16} className="arrow" />
-          </Link>
         </header>
 
         <div className="finals-sectors-unified animate-in">
@@ -969,6 +1014,64 @@ const FinalsPage = () => {
             
             <button className="cancel-btn text-btn" style={{ marginTop: '24px' }} onClick={() => setShowLikedSongsModal(false)}>
               Cancel
+            </button>
+          </div>
+        </div>
+      )}
+
+      {showSettingsModal && (
+        <div className="modal-overlay" onClick={() => setShowSettingsModal(false)}>
+          <div className="modal-content fitness-modal glass" onClick={e => e.stopPropagation()}>
+            <div className="modal-header">
+              <Settings size={48} className="text-primary mb-2" />
+              <h2>Finals Settings</h2>
+              <p>Configure your practice preferences</p>
+            </div>
+            
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '20px', marginTop: '24px', textAlign: 'left' }}>
+              <div className="form-group">
+                <label style={{ color: '#a1a1aa', fontSize: '13px', textTransform: 'uppercase', letterSpacing: '1px', fontWeight: 700 }}>First Latin Dance</label>
+                <select 
+                  className="input-wrapper focus-glow" 
+                  style={{ width: '100%', background: 'rgba(255,255,255,0.05)', color: 'white', border: '1px solid rgba(255,255,255,0.1)', padding: '12px 16px', borderRadius: '12px', fontSize: '15px', marginTop: '8px' }}
+                  value={latinStartDance} 
+                  onChange={e => saveSettings({ latinStartDance: e.target.value, pasoDuration, pasoVersion })}
+                >
+                  <option value="Samba">Samba First</option>
+                  <option value="Cha-cha-cha">Cha-Cha-Cha First</option>
+                </select>
+              </div>
+
+              <div className="form-group">
+                <label style={{ color: '#a1a1aa', fontSize: '13px', textTransform: 'uppercase', letterSpacing: '1px', fontWeight: 700 }}>Paso Doble Themes</label>
+                <select 
+                  className="input-wrapper focus-glow" 
+                  style={{ width: '100%', background: 'rgba(255,255,255,0.05)', color: 'white', border: '1px solid rgba(255,255,255,0.1)', padding: '12px 16px', borderRadius: '12px', fontSize: '15px', marginTop: '8px' }}
+                  value={pasoDuration} 
+                  onChange={e => saveSettings({ latinStartDance, pasoDuration: e.target.value, pasoVersion })}
+                >
+                  <option value="All">Any Duration</option>
+                  <option value="2-theme">2 Themes (~1:20)</option>
+                  <option value="3-theme">3 Themes (~2:05)</option>
+                </select>
+              </div>
+
+              <div className="form-group">
+                <label style={{ color: '#a1a1aa', fontSize: '13px', textTransform: 'uppercase', letterSpacing: '1px', fontWeight: 700 }}>Paso Doble Version</label>
+                <select 
+                  className="input-wrapper focus-glow" 
+                  style={{ width: '100%', background: 'rgba(255,255,255,0.05)', color: 'white', border: '1px solid rgba(255,255,255,0.1)', padding: '12px 16px', borderRadius: '12px', fontSize: '15px', marginTop: '8px' }}
+                  value={pasoVersion} 
+                  onChange={e => saveSettings({ latinStartDance, pasoDuration, pasoVersion: e.target.value })}
+                >
+                  <option value="All">All Versions</option>
+                  <option value="WDSF">España Cañí / WDSF Versions</option>
+                </select>
+              </div>
+            </div>
+            
+            <button className="primary-btn start-fitness-btn" style={{ marginTop: '24px' }} onClick={() => setShowSettingsModal(false)}>
+              Done
             </button>
           </div>
         </div>

@@ -599,16 +599,16 @@ export const AudioProvider: React.FC<{ children: React.ReactNode }> = ({ childre
               const isVW = style.includes('viennese') || (style.includes('waltz') && style.includes('v'));
               const standardLimit = isPasoDoble ? Infinity : (isVW ? 85 : 105);
 
-              // Dynamically set custom override limit if playing past standard limit - 2
-              if (!isPasoDoble && currentTimeVal > (standardLimit - 2) && customTimeLimitRef.current === null) {
-                customTimeLimitRef.current = currentTimeVal + 2;
+              // Dynamically set custom override limit if playing past standard limit - 3
+              if (!isPasoDoble && currentTimeVal > (standardLimit - 3) && customTimeLimitRef.current === null) {
+                customTimeLimitRef.current = currentTimeVal + 3;
                 if (currentTimeVal >= standardLimit) {
                   toggledPastLimitRef.current = true;
                 }
               }
 
-              // Reset override limit if seeking back before standard limit - 2
-              if (!isPasoDoble && currentTimeVal < (standardLimit - 2) && customTimeLimitRef.current !== null) {
+              // Reset override limit if seeking back before standard limit - 3
+              if (!isPasoDoble && currentTimeVal < (standardLimit - 3) && customTimeLimitRef.current !== null) {
                 customTimeLimitRef.current = null;
                 toggledPastLimitRef.current = false;
               }
@@ -624,7 +624,7 @@ export const AudioProvider: React.FC<{ children: React.ReactNode }> = ({ childre
 
               // Smooth Acoustic Fade-Out derived DIRECTLY from currentTime (no setInterval, background-safe)
               if (audio && !isPasoDoble && isFinite(effectiveEnd) && nativePlayerRef.current) {
-                const FADE_DURATION = 2; // fade starts 2 seconds before the effective end (e.g. 1:43 to 1:45)
+                const FADE_DURATION = 3; // fade starts 3 seconds before the effective end (e.g. 1:42 to 1:45)
                 const timeLeft = effectiveEnd - currentTimeVal;
                 const baseVol = volumeRef.current * 0.8;
 

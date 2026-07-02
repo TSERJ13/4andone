@@ -25,6 +25,18 @@ const AddTrackModal = ({ isOpen, onClose, onAdd, initialData }: AddTrackModalPro
     isClosed: initialData?.tags?.some((t: string) => t.toLowerCase() === 'closed' || t === 'დახურული') || false
   });
 
+  const [pasoTheme, setPasoTheme] = useState<string>(() => {
+    if (initialData?.tags?.includes('paso-2-theme')) return '2-theme';
+    if (initialData?.tags?.includes('paso-3-theme')) return '3-theme';
+    return '';
+  });
+  
+  const [pasoVersion, setPasoVersion] = useState<string>(() => {
+    if (initialData?.tags?.includes('paso-wdsf')) return 'wdsf';
+    if (initialData?.tags?.includes('paso-other')) return 'other';
+    return '';
+  });
+
   const [recentArtists, setRecentArtists] = useState<string[]>([]);
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [coverFile, setCoverFile] = useState<File | null>(null);
@@ -45,6 +57,7 @@ const AddTrackModal = ({ isOpen, onClose, onAdd, initialData }: AddTrackModalPro
       tags: [], bpm: '', artworkUrl: '', isClosed: false
     });
     setSelectedFile(null); setCoverFile(null); setCoverPreview(null); setMpmState('');
+    setPasoTheme(''); setPasoVersion('');
     if (fileInputRef.current) fileInputRef.current.value = '';
     if (coverInputRef.current) coverInputRef.current.value = '';
   };
@@ -65,6 +78,8 @@ const AddTrackModal = ({ isOpen, onClose, onAdd, initialData }: AddTrackModalPro
       });
       setCoverPreview(initialData.artworkUrl || null);
       if (initialData.bpm) setMpmState(getMPMFromBPM(Number(initialData.bpm), initialData.style).toString());
+      setPasoTheme(initialData.tags?.includes('paso-2-theme') ? '2-theme' : initialData.tags?.includes('paso-3-theme') ? '3-theme' : '');
+      setPasoVersion(initialData.tags?.includes('paso-wdsf') ? 'wdsf' : initialData.tags?.includes('paso-other') ? 'other' : '');
     } else if (isOpen && !initialData) {
       resetForm();
     }
@@ -150,7 +165,13 @@ const AddTrackModal = ({ isOpen, onClose, onAdd, initialData }: AddTrackModalPro
         artworkUrl = publicUrl;
       }
 
-      await onAdd({ ...formData, audioUrl, artworkUrl, duration, id: initialData?.id || `track_${Date.now()}` });
+      let finalTags = [...formData.tags].filter(t => !t.startsWith('paso-'));
+      if (formData.style === 'Paso Doble') {
+        if (pasoTheme) finalTags.push(`paso-${pasoTheme}`);
+        if (pasoVersion) finalTags.push(`paso-${pasoVersion}`);
+      }
+
+      await onAdd({ ...formData, tags: finalTags, audioUrl, artworkUrl, duration, id: initialData?.id || `track_${Date.now()}` });
       if (formData.artist && !recentArtists.includes(formData.artist)) {
         const updated = [formData.artist, ...recentArtists.slice(0, 11)];
         setRecentArtists(updated);
@@ -229,6 +250,38 @@ const AddTrackModal = ({ isOpen, onClose, onAdd, initialData }: AddTrackModalPro
                   })}
                 </div>
               </div>
+
+              {formData.style === 'Paso Doble' && (
+                <div className="form-grid-split" style={{ marginBottom: '24px', background: 'rgba(239, 68, 68, 0.05)', padding: '16px', borderRadius: '16px', border: '1px solid rgba(239, 68, 68, 0.2)' }}>
+                  <div className="form-group">
+                    <label style={{ color: '#ef4444' }}>Paso Doble Theme Duration</label>
+                    <select 
+                      className="input-wrapper large focus-glow" 
+                      style={{ width: '100%', background: 'rgba(0,0,0,0.5)', color: 'white', border: 'none', padding: '12px 16px', borderRadius: '12px', fontSize: '15px' }}
+                      value={pasoTheme} 
+                      onChange={e => setPasoTheme(e.target.value)}
+                    >
+                      <option value="">Any / Unknown</option>
+                      <option value="2-theme">2 Themes (approx 1:15 - 1:25)</option>
+                      <option value="3-theme">3 Themes (approx 2:05)</option>
+                    </select>
+                  </div>
+                  <div className="form-group">
+                    <label style={{ color: '#ef4444' }}>Music Version (Organiser Type)</label>
+                    <select 
+                      className="input-wrapper large focus-glow" 
+                      style={{ width: '100%', background: 'rgba(0,0,0,0.5)', color: 'white', border: 'none', padding: '12px 16px', borderRadius: '12px', fontSize: '15px' }}
+                      value={pasoVersion} 
+                      onChange={e => setPasoVersion(e.target.value)}
+                    >
+                      <option value="">All Versions</option>
+                      <option value="wdsf">España Cañí / WDSF Versions</option>
+                      <option value="other">Other Versions</option>
+                    </select>
+                  </div>
+                </div>
+              )}
+
 
               <div className="form-grid-split">
                 <div className="form-group">

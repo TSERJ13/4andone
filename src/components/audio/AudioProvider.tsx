@@ -288,6 +288,31 @@ export const AudioProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       // as it uses larger buffers, preventing "choppy" audio artifacts.
       // Unlock for mobile audio
 
+      // Initialize Web Audio API on first interaction synchronously
+      if (!audioCtxRef.current) {
+        try {
+          const AudioContextClass = (window.AudioContext || (window as any).webkitAudioContext) as any;
+          if (AudioContextClass) {
+            const ctx = new AudioContextClass();
+            audioCtxRef.current = ctx;
+            const gain = ctx.createGain();
+            gainNodeRef.current = gain;
+            if (nativePlayerRef.current) {
+              const source = ctx.createMediaElementSource(nativePlayerRef.current);
+              sourceNodeRef.current = source;
+              source.connect(gain);
+              gain.connect(ctx.destination);
+            }
+          }
+        } catch (e) {
+          console.error("[WebAudio] Init failed:", e);
+        }
+      }
+
+      if (audioCtxRef.current && audioCtxRef.current.state === 'suspended') {
+        audioCtxRef.current.resume().catch(() => {});
+      }
+
       // Start heartbeat on first interaction
       if (heartbeatRef.current && heartbeatRef.current.paused) {
         heartbeatRef.current.play().catch(() => { });
@@ -516,23 +541,6 @@ export const AudioProvider: React.FC<{ children: React.ReactNode }> = ({ childre
           if (!nativePlayerRef.current) {
             nativePlayerRef.current = audio;
             audio.crossOrigin = "anonymous";
-            
-            // Initialize Web Audio API ONLY ONCE per native player
-            try {
-              const AudioContextClass = (window.AudioContext || (window as any).webkitAudioContext) as any;
-              if (AudioContextClass) {
-                const ctx = new AudioContextClass();
-                audioCtxRef.current = ctx;
-                const gain = ctx.createGain();
-                gainNodeRef.current = gain;
-                const source = ctx.createMediaElementSource(audio);
-                sourceNodeRef.current = source;
-                source.connect(gain);
-                gain.connect(ctx.destination);
-              }
-            } catch (e) {
-              console.error("[WebAudio] Failed to initialize:", e);
-            }
           }
           
           audio.crossOrigin = "anonymous";

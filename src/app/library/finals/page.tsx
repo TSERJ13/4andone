@@ -638,12 +638,16 @@ const FinalsPage = () => {
 
         @media (max-width: 768px) {
           .settings-text {
-            display: none;
+            display: none !important;
           }
           .settings-btn {
-            padding: 10px !important;
+            padding: 0 !important;
+            width: 38px !important;
+            height: 38px !important;
             border-radius: 50% !important;
             justify-content: center;
+            background: rgba(29, 185, 84, 0.1) !important;
+            border: 1px solid rgba(29, 185, 84, 0.3) !important;
           }
           .settings-icon {
             color: #1db954 !important;
@@ -1037,19 +1041,19 @@ const FinalsPage = () => {
 
       {showSettingsModal && (
         <div className="modal-overlay" onClick={() => setShowSettingsModal(false)}>
-          <div className="modal-content fitness-modal glass" onClick={e => e.stopPropagation()}>
+          <div className="modal-content fitness-modal glass" onClick={e => e.stopPropagation()} style={{ padding: '24px' }}>
             <div className="modal-header">
-              <Settings size={48} className="text-primary mb-2" />
-              <h2>Finals Settings</h2>
-              <p>Configure your practice preferences</p>
+              <Settings size={40} className="text-primary mb-2" />
+              <h2 style={{ fontSize: '20px' }}>Finals Settings</h2>
+              <p style={{ fontSize: '13px' }}>Configure your practice preferences</p>
             </div>
             
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '20px', marginTop: '24px', textAlign: 'left' }}>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', marginTop: '16px', textAlign: 'left' }}>
               <div className="form-group">
-                <label style={{ color: '#a1a1aa', fontSize: '13px', textTransform: 'uppercase', letterSpacing: '1px', fontWeight: 700 }}>First Latin Dance</label>
+                <label style={{ color: '#a1a1aa', fontSize: '11px', textTransform: 'uppercase', letterSpacing: '1px', fontWeight: 700 }}>First Latin Dance</label>
                 <select 
                   className="input-wrapper focus-glow" 
-                  style={{ width: '100%', background: 'rgba(255,255,255,0.05)', color: 'white', border: '1px solid rgba(255,255,255,0.1)', padding: '12px 16px', borderRadius: '12px', fontSize: '15px', marginTop: '8px' }}
+                  style={{ width: '100%', background: 'rgba(255,255,255,0.05)', color: 'white', border: '1px solid rgba(255,255,255,0.1)', padding: '10px 14px', borderRadius: '12px', fontSize: '14px', marginTop: '6px' }}
                   value={latinStartDance} 
                   onChange={e => saveSettings({ latinStartDance: e.target.value, pasoDuration, pasoVersion })}
                 >
@@ -1059,10 +1063,10 @@ const FinalsPage = () => {
               </div>
 
               <div className="form-group">
-                <label style={{ color: '#a1a1aa', fontSize: '13px', textTransform: 'uppercase', letterSpacing: '1px', fontWeight: 700 }}>Paso Doble Themes</label>
+                <label style={{ color: '#a1a1aa', fontSize: '11px', textTransform: 'uppercase', letterSpacing: '1px', fontWeight: 700 }}>Paso Doble Themes</label>
                 <select 
                   className="input-wrapper focus-glow" 
-                  style={{ width: '100%', background: 'rgba(255,255,255,0.05)', color: 'white', border: '1px solid rgba(255,255,255,0.1)', padding: '12px 16px', borderRadius: '12px', fontSize: '15px', marginTop: '8px' }}
+                  style={{ width: '100%', background: 'rgba(255,255,255,0.05)', color: 'white', border: '1px solid rgba(255,255,255,0.1)', padding: '10px 14px', borderRadius: '12px', fontSize: '14px', marginTop: '6px' }}
                   value={pasoDuration} 
                   onChange={e => saveSettings({ latinStartDance, pasoDuration: e.target.value, pasoVersion })}
                 >
@@ -1073,10 +1077,10 @@ const FinalsPage = () => {
               </div>
 
               <div className="form-group">
-                <label style={{ color: '#a1a1aa', fontSize: '13px', textTransform: 'uppercase', letterSpacing: '1px', fontWeight: 700 }}>Paso Doble Version</label>
+                <label style={{ color: '#a1a1aa', fontSize: '11px', textTransform: 'uppercase', letterSpacing: '1px', fontWeight: 700 }}>Paso Doble Version</label>
                 <select 
                   className="input-wrapper focus-glow" 
-                  style={{ width: '100%', background: 'rgba(255,255,255,0.05)', color: 'white', border: '1px solid rgba(255,255,255,0.1)', padding: '12px 16px', borderRadius: '12px', fontSize: '15px', marginTop: '8px' }}
+                  style={{ width: '100%', background: 'rgba(255,255,255,0.05)', color: 'white', border: '1px solid rgba(255,255,255,0.1)', padding: '10px 14px', borderRadius: '12px', fontSize: '14px', marginTop: '6px' }}
                   value={pasoVersion} 
                   onChange={e => saveSettings({ latinStartDance, pasoDuration, pasoVersion: e.target.value })}
                 >
@@ -1086,7 +1090,7 @@ const FinalsPage = () => {
               </div>
             </div>
             
-            <button className="primary-btn start-fitness-btn" style={{ marginTop: '24px' }} onClick={() => setShowSettingsModal(false)}>
+            <button className="primary-btn start-fitness-btn" style={{ marginTop: '20px', height: '48px', fontSize: '15px' }} onClick={() => setShowSettingsModal(false)}>
               Done
             </button>
           </div>

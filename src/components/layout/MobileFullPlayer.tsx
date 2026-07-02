@@ -453,6 +453,11 @@ const MobileFullPlayer = ({ isOpen, onClose }: MobileFullPlayerProps) => {
           margin-top: -50px !important;
         }
 
+        @media screen and (max-width: 768px) and (orientation: portrait) {
+          .vinyl-disc-v8 { display: none !important; }
+          .art-container { margin-top: 0 !important; margin-bottom: 0 !important; }
+        }
+
         .vinyl-disc-v8 { 
           width: 212px; 
           height: 212px; 

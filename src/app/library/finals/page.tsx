@@ -437,15 +437,15 @@ const FinalsPage = () => {
         <header className="page-header-unified">
           <h1>Finals Practice</h1>
           <div style={{ display: 'flex', gap: '12px' }}>
-            <button className="learn-finals-btn" onClick={() => setShowSettingsModal(true)}>
-              <Settings size={18} />
-              <span>&nbsp;Settings</span>
-            </button>
             <Link href="/learn-final-mode" className="learn-finals-btn">
               <Info size={18} />
               <span>&nbsp;How it works?</span>
               <ArrowRight size={16} className="arrow" />
             </Link>
+            <button className="learn-finals-btn settings-btn" onClick={() => setShowSettingsModal(true)}>
+              <Settings size={18} className="settings-icon" />
+              <span className="settings-text">&nbsp;Settings</span>
+            </button>
           </div>
         </header>
 
@@ -634,6 +634,22 @@ const FinalsPage = () => {
         .learn-finals-btn:hover .arrow {
           opacity: 1;
           transform: translateX(4px);
+        }
+
+        @media (max-width: 768px) {
+          .settings-text {
+            display: none;
+          }
+          .settings-btn {
+            padding: 10px !important;
+            border-radius: 50% !important;
+            justify-content: center;
+          }
+          .settings-icon {
+            color: #1db954 !important;
+            width: 20px !important;
+            height: 20px !important;
+          }
         }
 
         .programs-section {

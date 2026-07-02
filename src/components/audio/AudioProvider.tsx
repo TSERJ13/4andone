@@ -88,8 +88,12 @@ export const AudioProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   const activeBlobUrlRef = useRef<string | null>(null);
   const trackIdRef = useRef<string | null>(null);
   const loadingTokenRef = useRef<number>(0); // Guard for race conditions
-  const masterGainRef = useRef<any>(null);
-  const limiterRef = useRef<any>(null);
+
+  // Web Audio API refs for iOS volume control
+  const audioCtxRef = useRef<AudioContext | null>(null);
+  const gainNodeRef = useRef<GainNode | null>(null);
+  const sourceNodeRef = useRef<MediaElementAudioSourceNode | null>(null);
+
   const wakeLockRef = useRef<any>(null);
   const heartbeatRef = useRef<HTMLAudioElement | null>(null);
   const [isLoading, setIsLoading] = useState(false);
@@ -509,12 +513,37 @@ export const AudioProvider: React.FC<{ children: React.ReactNode }> = ({ childre
           }
 
           const audio = nativePlayerRef.current || new Audio();
-          if (!nativePlayerRef.current) nativePlayerRef.current = audio;
+          if (!nativePlayerRef.current) {
+            nativePlayerRef.current = audio;
+            audio.crossOrigin = "anonymous";
+            
+            // Initialize Web Audio API ONLY ONCE per native player
+            try {
+              const AudioContextClass = (window.AudioContext || (window as any).webkitAudioContext) as typeof AudioContext;
+              if (AudioContextClass) {
+                const ctx = new AudioContextClass();
+                audioCtxRef.current = ctx;
+                gainNodeRef.current = ctx.createGain();
+                sourceNodeRef.current = ctx.createMediaElementSource(audio);
+                sourceNodeRef.current.connect(gainNodeRef.current);
+                gainNodeRef.current.connect(ctx.destination);
+              }
+            } catch (e) {
+              console.error("[WebAudio] Failed to initialize:", e);
+            }
+          }
           
           audio.crossOrigin = "anonymous";
           
+          // Resume suspended context if needed
+          if (audioCtxRef.current && audioCtxRef.current.state === 'suspended') {
+            audioCtxRef.current.resume().catch(() => {});
+          }
+          
           // RESET VOLUME: Ensure any previous fade-out is reversed
-          audio.volume = volumeRef.current * 0.8;
+          const targetVol = volumeRef.current * 0.8;
+          audio.volume = targetVol;
+          if (gainNodeRef.current) gainNodeRef.current.gain.value = targetVol;
 
           audio.oncanplay = () => {
             if (currentToken !== loadingTokenRef.current) return;
@@ -629,15 +658,23 @@ export const AudioProvider: React.FC<{ children: React.ReactNode }> = ({ childre
                 const baseVol = volumeRef.current * 0.8;
 
                 if (timeLeft <= FADE_DURATION && timeLeft > 0) {
-                  const elapsed = FADE_DURATION - timeLeft; // 0 to 2
+                  const elapsed = FADE_DURATION - timeLeft; // 0 to 3
                   const progress = Math.min(1, Math.max(0, elapsed / FADE_DURATION)); // 0 to 1
                   
                   // Acoustic cosine curve fade (1 to 0)
                   const ratio = Math.cos(progress * Math.PI / 2);
-                  nativePlayerRef.current.volume = baseVol * ratio;
+                  const newVol = baseVol * ratio;
+                  
+                  nativePlayerRef.current.volume = newVol; // Desktop fallback
+                  if (gainNodeRef.current) {
+                    gainNodeRef.current.gain.value = newVol; // Mobile iOS override
+                  }
                 } else if (timeLeft > FADE_DURATION) {
                   // Restore volume if not in fade window
                   nativePlayerRef.current.volume = baseVol;
+                  if (gainNodeRef.current) {
+                    gainNodeRef.current.gain.value = baseVol;
+                  }
                 }
               }
 
@@ -661,7 +698,9 @@ export const AudioProvider: React.FC<{ children: React.ReactNode }> = ({ childre
                   setCurrentTime(0);
                   trackCurrentTimeRef.current = 0;
                   // Restore volume
-                  audio.volume = volumeRef.current * 0.8;
+                  const rVol = volumeRef.current * 0.8;
+                  audio.volume = rVol;
+                  if (gainNodeRef.current) gainNodeRef.current.gain.value = rVol;
                   return;
                 }
 
@@ -672,7 +711,9 @@ export const AudioProvider: React.FC<{ children: React.ReactNode }> = ({ childre
                   audio.currentTime = 0;
                   setCurrentTime(0);
                   // Restore volume
-                  audio.volume = volumeRef.current * 0.8;
+                  const rVol = volumeRef.current * 0.8;
+                  audio.volume = rVol;
+                  if (gainNodeRef.current) gainNodeRef.current.gain.value = rVol;
                 }
               }
             }

@@ -97,11 +97,12 @@ const FinalsPage = () => {
     }
   }, []);
 
-  const saveSettings = (prefs: any) => {
-    setLatinStartDance(prefs.latinStartDance);
-    setPasoDuration(prefs.pasoDuration);
-    setPasoVersion(prefs.pasoVersion);
-    localStorage.setItem('final_mode_prefs', JSON.stringify(prefs));
+  const saveSettings = () => {
+    localStorage.setItem('final_mode_prefs', JSON.stringify({
+      latinStartDance,
+      pasoDuration,
+      pasoVersion
+    }));
     setShowSettingsModal(false);
   };
 
@@ -1055,7 +1056,7 @@ const FinalsPage = () => {
                   className="input-wrapper focus-glow" 
                   style={{ width: '100%', background: 'rgba(255,255,255,0.05)', color: 'white', border: '1px solid rgba(255,255,255,0.1)', padding: '10px 14px', borderRadius: '12px', fontSize: '14px', marginTop: '6px' }}
                   value={latinStartDance} 
-                  onChange={e => saveSettings({ latinStartDance: e.target.value, pasoDuration, pasoVersion })}
+                  onChange={e => setLatinStartDance(e.target.value)}
                 >
                   <option value="Samba">Samba First</option>
                   <option value="Cha-cha-cha">Cha-Cha-Cha First</option>
@@ -1068,7 +1069,7 @@ const FinalsPage = () => {
                   className="input-wrapper focus-glow" 
                   style={{ width: '100%', background: 'rgba(255,255,255,0.05)', color: 'white', border: '1px solid rgba(255,255,255,0.1)', padding: '10px 14px', borderRadius: '12px', fontSize: '14px', marginTop: '6px' }}
                   value={pasoDuration} 
-                  onChange={e => saveSettings({ latinStartDance, pasoDuration: e.target.value, pasoVersion })}
+                  onChange={e => setPasoDuration(e.target.value)}
                 >
                   <option value="All">Any Duration</option>
                   <option value="2-theme">2 Themes (~1:20)</option>
@@ -1082,7 +1083,7 @@ const FinalsPage = () => {
                   className="input-wrapper focus-glow" 
                   style={{ width: '100%', background: 'rgba(255,255,255,0.05)', color: 'white', border: '1px solid rgba(255,255,255,0.1)', padding: '10px 14px', borderRadius: '12px', fontSize: '14px', marginTop: '6px' }}
                   value={pasoVersion} 
-                  onChange={e => saveSettings({ latinStartDance, pasoDuration, pasoVersion: e.target.value })}
+                  onChange={e => setPasoVersion(e.target.value)}
                 >
                   <option value="All">All Versions</option>
                   <option value="WDSF">España Cañí / WDSF Versions</option>
@@ -1090,7 +1091,7 @@ const FinalsPage = () => {
               </div>
             </div>
             
-            <button className="primary-btn start-fitness-btn" style={{ marginTop: '20px', height: '48px', fontSize: '15px' }} onClick={() => setShowSettingsModal(false)}>
+            <button className="primary-btn start-fitness-btn" style={{ marginTop: '20px', height: '48px', fontSize: '15px' }} onClick={() => saveSettings()}>
               Done
             </button>
           </div>

@@ -519,14 +519,16 @@ export const AudioProvider: React.FC<{ children: React.ReactNode }> = ({ childre
             
             // Initialize Web Audio API ONLY ONCE per native player
             try {
-              const AudioContextClass = (window.AudioContext || (window as any).webkitAudioContext) as typeof AudioContext;
+              const AudioContextClass = (window.AudioContext || (window as any).webkitAudioContext) as any;
               if (AudioContextClass) {
                 const ctx = new AudioContextClass();
                 audioCtxRef.current = ctx;
-                gainNodeRef.current = ctx.createGain();
-                sourceNodeRef.current = ctx.createMediaElementSource(audio);
-                sourceNodeRef.current.connect(gainNodeRef.current);
-                gainNodeRef.current.connect(ctx.destination);
+                const gain = ctx.createGain();
+                gainNodeRef.current = gain;
+                const source = ctx.createMediaElementSource(audio);
+                sourceNodeRef.current = source;
+                source.connect(gain);
+                gain.connect(ctx.destination);
               }
             } catch (e) {
               console.error("[WebAudio] Failed to initialize:", e);

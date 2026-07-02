@@ -338,18 +338,18 @@ const AddTrackModal = ({ isOpen, onClose, onAdd, initialData }: AddTrackModalPro
 
       <style jsx>{`
         .modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.85); backdrop-filter: blur(16px); display: flex; align-items: center; justify-content: center; z-index: 10000; padding: 20px; }
-        .modal-content { width: 100%; max-width: 850px; padding: 40px; border-radius: 32px; background: #0a0a0a; border: 1px solid rgba(255,255,255,0.08); box-shadow: 0 25px 50px -12px rgba(0,0,0,0.5); }
-        .header-title.centered { width: 100%; text-align: center; margin-bottom: 30px; }
+        .modal-content { width: 100%; max-width: 850px; padding: 30px 40px; border-radius: 32px; background: #0a0a0a; border: 1px solid rgba(255,255,255,0.08); box-shadow: 0 25px 50px -12px rgba(0,0,0,0.5); max-height: 90vh; overflow-y: auto; }
+        .header-title.centered { width: 100%; text-align: center; margin-bottom: 20px; }
         .header-title h3 { font-size: 24px; font-weight: 800; letter-spacing: -0.5px; }
 
-        .form-redistribution-row { display: flex; gap: 40px; margin-bottom: 30px; align-items: flex-start; }
+        .form-redistribution-row { display: flex; gap: 40px; margin-bottom: 20px; align-items: flex-start; }
         .artwork-column { width: 200px; flex-shrink: 0; text-align: center; }
         .artwork-compact-dropzone.large { width: 200px; height: 200px; border-radius: 24px; border: 2px dashed rgba(255,255,255,0.1); cursor: pointer; position: relative; overflow: hidden; background: rgba(255,255,255,0.02); transition: all 0.3s; }
         .artwork-compact-dropzone.large:hover { border-color: #1db954; transform: translateY(-4px); background: rgba(29, 185, 84, 0.05); }
         .artwork-compact-dropzone img { width: 100%; height: 100%; object-fit: cover; }
 
         .primary-info-column { flex-grow: 1; display: flex; flex-direction: column; gap: 20px; }
-        .secondary-fields-box { display: flex; flex-direction: column; gap: 24px; margin-bottom: 30px; padding-top: 20px; border-top: 1px solid rgba(255,255,255,0.05); }
+        .secondary-fields-box { display: flex; flex-direction: column; gap: 16px; margin-bottom: 20px; padding-top: 15px; border-top: 1px solid rgba(255,255,255,0.05); }
         
         .form-grid-split { display: grid; grid-template-columns: 1.2fr 1fr; gap: 30px; }
         label { font-size: 11px; font-weight: 900; color: #71717a; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 8px; display: block; }

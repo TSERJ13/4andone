@@ -89,6 +89,13 @@ export const AudioProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   const trackIdRef = useRef<string | null>(null);
   const loadingTokenRef = useRef<number>(0); // Guard for race conditions
 
+  // Web Audio Refs for iOS Fade
+  const audioCtxRef = useRef<any>(null);
+  const gainNodeRef = useRef<any>(null);
+  const sourceNodeRef = useRef<any>(null);
+  const webAudioInitializedRef = useRef(false);
+  const isFadingRef = useRef(false);
+
   const wakeLockRef = useRef<any>(null);
   const heartbeatRef = useRef<HTMLAudioElement | null>(null);
   const [isLoading, setIsLoading] = useState(false);
@@ -188,6 +195,19 @@ export const AudioProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     channel.close();
   };
 
+  const rampVolume = React.useCallback((targetRatio: number, durationSec: number) => {
+    if (gainNodeRef.current && audioCtxRef.current) {
+      try {
+        const ctx = audioCtxRef.current;
+        const gain = gainNodeRef.current.gain;
+        const now = ctx.currentTime;
+        gain.cancelScheduledValues(now);
+        gain.setValueAtTime(gain.value, now);
+        gain.linearRampToValueAtTime(targetRatio, now + durationSec);
+      } catch (e) {}
+    }
+  }, []);
+
   // Removed AI worker and processing hooks
 
   const initAudioChain = () => {
@@ -279,6 +299,33 @@ export const AudioProvider: React.FC<{ children: React.ReactNode }> = ({ childre
 
     // Global "Unlock" for mobile audio + Safari Optimizations
     const unlockAudio = async () => {
+      // Initialize Web Audio API on first user gesture with fallback
+      if (!webAudioInitializedRef.current && nativePlayerRef.current) {
+        webAudioInitializedRef.current = true;
+        try {
+          const AC = (window.AudioContext || (window as any).webkitAudioContext) as any;
+          if (AC) {
+            // latencyHint: 'playback' protects against audio glitches/distortions on mobile
+            const ctx = new AC({ latencyHint: 'playback' });
+            const gain = ctx.createGain();
+            gain.gain.value = 1.0; // Pass-through
+            const source = ctx.createMediaElementSource(nativePlayerRef.current);
+            source.connect(gain);
+            gain.connect(ctx.destination);
+            
+            audioCtxRef.current = ctx;
+            gainNodeRef.current = gain;
+            sourceNodeRef.current = source;
+          }
+        } catch (e) {
+          console.error("[WebAudio] Init failed, falling back:", e);
+        }
+      }
+      
+      if (audioCtxRef.current?.state === 'suspended') {
+        audioCtxRef.current.resume().catch(() => {});
+      }
+
       // Start heartbeat on first interaction
       if (heartbeatRef.current && heartbeatRef.current.paused) {
         heartbeatRef.current.play().catch(() => { });
@@ -515,6 +562,11 @@ export const AudioProvider: React.FC<{ children: React.ReactNode }> = ({ childre
           
           // RESET VOLUME: Ensure any previous fade-out is reversed
           audio.volume = volumeRef.current * 0.8;
+          isFadingRef.current = false;
+          if (gainNodeRef.current && audioCtxRef.current) {
+             gainNodeRef.current.gain.cancelScheduledValues(audioCtxRef.current.currentTime);
+             gainNodeRef.current.gain.value = 1.0;
+          }
 
           audio.oncanplay = () => {
             if (currentToken !== loadingTokenRef.current) return;
@@ -629,15 +681,24 @@ export const AudioProvider: React.FC<{ children: React.ReactNode }> = ({ childre
                 const baseVol = volumeRef.current * 0.8;
 
                 if (timeLeft <= FADE_DURATION && timeLeft > 0) {
-                  const elapsed = FADE_DURATION - timeLeft; // 0 to 3
-                  const progress = Math.min(1, Math.max(0, elapsed / FADE_DURATION)); // 0 to 1
-                  
-                  // Acoustic cosine curve fade (1 to 0)
+                  // Fallback for desktop: cosine curve updated on tick
+                  const elapsed = FADE_DURATION - timeLeft;
+                  const progress = Math.min(1, Math.max(0, elapsed / FADE_DURATION));
                   const ratio = Math.cos(progress * Math.PI / 2);
                   nativePlayerRef.current.volume = baseVol * ratio;
+                  
+                  // WebAudio for iOS: trigger smooth linear ramp ONCE
+                  if (!isFadingRef.current) {
+                    isFadingRef.current = true;
+                    rampVolume(0.001, timeLeft);
+                  }
                 } else if (timeLeft > FADE_DURATION) {
                   // Outside fade window
                   nativePlayerRef.current.volume = baseVol;
+                  if (isFadingRef.current) {
+                    isFadingRef.current = false;
+                    rampVolume(1.0, 0.1); // Quick restore if scrubbed back
+                  }
                 }
               }
 
@@ -662,6 +723,10 @@ export const AudioProvider: React.FC<{ children: React.ReactNode }> = ({ childre
                   trackCurrentTimeRef.current = 0;
                   // Restore volume
                   audio.volume = volumeRef.current * 0.8;
+                  if (gainNodeRef.current && audioCtxRef.current) {
+                     gainNodeRef.current.gain.cancelScheduledValues(audioCtxRef.current.currentTime);
+                     gainNodeRef.current.gain.value = 1.0;
+                  }
                   return;
                 }
 
@@ -673,6 +738,10 @@ export const AudioProvider: React.FC<{ children: React.ReactNode }> = ({ childre
                   setCurrentTime(0);
                   // Restore volume
                   audio.volume = volumeRef.current * 0.8;
+                  if (gainNodeRef.current && audioCtxRef.current) {
+                     gainNodeRef.current.gain.cancelScheduledValues(audioCtxRef.current.currentTime);
+                     gainNodeRef.current.gain.value = 1.0;
+                  }
                 }
               }
             }

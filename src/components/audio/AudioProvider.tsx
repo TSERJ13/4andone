@@ -305,8 +305,13 @@ export const AudioProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         try {
           const AC = (window.AudioContext || (window as any).webkitAudioContext) as any;
           if (AC) {
-            // latencyHint: 'playback' protects against audio glitches/distortions on mobile
-            const ctx = new AC({ latencyHint: 'playback' });
+            // Some older iOS webkitAudioContext versions throw error if constructor arguments are passed
+            let ctx;
+            try {
+              ctx = new AC({ latencyHint: 'playback' });
+            } catch(e) {
+              ctx = new AC(); // Fallback for older Safari
+            }
             const gain = ctx.createGain();
             gain.gain.value = 1.0; // Pass-through
             const source = ctx.createMediaElementSource(nativePlayerRef.current);
@@ -329,13 +334,15 @@ export const AudioProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       // Start heartbeat on first interaction
       if (heartbeatRef.current && heartbeatRef.current.paused) {
         heartbeatRef.current.play().catch(() => { });
-        // Set to loop and never stop for session persistence
         heartbeatRef.current.loop = true;
       }
 
-      // Remove listeners once unlocked
-      document.removeEventListener('touchstart', unlockAudio);
-      document.removeEventListener('mousedown', unlockAudio);
+      // ONLY remove listeners if WebAudio successfully initialized
+      // OR if we already created the nativePlayerRef (meaning a track was loaded)
+      if (nativePlayerRef.current) {
+        document.removeEventListener('touchstart', unlockAudio);
+        document.removeEventListener('mousedown', unlockAudio);
+      }
     };
 
     // PWA Resume Support
@@ -574,14 +581,29 @@ export const AudioProvider: React.FC<{ children: React.ReactNode }> = ({ childre
             setDuration(realDuration);
             setIsLoaded(true);
             setIsLoading(false);
+            
             // SPEED PERSISTENCE FIX (real cause): audio.load() resets playbackRate
             // back to 1.0, so setting it before load() was always wiped. We re-apply
             // the user's chosen speed here, AFTER the resource has finished loading.
             audio.preservesPitch = true;
+
+            // Late-init WebAudio if listeners were missed
+            if (!webAudioInitializedRef.current) {
+              const unlockEvent = new Event('touchstart');
+              document.dispatchEvent(unlockEvent);
+            }
+
             const desiredRate = bpmRef.current / 100;
             if (desiredRate > 0 && Math.abs(audio.playbackRate - desiredRate) > 0.001) {
               audio.playbackRate = desiredRate;
             }
+
+            if (!isFinalModeRef.current || forceFinalMode) {
+              playPromiseRef.current = audio.play();
+              playPromiseRef.current.catch((e) => console.warn("Auto-play prevented", e))
+                .finally(() => { playPromiseRef.current = null; });
+            }
+
             resolve(audio);
           };
 

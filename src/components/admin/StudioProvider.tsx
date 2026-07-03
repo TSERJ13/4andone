@@ -157,6 +157,13 @@ export const StudioProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       }
 
       if (tracksData) {
+        // Read user's personal likes from localStorage (not global DB field)
+        let userLikes: string[] = [];
+        try {
+          const saved = localStorage.getItem('4andone_liked_tracks');
+          if (saved) userLikes = JSON.parse(saved);
+        } catch (e) {}
+
         setTracks(tracksData.map(t => ({
           ...t,
           audioUrl: t.audio_url,
@@ -164,7 +171,7 @@ export const StudioProvider: React.FC<{ children: React.ReactNode }> = ({ childr
           folderId: t.folder_id,
           globalOrder: t.global_order || 0,
           duration: t.duration || 0,
-          isFavorite: t.is_favorite || false
+          isFavorite: userLikes.includes(t.id)
         })));
       }
 
@@ -197,27 +204,36 @@ export const StudioProvider: React.FC<{ children: React.ReactNode }> = ({ childr
             const nt = payload.new as any;
             setTracks(prev => {
               if (prev.some(t => t.id === nt.id)) return prev;
+              // Check localStorage for this user's like status
+              let isLiked = false;
+              try {
+                const saved = localStorage.getItem('4andone_liked_tracks');
+                if (saved) isLiked = JSON.parse(saved).includes(nt.id);
+              } catch (e) {}
               return [{ 
                 ...nt, 
                 audioUrl: nt.audio_url, 
                 artworkUrl: nt.artwork_url,
                 folderId: nt.folder_id,
                 duration: nt.duration || 0,
-                isFavorite: nt.is_favorite || false,
+                isFavorite: isLiked,
                 globalOrder: nt.global_order || 0
               }, ...prev];
             });
           } else if (payload.eventType === 'UPDATE') {
             const ut = payload.new as any;
-            setTracks(prev => prev.map(t => t.id === ut.id ? { 
-              ...ut, 
-              audioUrl: ut.audio_url, 
-              artworkUrl: ut.artwork_url, 
-              folderId: ut.folder_id, 
-              isFavorite: ut.is_favorite,
-              duration: ut.duration || 0,
-              globalOrder: ut.global_order || 0
-            } : t));
+            setTracks(prev => prev.map(t => {
+              if (t.id !== ut.id) return t;
+              return { 
+                ...ut, 
+                audioUrl: ut.audio_url, 
+                artworkUrl: ut.artwork_url, 
+                folderId: ut.folder_id, 
+                isFavorite: t.isFavorite, // Keep the user's local like status
+                duration: ut.duration || 0,
+                globalOrder: ut.global_order || 0
+              };
+            }));
           } else if (payload.eventType === 'DELETE') {
             setTracks(prev => prev.filter(t => t.id !== payload.old.id));
           }
@@ -257,14 +273,14 @@ export const StudioProvider: React.FC<{ children: React.ReactNode }> = ({ childr
 
     if (data && data.length > 0) {
       const nt = data[0];
-      const newTrack: Track = {
-         ...nt,
-         audioUrl: nt.audio_url,
-         artworkUrl: nt.artwork_url,
-         folderId: nt.folder_id,
-         duration: nt.duration || 0,
-         isFavorite: nt.is_favorite || false
-      };
+       const newTrack: Track = {
+          ...nt,
+          audioUrl: nt.audio_url,
+          artworkUrl: nt.artwork_url,
+          folderId: nt.folder_id,
+          duration: nt.duration || 0,
+          isFavorite: false
+       };
       
       setTracks(prev => {
         // Prevent duplicate from real-time INSERT if it fired quickly
@@ -330,21 +346,23 @@ export const StudioProvider: React.FC<{ children: React.ReactNode }> = ({ childr
 
     const newVal = !track.isFavorite;
     
-    // Optimistic Update
+    // Update state
     setTracks(prev => prev.map(t => t.id === id ? { ...t, isFavorite: newVal } : t));
 
-    const { error } = await supabase.from('tracks').update({ is_favorite: newVal }).eq('id', id);
-    
-    if (error) {
-      console.error("[SYNC-ERROR] Toggle favorite failed:", error);
-      // Revert Optimistic Update
-      setTracks(prev => prev.map(t => t.id === id ? { ...t, isFavorite: !newVal } : t));
+    // Persist to localStorage (per-user, not global DB)
+    try {
+      let userLikes: string[] = [];
+      const saved = localStorage.getItem('4andone_liked_tracks');
+      if (saved) userLikes = JSON.parse(saved);
       
-      if (error.code === '42501') {
-        alert("Permission denied (42501): Only the record owner can favorite this track globally.");
+      if (newVal) {
+        if (!userLikes.includes(id)) userLikes.push(id);
       } else {
-        alert(`Sync error (${error.code || 'unknown'}): ${error.message || 'Could not save favorite status.'}`);
+        userLikes = userLikes.filter(lid => lid !== id);
       }
+      localStorage.setItem('4andone_liked_tracks', JSON.stringify(userLikes));
+    } catch (e) {
+      console.error('[FAVORITES] localStorage save failed:', e);
     }
   };
 

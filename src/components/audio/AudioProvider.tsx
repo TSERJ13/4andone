@@ -89,6 +89,10 @@ export const AudioProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   const trackIdRef = useRef<string | null>(null);
   const loadingTokenRef = useRef<number>(0); // Guard for race conditions
 
+  // Web Audio API refs for iOS fade-out ONLY (gain stays at 1.0 during normal playback)
+  const audioCtxRef = useRef<any>(null);
+  const gainNodeRef = useRef<any>(null);
+
   const wakeLockRef = useRef<any>(null);
   const heartbeatRef = useRef<HTMLAudioElement | null>(null);
   const [isLoading, setIsLoading] = useState(false);
@@ -279,6 +283,30 @@ export const AudioProvider: React.FC<{ children: React.ReactNode }> = ({ childre
 
     // Global "Unlock" for mobile audio + Safari Optimizations
     const unlockAudio = async () => {
+      // Initialize Web Audio API on user gesture (required for iOS)
+      // GainNode stays at 1.0 = pure passthrough, no quality loss
+      // Only used for fade-out (1.0 → 0.0) in the last 3 seconds
+      if (!audioCtxRef.current && nativePlayerRef.current) {
+        try {
+          const AC = (window.AudioContext || (window as any).webkitAudioContext) as any;
+          if (AC) {
+            const ctx = new AC();
+            const gain = ctx.createGain();
+            gain.gain.value = 1.0; // Passthrough — no processing
+            const source = ctx.createMediaElementSource(nativePlayerRef.current);
+            source.connect(gain);
+            gain.connect(ctx.destination);
+            audioCtxRef.current = ctx;
+            gainNodeRef.current = gain;
+          }
+        } catch (e) {
+          // Web Audio not available — fade will only work on desktop via audio.volume
+        }
+      }
+      if (audioCtxRef.current?.state === 'suspended') {
+        audioCtxRef.current.resume().catch(() => {});
+      }
+
       // Start heartbeat on first interaction
       if (heartbeatRef.current && heartbeatRef.current.paused) {
         heartbeatRef.current.play().catch(() => { });
@@ -634,10 +662,14 @@ export const AudioProvider: React.FC<{ children: React.ReactNode }> = ({ childre
                   
                   // Acoustic cosine curve fade (1 to 0)
                   const ratio = Math.cos(progress * Math.PI / 2);
-                  nativePlayerRef.current.volume = baseVol * ratio;
+                  nativePlayerRef.current.volume = baseVol * ratio; // Desktop
+                  if (gainNodeRef.current) gainNodeRef.current.gain.value = ratio; // iOS (1.0 → 0.0)
                 } else if (timeLeft > FADE_DURATION) {
-                  // Restore volume if not in fade window
+                  // Outside fade window — ensure passthrough
                   nativePlayerRef.current.volume = baseVol;
+                  if (gainNodeRef.current && gainNodeRef.current.gain.value !== 1.0) {
+                    gainNodeRef.current.gain.value = 1.0;
+                  }
                 }
               }
 
@@ -662,6 +694,7 @@ export const AudioProvider: React.FC<{ children: React.ReactNode }> = ({ childre
                   trackCurrentTimeRef.current = 0;
                   // Restore volume
                   audio.volume = volumeRef.current * 0.8;
+                  if (gainNodeRef.current) gainNodeRef.current.gain.value = 1.0;
                   return;
                 }
 
@@ -673,6 +706,7 @@ export const AudioProvider: React.FC<{ children: React.ReactNode }> = ({ childre
                   setCurrentTime(0);
                   // Restore volume
                   audio.volume = volumeRef.current * 0.8;
+                  if (gainNodeRef.current) gainNodeRef.current.gain.value = 1.0;
                 }
               }
             }

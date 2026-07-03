@@ -89,11 +89,6 @@ export const AudioProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   const trackIdRef = useRef<string | null>(null);
   const loadingTokenRef = useRef<number>(0); // Guard for race conditions
 
-  // Web Audio API refs for iOS volume control
-  const audioCtxRef = useRef<AudioContext | null>(null);
-  const gainNodeRef = useRef<GainNode | null>(null);
-  const sourceNodeRef = useRef<MediaElementAudioSourceNode | null>(null);
-
   const wakeLockRef = useRef<any>(null);
   const heartbeatRef = useRef<HTMLAudioElement | null>(null);
   const [isLoading, setIsLoading] = useState(false);
@@ -284,35 +279,6 @@ export const AudioProvider: React.FC<{ children: React.ReactNode }> = ({ childre
 
     // Global "Unlock" for mobile audio + Safari Optimizations
     const unlockAudio = async () => {
-      // PRO-TIP: "playback" latency hint is much more stable on iOS/Safari 
-      // as it uses larger buffers, preventing "choppy" audio artifacts.
-      // Unlock for mobile audio
-
-      // Initialize Web Audio API on first interaction synchronously
-      if (!audioCtxRef.current) {
-        try {
-          const AudioContextClass = (window.AudioContext || (window as any).webkitAudioContext) as any;
-          if (AudioContextClass) {
-            const ctx = new AudioContextClass();
-            audioCtxRef.current = ctx;
-            const gain = ctx.createGain();
-            gainNodeRef.current = gain;
-            if (nativePlayerRef.current) {
-              const source = ctx.createMediaElementSource(nativePlayerRef.current);
-              sourceNodeRef.current = source;
-              source.connect(gain);
-              gain.connect(ctx.destination);
-            }
-          }
-        } catch (e) {
-          console.error("[WebAudio] Init failed:", e);
-        }
-      }
-
-      if (audioCtxRef.current && audioCtxRef.current.state === 'suspended') {
-        audioCtxRef.current.resume().catch(() => {});
-      }
-
       // Start heartbeat on first interaction
       if (heartbeatRef.current && heartbeatRef.current.paused) {
         heartbeatRef.current.play().catch(() => { });
@@ -321,9 +287,8 @@ export const AudioProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       }
 
       // Remove listeners once unlocked
-      document.removeEventListener('touchstart', unlockAudio, { capture: true } as EventListenerOptions);
-      document.removeEventListener('mousedown', unlockAudio, { capture: true } as EventListenerOptions);
-      document.removeEventListener('click', unlockAudio, { capture: true } as EventListenerOptions);
+      document.removeEventListener('touchstart', unlockAudio);
+      document.removeEventListener('mousedown', unlockAudio);
     };
 
     // PWA Resume Support
@@ -367,23 +332,17 @@ export const AudioProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     };
 
     document.addEventListener('visibilitychange', handleVisibilityChange);
-    document.addEventListener('touchstart', unlockAudio, { passive: true, capture: true });
-    document.addEventListener('mousedown', unlockAudio, { passive: true, capture: true });
-    document.addEventListener('click', unlockAudio, { passive: true, capture: true });
+    document.addEventListener('touchstart', unlockAudio, { passive: true });
+    document.addEventListener('mousedown', unlockAudio);
 
     return () => {
-      document.removeEventListener('touchstart', unlockAudio, { capture: true } as EventListenerOptions);
-      document.removeEventListener('mousedown', unlockAudio, { capture: true } as EventListenerOptions);
-      document.removeEventListener('click', unlockAudio, { capture: true } as EventListenerOptions);
+      document.removeEventListener('touchstart', unlockAudio);
+      document.removeEventListener('mousedown', unlockAudio);
       document.removeEventListener('visibilitychange', handleVisibilityChange);
     };
   }, []);
 
   const loadTrack = async (track: any, isRetry = false, forceFinalMode?: boolean) => {
-    if (audioCtxRef.current && audioCtxRef.current.state === 'suspended') {
-      audioCtxRef.current.resume().catch(() => {});
-    }
-
     // If the same track is clicked and it's already loaded, toggle play/pause instead of reloading
     if (trackIdRef.current === track.id && isLoaded) {
       togglePlay();
@@ -554,15 +513,8 @@ export const AudioProvider: React.FC<{ children: React.ReactNode }> = ({ childre
           
           audio.crossOrigin = "anonymous";
           
-          // Resume suspended context if needed
-          if (audioCtxRef.current && audioCtxRef.current.state === 'suspended') {
-            audioCtxRef.current.resume().catch(() => {});
-          }
-          
           // RESET VOLUME: Ensure any previous fade-out is reversed
-          const targetVol = volumeRef.current * 0.8;
-          audio.volume = targetVol;
-          if (gainNodeRef.current) gainNodeRef.current.gain.value = targetVol;
+          audio.volume = volumeRef.current * 0.8;
 
           audio.oncanplay = () => {
             if (currentToken !== loadingTokenRef.current) return;
@@ -682,18 +634,10 @@ export const AudioProvider: React.FC<{ children: React.ReactNode }> = ({ childre
                   
                   // Acoustic cosine curve fade (1 to 0)
                   const ratio = Math.cos(progress * Math.PI / 2);
-                  const newVol = baseVol * ratio;
-                  
-                  nativePlayerRef.current.volume = newVol; // Desktop fallback
-                  if (gainNodeRef.current && audioCtxRef.current) {
-                    gainNodeRef.current.gain.setTargetAtTime(Math.max(0.001, newVol), audioCtxRef.current.currentTime, 0.1);
-                  }
+                  nativePlayerRef.current.volume = baseVol * ratio;
                 } else if (timeLeft > FADE_DURATION) {
                   // Restore volume if not in fade window
                   nativePlayerRef.current.volume = baseVol;
-                  if (gainNodeRef.current && audioCtxRef.current) {
-                    gainNodeRef.current.gain.setTargetAtTime(Math.max(0.001, baseVol), audioCtxRef.current.currentTime, 0.1);
-                  }
                 }
               }
 
@@ -717,9 +661,7 @@ export const AudioProvider: React.FC<{ children: React.ReactNode }> = ({ childre
                   setCurrentTime(0);
                   trackCurrentTimeRef.current = 0;
                   // Restore volume
-                  const rVol = volumeRef.current * 0.8;
-                  audio.volume = rVol;
-                  if (gainNodeRef.current) gainNodeRef.current.gain.value = rVol;
+                  audio.volume = volumeRef.current * 0.8;
                   return;
                 }
 
@@ -730,9 +672,7 @@ export const AudioProvider: React.FC<{ children: React.ReactNode }> = ({ childre
                   audio.currentTime = 0;
                   setCurrentTime(0);
                   // Restore volume
-                  const rVol = volumeRef.current * 0.8;
-                  audio.volume = rVol;
-                  if (gainNodeRef.current) gainNodeRef.current.gain.value = rVol;
+                  audio.volume = volumeRef.current * 0.8;
                 }
               }
             }

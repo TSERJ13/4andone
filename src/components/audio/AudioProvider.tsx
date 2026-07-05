@@ -41,7 +41,7 @@ interface AudioContextType {
   setSessionTracks: (tracks: Track[]) => void;
 }
 
-const AudioContext = createContext<AudioContextType | undefined>(undefined);
+const PlayerContext = createContext<AudioContextType | undefined>(undefined);
 
 import { useStudio, Track } from '@/components/admin/StudioProvider';
 import { useAuth } from '@/context/AuthContext';
@@ -89,13 +89,6 @@ export const AudioProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   const trackIdRef = useRef<string | null>(null);
   const loadingTokenRef = useRef<number>(0); // Guard for race conditions
 
-  // Web Audio Refs for iOS Fade
-  const audioCtxRef = useRef<any>(null);
-  const gainNodeRef = useRef<any>(null);
-  const sourceNodeRef = useRef<any>(null);
-  const webAudioInitializedRef = useRef(false);
-  const isFadingRef = useRef(false);
-
   const wakeLockRef = useRef<any>(null);
   const heartbeatRef = useRef<HTMLAudioElement | null>(null);
   const [isLoading, setIsLoading] = useState(false);
@@ -124,6 +117,85 @@ export const AudioProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   const pauseDeadlineRef = useRef<number>(0); // Wall-clock deadline for pause countdown (survives screen-off)
   const customTimeLimitRef = useRef<number | null>(null); // Custom dynamic limit when Finals Mode is toggled mid-playback
   const toggledPastLimitRef = useRef(false); // Flag indicating if Finals Mode was manually toggled past the 1:45 mark
+
+  // ---------------------------------------------------------------------------
+  // WEB AUDIO GAIN CHAIN (the ONLY way volume control works on iPhone/iPad).
+  // On iOS, HTMLMediaElement.volume is READ-ONLY — assignments are silently
+  // ignored by the OS, which is why every previous fade-out attempt did nothing
+  // on Apple devices. A GainNode IS honored on iOS.
+  //
+  // Anti-choppiness rules (this is what went wrong in the previous attempt):
+  //  * ONE AudioContext for the whole app lifetime, created on a user gesture.
+  //  * latencyHint 'playback' → larger buffers → no crackling on iOS/Safari.
+  //  * createMediaElementSource is called ONCE per element, ever (re-calling
+  //    it throws and kills sound).
+  //  * The fade is scheduled on the AUDIO CLOCK (linearRampToValueAtTime), not
+  //    on JS timers — so it stays perfectly smooth and even finishes while the
+  //    screen is off.
+  // If anything fails we fall back to direct playback + element volume, so
+  // playback itself can never break because of this chain.
+  // ---------------------------------------------------------------------------
+  const audioCtxRef = useRef<AudioContext | null>(null);
+  const gainNodeRef = useRef<GainNode | null>(null);
+  const mediaSourceRef = useRef<MediaElementAudioSourceNode | null>(null);
+  const webAudioStateRef = useRef<'off' | 'ready' | 'failed'>('off');
+  const fadeScheduledRef = useRef(false); // A ramp-to-zero is currently scheduled
+
+  const initWebAudioGraph = React.useCallback(() => {
+    if (webAudioStateRef.current !== 'off') return; // already ready or failed
+    if (!nativePlayerRef.current) return;
+    try {
+      const Ctx: typeof AudioContext | undefined =
+        window.AudioContext || (window as Window & { webkitAudioContext?: typeof AudioContext }).webkitAudioContext;
+      if (!Ctx) { webAudioStateRef.current = 'failed'; return; }
+
+      const ctx = new Ctx({ latencyHint: 'playback' });
+      const source = ctx.createMediaElementSource(nativePlayerRef.current);
+      const gain = ctx.createGain();
+      gain.gain.value = volumeRef.current * 0.8;
+      source.connect(gain);
+      gain.connect(ctx.destination);
+
+      audioCtxRef.current = ctx;
+      mediaSourceRef.current = source;
+      gainNodeRef.current = gain;
+      webAudioStateRef.current = 'ready';
+
+      // Once routed through the graph, the element itself must stay at 1.0 —
+      // loudness is now fully controlled by the GainNode.
+      nativePlayerRef.current.volume = 1.0;
+    } catch (e) {
+      console.warn('[AUDIO-ENGINE] WebAudio graph init failed, using direct playback:', e);
+      webAudioStateRef.current = 'failed';
+    }
+  }, []);
+
+  // Set loudness on whichever path is active. `smooth` avoids clicks by using
+  // a very short ramp instead of a hard jump.
+  const applyVolume = React.useCallback((v: number, smooth = true) => {
+    const g = gainNodeRef.current;
+    const ctx = audioCtxRef.current;
+    if (webAudioStateRef.current === 'ready' && g && ctx) {
+      const now = ctx.currentTime;
+      try {
+        g.gain.cancelScheduledValues(now);
+        if (smooth) {
+          g.gain.setValueAtTime(g.gain.value, now);
+          g.gain.linearRampToValueAtTime(Math.max(0.0001, v), now + 0.05);
+        } else {
+          g.gain.setValueAtTime(Math.max(0.0001, v), now);
+        }
+      } catch { /* scheduling on a closed context — ignore */ }
+      fadeScheduledRef.current = false;
+    } else if (nativePlayerRef.current) {
+      nativePlayerRef.current.volume = Math.max(0, Math.min(1, v));
+    }
+  }, []);
+
+  // Cancel any in-flight fade and restore normal loudness (new track, seek back, stop…)
+  const cancelFadeAndRestore = React.useCallback(() => {
+    applyVolume(volumeRef.current * 0.8);
+  }, [applyVolume]);
 
   useEffect(() => { isPlayingRef.current = isPlaying; }, [isPlaying]);
   useEffect(() => { currentTimeRef.current = currentTime; }, [currentTime]);
@@ -195,19 +267,6 @@ export const AudioProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     channel.close();
   };
 
-  const rampVolume = React.useCallback((targetRatio: number, durationSec: number) => {
-    if (gainNodeRef.current && audioCtxRef.current) {
-      try {
-        const ctx = audioCtxRef.current;
-        const gain = gainNodeRef.current.gain;
-        const now = ctx.currentTime;
-        gain.cancelScheduledValues(now);
-        gain.setValueAtTime(gain.value, now);
-        gain.linearRampToValueAtTime(targetRatio, now + durationSec);
-      } catch (e) {}
-    }
-  }, []);
-
   // Removed AI worker and processing hooks
 
   const initAudioChain = () => {
@@ -248,7 +307,7 @@ export const AudioProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       const nextIdx = currentIdx + 1;
       sessionIndexRef.current = nextIdx;
       const next = tracksList[nextIdx];
-      if (nativePlayerRef.current) nativePlayerRef.current.volume = volumeRef.current * 0.8;
+      cancelFadeAndRestore();
       loadTrackRef.current(next, false, true);
       return;
     }
@@ -299,55 +358,34 @@ export const AudioProvider: React.FC<{ children: React.ReactNode }> = ({ childre
 
     // Global "Unlock" for mobile audio + Safari Optimizations
     const unlockAudio = async () => {
-      // Initialize Web Audio API on first user gesture with fallback
-      if (!webAudioInitializedRef.current && nativePlayerRef.current) {
-        webAudioInitializedRef.current = true;
-        try {
-          const AC = (window.AudioContext || (window as any).webkitAudioContext) as any;
-          if (AC) {
-            // Some older iOS webkitAudioContext versions throw error if constructor arguments are passed
-            let ctx;
-            try {
-              ctx = new AC({ latencyHint: 'playback' });
-            } catch(e) {
-              ctx = new AC(); // Fallback for older Safari
-            }
-            const gain = ctx.createGain();
-            gain.gain.value = 1.0; // Pass-through
-            const source = ctx.createMediaElementSource(nativePlayerRef.current);
-            source.connect(gain);
-            gain.connect(ctx.destination);
-            
-            audioCtxRef.current = ctx;
-            gainNodeRef.current = gain;
-            sourceNodeRef.current = source;
-          }
-        } catch (e) {
-          console.error("[WebAudio] Init failed, falling back:", e);
-        }
-      }
-      
-      if (audioCtxRef.current?.state === 'suspended') {
+      // Build the WebAudio gain chain HERE — iOS only allows creating/starting
+      // an AudioContext inside a user gesture. This is what makes the fade-out
+      // work on iPhone/iPad.
+      initWebAudioGraph();
+      if (audioCtxRef.current && audioCtxRef.current.state === 'suspended') {
         audioCtxRef.current.resume().catch(() => {});
       }
 
       // Start heartbeat on first interaction
       if (heartbeatRef.current && heartbeatRef.current.paused) {
         heartbeatRef.current.play().catch(() => { });
+        // Set to loop and never stop for session persistence
         heartbeatRef.current.loop = true;
       }
 
-      // ONLY remove listeners if WebAudio successfully initialized
-      // OR if we already created the nativePlayerRef (meaning a track was loaded)
-      if (nativePlayerRef.current) {
-        document.removeEventListener('touchstart', unlockAudio);
-        document.removeEventListener('mousedown', unlockAudio);
-      }
+      // Remove listeners once unlocked
+      document.removeEventListener('touchstart', unlockAudio);
+      document.removeEventListener('mousedown', unlockAudio);
     };
 
     // PWA Resume Support
     const handleVisibilityChange = () => {
       if (document.visibilityState === 'visible') {
+        // iOS suspends the AudioContext in the background — resume it or the
+        // gain chain (and therefore all sound) stays silent.
+        if (audioCtxRef.current && audioCtxRef.current.state === 'suspended') {
+          audioCtxRef.current.resume().catch(() => {});
+        }
         // App backgrounding/foregrounding can pause heartbeat on some iOS versions
         if (heartbeatRef.current && heartbeatRef.current.paused && isPlayingRef.current) {
           heartbeatRef.current.play().catch(() => {});
@@ -369,9 +407,7 @@ export const AudioProvider: React.FC<{ children: React.ReactNode }> = ({ childre
             if (currentIndex !== -1 && currentIndex < tracksList.length - 1) {
               const nextIndex = currentIndex + 1;
               sessionIndexRef.current = nextIndex;
-              if (nativePlayerRef.current) {
-                nativePlayerRef.current.volume = volumeRef.current * 0.8;
-              }
+              cancelFadeAndRestore();
               loadTrack(tracksList[nextIndex], false, true);
             } else {
               stop();
@@ -567,13 +603,8 @@ export const AudioProvider: React.FC<{ children: React.ReactNode }> = ({ childre
           
           audio.crossOrigin = "anonymous";
           
-          // RESET VOLUME: Ensure any previous fade-out is reversed
-          audio.volume = volumeRef.current * 0.8;
-          isFadingRef.current = false;
-          if (gainNodeRef.current && audioCtxRef.current) {
-             gainNodeRef.current.gain.cancelScheduledValues(audioCtxRef.current.currentTime);
-             gainNodeRef.current.gain.value = 1.0;
-          }
+          // RESET VOLUME: Ensure any previous fade-out is reversed (works on iOS via gain)
+          cancelFadeAndRestore();
 
           audio.oncanplay = () => {
             if (currentToken !== loadingTokenRef.current) return;
@@ -581,29 +612,14 @@ export const AudioProvider: React.FC<{ children: React.ReactNode }> = ({ childre
             setDuration(realDuration);
             setIsLoaded(true);
             setIsLoading(false);
-            
             // SPEED PERSISTENCE FIX (real cause): audio.load() resets playbackRate
             // back to 1.0, so setting it before load() was always wiped. We re-apply
             // the user's chosen speed here, AFTER the resource has finished loading.
             audio.preservesPitch = true;
-
-            // Late-init WebAudio if listeners were missed
-            if (!webAudioInitializedRef.current) {
-              const unlockEvent = new Event('touchstart');
-              document.dispatchEvent(unlockEvent);
-            }
-
             const desiredRate = bpmRef.current / 100;
             if (desiredRate > 0 && Math.abs(audio.playbackRate - desiredRate) > 0.001) {
               audio.playbackRate = desiredRate;
             }
-
-            if (!isFinalModeRef.current || forceFinalMode) {
-              playPromiseRef.current = audio.play();
-              playPromiseRef.current.catch((e) => console.warn("Auto-play prevented", e))
-                .finally(() => { playPromiseRef.current = null; });
-            }
-
             resolve(audio);
           };
 
@@ -696,31 +712,45 @@ export const AudioProvider: React.FC<{ children: React.ReactNode }> = ({ childre
               const trackDuration = (audio.duration && isFinite(audio.duration)) ? audio.duration : timeLimit;
               const effectiveEnd = Math.min(timeLimit, trackDuration);
 
-              // Smooth Acoustic Fade-Out derived DIRECTLY from currentTime (no setInterval, background-safe)
-              if (audio && !isPasoDoble && isFinite(effectiveEnd) && nativePlayerRef.current) {
-                const FADE_DURATION = 3; // fade starts 3 seconds before the effective end (e.g. 1:42 to 1:45)
+              // Smooth Acoustic Fade-Out — iOS-compatible.
+              // On Apple devices element.volume is read-only, so the fade is done
+              // through the GainNode. We schedule ONE linear ramp on the audio
+              // clock when entering the window (1:42), ending exactly at the
+              // limit (1:45). The audio clock keeps running with the screen off,
+              // so the fade completes in the background too.
+              if (audio && !isPasoDoble && isFinite(effectiveEnd)) {
+                const FADE_DURATION = 3; // track-seconds before the effective end
                 const timeLeft = effectiveEnd - currentTimeVal;
                 const baseVol = volumeRef.current * 0.8;
+                const g = gainNodeRef.current;
+                const ctx = audioCtxRef.current;
 
                 if (timeLeft <= FADE_DURATION && timeLeft > 0) {
-                  // Fallback for desktop: cosine curve updated on tick
-                  const elapsed = FADE_DURATION - timeLeft;
-                  const progress = Math.min(1, Math.max(0, elapsed / FADE_DURATION));
-                  const ratio = Math.cos(progress * Math.PI / 2);
-                  nativePlayerRef.current.volume = baseVol * ratio;
-                  
-                  // WebAudio for iOS: trigger smooth linear ramp ONCE
-                  if (!isFadingRef.current) {
-                    isFadingRef.current = true;
-                    rampVolume(0.001, timeLeft);
+                  if (webAudioStateRef.current === 'ready' && g && ctx) {
+                    if (!fadeScheduledRef.current) {
+                      fadeScheduledRef.current = true;
+                      // Convert track-seconds to real seconds (speed matters!)
+                      const realSecondsLeft = timeLeft / (audio.playbackRate || 1);
+                      const now = ctx.currentTime;
+                      try {
+                        g.gain.cancelScheduledValues(now);
+                        g.gain.setValueAtTime(g.gain.value, now);
+                        g.gain.linearRampToValueAtTime(0.0001, now + realSecondsLeft);
+                      } catch { fadeScheduledRef.current = false; }
+                    }
+                  } else if (nativePlayerRef.current) {
+                    // Desktop fallback: per-tick cosine fade on the element volume
+                    const progress = Math.min(1, Math.max(0, (FADE_DURATION - timeLeft) / FADE_DURATION));
+                    const ratio = Math.cos(progress * Math.PI / 2);
+                    nativePlayerRef.current.volume = baseVol * ratio;
                   }
-                } else if (timeLeft > FADE_DURATION) {
-                  // Outside fade window
+                } else if (timeLeft > FADE_DURATION && fadeScheduledRef.current) {
+                  // User seeked back before the window — cancel the ramp, restore.
+                  cancelFadeAndRestore();
+                } else if (timeLeft > FADE_DURATION && webAudioStateRef.current !== 'ready'
+                           && nativePlayerRef.current
+                           && Math.abs(nativePlayerRef.current.volume - baseVol) > 0.01) {
                   nativePlayerRef.current.volume = baseVol;
-                  if (isFadingRef.current) {
-                    isFadingRef.current = false;
-                    rampVolume(1.0, 0.1); // Quick restore if scrubbed back
-                  }
                 }
               }
 
@@ -743,12 +773,8 @@ export const AudioProvider: React.FC<{ children: React.ReactNode }> = ({ childre
                   audio.currentTime = 0;
                   setCurrentTime(0);
                   trackCurrentTimeRef.current = 0;
-                  // Restore volume
-                  audio.volume = volumeRef.current * 0.8;
-                  if (gainNodeRef.current && audioCtxRef.current) {
-                     gainNodeRef.current.gain.cancelScheduledValues(audioCtxRef.current.currentTime);
-                     gainNodeRef.current.gain.value = 1.0;
-                  }
+                  // Restore volume (iOS-safe)
+                  cancelFadeAndRestore();
                   return;
                 }
 
@@ -758,12 +784,8 @@ export const AudioProvider: React.FC<{ children: React.ReactNode }> = ({ childre
                   // Single-track Final Mode (no program): just auto-stop cleanly
                   audio.currentTime = 0;
                   setCurrentTime(0);
-                  // Restore volume
-                  audio.volume = volumeRef.current * 0.8;
-                  if (gainNodeRef.current && audioCtxRef.current) {
-                     gainNodeRef.current.gain.cancelScheduledValues(audioCtxRef.current.currentTime);
-                     gainNodeRef.current.gain.value = 1.0;
-                  }
+                  // Restore volume (iOS-safe)
+                  cancelFadeAndRestore();
                 }
               }
             }
@@ -784,6 +806,12 @@ export const AudioProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       try {
         const audio = await setupPlayer(finalUrl);
 
+        // CRITICAL: if the AudioContext is suspended, everything routed through
+        // it is SILENT even though the element "plays". This was the likely
+        // cause of "plays but no sound" — always resume before playing.
+        if (audioCtxRef.current && audioCtxRef.current.state === 'suspended') {
+          try { await audioCtxRef.current.resume(); } catch { /* ignore */ }
+        }
         playPromiseRef.current = audio.play();
         
         // Start heartbeat for iOS backgrounding
@@ -905,9 +933,7 @@ export const AudioProvider: React.FC<{ children: React.ReactNode }> = ({ childre
               sessionIndexRef.current = nextIndex;
               const nextTrack = tracksList[nextIndex];
               // Restore volume before loading next track
-              if (nativePlayerRef.current) {
-                nativePlayerRef.current.volume = volumeRef.current * 0.8;
-              }
+              cancelFadeAndRestore();
               loadTrack(nextTrack, false, true);
             } else {
               // No more tracks - stop
@@ -1087,9 +1113,8 @@ export const AudioProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   const setVolume = React.useCallback((v: number) => {
     setVolumeState(v);
     localStorage.setItem('4andone-volume', v.toString());
-    if (nativePlayerRef.current) {
-      nativePlayerRef.current.volume = v * 0.8;
-    }
+    // Route through the gain chain so the slider also works on iOS.
+    applyVolume(v * 0.8);
   }, []);
 
   const toggleRepeat = React.useCallback(() => setIsRepeat(prev => !prev), []);
@@ -1119,7 +1144,7 @@ export const AudioProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         toggledPastLimitRef.current = false;
         // Restore volume in case it was fading
         if (nativePlayerRef.current) {
-          nativePlayerRef.current.volume = volumeRef.current * 0.8;
+          cancelFadeAndRestore();
         }
       }
       return nextVal;
@@ -1160,7 +1185,7 @@ export const AudioProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     loadingTokenRef.current += 1; // Invalidate any pending async callbacks like onerror
     if (nativePlayerRef.current) {
         nativePlayerRef.current.pause();
-        nativePlayerRef.current.volume = volumeRef.current * 0.8;
+        cancelFadeAndRestore();
         // Remove event handlers to prevent onerror from firing when src is cleared
         nativePlayerRef.current.onerror = null;
         nativePlayerRef.current.onended = null;
@@ -1236,7 +1261,7 @@ export const AudioProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   }, [togglePlay, seek, seekRelative]);
 
   return (
-    <AudioContext.Provider value={{
+    <PlayerContext.Provider value={{
       isPlaying,
       isLoaded,
       bpm,
@@ -1274,12 +1299,12 @@ export const AudioProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       setSessionTracks
     }}>
       {children}
-    </AudioContext.Provider>
+    </PlayerContext.Provider>
   );
 };
 
 export const useAudio = () => {
-  const context = useContext(AudioContext);
+  const context = useContext(PlayerContext);
   if (!context) throw new Error('useAudio must be used within AudioProvider');
   return context;
 };

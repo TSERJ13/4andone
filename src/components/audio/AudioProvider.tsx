@@ -135,47 +135,75 @@ export const AudioProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   // If anything fails we fall back to direct playback + element volume, so
   // playback itself can never break because of this chain.
   // ---------------------------------------------------------------------------
+  const plainPlayerRef = useRef<HTMLAudioElement | null>(null);
+  const finalPlayerRef = useRef<HTMLAudioElement | null>(null);
   const audioCtxRef = useRef<AudioContext | null>(null);
   const gainNodeRef = useRef<GainNode | null>(null);
   const mediaSourceRef = useRef<MediaElementAudioSourceNode | null>(null);
   const webAudioStateRef = useRef<'off' | 'ready' | 'failed'>('off');
   const fadeScheduledRef = useRef(false); // A ramp-to-zero is currently scheduled
 
-  const initWebAudioGraph = React.useCallback(() => {
+  // DUAL-ELEMENT ARCHITECTURE:
+  // plainPlayerRef — normal-mode element. Direct playback, NO WebAudio, ever.
+  //                  Native quality and native pitch-corrected speed. (WebKit
+  //                  distorts rate-changed audio inside a graph — that was the
+  //                  "speed garbles the sound" regression.)
+  // finalPlayerRef — Final-Mode element, routed ONCE through a GainNode. On
+  //                  iPhone/iPad element.volume is READ-ONLY, so the gain node
+  //                  is the only way the 1:42→1:45 fade-out can work there.
+  // nativePlayerRef — points at whichever element is ACTIVE. All existing code
+  //                  (play/pause/seek/speed/timer) reads it at call time, so it
+  //                  automatically drives the right element.
+  // Built lazily from loadTrack when a Final session starts (that call stack
+  // begins at a click — satisfies iOS's user-gesture rule for AudioContext).
+  const ensureFinalGraph = React.useCallback(() => {
     if (webAudioStateRef.current !== 'off') return; // already ready or failed
-    if (!nativePlayerRef.current) return;
     try {
       const Ctx: typeof AudioContext | undefined =
         window.AudioContext || (window as Window & { webkitAudioContext?: typeof AudioContext }).webkitAudioContext;
       if (!Ctx) { webAudioStateRef.current = 'failed'; return; }
 
+      const el = new Audio();
+      el.crossOrigin = "anonymous"; // must be set BEFORE any src
+      el.autoplay = false;
+      // PITCH CORRECTION OFF on this element only: WebKit's pitch-correction
+      // is what garbles rate-changed audio inside a WebAudio graph ("skipping
+      // vocals"). Without it, speed changes shift pitch slightly (turntable
+      // behaviour) but the sound stays clean AND the fade works at any speed.
+      el.preservesPitch = false;
+      (el as HTMLAudioElement & { webkitPreservesPitch?: boolean }).webkitPreservesPitch = false;
+      el.volume = 1.0; // loudness is controlled by the gain node from here on
+
       const ctx = new Ctx({ latencyHint: 'playback' });
-      const source = ctx.createMediaElementSource(nativePlayerRef.current);
+      const source = ctx.createMediaElementSource(el);
       const gain = ctx.createGain();
       gain.gain.value = volumeRef.current * 0.8;
       source.connect(gain);
       gain.connect(ctx.destination);
 
+      finalPlayerRef.current = el;
       audioCtxRef.current = ctx;
       mediaSourceRef.current = source;
       gainNodeRef.current = gain;
       webAudioStateRef.current = 'ready';
-
-      // Once routed through the graph, the element itself must stay at 1.0 —
-      // loudness is now fully controlled by the GainNode.
-      nativePlayerRef.current.volume = 1.0;
     } catch (e) {
-      console.warn('[AUDIO-ENGINE] WebAudio graph init failed, using direct playback:', e);
+      console.warn('[AUDIO-ENGINE] Final-mode gain chain failed, falling back to plain element:', e);
       webAudioStateRef.current = 'failed';
     }
   }, []);
+
+  // True when the CURRENTLY ACTIVE element is the gain-routed Final one.
+  const isGainActive = () =>
+    webAudioStateRef.current === 'ready' &&
+    !!finalPlayerRef.current &&
+    nativePlayerRef.current === finalPlayerRef.current;
 
   // Set loudness on whichever path is active. `smooth` avoids clicks by using
   // a very short ramp instead of a hard jump.
   const applyVolume = React.useCallback((v: number, smooth = true) => {
     const g = gainNodeRef.current;
     const ctx = audioCtxRef.current;
-    if (webAudioStateRef.current === 'ready' && g && ctx) {
+    if (isGainActive() && g && ctx) {
       const now = ctx.currentTime;
       try {
         g.gain.cancelScheduledValues(now);
@@ -324,14 +352,19 @@ export const AudioProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   useEffect(() => {
     // Initialize Persistent Player & Heartbeat
     if (typeof window !== 'undefined') {
-      // 1. Create a single, persistent Audio element for the entire app lifecycle.
-      // We play DIRECTLY to destination (speakers) to avoid WebAudio bridge lag.
+      // 1. PLAIN element — used for ALL normal-mode playback. It is NEVER routed
+      // through WebAudio, so normal listening keeps native, pristine quality and
+      // native speed control (this is what fixed the "speed garbles the sound"
+      // regression: WebKit distorts rate-changed audio inside a WebAudio graph).
       const audio = new Audio();
       audio.crossOrigin = "anonymous";
       audio.autoplay = false;
       audio.preservesPitch = true;
-      
-      nativePlayerRef.current = audio;
+      // Older iOS Safari needs the prefixed property for pitch-corrected speed.
+      (audio as HTMLAudioElement & { webkitPreservesPitch?: boolean }).webkitPreservesPitch = true;
+
+      plainPlayerRef.current = audio;
+      nativePlayerRef.current = audio; // active element = plain by default
 
       // 2. Tiny silent WAV to keep iOS audio session alive
       const silentWav = "data:audio/wav;base64,UklGRjIAAABXQVZFRm10IBAAAAABAAEAIlYAAESsAAACABAAZGF0YRAAAAAAAAAAAAAAAAAAAAAAAAAA";
@@ -358,10 +391,7 @@ export const AudioProvider: React.FC<{ children: React.ReactNode }> = ({ childre
 
     // Global "Unlock" for mobile audio + Safari Optimizations
     const unlockAudio = async () => {
-      // Build the WebAudio gain chain HERE — iOS only allows creating/starting
-      // an AudioContext inside a user gesture. This is what makes the fade-out
-      // work on iPhone/iPad.
-      initWebAudioGraph();
+      // Resume the Final-Mode audio context if it exists (iOS suspends it).
       if (audioCtxRef.current && audioCtxRef.current.state === 'suspended') {
         audioCtxRef.current.resume().catch(() => {});
       }
@@ -463,6 +493,29 @@ export const AudioProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         pauseDeadlineRef.current = 0;
       }
       finalEndHandledRef.current = false;
+
+      // ELEMENT SWAP: pick the right output path for this track.
+      // Final Mode → gain-routed element (iOS fade works). Normal → plain
+      // element (pristine native quality + native speed). Pause the inactive
+      // element so two tracks never play at once.
+      if (isFinalModeRef.current) {
+        // Final Mode ALWAYS uses the gain element so the fade works at every
+        // speed on iOS. The WebKit garble was caused by the PITCH-CORRECTION
+        // algorithm running inside the graph, so pitch correction is disabled
+        // on this element only (see ensureFinalGraph): speed changes shift the
+        // pitch slightly, like a turntable, but the sound stays clean.
+        ensureFinalGraph();
+        if (webAudioStateRef.current === 'ready' && finalPlayerRef.current) {
+          if (plainPlayerRef.current && !plainPlayerRef.current.paused) plainPlayerRef.current.pause();
+          nativePlayerRef.current = finalPlayerRef.current;
+        } else if (plainPlayerRef.current) {
+          nativePlayerRef.current = plainPlayerRef.current; // graph failed → fallback
+        }
+      } else if (plainPlayerRef.current) {
+        // Normal mode OR Final Mode at non-100% speed → plain element.
+        if (finalPlayerRef.current && !finalPlayerRef.current.paused) finalPlayerRef.current.pause();
+        nativePlayerRef.current = plainPlayerRef.current;
+      }
 
       // SESSION INDEX TRACKING (duplicate-track safe).
       // When a Final Mode program starts, loadTrack is always called with the first
@@ -615,7 +668,9 @@ export const AudioProvider: React.FC<{ children: React.ReactNode }> = ({ childre
             // SPEED PERSISTENCE FIX (real cause): audio.load() resets playbackRate
             // back to 1.0, so setting it before load() was always wiped. We re-apply
             // the user's chosen speed here, AFTER the resource has finished loading.
-            audio.preservesPitch = true;
+            const pitchOn = audio !== finalPlayerRef.current; // final element keeps pitch correction OFF
+            audio.preservesPitch = pitchOn;
+            (audio as HTMLAudioElement & { webkitPreservesPitch?: boolean }).webkitPreservesPitch = pitchOn;
             const desiredRate = bpmRef.current / 100;
             if (desiredRate > 0 && Math.abs(audio.playbackRate - desiredRate) > 0.001) {
               audio.playbackRate = desiredRate;
@@ -726,7 +781,7 @@ export const AudioProvider: React.FC<{ children: React.ReactNode }> = ({ childre
                 const ctx = audioCtxRef.current;
 
                 if (timeLeft <= FADE_DURATION && timeLeft > 0) {
-                  if (webAudioStateRef.current === 'ready' && g && ctx) {
+                  if (isGainActive() && g && ctx) {
                     if (!fadeScheduledRef.current) {
                       fadeScheduledRef.current = true;
                       // Convert track-seconds to real seconds (speed matters!)
@@ -747,7 +802,7 @@ export const AudioProvider: React.FC<{ children: React.ReactNode }> = ({ childre
                 } else if (timeLeft > FADE_DURATION && fadeScheduledRef.current) {
                   // User seeked back before the window — cancel the ramp, restore.
                   cancelFadeAndRestore();
-                } else if (timeLeft > FADE_DURATION && webAudioStateRef.current !== 'ready'
+                } else if (timeLeft > FADE_DURATION && !isGainActive()
                            && nativePlayerRef.current
                            && Math.abs(nativePlayerRef.current.volume - baseVol) > 0.01) {
                   nativePlayerRef.current.volume = baseVol;
@@ -792,12 +847,20 @@ export const AudioProvider: React.FC<{ children: React.ReactNode }> = ({ childre
           };
 
           // NATIVE SPEED CONTROL: No bridge needed
-          audio.preservesPitch = true;
+          {
+            const pitchOn = audio !== finalPlayerRef.current; // final element keeps pitch correction OFF
+            audio.preservesPitch = pitchOn;
+            (audio as HTMLAudioElement & { webkitPreservesPitch?: boolean }).webkitPreservesPitch = pitchOn;
+          }
           // SPEED PERSISTENCE FIX: use the live bpmRef (user-selected speed), NOT the
           // stale `bpm` closure value. Previously a new track could reset the rate,
           // so the speed the user picked was lost on every track change.
           audio.playbackRate = bpmRef.current / 100;
-          audio.loop = !isFinalMode;
+          // Use the REF, not the state: when a Final session starts, the state in
+          // this closure is still stale (false), which set loop=true on the Final
+          // element — the track silently restarted at its end instead of firing
+          // onended, so the session never advanced ("starts over at the end" bug).
+          audio.loop = !isFinalModeRef.current;
           audio.src = url;
           audio.load();
         });
@@ -1073,8 +1136,10 @@ export const AudioProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     if (nativePlayerRef.current) {
       const rate = newBpm / 100;
       if (Math.abs(nativePlayerRef.current.playbackRate - rate) > 0.001) {
-        if (!nativePlayerRef.current.preservesPitch) {
-           nativePlayerRef.current.preservesPitch = true;
+        {
+          const pitchOn = nativePlayerRef.current !== finalPlayerRef.current; // final element keeps pitch correction OFF
+          nativePlayerRef.current.preservesPitch = pitchOn;
+          (nativePlayerRef.current as HTMLAudioElement & { webkitPreservesPitch?: boolean }).webkitPreservesPitch = pitchOn;
         }
         nativePlayerRef.current.playbackRate = rate;
       }

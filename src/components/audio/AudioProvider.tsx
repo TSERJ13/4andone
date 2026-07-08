@@ -57,18 +57,7 @@ export const AudioProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   const [trackCurrentTime, setTrackCurrentTime] = useState(0); // For round-specific progress
   const [duration, setDuration] = useState(0);
   const [isLoaded, setIsLoaded] = useState(false);
-  // Silent Heartbeat for iOS PWA background support
-  const SILENT_TRACK = "data:audio/wav;base64,UklGRigAAABXQVZFZm10IBAAAAABAAEARKwAAIhYAQACABAAZGF0YQQAAAAAAA==";
-  const heartbeatAudioRef = useRef<HTMLAudioElement | null>(null);
 
-  useEffect(() => {
-    if (typeof window !== 'undefined') {
-        const audio = new Audio(SILENT_TRACK);
-        audio.loop = true;
-        audio.volume = 0.001;
-        heartbeatAudioRef.current = audio;
-    }
-  }, []);
 
   const [title, setTitle] = useState("No Track Selected");
   const [artist, setArtist] = useState("Upload or select a track");
@@ -173,6 +162,8 @@ export const AudioProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       el.preservesPitch = false;
       (el as HTMLAudioElement & { webkitPreservesPitch?: boolean }).webkitPreservesPitch = false;
       el.volume = 1.0; // loudness is controlled by the gain node from here on
+      el.style.display = 'none';
+      document.body.appendChild(el);
 
       const ctx = new Ctx({ latencyHint: 'playback' });
       const source = ctx.createMediaElementSource(el);
@@ -362,6 +353,8 @@ export const AudioProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       audio.preservesPitch = true;
       // Older iOS Safari needs the prefixed property for pitch-corrected speed.
       (audio as HTMLAudioElement & { webkitPreservesPitch?: boolean }).webkitPreservesPitch = true;
+      audio.style.display = 'none';
+      document.body.appendChild(audio);
 
       plainPlayerRef.current = audio;
       nativePlayerRef.current = audio; // active element = plain by default
@@ -371,6 +364,8 @@ export const AudioProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       const hb = new Audio(silentWav);
       hb.loop = true;
       hb.volume = 0.01; 
+      hb.style.display = 'none';
+      document.body.appendChild(hb);
       heartbeatRef.current = hb;
     }
 
@@ -878,8 +873,8 @@ export const AudioProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         playPromiseRef.current = audio.play();
         
         // Start heartbeat for iOS backgrounding
-        if (heartbeatAudioRef.current) {
-            heartbeatAudioRef.current.play().catch(() => {});
+        if (heartbeatRef.current) {
+            heartbeatRef.current.play().catch(() => {});
         }
 
         playPromiseRef.current.catch(e => {
@@ -1119,7 +1114,7 @@ export const AudioProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         playPromiseRef.current = nativePlayerRef.current.play();
         playPromiseRef.current.catch(() => {}).finally(() => { playPromiseRef.current = null; });
       }
-      if (heartbeatAudioRef.current) heartbeatAudioRef.current.play().catch(() => {});
+      if (heartbeatRef.current) heartbeatRef.current.play().catch(() => {});
       if ('wakeLock' in navigator) {
         (navigator as any).wakeLock.request('screen').then((lock: any) => {
           wakeLockRef.current = lock;
@@ -1264,8 +1259,8 @@ export const AudioProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       clearInterval(fadeIntervalRef.current);
       fadeIntervalRef.current = null;
     }
-    if (heartbeatAudioRef.current) {
-        heartbeatAudioRef.current.pause();
+    if (heartbeatRef.current) {
+        heartbeatRef.current.pause();
     }
     setIsPlaying(false);
     isPlayingRef.current = false;

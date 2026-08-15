@@ -2,7 +2,7 @@
 
 import React, { useState, useMemo } from 'react';
 import Link from 'next/link';
-import { Play, Disc, Flame, Music2, Heart, Zap, Activity } from 'lucide-react';
+import { Play, Disc, Flame, Music2, Heart, Zap, Activity, Settings } from 'lucide-react';
 import { useAudio } from '@/components/audio/AudioProvider';
 import { useStudio, Track } from '@/components/admin/StudioProvider';
 import { useAuth } from '@/context/AuthContext';
@@ -20,6 +20,21 @@ export default function GocAlbumPage() {
   const { isAuthenticated, setIsAuthModalOpen } = useAuth();
 
   const [activeTab, setActiveTab] = useState<'Latin' | 'Standard'>('Latin');
+  const [showPasoSettingsModal, setShowPasoSettingsModal] = useState(false);
+  const [pasoTheme, setPasoTheme] = useState<'1-theme' | '2-theme' | '3-theme'>(() => {
+    if (typeof window !== 'undefined') {
+      return (localStorage.getItem('goc_paso_theme') as any) || '2-theme';
+    }
+    return '2-theme';
+  });
+
+  const handleSavePasoTheme = (theme: '1-theme' | '2-theme' | '3-theme') => {
+    setPasoTheme(theme);
+    if (typeof window !== 'undefined') {
+      localStorage.setItem('goc_paso_theme', theme);
+    }
+  };
+
   const [infoModal, setInfoModal] = useState({
     isOpen: false,
     title: '',
@@ -30,9 +45,8 @@ export default function GocAlbumPage() {
   // Filter tracks belonging to GOC 2026 (via album field or GOC tags)
   const gocTracks = useMemo(() => {
     return tracks.filter(t => 
-      t.album?.toUpperCase() === 'GOC 2026' ||
-      t.tags?.some(tag => tag.toUpperCase() === 'GOC 2026' || tag.toUpperCase() === 'GOC') ||
-      t.title?.toUpperCase().includes('GOC')
+      t.album === 'GOC 2026' || 
+      t.tags?.some(tag => tag.toUpperCase() === 'GOC 2026' || tag.toUpperCase() === 'GOC')
     );
   }, [tracks]);
 
@@ -58,8 +72,14 @@ export default function GocAlbumPage() {
     targetStyles.forEach(styleName => {
       const styleTracks = pool.filter(t => t.style?.toLowerCase() === styleName.toLowerCase());
       if (styleTracks.length > 0) {
-        const randomTrack = styleTracks[Math.floor(Math.random() * styleTracks.length)];
-        selectedTracks.push(randomTrack);
+        if (styleName.toLowerCase().includes('paso')) {
+          const matchingThemeTrack = styleTracks.find(t => t.tags?.includes(`paso-${pasoTheme}`));
+          const chosenTrack = matchingThemeTrack || styleTracks[Math.floor(Math.random() * styleTracks.length)];
+          selectedTracks.push(chosenTrack);
+        } else {
+          const randomTrack = styleTracks[Math.floor(Math.random() * styleTracks.length)];
+          selectedTracks.push(randomTrack);
+        }
       }
     });
 
@@ -139,13 +159,29 @@ export default function GocAlbumPage() {
               <p>Run full continuous final sequence using GOC {activeTab} tracks only.</p>
             </div>
           </div>
-          <button 
-            className="start-final-btn"
-            onClick={() => startGocFinalMode(activeTab)}
-          >
-            <Play size={20} fill="currentColor" />
-            <span>Start GOC {activeTab} Final</span>
-          </button>
+          
+          <div className="banner-actions-group">
+            <button 
+              className="start-final-btn"
+              onClick={() => startGocFinalMode(activeTab)}
+            >
+              <Play size={20} fill="currentColor" />
+              <span>Start GOC {activeTab} Final</span>
+            </button>
+
+            {activeTab === 'Latin' && (
+              <button
+                className="goc-settings-btn glass"
+                onClick={() => setShowPasoSettingsModal(true)}
+                title="Paso Doble Settings"
+              >
+                <Settings size={20} />
+                <span className="paso-theme-label">
+                  {pasoTheme === '1-theme' ? '1 Theme' : pasoTheme === '3-theme' ? '3 Themes' : '2 Themes'}
+                </span>
+              </button>
+            )}
+          </div>
         </div>
 
         {/* Tracks by Dance Style */}
@@ -247,6 +283,59 @@ export default function GocAlbumPage() {
         </div>
       </div>
 
+      {showPasoSettingsModal && (
+        <div className="modal-overlay" onClick={() => setShowPasoSettingsModal(false)}>
+          <div className="modal-content paso-settings-modal glass" onClick={e => e.stopPropagation()}>
+            <div className="modal-header">
+              <Settings size={36} style={{ color: '#ff416c', marginBottom: '8px' }} />
+              <h2>Paso Doble Settings</h2>
+              <p>Select how many themes Paso Doble should be in practice & finals</p>
+            </div>
+
+            <div className="modal-body">
+              <label className="form-label">
+                Paso Doble Theme Count (რამდენ თემიანი პასადობლი იყოს)
+              </label>
+              <div className="theme-options-grid">
+                <button
+                  type="button"
+                  className={`theme-opt-card ${pasoTheme === '1-theme' ? 'active' : ''}`}
+                  onClick={() => handleSavePasoTheme('1-theme')}
+                >
+                  <span className="opt-title">1 Theme</span>
+                  <span className="opt-desc">~1:15 (1st Highlight)</span>
+                </button>
+
+                <button
+                  type="button"
+                  className={`theme-opt-card ${pasoTheme === '2-theme' ? 'active' : ''}`}
+                  onClick={() => handleSavePasoTheme('2-theme')}
+                >
+                  <span className="opt-title">2 Themes</span>
+                  <span className="opt-desc">~1:45 (Standard)</span>
+                </button>
+
+                <button
+                  type="button"
+                  className={`theme-opt-card ${pasoTheme === '3-theme' ? 'active' : ''}`}
+                  onClick={() => handleSavePasoTheme('3-theme')}
+                >
+                  <span className="opt-title">3 Themes</span>
+                  <span className="opt-desc">~2:15 (Full Track)</span>
+                </button>
+              </div>
+            </div>
+
+            <button
+              className="primary-btn done-btn"
+              onClick={() => setShowPasoSettingsModal(false)}
+            >
+              Done
+            </button>
+          </div>
+        </div>
+      )}
+
       <ConfirmModal
         isOpen={infoModal.isOpen}
         onClose={() => setInfoModal(prev => ({ ...prev, isOpen: false }))}
@@ -258,6 +347,148 @@ export default function GocAlbumPage() {
       />
 
       <style jsx>{`
+        .banner-actions-group {
+          display: flex;
+          align-items: center;
+          gap: 12px;
+        }
+
+        .goc-settings-btn {
+          display: flex;
+          align-items: center;
+          gap: 8px;
+          padding: 12px 18px;
+          border-radius: 30px;
+          font-weight: 700;
+          font-size: 0.85rem;
+          color: white;
+          background: rgba(255, 255, 255, 0.06);
+          border: 1px solid rgba(255, 255, 255, 0.15);
+          cursor: pointer;
+          transition: all 0.2s ease;
+        }
+
+        .goc-settings-btn:hover {
+          background: rgba(255, 255, 255, 0.12);
+          border-color: #ff416c;
+          transform: translateY(-1px);
+        }
+
+        .paso-theme-label {
+          font-size: 0.78rem;
+          opacity: 0.9;
+          color: #ff416c;
+          font-weight: 800;
+        }
+
+        .modal-overlay {
+          position: fixed;
+          inset: 0;
+          background: rgba(0,0,0,0.85);
+          backdrop-filter: blur(16px);
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          z-index: 10000;
+          padding: 20px;
+        }
+
+        .paso-settings-modal {
+          width: 100%;
+          max-width: 460px;
+          padding: 32px;
+          border-radius: 24px;
+          background: #141414;
+          border: 1px solid rgba(255, 255, 255, 0.1);
+          text-align: center;
+          box-shadow: 0 20px 60px rgba(0,0,0,0.8);
+        }
+
+        .paso-settings-modal .modal-header h2 {
+          font-size: 1.4rem;
+          font-weight: 800;
+          margin-bottom: 4px;
+        }
+
+        .paso-settings-modal .modal-header p {
+          font-size: 0.85rem;
+          color: rgba(255, 255, 255, 0.6);
+        }
+
+        .modal-body {
+          margin: 20px 0;
+        }
+
+        .form-label {
+          display: block;
+          font-size: 0.75rem;
+          font-weight: 800;
+          text-transform: uppercase;
+          letter-spacing: 1px;
+          color: rgba(255, 255, 255, 0.6);
+          margin-bottom: 12px;
+          text-align: left;
+        }
+
+        .theme-options-grid {
+          display: grid;
+          grid-template-columns: repeat(3, 1fr);
+          gap: 10px;
+        }
+
+        .theme-opt-card {
+          display: flex;
+          flex-direction: column;
+          align-items: center;
+          justify-content: center;
+          padding: 16px 8px;
+          border-radius: 16px;
+          background: rgba(255, 255, 255, 0.03);
+          border: 1px solid rgba(255, 255, 255, 0.08);
+          color: white;
+          cursor: pointer;
+          transition: all 0.2s ease;
+        }
+
+        .theme-opt-card:hover {
+          background: rgba(255, 255, 255, 0.08);
+          border-color: rgba(255, 65, 108, 0.4);
+        }
+
+        .theme-opt-card.active {
+          background: rgba(255, 65, 108, 0.15);
+          border-color: #ff416c;
+          box-shadow: 0 4px 15px rgba(255, 65, 108, 0.3);
+        }
+
+        .opt-title {
+          font-size: 0.95rem;
+          font-weight: 800;
+          margin-bottom: 4px;
+        }
+
+        .opt-desc {
+          font-size: 0.7rem;
+          opacity: 0.6;
+        }
+
+        .done-btn {
+          width: 100%;
+          padding: 14px;
+          border-radius: 30px;
+          font-weight: 800;
+          font-size: 1rem;
+          background: linear-gradient(90deg, #ff4b2b, #ff416c);
+          color: white;
+          border: none;
+          cursor: pointer;
+          margin-top: 12px;
+          transition: transform 0.2s ease;
+        }
+
+        .done-btn:hover {
+          transform: scale(1.02);
+        }
         .goc-page-wrapper {
           padding-bottom: 140px;
         }

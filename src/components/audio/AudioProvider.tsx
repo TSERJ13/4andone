@@ -39,6 +39,8 @@ interface AudioContextType {
   setActiveMode: (mode: string | null) => void;
   sessionTracks: Track[];
   setSessionTracks: (tracks: Track[]) => void;
+  fitnessTargetTime: number;
+  setFitnessTargetTime: (sec: number) => void;
 }
 
 const PlayerContext = createContext<AudioContextType | undefined>(undefined);
@@ -68,9 +70,13 @@ export const AudioProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   const [isPauseCountdown, setIsPauseCountdown] = useState(false);
   const [pauseTime, setPauseTime] = useState(15);
   const [isFitness, setIsFitness] = useState(false);
+  const [fitnessTargetTime, setFitnessTargetTime] = useState<number>(0);
   const [sessionDuration, setSessionDuration] = useState(0);
   const [activeMode, setActiveMode] = useState<string | null>(null);
   const [sessionTracks, setSessionTracks] = useState<Track[]>([]);
+
+  const fitnessTargetTimeRef = useRef(fitnessTargetTime);
+  useEffect(() => { fitnessTargetTimeRef.current = fitnessTargetTime; }, [fitnessTargetTime]);
 
   const nativePlayerRef = useRef<HTMLAudioElement | null>(null);
   const timerRef = useRef<NodeJS.Timeout | null>(null);
@@ -732,8 +738,52 @@ export const AudioProvider: React.FC<{ children: React.ReactNode }> = ({ childre
             if (currentToken !== loadingTokenRef.current) return;
             const currentTimeVal = audio.currentTime;
             
-            // 1. FINAL MODE LIMIT CHECK (1:45 / 1:25)
-            if (isFinalModeRef.current && !isPauseCountdownRef.current && isPlayingRef.current) {
+            // 1. FITNESS TARGET DURATION OVERALL CUTOFF & FADE-OUT
+            if (isFitnessRef.current && fitnessTargetTimeRef.current > 0 && isPlayingRef.current) {
+              let prevElapsed = 0;
+              const currIndex = sessionIndexRef.current >= 0 ? sessionIndexRef.current : 0;
+              for (let i = 0; i < currIndex; i++) {
+                const tr = sessionTracksRef.current[i];
+                prevElapsed += (tr?.duration || 180);
+              }
+              const totalSessionElapsed = prevElapsed + currentTimeVal;
+              const remainingSessionSecs = fitnessTargetTimeRef.current - totalSessionElapsed;
+
+              if (remainingSessionSecs <= 3 && remainingSessionSecs > 0) {
+                const baseVol = volumeRef.current * 0.8;
+                const g = gainNodeRef.current;
+                const ctx = audioCtxRef.current;
+                if (isGainActive() && g && ctx) {
+                  if (!fadeScheduledRef.current) {
+                    fadeScheduledRef.current = true;
+                    const now = ctx.currentTime;
+                    try {
+                      g.gain.cancelScheduledValues(now);
+                      g.gain.setValueAtTime(g.gain.value, now);
+                      g.gain.linearRampToValueAtTime(0.0001, now + remainingSessionSecs);
+                    } catch { fadeScheduledRef.current = false; }
+                  }
+                } else if (nativePlayerRef.current) {
+                  const progress = Math.min(1, Math.max(0, (3 - remainingSessionSecs) / 3));
+                  const ratio = Math.cos(progress * Math.PI / 2);
+                  nativePlayerRef.current.volume = baseVol * ratio;
+                }
+              }
+
+              if (remainingSessionSecs <= 0) {
+                if (finalEndHandledRef.current) return;
+                finalEndHandledRef.current = true;
+                audio.onended = null;
+                audio.pause();
+                setIsPlaying(false);
+                isPlayingRef.current = false;
+                stop();
+                return;
+              }
+            }
+
+            // 2. FINAL MODE LIMIT CHECK (1:45 / 1:25)
+            if (isFinalModeRef.current && !isFitnessRef.current && !isPauseCountdownRef.current && isPlayingRef.current) {
               const style = playingTrackRef.current?.style?.toLowerCase() || '';
               const isPasoDoble = style.includes('paso');
               const isVW = style.includes('viennese') || (style.includes('waltz') && style.includes('v'));
@@ -1281,6 +1331,10 @@ export const AudioProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     setSessionTracks([]);
     setIsFinalMode(false);
     isFinalModeRef.current = false;
+    setIsFitness(false);
+    isFitnessRef.current = false;
+    setFitnessTargetTime(0);
+    fitnessTargetTimeRef.current = 0;
     // FULL RESET: clear the track identity too. The bottom PlayerBar and the
     // full player both key their visibility off title === "No Track Selected",
     // so without this the last track stayed on screen after Final Mode ended.
@@ -1292,8 +1346,8 @@ export const AudioProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     // Clear OS media-session metadata so lock-screen controls also disappear.
     if ('mediaSession' in navigator) {
       try {
-        navigator.mediaSession.metadata = null;
-        navigator.mediaSession.playbackState = 'none';
+        (navigator.mediaSession as any).metadata = null;
+        (navigator.mediaSession as any).playbackState = 'none';
       } catch { /* ignore */ }
     }
   }, []);
@@ -1356,7 +1410,9 @@ export const AudioProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       activeMode,
       setActiveMode,
       sessionTracks,
-      setSessionTracks
+      setSessionTracks,
+      fitnessTargetTime,
+      setFitnessTargetTime
     }}>
       {children}
     </PlayerContext.Provider>

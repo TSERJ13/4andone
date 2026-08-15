@@ -69,7 +69,7 @@ const FinalsPage = () => {
     loadTrack, isPlaying, title: playingTitle, currentTime, trackCurrentTime, duration, 
     isPauseCountdown, pauseTime, stop, isFitness, setIsFitness,
     activeMode, setActiveMode, sessionTracks, setSessionTracks, sessionDuration,
-    isFinalMode
+    isFinalMode, setFitnessTargetTime
   } = useAudio();
   const { isAuthenticated, setIsAuthModalOpen } = useAuth();
   const [showStopConfirm, setShowStopConfirm] = useState(false);
@@ -407,15 +407,16 @@ const FinalsPage = () => {
     const selectedTracks: Track[] = [];
     const pool = [...fitnessPool].sort(() => 0.5 - Math.random());
 
-    // Fill the queue until we hit the time limit
+    // Fill queue beyond targetSeconds so session never ends early before timer
     let iterations = 0;
-    while (currentSeconds < targetSeconds && iterations < 50) {
+    while (currentSeconds < (targetSeconds + 300) && iterations < 50) {
       const track = pool[iterations % pool.length];
       selectedTracks.push(track);
-      currentSeconds += (track.duration || 120);
+      currentSeconds += (track.duration || 180);
       iterations++;
     }
 
+    setFitnessTargetTime(targetSeconds);
     setActiveMode('Fitness');
     setSessionTracks(selectedTracks);
     setShowFitnessModal(false);
@@ -533,7 +534,9 @@ const FinalsPage = () => {
                 </div>
                 
                 <div className="track-meta-col">
-                  {track.bpm ? `${getMPMFromBPM(Number(track.bpm), track.style)} BPM` : track.style}
+                  {track.style?.toLowerCase() === 'fitness'
+                    ? (track.duration ? formatDuration(track.duration) : '')
+                    : (track.bpm ? `${getMPMFromBPM(Number(track.bpm), track.style)} BPM` : track.style)}
                 </div>
 
                 <div className="track-actions-col">
@@ -655,6 +658,32 @@ const FinalsPage = () => {
             width: 20px !important;
             height: 20px !important;
           }
+        }
+
+        .custom-select-styled {
+          width: 100%;
+          background-color: #18181b !important;
+          color: #ffffff !important;
+          border: 1px solid rgba(255, 255, 255, 0.15) !important;
+          padding: 12px 16px !important;
+          border-radius: 12px !important;
+          font-size: 14px !important;
+          font-weight: 600 !important;
+          margin-top: 6px !important;
+          cursor: pointer !important;
+          appearance: none !important;
+          -webkit-appearance: none !important;
+          -moz-appearance: none !important;
+          background-image: url("data:image/svg+xml;charset=UTF-8,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='white' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3e%3cpolyline points='6 9 12 15 18 9'%3e%3c/polyline%3e%3c/svg%3e") !important;
+          background-repeat: no-repeat !important;
+          background-position: right 14px center !important;
+          background-size: 16px !important;
+        }
+
+        :global(select.custom-select-styled option) {
+          background-color: #18181b !important;
+          color: #ffffff !important;
+          padding: 10px !important;
         }
 
         .programs-section {
@@ -1042,46 +1071,42 @@ const FinalsPage = () => {
 
       {showSettingsModal && (
         <div className="modal-overlay" onClick={() => setShowSettingsModal(false)}>
-          <div className="modal-content fitness-modal glass" onClick={e => e.stopPropagation()} style={{ padding: '24px' }}>
+          <div className="modal-content fitness-modal glass" onClick={e => e.stopPropagation()} style={{ padding: '28px', maxWidth: '440px', width: '90%' }}>
             <div className="modal-header">
               <Settings size={40} className="text-primary mb-2" />
-              <h2 style={{ fontSize: '20px' }}>Finals Settings</h2>
-              <p style={{ fontSize: '13px' }}>Configure your practice preferences</p>
+              <h2 style={{ fontSize: '20px', fontWeight: 800 }}>Finals Settings</h2>
+              <p style={{ fontSize: '13px', opacity: 0.7 }}>Configure your practice preferences</p>
             </div>
             
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', marginTop: '16px', textAlign: 'left' }}>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '16px', marginTop: '20px', textAlign: 'left' }}>
               <div className="form-group">
-                <label style={{ color: '#a1a1aa', fontSize: '11px', textTransform: 'uppercase', letterSpacing: '1px', fontWeight: 700 }}>First Latin Dance</label>
+                <label style={{ color: '#a1a1aa', fontSize: '11px', textTransform: 'uppercase', letterSpacing: '1px', fontWeight: 800 }}>First Latin Dance</label>
                 <select 
-                  className="input-wrapper focus-glow" 
-                  style={{ width: '100%', background: 'rgba(255,255,255,0.05)', color: 'white', border: '1px solid rgba(255,255,255,0.1)', padding: '10px 14px', borderRadius: '12px', fontSize: '14px', marginTop: '6px' }}
+                  className="custom-select-styled focus-glow" 
                   value={latinStartDance} 
                   onChange={e => setLatinStartDance(e.target.value)}
                 >
                   <option value="Samba">Samba First</option>
-                  <option value="Cha-cha-cha">Cha-Cha-Cha First</option>
+                  <option value="Cha-Cha-Cha">Cha-Cha-Cha First</option>
                 </select>
               </div>
 
               <div className="form-group">
-                <label style={{ color: '#a1a1aa', fontSize: '11px', textTransform: 'uppercase', letterSpacing: '1px', fontWeight: 700 }}>Paso Doble Themes</label>
+                <label style={{ color: '#a1a1aa', fontSize: '11px', textTransform: 'uppercase', letterSpacing: '1px', fontWeight: 800 }}>Paso Doble Themes</label>
                 <select 
-                  className="input-wrapper focus-glow" 
-                  style={{ width: '100%', background: 'rgba(255,255,255,0.05)', color: 'white', border: '1px solid rgba(255,255,255,0.1)', padding: '10px 14px', borderRadius: '12px', fontSize: '14px', marginTop: '6px' }}
-                  value={pasoDuration} 
+                  className="custom-select-styled focus-glow" 
+                  value={pasoDuration === 'All' || pasoDuration === '1-theme' ? '2-theme' : pasoDuration} 
                   onChange={e => setPasoDuration(e.target.value)}
                 >
-                  <option value="All">Any Duration</option>
-                  <option value="2-theme">2 Themes (~1:20)</option>
-                  <option value="3-theme">3 Themes (~2:05)</option>
+                  <option value="2-theme">2 Themes (~1:45)</option>
+                  <option value="3-theme">3 Themes (~2:15 Full)</option>
                 </select>
               </div>
 
               <div className="form-group">
                 <label style={{ color: '#a1a1aa', fontSize: '11px', textTransform: 'uppercase', letterSpacing: '1px', fontWeight: 700 }}>Paso Doble Version</label>
                 <select 
-                  className="input-wrapper focus-glow" 
-                  style={{ width: '100%', background: 'rgba(255,255,255,0.05)', color: 'white', border: '1px solid rgba(255,255,255,0.1)', padding: '10px 14px', borderRadius: '12px', fontSize: '14px', marginTop: '6px' }}
+                  className="custom-select-styled focus-glow" 
                   value={pasoVersion} 
                   onChange={e => setPasoVersion(e.target.value)}
                 >
@@ -1091,7 +1116,7 @@ const FinalsPage = () => {
               </div>
             </div>
             
-            <button className="primary-btn start-fitness-btn" style={{ marginTop: '20px', height: '48px', fontSize: '15px' }} onClick={() => saveSettings()}>
+            <button className="primary-btn start-fitness-btn" style={{ marginTop: '24px', height: '48px', fontSize: '15px', width: '100%', justifyContent: 'center' }} onClick={() => saveSettings()}>
               Done
             </button>
           </div>

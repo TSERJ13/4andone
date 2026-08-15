@@ -89,7 +89,9 @@ const MobileMiniPlayer = ({ onExpand }: { onExpand: () => void }) => {
                     {artist}
                     {currentTrack && (
                       <span className="text-primary font-bold ml-1">
-                        ({currentTrack.duration ? `${formatDuration(currentTrack.duration)}${currentTrack.bpm ? ' • ' : ''}` : ''}{currentTrack.bpm ? `${getMPMFromBPM(Number(currentTrack.bpm), currentTrack.style)} BPM` : ''})
+                        {currentTrack.style?.toLowerCase() === 'fitness'
+                          ? (currentTrack.duration ? `(${formatDuration(currentTrack.duration)})` : '')
+                          : `(${currentTrack.duration ? `${formatDuration(currentTrack.duration)}${currentTrack.bpm ? ' • ' : ''}` : ''}${currentTrack.bpm ? `${getMPMFromBPM(Number(currentTrack.bpm), currentTrack.style)} BPM` : ''})`}
                       </span>
                     )}
                   </span>

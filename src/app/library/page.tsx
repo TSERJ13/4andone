@@ -18,6 +18,7 @@ import { useStudio, Track } from '@/components/admin/StudioProvider';
 import { useAudio } from '@/components/audio/AudioProvider';
 import { useAuth } from '@/context/AuthContext';
 import { getMPMFromBPM } from '@/utils/audio';
+import { formatDuration } from '@/utils/format';
 import ConfirmModal from '@/components/admin/ConfirmModal';
 import { Marquee } from '@/components/layout/Marquee';
 
@@ -160,7 +161,9 @@ export default function LibraryPage() {
               </div>
               
               <div className="track-meta-col">
-                {track.bpm ? `${getMPMFromBPM(Number(track.bpm), track.style)} BPM` : track.style}
+                {track.style?.toLowerCase() === 'fitness'
+                  ? (track.duration ? formatDuration(track.duration) : '')
+                  : (track.bpm ? `${getMPMFromBPM(Number(track.bpm), track.style)} BPM` : track.style)}
               </div>
 
               <div className="track-actions-col">

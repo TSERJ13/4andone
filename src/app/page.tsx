@@ -279,7 +279,9 @@ export default function Home() {
                     </div>
                     
                     <div className="track-meta-col">
-                      {track.bpm ? `${getMPMFromBPM(Number(track.bpm), track.style)} BPM` : formatDuration(track.duration)}
+                      {track.style?.toLowerCase() === 'fitness'
+                        ? (track.duration ? formatDuration(track.duration) : '')
+                        : (track.bpm ? `${getMPMFromBPM(Number(track.bpm), track.style)} BPM` : formatDuration(track.duration))}
                     </div>
 
                     <div className="track-actions-col">

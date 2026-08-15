@@ -193,10 +193,7 @@ export default function GocAlbumPage() {
                               isActive={isPlaying && (playingTitle === track.title || playingTitle === track.id)}
                             />
                             <div className="artist-badge-row">
-                              <p className="track-artist">
-                                {displayArtist}
-                                {track.duration ? ` • ${formatDuration(track.duration)}` : ''}
-                              </p>
+                              <p className="track-artist">{displayArtist}</p>
                               {trackStyleName && (
                                 <span 
                                   className="style-badge-pill" 
@@ -209,9 +206,7 @@ export default function GocAlbumPage() {
                           </div>
 
                           <div className="track-meta-col">
-                            {track.duration ? formatDuration(track.duration) : ''}
-                            {track.duration && track.bpm ? ' • ' : ''}
-                            {track.bpm ? `${getMPMFromBPM(Number(track.bpm), track.style)} BPM` : ''}
+                            {track.bpm ? `${getMPMFromBPM(Number(track.bpm), track.style)} BPM` : formatDuration(track.duration)}
                           </div>
 
                           <div className="track-actions-col">

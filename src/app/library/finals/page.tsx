@@ -660,30 +660,104 @@ const FinalsPage = () => {
           }
         }
 
-        .custom-select-styled {
+        .finals-settings-modal {
           width: 100%;
-          background-color: #18181b !important;
-          color: #ffffff !important;
-          border: 1px solid rgba(255, 255, 255, 0.15) !important;
-          padding: 12px 16px !important;
-          border-radius: 12px !important;
-          font-size: 14px !important;
-          font-weight: 600 !important;
-          margin-top: 6px !important;
-          cursor: pointer !important;
-          appearance: none !important;
-          -webkit-appearance: none !important;
-          -moz-appearance: none !important;
-          background-image: url("data:image/svg+xml;charset=UTF-8,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='white' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3e%3cpolyline points='6 9 12 15 18 9'%3e%3c/polyline%3e%3c/svg%3e") !important;
-          background-repeat: no-repeat !important;
-          background-position: right 14px center !important;
-          background-size: 16px !important;
+          max-width: 460px;
+          padding: 32px;
+          border-radius: 24px;
+          background: #141414;
+          border: 1px solid rgba(255, 255, 255, 0.1);
+          text-align: center;
+          box-shadow: 0 20px 60px rgba(0,0,0,0.85);
         }
 
-        :global(select.custom-select-styled option) {
-          background-color: #18181b !important;
-          color: #ffffff !important;
-          padding: 10px !important;
+        .finals-settings-modal .modal-header h2 {
+          font-size: 1.4rem;
+          font-weight: 800;
+          margin-bottom: 4px;
+          color: #ffffff;
+        }
+
+        .finals-settings-modal .modal-header p {
+          font-size: 0.85rem;
+          color: rgba(255, 255, 255, 0.6);
+        }
+
+        .form-label {
+          display: block;
+          font-size: 0.72rem;
+          font-weight: 800;
+          text-transform: uppercase;
+          letter-spacing: 1px;
+          color: rgba(255, 255, 255, 0.6);
+          margin-bottom: 8px;
+          text-align: left;
+        }
+
+        .custom-options-grid {
+          display: grid;
+          gap: 10px;
+        }
+
+        .custom-options-grid.two-cols {
+          grid-template-columns: repeat(2, 1fr);
+        }
+
+        .option-card {
+          display: flex;
+          flex-direction: column;
+          align-items: center;
+          justify-content: center;
+          padding: 12px 8px;
+          border-radius: 16px;
+          background: rgba(255, 255, 255, 0.03);
+          border: 1px solid rgba(255, 255, 255, 0.08);
+          color: white;
+          cursor: pointer;
+          transition: all 0.2s ease;
+        }
+
+        .option-card:hover {
+          background: rgba(255, 255, 255, 0.08);
+          border-color: rgba(29, 185, 84, 0.4);
+        }
+
+        .option-card.active {
+          background: rgba(29, 185, 84, 0.15);
+          border-color: #1db954;
+          box-shadow: 0 4px 15px rgba(29, 185, 84, 0.3);
+        }
+
+        .option-card .opt-title {
+          font-size: 0.86rem;
+          font-weight: 800;
+          margin-bottom: 2px;
+          color: #ffffff;
+        }
+
+        .option-card .opt-desc {
+          font-size: 0.68rem;
+          opacity: 0.6;
+        }
+
+        .done-green-btn {
+          width: 100%;
+          padding: 14px;
+          border-radius: 30px;
+          font-weight: 800;
+          font-size: 1rem;
+          background: #1db954;
+          color: #000000;
+          border: none;
+          cursor: pointer;
+          margin-top: 20px;
+          transition: transform 0.2s ease, background 0.2s ease;
+          box-shadow: 0 4px 20px rgba(29, 185, 84, 0.4);
+        }
+
+        .done-green-btn:hover {
+          transform: scale(1.02);
+          background: #1ed760;
         }
 
         .programs-section {
@@ -1071,52 +1145,88 @@ const FinalsPage = () => {
 
       {showSettingsModal && (
         <div className="modal-overlay" onClick={() => setShowSettingsModal(false)}>
-          <div className="modal-content fitness-modal glass" onClick={e => e.stopPropagation()} style={{ padding: '28px', maxWidth: '440px', width: '90%' }}>
+          <div className="modal-content finals-settings-modal glass" onClick={e => e.stopPropagation()}>
             <div className="modal-header">
-              <Settings size={40} className="text-primary mb-2" />
-              <h2 style={{ fontSize: '20px', fontWeight: 800 }}>Finals Settings</h2>
-              <p style={{ fontSize: '13px', opacity: 0.7 }}>Configure your practice preferences</p>
+              <Settings size={36} style={{ color: '#1db954', marginBottom: '8px' }} />
+              <h2>Finals Settings</h2>
+              <p>Configure your practice preferences</p>
             </div>
-            
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '16px', marginTop: '20px', textAlign: 'left' }}>
+
+            <div className="modal-body" style={{ display: 'flex', flexDirection: 'column', gap: '18px', marginTop: '20px' }}>
+              {/* 1. First Latin Dance */}
               <div className="form-group">
-                <label style={{ color: '#a1a1aa', fontSize: '11px', textTransform: 'uppercase', letterSpacing: '1px', fontWeight: 800 }}>First Latin Dance</label>
-                <select 
-                  className="custom-select-styled focus-glow" 
-                  value={latinStartDance} 
-                  onChange={e => setLatinStartDance(e.target.value)}
-                >
-                  <option value="Samba">Samba First</option>
-                  <option value="Cha-Cha-Cha">Cha-Cha-Cha First</option>
-                </select>
+                <label className="form-label">First Latin Dance (პირველი ლათინური ცეკვა)</label>
+                <div className="custom-options-grid two-cols">
+                  <button
+                    type="button"
+                    className={`option-card ${latinStartDance === 'Samba' ? 'active' : ''}`}
+                    onClick={() => setLatinStartDance('Samba')}
+                  >
+                    <span className="opt-title">Samba First</span>
+                    <span className="opt-desc">Samba → Cha-Cha</span>
+                  </button>
+                  <button
+                    type="button"
+                    className={`option-card ${latinStartDance === 'Cha-Cha-Cha' || latinStartDance === 'Cha-cha-cha' ? 'active' : ''}`}
+                    onClick={() => setLatinStartDance('Cha-Cha-Cha')}
+                  >
+                    <span className="opt-title">Cha-Cha-Cha First</span>
+                    <span className="opt-desc">Cha-Cha → Samba</span>
+                  </button>
+                </div>
               </div>
 
+              {/* 2. Paso Doble Themes */}
               <div className="form-group">
-                <label style={{ color: '#a1a1aa', fontSize: '11px', textTransform: 'uppercase', letterSpacing: '1px', fontWeight: 800 }}>Paso Doble Themes</label>
-                <select 
-                  className="custom-select-styled focus-glow" 
-                  value={pasoDuration === 'All' || pasoDuration === '1-theme' ? '2-theme' : pasoDuration} 
-                  onChange={e => setPasoDuration(e.target.value)}
-                >
-                  <option value="2-theme">2 Themes (~1:45)</option>
-                  <option value="3-theme">3 Themes (~2:15 Full)</option>
-                </select>
+                <label className="form-label">Paso Doble Themes (პასადობლის თემები)</label>
+                <div className="custom-options-grid two-cols">
+                  <button
+                    type="button"
+                    className={`option-card ${pasoDuration === '2-theme' || pasoDuration === 'All' || pasoDuration === '1-theme' ? 'active' : ''}`}
+                    onClick={() => setPasoDuration('2-theme')}
+                  >
+                    <span className="opt-title">2 Themes</span>
+                    <span className="opt-desc">~1:45 (Standard)</span>
+                  </button>
+                  <button
+                    type="button"
+                    className={`option-card ${pasoDuration === '3-theme' ? 'active' : ''}`}
+                    onClick={() => setPasoDuration('3-theme')}
+                  >
+                    <span className="opt-title">3 Themes</span>
+                    <span className="opt-desc">~2:15 (Full Track)</span>
+                  </button>
+                </div>
               </div>
 
+              {/* 3. Paso Doble Version */}
               <div className="form-group">
-                <label style={{ color: '#a1a1aa', fontSize: '11px', textTransform: 'uppercase', letterSpacing: '1px', fontWeight: 700 }}>Paso Doble Version</label>
-                <select 
-                  className="custom-select-styled focus-glow" 
-                  value={pasoVersion} 
-                  onChange={e => setPasoVersion(e.target.value)}
-                >
-                  <option value="All">All Versions</option>
-                  <option value="WDSF">España Cañí / WDSF Versions</option>
-                </select>
+                <label className="form-label">Paso Doble Version (ვერსია)</label>
+                <div className="custom-options-grid two-cols">
+                  <button
+                    type="button"
+                    className={`option-card ${pasoVersion === 'All' ? 'active' : ''}`}
+                    onClick={() => setPasoVersion('All')}
+                  >
+                    <span className="opt-title">All Versions</span>
+                    <span className="opt-desc">Any Paso Track</span>
+                  </button>
+                  <button
+                    type="button"
+                    className={`option-card ${pasoVersion === 'WDSF' ? 'active' : ''}`}
+                    onClick={() => setPasoVersion('WDSF')}
+                  >
+                    <span className="opt-title">WDSF / España Cañí</span>
+                    <span className="opt-desc">Official Version</span>
+                  </button>
+                </div>
               </div>
             </div>
-            
-            <button className="primary-btn start-fitness-btn" style={{ marginTop: '24px', height: '48px', fontSize: '15px', width: '100%', justifyContent: 'center' }} onClick={() => saveSettings()}>
+
+            <button
+              className="primary-btn done-green-btn"
+              onClick={() => saveSettings()}
+            >
               Done
             </button>
           </div>

@@ -169,52 +169,68 @@ export default function GocAlbumPage() {
 
                 {styleTracks.length > 0 ? (
                   <div className="tracks-list">
-                    {styleTracks.map((track, i) => (
-                      <div
-                        key={track.id}
-                        className={`track-row ${isPlaying && (playingTitle === track.title || playingTitle === track.id) ? 'is-active' : ''}`}
-                        onClick={() => handlePlaySingle(track)}
-                      >
-                        <div className="track-index">{i + 1}</div>
-                        <div className="track-icon-col">
-                          <Disc size={18} />
-                        </div>
-                        <div className="track-info-col">
-                          <Marquee
-                            text={track.title}
-                            className="track-name"
-                            isActive={isPlaying && (playingTitle === track.title || playingTitle === track.id)}
-                          />
-                          <div className="artist-badge-row">
-                            <p className="track-artist">{track.artist}</p>
+                    {styleTracks.map((track, i) => {
+                      const displayTitle = track.title || 'Untitled Track';
+                      const displayArtist = track.artist || 'Unknown Artist';
+                      const trackStyleName = track.style || styleName;
+                      const matchedStyle = styles.find(s => s.title.toLowerCase() === trackStyleName?.toLowerCase());
+                      const badgeColor = matchedStyle?.color || styleObj?.color || '#ff416c';
+
+                      return (
+                        <div
+                          key={track.id}
+                          className={`track-row ${isPlaying && (playingTitle === track.title || playingTitle === track.id) ? 'is-active' : ''}`}
+                          onClick={() => handlePlaySingle(track)}
+                        >
+                          <div className="track-index">{i + 1}</div>
+                          <div className="track-icon-col">
+                            <Disc size={18} />
+                          </div>
+                          <div className="track-info-col">
+                            <Marquee
+                              text={displayTitle}
+                              className="track-name"
+                              isActive={isPlaying && (playingTitle === track.title || playingTitle === track.id)}
+                            />
+                            <div className="artist-badge-row">
+                              <p className="track-artist">{displayArtist}</p>
+                              {trackStyleName && (
+                                <span 
+                                  className="style-badge-pill" 
+                                  style={{ backgroundColor: badgeColor }}
+                                >
+                                  {trackStyleName.toUpperCase()}
+                                </span>
+                              )}
+                            </div>
+                          </div>
+
+                          <div className="track-meta-col">
+                            {track.bpm ? `${getMPMFromBPM(Number(track.bpm), track.style)} BPM` : formatDuration(track.duration)}
+                          </div>
+
+                          <div className="track-actions-col">
+                            <button
+                              className={`fav-action ${track.isFavorite ? 'active-heart' : ''}`}
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                checkAuthAndExecute(() => toggleFavorite?.(track.id), 'favorite tracks');
+                              }}
+                              title="Like Song"
+                            >
+                              <Heart size={16} fill={track.isFavorite ? "#ff4b2b" : "none"} color={track.isFavorite ? "#ff4b2b" : "currentColor"} />
+                            </button>
+                            <div className="play-action">
+                              {isPlaying && (playingTitle === track.title || playingTitle === track.id) ? (
+                                <div className="playing-bars"><span></span><span></span><span></span></div>
+                              ) : (
+                                <Play size={18} fill="currentColor" />
+                              )}
+                            </div>
                           </div>
                         </div>
-
-                        <div className="track-meta-col">
-                          {track.bpm ? `${getMPMFromBPM(Number(track.bpm), track.style)} BPM` : formatDuration(track.duration)}
-                        </div>
-
-                        <div className="track-actions-col">
-                          <button
-                            className={`fav-action ${track.isFavorite ? 'active-heart' : ''}`}
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              checkAuthAndExecute(() => toggleFavorite?.(track.id), 'favorite tracks');
-                            }}
-                            title="Like Song"
-                          >
-                            <Heart size={16} fill={track.isFavorite ? "#ff4b2b" : "none"} color={track.isFavorite ? "#ff4b2b" : "currentColor"} />
-                          </button>
-                          <div className="play-action">
-                            {isPlaying && (playingTitle === track.title || playingTitle === track.id) ? (
-                              <div className="playing-bars"><span></span><span></span><span></span></div>
-                            ) : (
-                              <Play size={18} fill="currentColor" />
-                            )}
-                          </div>
-                        </div>
-                      </div>
-                    ))}
+                      );
+                    })}
                   </div>
                 ) : (
                   <div className="empty-style-state">

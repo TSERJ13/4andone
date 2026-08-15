@@ -641,7 +641,7 @@ export default function Home() {
         @media (max-width: 768px) {
           .hero-section {
             flex-direction: column;
-            padding: 14px;
+            padding: 16px 14px 14px 14px;
             text-align: left;
             align-items: stretch;
             gap: 14px;
@@ -652,33 +652,28 @@ export default function Home() {
           .hero-content-wrapper {
             display: flex;
             flex-direction: row;
-            align-items: center;
-            gap: 14px;
+            align-items: flex-start;
+            gap: 12px;
             width: 100%;
           }
 
           .goc-hero-card-preview {
             order: -1;
-            width: 36%;
-            min-width: 135px;
-            aspect-ratio: 16 / 9;
-            height: auto;
-            border-radius: 14px;
-            box-shadow: 0 6px 20px rgba(0, 0, 0, 0.6), 0 0 15px rgba(255, 65, 108, 0.25);
+            width: 38%;
+            min-width: 125px;
+            height: 95px;
+            border-radius: 12px;
+            box-shadow: 0 6px 18px rgba(0, 0, 0, 0.6), 0 0 12px rgba(255, 65, 108, 0.25);
             margin: 0;
             flex-shrink: 0;
             border: 1px solid rgba(255, 255, 255, 0.14);
-            background: rgba(0, 0, 0, 0.6);
-            display: flex;
-            align-items: center;
-            justify-content: center;
             overflow: hidden;
           }
 
           .goc-hero-img {
             width: 100%;
             height: 100%;
-            object-fit: contain;
+            object-fit: cover;
             object-position: center;
           }
 
@@ -690,13 +685,13 @@ export default function Home() {
 
           .hero-content {
             flex: 1;
-            width: 62%;
+            width: 60%;
             min-width: 0;
             display: flex;
             flex-direction: column;
             align-items: flex-start;
-            padding-top: 14px;
-            padding-right: 10px;
+            padding-top: 2px;
+            padding-right: 32px;
           }
 
           .goc-badge {
@@ -706,7 +701,7 @@ export default function Home() {
           }
 
           .hero-title {
-            font-size: 1.1rem;
+            font-size: 1.05rem;
             line-height: 1.15;
             letter-spacing: -0.3px;
             margin-bottom: 4px;
@@ -715,16 +710,12 @@ export default function Home() {
           }
 
           .hero-desc {
-            font-size: 0.72rem;
+            font-size: 0.68rem;
             margin-bottom: 0;
-            line-height: 1.35;
+            line-height: 1.25;
             max-width: 100%;
             text-align: left;
-            display: -webkit-box;
-            -webkit-line-clamp: 4;
-            -webkit-box-orient: vertical;
-            overflow: hidden;
-            opacity: 0.85;
+            opacity: 0.8;
           }
 
           .desktop-actions {

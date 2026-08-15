@@ -409,7 +409,7 @@ const FinalsPage = () => {
 
     // Fill queue beyond targetSeconds so session never ends early before timer
     let iterations = 0;
-    while (currentSeconds < (targetSeconds + 300) && iterations < 50) {
+    while (currentSeconds < (targetSeconds + 600) && iterations < 50) {
       const track = pool[iterations % pool.length];
       selectedTracks.push(track);
       currentSeconds += (track.duration || 180);
@@ -1155,7 +1155,7 @@ const FinalsPage = () => {
             <div className="modal-body" style={{ display: 'flex', flexDirection: 'column', gap: '18px', marginTop: '20px' }}>
               {/* 1. First Latin Dance */}
               <div className="form-group">
-                <label className="form-label">First Latin Dance (პირველი ლათინური ცეკვა)</label>
+                <label className="form-label">First Latin Dance</label>
                 <div className="custom-options-grid two-cols">
                   <button
                     type="button"
@@ -1178,7 +1178,7 @@ const FinalsPage = () => {
 
               {/* 2. Paso Doble Themes */}
               <div className="form-group">
-                <label className="form-label">Paso Doble Themes (პასადობლის თემები)</label>
+                <label className="form-label">Paso Doble Themes</label>
                 <div className="custom-options-grid two-cols">
                   <button
                     type="button"
@@ -1201,7 +1201,7 @@ const FinalsPage = () => {
 
               {/* 3. Paso Doble Version */}
               <div className="form-group">
-                <label className="form-label">Paso Doble Version (ვერსია)</label>
+                <label className="form-label">Paso Doble Version</label>
                 <div className="custom-options-grid two-cols">
                   <button
                     type="button"

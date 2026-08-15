@@ -244,7 +244,9 @@ export const AudioProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   // This ensures the total time is known immediately when sessionTracks changes,
   // preventing the "duration flicker" from one track's time to the full session time.
   useEffect(() => {
-    if (isFinalMode) {
+    if (isFitness && fitnessTargetTime > 0) {
+      setSessionDuration(fitnessTargetTime);
+    } else if (isFinalMode) {
       if (sessionTracks.length > 0) {
         const getLimitForTrack = (track: Track) => {
           const style = track.style?.toLowerCase() || '';
@@ -272,7 +274,7 @@ export const AudioProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       const safeDur = Number.isFinite(duration) && duration >= 0 ? duration : 0;
       setSessionDuration(safeDur);
     }
-  }, [sessionTracks, isFinalMode, isFitness, duration, title]);
+  }, [sessionTracks, isFinalMode, isFitness, fitnessTargetTime, duration, title]);
 
   // Tab synchronization for audio control
   useEffect(() => {
@@ -1068,6 +1070,7 @@ export const AudioProvider: React.FC<{ children: React.ReactNode }> = ({ childre
             if (currentIdx !== -1) {
               const getLimitForTrack = (track: Track) => {
                 if (!track) return 105;
+                if (isFitnessRef.current) return track.duration || 180;
                 const style = track.style?.toLowerCase() || '';
                 if (style.includes('paso')) return track.duration || 120;
                 if (style.includes('viennese')) return 85;

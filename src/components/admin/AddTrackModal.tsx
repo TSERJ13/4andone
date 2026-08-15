@@ -18,6 +18,7 @@ const AddTrackModal = ({ isOpen, onClose, onAdd, initialData }: AddTrackModalPro
   const [formData, setFormData] = useState({
     title: initialData?.title || '',
     artist: initialData?.artist || '',
+    album: initialData?.album || '',
     style: initialData?.style || (styles.length > 0 ? styles[0].title : 'Samba'),
     tags: initialData?.tags || ([] as string[]),
     bpm: initialData?.bpm || '',
@@ -52,7 +53,7 @@ const AddTrackModal = ({ isOpen, onClose, onAdd, initialData }: AddTrackModalPro
 
   const resetForm = () => {
     setFormData({
-      title: '', artist: '', 
+      title: '', artist: '', album: '',
       style: styles.length > 0 ? styles[0].title : 'Samba',
       tags: [], bpm: '', artworkUrl: '', isClosed: false
     });
@@ -70,6 +71,7 @@ const AddTrackModal = ({ isOpen, onClose, onAdd, initialData }: AddTrackModalPro
       setFormData({
         title: initialData.title,
         artist: initialData.artist,
+        album: initialData.album || '',
         style: initialData.style,
         tags: initialData.tags || [],
         bpm: initialData.bpm,
@@ -170,8 +172,11 @@ const AddTrackModal = ({ isOpen, onClose, onAdd, initialData }: AddTrackModalPro
         if (pasoTheme) finalTags.push(`paso-${pasoTheme}`);
         if (pasoVersion) finalTags.push(`paso-${pasoVersion}`);
       }
+      if (formData.album === 'GOC 2026' && !finalTags.includes('GOC 2026')) {
+        finalTags.push('GOC 2026');
+      }
 
-      await onAdd({ ...formData, tags: finalTags, audioUrl, artworkUrl, duration, id: initialData?.id || `track_${Date.now()}` });
+      await onAdd({ ...formData, tags: finalTags, album: formData.album || undefined, audioUrl, artworkUrl, duration, id: initialData?.id || `track_${Date.now()}` });
       if (formData.artist && !recentArtists.includes(formData.artist)) {
         const updated = [formData.artist, ...recentArtists.slice(0, 11)];
         setRecentArtists(updated);
@@ -229,6 +234,77 @@ const AddTrackModal = ({ isOpen, onClose, onAdd, initialData }: AddTrackModalPro
             </div>
 
             <div className="secondary-fields-box">
+              <div className="form-group full" style={{ marginBottom: '16px' }}>
+                <label style={{ color: '#ff416c', fontWeight: 900 }}>Collection Destination</label>
+                <div className="goc-mode-selector">
+                  <button
+                    type="button"
+                    className={`goc-mode-chip ${!formData.album ? 'active' : ''}`}
+                    onClick={() => setFormData(p => ({
+                      ...p,
+                      album: '',
+                      tags: p.tags.filter((t: string) => t !== 'GOC 2026' && t !== 'GOC Latin' && t !== 'GOC Standard')
+                    }))}
+                  >
+                    <span>Standard Library</span>
+                  </button>
+
+                  <button
+                    type="button"
+                    className={`goc-mode-chip goc-main ${formData.album === 'GOC 2026' ? 'active' : ''}`}
+                    onClick={() => {
+                      setFormData(p => {
+                        const newTags = [...p.tags];
+                        if (!newTags.includes('GOC 2026')) newTags.push('GOC 2026');
+                        if (!newTags.includes('GOC Latin') && !newTags.includes('GOC Standard')) {
+                          newTags.push('GOC Latin');
+                        }
+                        return { ...p, album: 'GOC 2026', tags: newTags };
+                      });
+                    }}
+                  >
+                    <span>🏆 GOC 2026 Special Album</span>
+                  </button>
+                </div>
+
+                {formData.album === 'GOC 2026' && (
+                  <div className="goc-sub-selector animate-in" style={{ marginTop: '10px' }}>
+                    <span className="sub-label">Select Discipline:</span>
+                    <div className="sub-chips-row">
+                      <button
+                        type="button"
+                        className={`goc-sub-chip latin ${formData.tags.includes('GOC Latin') ? 'active' : ''}`}
+                        onClick={() => {
+                          setFormData(p => {
+                            const newTags = p.tags.filter((t: string) => t !== 'GOC Standard');
+                            if (!newTags.includes('GOC 2026')) newTags.push('GOC 2026');
+                            if (!newTags.includes('GOC Latin')) newTags.push('GOC Latin');
+                            return { ...p, tags: newTags };
+                          });
+                        }}
+                      >
+                        🔥 International Latin
+                      </button>
+
+                      <button
+                        type="button"
+                        className={`goc-sub-chip standard ${formData.tags.includes('GOC Standard') ? 'active' : ''}`}
+                        onClick={() => {
+                          setFormData(p => {
+                            const newTags = p.tags.filter((t: string) => t !== 'GOC Latin');
+                            if (!newTags.includes('GOC 2026')) newTags.push('GOC 2026');
+                            if (!newTags.includes('GOC Standard')) newTags.push('GOC Standard');
+                            return { ...p, tags: newTags };
+                          });
+                        }}
+                      >
+                        ⚡ International Standard
+                      </button>
+                    </div>
+                  </div>
+                )}
+              </div>
+
               <div className="form-group full">
                 <label>Dance Style (Automatic Detection)</label>
                 <div className="styles-list">
@@ -370,6 +446,28 @@ const AddTrackModal = ({ isOpen, onClose, onAdd, initialData }: AddTrackModalPro
         .speed-split { display: grid; grid-template-columns: 1fr 1fr; gap: 15px; }
         .speed-input-box { background: rgba(255,255,255,0.03); border-radius: 16px; border: 1px solid rgba(255,255,255,0.08); display: flex; align-items: center; padding: 0 15px; }
         .speed-input-box input { background: transparent; border: none; outline: none; height: 50px; color: white; width: 100%; text-align: center; font-size: 15px; font-weight: 700; }
+
+        .goc-mode-selector { display: flex; gap: 10px; width: 100%; }
+        .goc-mode-chip { 
+          flex: 1; padding: 12px 18px; border-radius: 14px; background: rgba(255,255,255,0.03); 
+          border: 1px solid rgba(255,255,255,0.08); color: #71717a; font-size: 13px; font-weight: 800; 
+          cursor: pointer; transition: all 0.2s ease; text-align: center;
+        }
+        .goc-mode-chip:hover { background: rgba(255,255,255,0.08); color: white; }
+        .goc-mode-chip.active { background: rgba(255,255,255,0.08); border-color: rgba(255,255,255,0.25); color: white; }
+        .goc-mode-chip.goc-main.active { background: rgba(255, 65, 108, 0.15); border-color: #ff416c; color: #ff416c; box-shadow: 0 0 15px rgba(255, 65, 108, 0.25); }
+
+        .goc-sub-selector { background: rgba(255,255,255,0.02); border-radius: 14px; padding: 12px 16px; border: 1px solid rgba(255,255,255,0.05); }
+        .sub-label { font-size: 10px; font-weight: 900; color: #71717a; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 8px; display: block; }
+        .sub-chips-row { display: flex; gap: 10px; }
+        .goc-sub-chip {
+          flex: 1; padding: 10px 14px; border-radius: 12px; background: rgba(255,255,255,0.03);
+          border: 1px solid rgba(255,255,255,0.08); color: #71717a; font-size: 12px; font-weight: 800;
+          cursor: pointer; transition: all 0.2s ease; text-align: center;
+        }
+        .goc-sub-chip:hover { background: rgba(255,255,255,0.08); color: white; }
+        .goc-sub-chip.latin.active { background: rgba(247, 151, 30, 0.15); border-color: #f7971e; color: #f7971e; box-shadow: 0 0 12px rgba(247, 151, 30, 0.2); }
+        .goc-sub-chip.standard.active { background: rgba(33, 147, 176, 0.15); border-color: #2193b0; color: #2193b0; box-shadow: 0 0 12px rgba(33, 147, 176, 0.2); }
 
         .visibility-pill-expanded { height: 50px; border-radius: 16px; background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.08); display: flex; align-items: center; gap: 15px; padding: 0 20px; cursor: pointer; transition: all 0.3s; }
         .visibility-pill-expanded.public .dot { background: #1db954; box-shadow: 0 0 10px #1db954; }

@@ -358,14 +358,48 @@ const BulkUpload = () => {
             <div className="batch-main-meta">
               {/* ROW 1: Album and Artist */}
               <div className="inputs-row">
-                <div className="meta-field">
-                  <FolderPlus size={16} className="meta-icon" />
-                  <input 
-                    type="text" 
-                    placeholder="Collection / Album" 
-                    value={batchAlbum}
-                    onChange={(e) => setBatchAlbum(e.target.value)}
-                  />
+                <div className="meta-field-group">
+                  <div className="meta-field">
+                    <FolderPlus size={16} className="meta-icon" />
+                    <input 
+                      type="text" 
+                      placeholder="Collection / Album (e.g. GOC 2026)" 
+                      value={batchAlbum}
+                      onChange={(e) => setBatchAlbum(e.target.value)}
+                    />
+                  </div>
+                  <div className="recent-artists-suggestions">
+                    <button 
+                      type="button" 
+                      className={`artist-suggestion-chip ${batchAlbum === 'GOC 2026' && batchTags.includes('GOC Latin') ? 'active-goc' : ''}`}
+                      onClick={() => {
+                        setBatchAlbum('GOC 2026');
+                        setBatchTags(prev => {
+                          const filtered = prev.filter(t => t !== 'GOC Standard');
+                          if (!filtered.includes('GOC 2026')) filtered.push('GOC 2026');
+                          if (!filtered.includes('GOC Latin')) filtered.push('GOC Latin');
+                          return filtered;
+                        });
+                      }}
+                    >
+                      🔥 GOC 2026 Latin
+                    </button>
+                    <button 
+                      type="button" 
+                      className={`artist-suggestion-chip ${batchAlbum === 'GOC 2026' && batchTags.includes('GOC Standard') ? 'active-goc' : ''}`}
+                      onClick={() => {
+                        setBatchAlbum('GOC 2026');
+                        setBatchTags(prev => {
+                          const filtered = prev.filter(t => t !== 'GOC Latin');
+                          if (!filtered.includes('GOC 2026')) filtered.push('GOC 2026');
+                          if (!filtered.includes('GOC Standard')) filtered.push('GOC Standard');
+                          return filtered;
+                        });
+                      }}
+                    >
+                      ⚡ GOC 2026 Standard
+                    </button>
+                  </div>
                 </div>
                 <div className="meta-field-group">
                   <div className="meta-field">

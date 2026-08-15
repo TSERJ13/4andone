@@ -45,7 +45,9 @@ export default function Home() {
   const newArrivals = React.useMemo(() => {
     return tracks.filter(t =>
       t.style?.toLowerCase() !== 'fitness' &&
-      !t.tags?.some(tag => tag.toLowerCase() === 'closed' || tag === 'დახურული')
+      !t.tags?.some(tag => tag.toLowerCase() === 'closed' || tag === 'დახურული') &&
+      t.album !== 'GOC 2026' &&
+      !t.tags?.some(tag => tag.toUpperCase() === 'GOC 2026' || tag.toUpperCase() === 'GOC')
     );
   }, [tracks]);
 
@@ -114,29 +116,38 @@ export default function Home() {
   return (
     <div className="page-wrapper">
       <div className="home-container">
-        {/* ... Hero Section remains ... */}
-        <header className="hero-section glass">
+        {/* GOC 2026 Featured Album Banner */}
+        <header className="hero-section goc-hero-section glass">
           <div className="hero-top-right">
             <UserBadge />
           </div>
-          <div className="hero-content">
-            <span className="badge">Featured: Final Mode Practice</span>
-            <h1 className="hero-title text-gradient">Master Your Dance<br />with AI & BPM Control</h1>
-            <p className="hero-desc">
-              The ultimate tool for Dancesport. Isolate beats, remove vocals,
-              and practice with professional-grade speed control.
-            </p>
-            <div className="hero-actions">
-              <button className="btn-primary" onClick={() => router.push('/library/finals')}>
-                Start Practice
-              </button>
-              <button className="btn-outline glass" onClick={() => router.push('/learn-final-mode')}>Learn Final Mode</button>
+          <div className="hero-content-wrapper">
+            <div className="hero-content">
+              <span className="goc-badge">SPECIAL COLLECTION</span>
+              <h1 className="hero-title text-gradient">GOC FINAL 2026<br />MUSIC</h1>
+              <p className="hero-desc">
+                Exclusive German Open Championship finals music. Isolated collection with dedicated Latin & Standard Final Mode practice.
+              </p>
+              <div className="hero-actions desktop-actions">
+                <button className="btn-primary goc-btn" onClick={() => router.push('/album/goc-2026')}>
+                  Open GOC Album
+                </button>
+                <button className="btn-outline glass" onClick={() => router.push('/album/goc-2026')}>
+                  Final Mode
+                </button>
+              </div>
+            </div>
+            <div className="goc-hero-card-preview" onClick={() => router.push('/album/goc-2026')}>
+              <img src="/goc2026.png" alt="GOC 2026 Latin Final Music" className="goc-hero-img" />
             </div>
           </div>
-          <div className="hero-visual">
-            <div className="visual-circle glass">
-              <Flame size={48} className="pulse-icon" />
-            </div>
+          <div className="hero-actions mobile-actions">
+            <button className="btn-primary goc-btn" onClick={() => router.push('/album/goc-2026')}>
+              Open GOC Album
+            </button>
+            <button className="btn-outline glass" onClick={() => router.push('/album/goc-2026')}>
+              Final Mode
+            </button>
           </div>
         </header>
 
@@ -154,7 +165,9 @@ export default function Home() {
                 const count = tracks.filter(t =>
                   t.style?.toLowerCase() === style.title.toLowerCase() &&
                   !t.tags?.some(tag => tag.toLowerCase() === 'closed' || tag === 'დახურული') &&
-                  t.style?.toLowerCase() !== 'fitness'
+                  t.style?.toLowerCase() !== 'fitness' &&
+                  t.album !== 'GOC 2026' &&
+                  !t.tags?.some(tag => tag.toUpperCase() === 'GOC 2026' || tag.toUpperCase() === 'GOC')
                 ).length;
                 return (
                   <Link
@@ -196,7 +209,9 @@ export default function Home() {
                 const count = tracks.filter(t =>
                   t.style?.toLowerCase() === style.title.toLowerCase() &&
                   !t.tags?.some(tag => tag.toLowerCase() === 'closed' || tag === 'დახურული') &&
-                  t.style?.toLowerCase() !== 'fitness'
+                  t.style?.toLowerCase() !== 'fitness' &&
+                  t.album !== 'GOC 2026' &&
+                  !t.tags?.some(tag => tag.toUpperCase() === 'GOC 2026' || tag.toUpperCase() === 'GOC')
                 ).length;
                 return (
                   <Link
@@ -324,16 +339,77 @@ export default function Home() {
         }
 
         .hero-section {
-          padding: 60px 40px;
+          padding: 50px 40px;
           border-radius: 24px;
           display: flex;
           align-items: center;
           justify-content: space-between;
           margin-bottom: 48px;
-          background: linear-gradient(135deg, rgba(29, 185, 84, 0.1) 0%, rgba(0, 0, 0, 0) 100%);
+          background: linear-gradient(135deg, rgba(229, 9, 20, 0.15) 0%, rgba(20, 20, 20, 0.6) 100%);
+          border: 1px solid rgba(255, 60, 60, 0.2);
           gap: 40px;
           position: relative;
           overflow: hidden;
+        }
+
+        .hero-content-wrapper {
+          display: flex;
+          align-items: center;
+          justify-content: space-between;
+          width: 100%;
+          gap: 40px;
+        }
+
+        .mobile-actions {
+          display: none !important;
+        }
+
+        .desktop-actions {
+          display: flex;
+        }
+
+        .goc-badge {
+          background: linear-gradient(90deg, #ff4b2b, #ff416c);
+          color: white;
+          padding: 5px 14px;
+          border-radius: 20px;
+          font-size: 11px;
+          font-weight: 900;
+          text-transform: uppercase;
+          margin-bottom: 16px;
+          display: inline-block;
+          letter-spacing: 1px;
+          box-shadow: 0 4px 15px rgba(255, 65, 108, 0.3);
+        }
+
+        .goc-hero-card-preview {
+          position: relative;
+          width: 380px;
+          height: 215px;
+          border-radius: 16px;
+          overflow: hidden;
+          box-shadow: 0 12px 30px rgba(0, 0, 0, 0.6), 0 0 20px rgba(255, 65, 108, 0.2);
+          cursor: pointer;
+          border: 1px solid rgba(255, 255, 255, 0.15);
+          transition: transform 0.3s ease, box-shadow 0.3s ease;
+          flex-shrink: 0;
+        }
+
+        .goc-hero-card-preview:hover {
+          transform: scale(1.03);
+          box-shadow: 0 16px 40px rgba(0, 0, 0, 0.8), 0 0 30px rgba(255, 65, 108, 0.4);
+        }
+
+        .goc-hero-img {
+          width: 100%;
+          height: 100%;
+          object-fit: cover;
+        }
+
+        .goc-btn {
+          background: linear-gradient(90deg, #ff4b2b, #ff416c) !important;
+          color: white !important;
+          box-shadow: 0 4px 15px rgba(255, 65, 108, 0.4);
         }
 
         .hero-top-right {
@@ -565,53 +641,117 @@ export default function Home() {
         @media (max-width: 768px) {
           .hero-section {
             flex-direction: column;
-            padding: 18px 14px; /* Reduced by ~10-15% */
-            text-align: center;
+            padding: 14px;
+            text-align: left;
+            align-items: stretch;
+            gap: 14px;
+            margin-bottom: 20px;
+            border-radius: 20px;
+          }
+
+          .hero-content-wrapper {
+            display: flex;
+            flex-direction: row;
             align-items: center;
-            gap: 10px; 
-            margin-bottom: 18px;
-            border-radius: 16px;
+            gap: 14px;
+            width: 100%;
           }
 
-          .hero-top-right {
-             top: 12px;
-             right: 12px;
-          }
-
-          .hero-title {
-            font-size: 1.45rem; /* Reduced by ~10% */
-            letter-spacing: -0.5px;
-            margin-bottom: 6px;
-            max-width: 100%;
-          }
-
-          .hero-desc {
-            font-size: 0.75rem; /* Reduced */
-            margin-bottom: 10px;
-            line-height: 1.25;
-            max-width: 280px;
-            display: -webkit-box;
-            -webkit-line-clamp: 2;
-            -webkit-box-orient: vertical;
+          .goc-hero-card-preview {
+            order: -1;
+            width: 36%;
+            min-width: 135px;
+            aspect-ratio: 16 / 9;
+            height: auto;
+            border-radius: 14px;
+            box-shadow: 0 6px 20px rgba(0, 0, 0, 0.6), 0 0 15px rgba(255, 65, 108, 0.25);
+            margin: 0;
+            flex-shrink: 0;
+            border: 1px solid rgba(255, 255, 255, 0.14);
+            background: rgba(0, 0, 0, 0.6);
+            display: flex;
+            align-items: center;
+            justify-content: center;
             overflow: hidden;
           }
 
-          .badge {
-            font-size: 8px; /* Reduced */
-            padding: 2px 6px;
-            margin-bottom: 6px;
+          .goc-hero-img {
+            width: 100%;
+            height: 100%;
+            object-fit: contain;
+            object-position: center;
           }
 
-          .hero-actions {
+          .hero-top-right {
+             top: 10px;
+             right: 10px;
+             z-index: 10;
+          }
+
+          .hero-content {
+            flex: 1;
+            width: 62%;
+            min-width: 0;
+            display: flex;
+            flex-direction: column;
+            align-items: flex-start;
+            padding-top: 14px;
+            padding-right: 10px;
+          }
+
+          .goc-badge {
+            font-size: 8px;
+            padding: 3px 8px;
+            margin-bottom: 4px;
+          }
+
+          .hero-title {
+            font-size: 1.1rem;
+            line-height: 1.15;
+            letter-spacing: -0.3px;
+            margin-bottom: 4px;
+            max-width: 100%;
+            text-align: left;
+          }
+
+          .hero-desc {
+            font-size: 0.72rem;
+            margin-bottom: 0;
+            line-height: 1.35;
+            max-width: 100%;
+            text-align: left;
+            display: -webkit-box;
+            -webkit-line-clamp: 4;
+            -webkit-box-orient: vertical;
+            overflow: hidden;
+            opacity: 0.85;
+          }
+
+          .desktop-actions {
+            display: none !important;
+          }
+
+          .mobile-actions {
+            display: flex !important;
             flex-direction: row; 
             width: 100%;
-            gap: 6px;
+            gap: 8px;
+            margin-top: 2px;
+          }
+
+          .mobile-actions .btn-primary,
+          .mobile-actions .btn-outline {
+            flex: 1;
+            padding: 10px;
+            font-size: 0.78rem;
+            font-weight: 800;
           }
 
           .btn-primary, .btn-outline {
             flex: 1;
-            padding: 9px; /* Reduced */
-            font-size: 0.75rem; /* Reduced */
+            padding: 11px;
+            font-size: 0.8rem;
+            font-weight: 800;
           }
 
           .hero-visual {

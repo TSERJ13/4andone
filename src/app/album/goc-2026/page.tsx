@@ -193,7 +193,10 @@ export default function GocAlbumPage() {
                               isActive={isPlaying && (playingTitle === track.title || playingTitle === track.id)}
                             />
                             <div className="artist-badge-row">
-                              <p className="track-artist">{displayArtist}</p>
+                              <p className="track-artist">
+                                {displayArtist}
+                                {track.duration ? ` • ${formatDuration(track.duration)}` : ''}
+                              </p>
                               {trackStyleName && (
                                 <span 
                                   className="style-badge-pill" 
@@ -206,7 +209,9 @@ export default function GocAlbumPage() {
                           </div>
 
                           <div className="track-meta-col">
-                            {track.bpm ? `${getMPMFromBPM(Number(track.bpm), track.style)} BPM` : formatDuration(track.duration)}
+                            {track.duration ? formatDuration(track.duration) : ''}
+                            {track.duration && track.bpm ? ' • ' : ''}
+                            {track.bpm ? `${getMPMFromBPM(Number(track.bpm), track.style)} BPM` : ''}
                           </div>
 
                           <div className="track-actions-col">
@@ -587,6 +592,13 @@ export default function GocAlbumPage() {
         }
 
         @media (max-width: 768px) {
+          .style-group-box {
+            padding: 0 !important;
+            background: transparent !important;
+            border: none !important;
+            margin-bottom: 24px;
+          }
+
           .goc-hero {
             flex-direction: column;
             text-align: center;

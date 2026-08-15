@@ -263,7 +263,10 @@ export default function Home() {
                         isActive={isPlaying && (playingTitle === track.title || playingTitle === track.id)}
                       />
                       <div className="artist-badge-row">
-                        <p className="track-artist">{track.artist}</p>
+                        <p className="track-artist">
+                          {track.artist}
+                          {track.duration ? ` • ${formatDuration(track.duration)}` : ''}
+                        </p>
                         {styles.find(s => s.title.toLowerCase() === track.style?.toLowerCase()) && (
                           <span 
                             className="style-badge-pill" 
@@ -276,7 +279,9 @@ export default function Home() {
                     </div>
                     
                     <div className="track-meta-col">
-                      {track.bpm ? `${getMPMFromBPM(Number(track.bpm), track.style)} BPM` : formatDuration(track.duration)}
+                      {track.duration ? formatDuration(track.duration) : ''}
+                      {track.duration && track.bpm ? ' • ' : ''}
+                      {track.bpm ? `${getMPMFromBPM(Number(track.bpm), track.style)} BPM` : ''}
                     </div>
 
                     <div className="track-actions-col">

@@ -28,6 +28,7 @@ import { useStudio, Track } from '@/components/admin/StudioProvider';
 import { useAuth } from '@/context/AuthContext';
 import ConfirmModal from '@/components/admin/ConfirmModal';
 import { getMPMFromBPM } from '@/utils/audio';
+import { formatDuration } from '@/utils/format';
 import { Marquee } from '@/components/layout/Marquee';
 
 const PlayerBar = ({ onExpand }: { onExpand?: () => void }) => {
@@ -231,9 +232,9 @@ const PlayerBar = ({ onExpand }: { onExpand?: () => void }) => {
                   </span>
                 )}
               </div>
-              {currentTrack && currentTrack.bpm && (
+              {currentTrack && (
                 <span className="track-tempo-inline text-primary font-bold">
-                  • {getMPMFromBPM(Number(currentTrack.bpm), currentTrack.style)} BPM
+                  • {currentTrack.duration ? `${formatDuration(currentTrack.duration)}${currentTrack.bpm ? ' • ' : ''}` : ''}{currentTrack.bpm ? `${getMPMFromBPM(Number(currentTrack.bpm), currentTrack.style)} BPM` : ''}
                 </span>
               )}
             </div>

@@ -13,6 +13,7 @@ import { useStudio } from '@/components/admin/StudioProvider';
 import { useAuth } from '@/context/AuthContext';
 import ConfirmModal from '@/components/admin/ConfirmModal';
 import { getMPMFromBPM } from '@/utils/audio';
+import { formatDuration } from '@/utils/format';
 import { Marquee } from '@/components/layout/Marquee';
 import MobileFullPlayer from './MobileFullPlayer';
 
@@ -86,8 +87,10 @@ const MobileMiniPlayer = ({ onExpand }: { onExpand: () => void }) => {
                   </div>
                   <span className="artist truncate text-xs text-white/50">
                     {artist}
-                    {currentTrack && currentTrack.bpm && (
-                      <span className="text-primary font-bold ml-1">({getMPMFromBPM(Number(currentTrack.bpm), currentTrack.style)} BPM)</span>
+                    {currentTrack && (
+                      <span className="text-primary font-bold ml-1">
+                        ({currentTrack.duration ? `${formatDuration(currentTrack.duration)}${currentTrack.bpm ? ' • ' : ''}` : ''}{currentTrack.bpm ? `${getMPMFromBPM(Number(currentTrack.bpm), currentTrack.style)} BPM` : ''})
+                      </span>
                     )}
                   </span>
                 </div>

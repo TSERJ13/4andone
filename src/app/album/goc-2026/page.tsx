@@ -21,14 +21,15 @@ export default function GocAlbumPage() {
 
   const [activeTab, setActiveTab] = useState<'Latin' | 'Standard'>('Latin');
   const [showPasoSettingsModal, setShowPasoSettingsModal] = useState(false);
-  const [pasoTheme, setPasoTheme] = useState<'1-theme' | '2-theme' | '3-theme'>(() => {
+  const [pasoTheme, setPasoTheme] = useState<'2-theme' | '3-theme'>(() => {
     if (typeof window !== 'undefined') {
-      return (localStorage.getItem('goc_paso_theme') as any) || '2-theme';
+      const stored = localStorage.getItem('goc_paso_theme');
+      if (stored === '3-theme') return '3-theme';
     }
     return '2-theme';
   });
 
-  const handleSavePasoTheme = (theme: '1-theme' | '2-theme' | '3-theme') => {
+  const handleSavePasoTheme = (theme: '2-theme' | '3-theme') => {
     setPasoTheme(theme);
     if (typeof window !== 'undefined') {
       localStorage.setItem('goc_paso_theme', theme);
@@ -177,7 +178,7 @@ export default function GocAlbumPage() {
               >
                 <Settings size={20} />
                 <span className="paso-theme-label">
-                  {pasoTheme === '1-theme' ? '1 Theme' : pasoTheme === '3-theme' ? '3 Themes' : '2 Themes'}
+                  {pasoTheme === '3-theme' ? '3 Themes' : '2 Themes'}
                 </span>
               </button>
             )}
@@ -297,15 +298,6 @@ export default function GocAlbumPage() {
                 Paso Doble Theme Count (რამდენ თემიანი პასადობლი იყოს)
               </label>
               <div className="theme-options-grid">
-                <button
-                  type="button"
-                  className={`theme-opt-card ${pasoTheme === '1-theme' ? 'active' : ''}`}
-                  onClick={() => handleSavePasoTheme('1-theme')}
-                >
-                  <span className="opt-title">1 Theme</span>
-                  <span className="opt-desc">~1:15 (1st Highlight)</span>
-                </button>
-
                 <button
                   type="button"
                   className={`theme-opt-card ${pasoTheme === '2-theme' ? 'active' : ''}`}
@@ -432,8 +424,8 @@ export default function GocAlbumPage() {
 
         .theme-options-grid {
           display: grid;
-          grid-template-columns: repeat(3, 1fr);
-          gap: 10px;
+          grid-template-columns: repeat(2, 1fr);
+          gap: 12px;
         }
 
         .theme-opt-card {

@@ -870,9 +870,52 @@ export default function GocAlbumPage() {
             flex-direction: column;
           }
 
-          .start-final-btn {
+          .banner-actions-group {
             width: 100%;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            margin-top: 10px;
+          }
+
+          .start-final-btn {
+            flex: 1;
+            width: auto;
             justify-content: center;
+            padding: 13px 16px;
+            font-size: 0.88rem;
+          }
+
+          .goc-settings-btn {
+            flex-shrink: 0;
+            padding: 12px 14px;
+            height: 46px;
+            border-radius: 23px;
+            justify-content: center;
+            background: rgba(255, 255, 255, 0.08);
+            border: 1px solid rgba(255, 65, 108, 0.4);
+          }
+
+          .paso-settings-modal {
+            padding: 24px 18px;
+            border-radius: 20px;
+            margin: 12px;
+          }
+
+          .theme-options-grid {
+            grid-template-columns: 1fr;
+            gap: 10px;
+          }
+
+          .theme-opt-card {
+            padding: 14px 16px;
+            flex-direction: row;
+            justify-content: space-between;
+            align-items: center;
+          }
+
+          .theme-opt-card .opt-title {
+            margin-bottom: 0;
           }
         }
       `}</style>

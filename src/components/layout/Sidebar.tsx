@@ -47,7 +47,7 @@ const Sidebar = () => {
 
   const danceStyles = [
     { label: 'Samba', href: '/style/samba' },
-    { label: 'Cha-cha-cha', href: '/style/cha-cha-cha' },
+    { label: 'Cha-Cha-Cha', href: '/style/cha-cha-cha' },
     { label: 'Rumba', href: '/style/rumba' },
     { label: 'Paso Doble', href: '/style/paso-doble' },
     { label: 'Jive', href: '/style/jive' },

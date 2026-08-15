@@ -111,6 +111,7 @@ const DANCE_ORDER: Record<string, number> = {
   'Quickstep': 5,
   // Latin
   'Samba': 6,
+  'Cha-Cha-Cha': 7,
   'Cha-cha-cha': 7,
   'Rumba': 8,
   'Paso Doble': 9,

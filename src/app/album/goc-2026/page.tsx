@@ -11,7 +11,7 @@ import { getMPMFromBPM } from '@/utils/audio';
 import { Marquee } from '@/components/layout/Marquee';
 import ConfirmModal from '@/components/admin/ConfirmModal';
 
-const LATIN_STYLES = ['Samba', 'Cha-cha-cha', 'Rumba', 'Paso Doble', 'Jive'];
+const LATIN_STYLES = ['Samba', 'Cha-Cha-Cha', 'Rumba', 'Paso Doble', 'Jive'];
 const STANDARD_STYLES = ['Slow Waltz', 'Tango', 'Viennese Waltz', 'Slow Foxtrot', 'Quickstep'];
 
 export default function GocAlbumPage() {

@@ -163,9 +163,9 @@ const FinalsPage = () => {
     return `${mins}:${secs.toString().padStart(2, '0')}`;
   };
   
-  const latinOrder = latinStartDance === 'Cha-cha-cha' 
-    ? ["Cha-cha-cha", "Samba", "Rumba", "Paso Doble", "Jive"]
-    : ["Samba", "Cha-cha-cha", "Rumba", "Paso Doble", "Jive"];
+  const latinOrder = latinStartDance === 'Cha-Cha-Cha' || latinStartDance === 'Cha-cha-cha'
+    ? ["Cha-Cha-Cha", "Samba", "Rumba", "Paso Doble", "Jive"]
+    : ["Samba", "Cha-Cha-Cha", "Rumba", "Paso Doble", "Jive"];
   const standardOrder = ["Slow Waltz", "Tango", "Viennese Waltz", "Slow Foxtrot", "Quickstep"];
 
   const handleProgramShuffle = (type: string) => {
@@ -194,11 +194,11 @@ const FinalsPage = () => {
         break;
       // 2-Dance — Slow Waltz + Cha Cha Cha
       case '2Dance':
-        order = ['Slow Waltz', 'Cha-cha-cha'];
+        order = ['Slow Waltz', 'Cha-Cha-Cha'];
         break;
       // 4-Dance — Slow Waltz, Quickstep, Cha Cha Cha, Jive
       case '4Dance':
-        order = ['Slow Waltz', 'Quickstep', 'Cha-cha-cha', 'Jive'];
+        order = ['Slow Waltz', 'Quickstep', 'Cha-Cha-Cha', 'Jive'];
         break;
       case '8Dance':
         order = [...standardOrder, ...latinOrder].filter(s => s !== "Slow Foxtrot" && s !== "Paso Doble");
@@ -235,7 +235,7 @@ const FinalsPage = () => {
         const jivePool = tracks.filter(t => t.style.toLowerCase() === 'jive');
         const latinPools = {
           Samba: tracks.filter(t => t.style.toLowerCase() === 'samba'),
-          'Cha-cha-cha': tracks.filter(t => t.style.toLowerCase() === 'cha-cha-cha'),
+          'Cha-Cha-Cha': tracks.filter(t => t.style.toLowerCase() === 'cha-cha-cha' || t.style.toLowerCase() === 'cha-cha-cha'),
           Rumba: tracks.filter(t => t.style.toLowerCase() === 'rumba'),
           'Paso Doble': tracks.filter(t => t.style.toLowerCase() === 'paso doble')
         };
@@ -246,7 +246,7 @@ const FinalsPage = () => {
         if (latinPools.Samba.length) jiveLatinTracks.push(pick(latinPools.Samba));
         if (jivePool.length) jiveLatinTracks.push(pick(jivePool));
         // 2. Cha-cha - Jive
-        if (latinPools['Cha-cha-cha'].length) jiveLatinTracks.push(pick(latinPools['Cha-cha-cha']));
+        if (latinPools['Cha-Cha-Cha'].length) jiveLatinTracks.push(pick(latinPools['Cha-Cha-Cha']));
         if (jivePool.length) jiveLatinTracks.push(pick(jivePool));
         // 3. Rumba - Jive
         if (latinPools.Rumba.length) jiveLatinTracks.push(pick(latinPools.Rumba));

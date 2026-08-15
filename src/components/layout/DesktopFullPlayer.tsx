@@ -34,6 +34,7 @@ import { formatDuration } from '@/utils/format';
 const LATIN_FIRST_ORDER: Record<string, number> = {
   // Latin First
   'Samba': 1,
+  'Cha-Cha-Cha': 2,
   'Cha-cha-cha': 2,
   'Rumba': 3,
   'Paso Doble': 4,

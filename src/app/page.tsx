@@ -661,12 +661,17 @@ export default function Home() {
             order: -1;
             width: 38%;
             min-width: 125px;
-            height: 95px;
+            aspect-ratio: 16 / 9;
+            height: auto;
             border-radius: 12px;
             box-shadow: 0 6px 18px rgba(0, 0, 0, 0.6), 0 0 12px rgba(255, 65, 108, 0.25);
             margin: 0;
             flex-shrink: 0;
             border: 1px solid rgba(255, 255, 255, 0.14);
+            background: #000;
+            display: flex;
+            align-items: center;
+            justify-content: center;
             overflow: hidden;
             align-self: center;
           }
@@ -674,7 +679,7 @@ export default function Home() {
           .goc-hero-img {
             width: 100%;
             height: 100%;
-            object-fit: cover;
+            object-fit: contain;
             object-position: center;
           }
 

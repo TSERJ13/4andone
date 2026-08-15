@@ -652,7 +652,7 @@ export default function Home() {
           .hero-content-wrapper {
             display: flex;
             flex-direction: row;
-            align-items: flex-start;
+            align-items: center;
             gap: 12px;
             width: 100%;
           }
@@ -668,6 +668,7 @@ export default function Home() {
             flex-shrink: 0;
             border: 1px solid rgba(255, 255, 255, 0.14);
             overflow: hidden;
+            align-self: center;
           }
 
           .goc-hero-img {

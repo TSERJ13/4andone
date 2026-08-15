@@ -595,8 +595,8 @@ export default function GocAlbumPage() {
 
           .goc-cover-box {
             width: 100%;
-            height: 145px;
-            border-radius: 16px;
+            height: 125px;
+            border-radius: 14px;
             overflow: hidden;
           }
 

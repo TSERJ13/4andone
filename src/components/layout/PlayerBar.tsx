@@ -20,7 +20,8 @@ import {
   Maximize2,
   Maximize,
   LayoutGrid,
-  ChevronsUp
+  ChevronsUp,
+  Share2
 } from 'lucide-react';
 import { useAudio } from '@/components/audio/AudioProvider';
 import SpeedSelector from '@/components/audio/SpeedSelector';
@@ -77,6 +78,22 @@ const PlayerBar = ({ onExpand }: { onExpand?: () => void }) => {
 
   const { isAuthenticated, setIsAuthModalOpen } = useAuth();
   const [authPrompt, setAuthPrompt] = useState({ isOpen: false, action: '' });
+
+  const handleShareTrack = () => {
+    const currentTrack = tracks.find(t => t.title === title);
+    const trackParam = currentTrack?.id || title;
+    const shareUrl = `${window.location.origin}/?track=${encodeURIComponent(trackParam)}`;
+    if (typeof navigator !== 'undefined' && navigator.share) {
+      navigator.share({
+        title: `4and.one - ${title}`,
+        text: `Listen to ${title} on 4and.one Free Web Music Player!`,
+        url: shareUrl,
+      }).catch(() => {});
+    } else if (typeof navigator !== 'undefined' && navigator.clipboard) {
+      navigator.clipboard.writeText(shareUrl);
+      alert('Track link copied to clipboard!');
+    }
+  };
 
   const togglePlaybackMode = () => {
     if (!isShuffle && !isRepeat) {
@@ -258,9 +275,20 @@ const PlayerBar = ({ onExpand }: { onExpand?: () => void }) => {
                   }
                 }, 'favorite tracks');
               }}
-              style={{ marginRight: '48px' }} /* Increased distance to the triplet */
+              style={{ marginRight: '16px' }}
             >
               <Heart size={18} fill={tracks.find(t => t.title === title)?.isFavorite ? "currentColor" : "none"} />
+            </button>
+
+            {/* Share Track Button */}
+            <button
+              className="feature-btn glass"
+              aria-label="Share track link"
+              title="Share track link"
+              onClick={handleShareTrack}
+              style={{ marginRight: '32px' }}
+            >
+              <Share2 size={18} />
             </button>
 
             <button

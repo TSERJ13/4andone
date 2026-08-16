@@ -15,7 +15,8 @@ import {
   Repeat,
   Heart,
   Disc,
-  Tally3
+  Tally3,
+  Share2
 } from 'lucide-react';
 import { useAudio } from '@/components/audio/AudioProvider';
 import { useStudio } from '@/components/admin/StudioProvider';
@@ -69,6 +70,22 @@ const MobileFullPlayer = ({ isOpen, onClose }: MobileFullPlayerProps) => {
   const [dragProgress, setDragProgress] = useState(0);
   const [authPrompt, setAuthPrompt] = useState({ isOpen: false, action: '' });
   const progressRef = useRef<HTMLDivElement>(null);
+
+  const handleShareTrack = () => {
+    const currentTrack = tracks.find(t => t.title === title);
+    const trackParam = currentTrack?.id || title;
+    const shareUrl = `${window.location.origin}/?track=${encodeURIComponent(trackParam)}`;
+    if (typeof navigator !== 'undefined' && navigator.share) {
+      navigator.share({
+        title: `4and.one - ${title}`,
+        text: `Listen to ${title} on 4and.one Free Web Music Player!`,
+        url: shareUrl,
+      }).catch(() => {});
+    } else if (typeof navigator !== 'undefined' && navigator.clipboard) {
+      navigator.clipboard.writeText(shareUrl);
+      alert('Track link copied to clipboard!');
+    }
+  };
 
   const checkAuthAndExecute = (action: () => void, actionName: string) => {
     if (!isAuthenticated) {
@@ -165,7 +182,9 @@ const MobileFullPlayer = ({ isOpen, onClose }: MobileFullPlayerProps) => {
         <span className={`mfp-now-playing-label ${isFinalMode ? 'final-active-text' : ''}`}>
           {isFinalMode ? 'Final Mode On' : 'Now Playing'}
         </span>
-        <div className="mfp-header-btn-placeholder" />
+        <button onClick={handleShareTrack} className="mfp-header-btn" aria-label="Share Track Link" title="Share Track Link">
+          <Share2 size={24} />
+        </button>
       </div>
 
       <div className="mfp-content">

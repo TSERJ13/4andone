@@ -22,7 +22,8 @@ import {
   ArrowLeft,
   Infinity,
   ListMusic,
-  Music2
+  Music2,
+  Share2
 } from 'lucide-react';
 import { Marquee } from '@/components/layout/Marquee';
 import { useAudio } from '@/components/audio/AudioProvider';
@@ -196,6 +197,21 @@ export default function DesktopFullPlayer({ onClose }: { onClose: () => void }) 
     }
   };
 
+  const handleShareTrack = () => {
+    const trackParam = currentTrack?.id || title;
+    const shareUrl = `${window.location.origin}/?track=${encodeURIComponent(trackParam)}`;
+    if (typeof navigator !== 'undefined' && navigator.share) {
+      navigator.share({
+        title: `4and.one - ${title}`,
+        text: `Listen to ${title} on 4and.one Free Web Music Player!`,
+        url: shareUrl,
+      }).catch(() => {});
+    } else if (typeof navigator !== 'undefined' && navigator.clipboard) {
+      navigator.clipboard.writeText(shareUrl);
+      alert('Track link copied to clipboard!');
+    }
+  };
+
   if (!mounted) return null;
 
   return createPortal(
@@ -227,8 +243,19 @@ export default function DesktopFullPlayer({ onClose }: { onClose: () => void }) 
                     <button 
                       className={`console-action-btn-v13 favorite-btn-pro ${currentTrack?.isFavorite ? 'active' : ''}`}
                       onClick={() => currentTrack && toggleFavorite(currentTrack.id)}
+                      aria-label="Add to Favorites"
+                      title="Add to Favorites"
                     >
                       <Heart size={36} fill={currentTrack?.isFavorite ? "#ef4444" : "none"} />
+                    </button>
+
+                    <button 
+                      className="console-action-btn-v13 share-btn-pro"
+                      onClick={handleShareTrack}
+                      aria-label="Share Track Link"
+                      title="Share Track Link"
+                    >
+                      <Share2 size={34} />
                     </button>
                     
                     <div className="text-center min-w-0 px-64">

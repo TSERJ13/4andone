@@ -27,6 +27,18 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
     setMounted(true);
   }, []);
 
+  useEffect(() => {
+    const handleOpenFullPlayer = () => {
+      if (window.innerWidth > 1024) {
+        setIsDesktopExpanded(true);
+      } else {
+        setIsFullPlayerOpen(true);
+      }
+    };
+    window.addEventListener('open-full-player', handleOpenFullPlayer);
+    return () => window.removeEventListener('open-full-player', handleOpenFullPlayer);
+  }, []);
+
   // Orientation/Resize-Aware State Synchronization - MUST be before conditional returns
   useEffect(() => {
     const handleResize = () => {

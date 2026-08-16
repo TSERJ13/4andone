@@ -17,10 +17,9 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
       .single();
 
     if (track) {
-      const trackTitle = `${track.title} - ${track.artist || '4and.one Music'}`;
-      const trackDesc = `Listen to ${track.title} (${track.style || 'Dancesport'} • ${track.bpm ? `${track.bpm} BPM` : 'Music'}) on 4and.one Free Web Music Player.`;
-      const artwork = track.artwork_url || 'https://4and.one/icon.png';
-      const audioUrl = track.audio_url;
+      const trackTitle = `${track.title} • 4and.one`;
+      const trackDesc = `▶ Play ${track.title} (${track.style || 'Dancesport'}${track.bpm ? ` • ${track.bpm} BPM` : ''}) on 4and.one Free Web Music Player.`;
+      const thumbUrl = 'https://4and.one/og-thumb.png';
 
       return {
         title: trackTitle,
@@ -33,24 +32,24 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
           type: 'music.song',
           images: [
             {
-              url: artwork,
-              width: 512,
-              height: 512,
-              alt: `${track.title} logo artwork`,
+              url: thumbUrl,
+              width: 200,
+              height: 200,
+              alt: `${track.title} logo`,
             },
           ],
-          audio: audioUrl ? [
+          audio: track.audio_url ? [
             {
-              url: audioUrl,
+              url: track.audio_url,
               type: 'audio/mpeg',
             }
           ] : undefined,
         },
         twitter: {
-          card: 'summary_large_image',
+          card: 'summary',
           title: trackTitle,
           description: trackDesc,
-          images: [artwork],
+          images: [thumbUrl],
         },
       };
     }

@@ -81,8 +81,8 @@ const PlayerBar = ({ onExpand }: { onExpand?: () => void }) => {
 
   const handleShareTrack = () => {
     const currentTrack = tracks.find(t => t.title === title);
-    const trackParam = currentTrack?.id || title;
-    const shareUrl = `${window.location.origin}/?track=${encodeURIComponent(trackParam)}`;
+    const trackParam = currentTrack?.id || encodeURIComponent(title);
+    const shareUrl = `${window.location.origin}/track/${trackParam}`;
     if (typeof navigator !== 'undefined' && navigator.share) {
       navigator.share({
         title: `4and.one - ${title}`,

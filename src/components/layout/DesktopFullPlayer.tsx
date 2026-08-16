@@ -198,8 +198,8 @@ export default function DesktopFullPlayer({ onClose }: { onClose: () => void }) 
   };
 
   const handleShareTrack = () => {
-    const trackParam = currentTrack?.id || title;
-    const shareUrl = `${window.location.origin}/?track=${encodeURIComponent(trackParam)}`;
+    const trackParam = currentTrack?.id || encodeURIComponent(title);
+    const shareUrl = `${window.location.origin}/track/${trackParam}`;
     if (typeof navigator !== 'undefined' && navigator.share) {
       navigator.share({
         title: `4and.one - ${title}`,

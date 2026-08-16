@@ -67,6 +67,21 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       const parsedUser = JSON.parse(savedUser);
       setUser(parsedUser);
       syncWithSupabase(parsedUser);
+    } else if (typeof window !== 'undefined' && (window as any).Telegram?.WebApp?.initDataUnsafe?.user) {
+      // Auto-detect & auto-login Telegram WebApp user seamlessly with zero clicks!
+      const tgUser = (window as any).Telegram.WebApp.initDataUnsafe.user;
+      if (tgUser && tgUser.id) {
+        const autoUser: TelegramUser = {
+          id: tgUser.id,
+          first_name: tgUser.first_name || 'Dancer',
+          last_name: tgUser.last_name || '',
+          username: tgUser.username || '',
+          photo_url: tgUser.photo_url || '',
+          auth_date: Math.floor(Date.now() / 1000),
+          hash: 'telegram_webapp_auto'
+        };
+        login(autoUser);
+      }
     }
     setIsLoading(false);
   }, []);

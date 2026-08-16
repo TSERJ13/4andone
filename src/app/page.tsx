@@ -116,12 +116,50 @@ export default function Home() {
   return (
     <div className="page-wrapper">
       <div className="home-container">
-        {/* Core Keyword Primary H1 Tag for Google Crawlers */}
-        <h1 className="sr-only">4and.one - Powerful Free Web Music Player | Dancesport Player</h1>
-        <p className="sr-only">
-          Listen to high-quality Dancesport and Ballroom music online. Free web music player with high-fidelity BPM tempo control. 
-          Listen to Cha Cha Cha music, Samba music, Rumba music, Paso Doble music, Jive music, Slow Waltz music, Tango music, Viennese Waltz music, Slow Foxtrot music, and Quickstep music for dance practice and competition finals.
-        </p>
+        {/* Core Keyword Primary H1 Tag & Multilingual SEO Block for Google Crawlers */}
+        <h1 className="sr-only">4and.one - Free Web Music Player | Dancesport & Ballroom Music</h1>
+        <div className="sr-only">
+          <p>
+            Listen to high-quality Dancesport and Ballroom music online. Free web music player with high-fidelity BPM tempo control. 
+            Cha Cha Cha music, Samba music, Rumba music, Paso Doble music, Jive music, Slow Waltz music, Tango music, Viennese Waltz music, Slow Foxtrot music, and Quickstep music.
+          </p>
+          <p>
+            სპორტული ცეკვების მუსიკა, სამეჯლისო ცეკვების მუსიკა, ჩა ჩა ჩა მუსიკა, სამბა მუსიკა, რუმბა მუსიკა, პასოდობლე მუსიკა, ჯაივი მუსიკა, ნელი ვალსი მუსიკა, ტანგო მუსიკა, ვენური ვალსი მუსიკა, ფოქსტროტი მუსიკა, ქვიქსტეპი მუსიკა.
+          </p>
+          <p>
+            Música de Baile Deportivo, Música de baile de salón, Música de Cha Cha Cha, Música de Samba, Música de Rumba, Música de Pasodoble, Música de Jive, Música de Vals Lento, Música de Tango, Música de Quickstep.
+          </p>
+          <p>
+            Tanzsport Musik, Tanzsport Player, Standard und Latein Tanzmusik, Cha Cha Cha Musik, Samba Musik, Rumba Musik, Paso Doble Musik, Jive Musik, Langsamer Walzer Musik, Tango Musik, Wiener Walzer Musik, Slowfox Musik, Quickstep Musik.
+          </p>
+          <p>
+            Musica da Danza Sportiva, Player Musica Danza Sportiva, Musica da Ballo da Sala, Musica Cha Cha Cha, Musica Samba, Musica Rumba, Musica Paso Doble, Musica Jive, Musica Valzer Lento, Musica Tango.
+          </p>
+          <p>
+            体育舞蹈音乐, 国标舞音乐, 拉丁舞音乐, 摩登舞音乐, 恰恰舞音乐, 桑巴舞音乐, 伦巴舞音乐, 斗牛舞音乐, 牛仔舞音乐, 慢华尔兹音乐, 探戈舞音乐, 维也纳华尔兹音乐, 狐步舞音乐, 快步舞音乐.
+          </p>
+          <p>
+            競技ダンス音楽, 社交ダンス音楽, チャチャチャ音楽, サンバ音楽, ルンバ音楽, パソドブレ音楽, ジャイブ音楽, ワルツ音楽, タンゴ音楽.
+          </p>
+          <p>
+            댄스스포츠 음악, 볼룸댄스 음악, 라틴댄스 음악, 모던댄스 음악, 차차차 음악, 삼바 음악, 룸바 음악, 파소도블레 음악, 자이브 음악, 왈츠 음악, 탱고 음악.
+          </p>
+          <p>
+            Музыка для спортивных бальных танцев, Музыка для бальных танцев, Плеер для бальных танцев, Музыка Ча Ча Ча, Музыка Самба, Музыка Румба, Музыка Пасодобль, Музыка Джайв, Музыка Медленный Вальс, Музыка Танго, Музыка Венский Вальс.
+          </p>
+          <p>
+            Սպորտային պարային երաժշտություն, Պարահանդեսային պարերի երաժշտություն, Չա Չա Չա երաժշտություն, Սամբա երաժշտություն, Ռումբա երաժշտություն.
+          </p>
+          <p>
+            Dans Sporu Müziği, Dansspor Müzik Çalar, Salon Dansları Müziği, Latin Dans Müziği, Cha Cha Cha Müziği, Samba Müziği, Rumba Müziği, Paso Doble Müziği, Jive Müziği, Tango Müziği.
+          </p>
+          <p>
+            Музика для спортивних бальних танців, Музика для бальних танців, Плеєр для бальних танців, Музика Ча Ча Ча, Музика Самба, Музика Румба, Музика Пасодобль, Музика Джайв, Музика Повільний Вальс, Музика Танго.
+          </p>
+          <p>
+            Sportinių šokių muzika, Pramoginių šokių muzika, Sporta deju mūzika, Balles deju mūzika.
+          </p>
+        </div>
 
         {/* GOC 2026 Featured Album Banner */}
         <header className="hero-section goc-hero-section glass">

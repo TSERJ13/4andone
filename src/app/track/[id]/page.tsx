@@ -17,12 +17,14 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
       .single();
 
     if (track) {
-      const trackTitle = `${track.title}${track.style ? ` - ${track.style}` : ''}${track.bpm ? ` (${track.bpm} BPM)` : ''}`;
-      const trackDesc = `Free powerful web music player for Dancesport and Ballroom dancers. Control music tempo easily and practice Latin & Standard dance tracks on 4and.one.`;
-      const thumbUrl = 'https://4and.one/og-thumb.png';
+      const trackTitle = track.title;
+      const artistLine = track.artist ? `${track.artist}` : '4and.one Music';
+      const styleBpm = `${track.style || 'Dancesport'}${track.bpm ? ` • ${track.bpm} BPM` : ''}`;
+      const trackDesc = `${artistLine} | ${styleBpm}\nFree web music player for Dancesport and Ballroom dancers.`;
+      const thumbUrl = track.artwork_url || 'https://4and.one/og-thumb.png';
 
       return {
-        title: `${track.title} | 4and.one`,
+        title: `${trackTitle} - ${artistLine} | 4and.one`,
         description: trackDesc,
         openGraph: {
           title: trackTitle,
@@ -33,8 +35,8 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
           images: [
             {
               url: thumbUrl,
-              width: 180,
-              height: 180,
+              width: 160,
+              height: 160,
               alt: `${track.title} logo`,
             },
           ],

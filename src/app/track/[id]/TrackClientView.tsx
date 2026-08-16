@@ -7,13 +7,16 @@ import { useStudio } from '@/components/admin/StudioProvider';
 import Link from 'next/link';
 import Home from '@/app/page';
 
-export default function TrackClientView({ trackId }: { trackId: string }) {
+export default function TrackClientView({ trackId, initialTrack }: { trackId: string; initialTrack?: any }) {
   const { loadTrack, togglePlay, isPlaying, title: currentTitle } = useAudio();
-  const { tracks, toggleFavorite } = useStudio();
-  const [targetTrack, setTargetTrack] = useState<any>(null);
+  const { tracks } = useStudio();
+  const [targetTrack, setTargetTrack] = useState<any>(initialTrack || null);
 
   useEffect(() => {
-    if (tracks.length > 0 && trackId) {
+    if (initialTrack) {
+      setTargetTrack(initialTrack);
+      loadTrack(initialTrack);
+    } else if (tracks.length > 0 && trackId) {
       const found = tracks.find(
         t => String(t.id) === trackId || t.title.toLowerCase() === trackId.toLowerCase()
       );
@@ -22,7 +25,7 @@ export default function TrackClientView({ trackId }: { trackId: string }) {
         loadTrack(found);
       }
     }
-  }, [tracks, trackId, loadTrack]);
+  }, [initialTrack, tracks, trackId, loadTrack]);
 
   const isCurrentPlaying = targetTrack && currentTitle === targetTrack.title;
 

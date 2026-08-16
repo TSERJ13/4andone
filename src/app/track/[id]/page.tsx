@@ -66,5 +66,28 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
 
 export default async function TrackPage({ params }: Props) {
   const { id } = await params;
-  return <TrackClientView trackId={id} />;
+  let initialTrack: any = null;
+
+  try {
+    const { data } = await supabase
+      .from('tracks')
+      .select('*')
+      .eq('id', id)
+      .single();
+
+    if (data) {
+      initialTrack = {
+        id: data.id,
+        title: data.title,
+        artist: data.artist,
+        style: data.style,
+        bpm: data.bpm,
+        audioUrl: data.audio_url,
+        artworkUrl: data.artwork_url,
+        duration: data.duration
+      };
+    }
+  } catch (e) {}
+
+  return <TrackClientView trackId={id} initialTrack={initialTrack} />;
 }

@@ -275,10 +275,14 @@ export const metadata: Metadata = {
       'max-snippet': -1,
     },
   },
+  verification: {
+    google: "hmYQzKJ5eZK-N6rFBBDmqMyRCh3UtPeC8kjDeZyg-l4",
+  },
   other: {
     "mobile-web-app-capable": "yes",
     "apple-mobile-web-app-capable": "yes",
     "apple-mobile-web-app-status-bar-style": "black-translucent",
+    "google-site-verification": "hmYQzKJ5eZK-N6rFBBDmqMyRCh3UtPeC8kjDeZyg-l4"
   }
 };
 
@@ -327,6 +331,7 @@ export default async function RootLayout({
   return (
     <html lang="en" suppressHydrationWarning>
       <head>
+        <meta name="google-site-verification" content="hmYQzKJ5eZK-N6rFBBDmqMyRCh3UtPeC8kjDeZyg-l4" />
         <script
           type="application/ld+json"
           dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLdSchema) }}

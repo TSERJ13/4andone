@@ -117,7 +117,11 @@ export default function Home() {
     <div className="page-wrapper">
       <div className="home-container">
         {/* Core Keyword Primary H1 Tag for Google Crawlers */}
-        <h1 className="sr-only">4and.one - Powerful Free Web Music Player</h1>
+        <h1 className="sr-only">4and.one - Powerful Free Web Music Player | Dancesport Player</h1>
+        <p className="sr-only">
+          Listen to high-quality Dancesport and Ballroom music online. Free web music player with high-fidelity BPM tempo control. 
+          Listen to Cha Cha Cha music, Samba music, Rumba music, Paso Doble music, Jive music, Slow Waltz music, Tango music, Viennese Waltz music, Slow Foxtrot music, and Quickstep music for dance practice and competition finals.
+        </p>
 
         {/* GOC 2026 Featured Album Banner */}
         <header className="hero-section goc-hero-section glass">

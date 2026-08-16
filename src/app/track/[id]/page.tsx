@@ -18,9 +18,8 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
 
     if (track) {
       const trackTitle = track.title;
-      const artistLine = track.artist ? `${track.artist}` : '4and.one Music';
-      const styleBpm = `${track.style || 'Dancesport'}${track.bpm ? ` • ${track.bpm} BPM` : ''}`;
-      const trackDesc = `${artistLine} | ${styleBpm}\nFree web music player for Dancesport and Ballroom dancers.`;
+      const artistLine = track.artist ? `Artist: ${track.artist}` : 'Artist: 4and.one Music';
+      const trackDesc = `${artistLine}\nFree web music player for Dancesport and Ballroom dancers.`;
       const thumbUrl = track.artwork_url || 'https://4and.one/og-thumb.png';
 
       return {

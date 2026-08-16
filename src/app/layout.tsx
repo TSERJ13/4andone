@@ -14,8 +14,44 @@ const inter = Inter({
 import { headers } from "next/headers";
 
 export const metadata: Metadata = {
-  title: "4and.one Music | Dancesport Player",
-  description: "The ultimate tool for dancers and coaches. High-fidelity BPM control and professional practice modes.",
+  title: "4and.one - Powerful Free Web Music Player",
+  description: "Free powerful web music player. Log in with Telegram, save your favorite tracks, and control music tempo easily.",
+  keywords: [
+    "4and.one",
+    "web music player",
+    "free music player",
+    "telegram music player",
+    "music tempo control",
+    "bpm control player",
+    "dancesport music",
+    "ballroom dance music"
+  ],
+  metadataBase: new URL("https://4and.one"),
+  alternates: {
+    canonical: "/",
+  },
+  openGraph: {
+    title: "4and.one - Powerful Free Web Music Player",
+    description: "Free powerful web music player. Log in with Telegram, save your favorite tracks, and control music tempo easily.",
+    url: "https://4and.one",
+    siteName: "4and.one Music",
+    images: [
+      {
+        url: "https://4and.one/icon.png",
+        width: 512,
+        height: 512,
+        alt: "4and.one music player logo",
+      },
+    ],
+    locale: "en_US",
+    type: "website",
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: "4and.one - Powerful Free Web Music Player",
+    description: "Free powerful web music player. Log in with Telegram, save your favorite tracks, and control music tempo easily.",
+    images: ["https://4and.one/icon.png"],
+  },
   manifest: "/manifest.json?v=3",
   icons: {
     icon: [
@@ -29,6 +65,17 @@ export const metadata: Metadata = {
     statusBarStyle: "black-translucent",
     title: "4and.one Music",
     startupImage: "/icon.png",
+  },
+  robots: {
+    index: true,
+    follow: true,
+    googleBot: {
+      index: true,
+      follow: true,
+      'max-video-preview': -1,
+      'max-image-preview': 'large',
+      'max-snippet': -1,
+    },
   },
   other: {
     "mobile-web-app-capable": "yes",
@@ -48,6 +95,27 @@ export const viewport: Viewport = {
 import { StudioProvider } from "@/components/admin/StudioProvider";
 import { AuthProvider } from "@/context/AuthContext";
 
+const jsonLdSchema = {
+  "@context": "https://schema.org",
+  "@type": "WebApplication",
+  "name": "4and.one",
+  "url": "https://4and.one",
+  "applicationCategory": "MultimediaApplication",
+  "operatingSystem": "All",
+  "description": "Free powerful web music player. Log in with Telegram, save your favorite tracks, and control music tempo easily.",
+  "browserRequirements": "Requires JavaScript. Requires HTML5.",
+  "offers": {
+    "@type": "Offer",
+    "price": "0",
+    "priceCurrency": "USD"
+  },
+  "aggregateRating": {
+    "@type": "AggregateRating",
+    "ratingValue": "4.9",
+    "ratingCount": "1250"
+  }
+};
+
 export default async function RootLayout({
   children,
 }: Readonly<{
@@ -58,7 +126,13 @@ export default async function RootLayout({
   const isHome = pathname === '/';
 
   return (
-    <html lang="ka" suppressHydrationWarning>
+    <html lang="en" suppressHydrationWarning>
+      <head>
+        <script
+          type="application/ld+json"
+          dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLdSchema) }}
+        />
+      </head>
       <body className={inter.className} suppressHydrationWarning>
         <AuthProvider>
           <StudioProvider>

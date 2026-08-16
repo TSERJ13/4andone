@@ -249,6 +249,7 @@ const PlayerBar = ({ onExpand }: { onExpand?: () => void }) => {
             {/* Heart/Favorite - Pro Glass Style */}
             <button
               className={`feature-btn glass ${tracks.find(t => t.title === title)?.isFavorite ? 'active active-heart' : ''}`}
+              aria-label="Add to favorite tracks"
               onClick={() => {
                 checkAuthAndExecute(() => {
                   const currTrack = tracks.find(t => t.title === title);
@@ -264,13 +265,20 @@ const PlayerBar = ({ onExpand }: { onExpand?: () => void }) => {
 
             <button
               className="control-btn"
+              aria-label="Play previous track"
               onClick={playPrevious}
               disabled={isFinalMode}
               style={{ opacity: isFinalMode ? 0.3 : 1, cursor: isFinalMode ? 'not-allowed' : 'pointer', marginRight: '4px' }}
             ><SkipBack size={24} fill="currentColor" /></button>
 
             <div className="play-btn-wrapper">
-              <div className={`play-btn ${error ? 'error' : ''}`} onClick={togglePlay}>
+              <div 
+                className={`play-btn ${error ? 'error' : ''}`} 
+                onClick={togglePlay}
+                role="button"
+                tabIndex={0}
+                aria-label={isPlaying ? "Pause music" : "Play music"}
+              >
                 {!isLoaded && !isFinalMode ? (
                   <div className="loading-spinner"></div>
                 ) : isPlaying ? (
@@ -283,6 +291,7 @@ const PlayerBar = ({ onExpand }: { onExpand?: () => void }) => {
 
             <button
               className="control-btn"
+              aria-label="Play next track"
               onClick={playNext}
               disabled={isFinalMode}
               style={{ opacity: isFinalMode ? 0.3 : 1, cursor: isFinalMode ? 'not-allowed' : 'pointer', marginLeft: '4px' }}
@@ -291,6 +300,7 @@ const PlayerBar = ({ onExpand }: { onExpand?: () => void }) => {
             {/* Universal Mode Toggle - Pro Glass Style */}
             <button
               className={`feature-btn glass ${isShuffle || isRepeat ? 'active' : ''}`}
+              aria-label={isShuffle ? "Shuffle mode active" : isRepeat ? "Repeat one mode active" : "Normal list mode active"}
               onClick={togglePlaybackMode}
               title={isShuffle ? "Shuffle" : isRepeat ? "Repeat One" : "List Order"}
               style={{ marginLeft: '48px' }} /* Increased distance from the triplet */
@@ -306,6 +316,11 @@ const PlayerBar = ({ onExpand }: { onExpand?: () => void }) => {
               ref={progressRef}
               onMouseDown={handleInteractionStart}
               onTouchStart={handleInteractionStart}
+              role="slider"
+              aria-label="Track progress bar"
+              aria-valuemin={0}
+              aria-valuemax={totalDur || 100}
+              aria-valuenow={currentTime || 0}
               style={{
                 cursor: isFinalMode ? 'not-allowed' : 'pointer',
                 opacity: isFinalMode ? 0.7 : 1,
@@ -331,6 +346,7 @@ const PlayerBar = ({ onExpand }: { onExpand?: () => void }) => {
             <div className="speed-control-wrapper">
               <button
                 className={`action-btn-speed icon-only ${bpm !== 100 ? 'active' : ''}`}
+                aria-label={`Control music tempo speed. Current tempo ${bpm}%`}
                 onClick={(e) => {
                   e.stopPropagation();
                   setShowSpeedSelector(!showSpeedSelector);
@@ -361,6 +377,7 @@ const PlayerBar = ({ onExpand }: { onExpand?: () => void }) => {
           <div className="volume-control">
             <button
               className="mute-toggle-btn"
+              aria-label={isMuted ? "Unmute volume" : "Mute volume"}
               onClick={() => {
                 if (isMuted) {
                   setVolume(lastVolume);
@@ -380,6 +397,7 @@ const PlayerBar = ({ onExpand }: { onExpand?: () => void }) => {
               max="1"
               step="0.01"
               value={volume}
+              aria-label="Volume control slider"
               onChange={(e) => {
                 const newVol = parseFloat(e.target.value);
                 setVolume(newVol);
@@ -391,6 +409,7 @@ const PlayerBar = ({ onExpand }: { onExpand?: () => void }) => {
 
           <button
             className="expand-trigger-btn w-12 h-12 rounded-xl bg-white/5 hover:bg-white/10 border border-white/5 hover:border-primary/50 transition-all hidden md:flex items-center justify-center group shadow-lg"
+            aria-label="Expand full screen music player"
             onClick={onExpand}
             title="Open Now Playing"
           >

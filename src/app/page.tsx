@@ -116,6 +116,9 @@ export default function Home() {
   return (
     <div className="page-wrapper">
       <div className="home-container">
+        {/* Core Keyword Primary H1 Tag for Google Crawlers */}
+        <h1 className="sr-only">4and.one - Powerful Free Web Music Player</h1>
+
         {/* GOC 2026 Featured Album Banner */}
         <header className="hero-section goc-hero-section glass">
           <div className="hero-top-right">
@@ -124,21 +127,21 @@ export default function Home() {
           <div className="hero-content-wrapper">
             <div className="hero-content">
               <span className="goc-badge">SPECIAL COLLECTION</span>
-              <h1 className="hero-title text-gradient">GOC FINAL 2026<br />MUSIC</h1>
+              <h2 className="hero-title text-gradient">GOC FINAL 2026<br />MUSIC</h2>
               <p className="hero-desc">
                 Exclusive German Open Championship finals music. Isolated collection with dedicated Latin & Standard Final Mode practice.
               </p>
               <div className="hero-actions desktop-actions">
-                <button className="btn-primary goc-btn" onClick={() => router.push('/album/goc-2026')}>
+                <button className="btn-primary goc-btn" aria-label="Open GOC Album" onClick={() => router.push('/album/goc-2026')}>
                   Open GOC Album
                 </button>
-                <button className="btn-outline glass" onClick={() => router.push('/album/goc-2026')}>
+                <button className="btn-outline glass" aria-label="Open Final Mode" onClick={() => router.push('/album/goc-2026')}>
                   Final Mode
                 </button>
               </div>
             </div>
             <div className="goc-hero-card-preview" onClick={() => router.push('/album/goc-2026')}>
-              <img src="/goc2026.png" alt="GOC 2026 Latin Final Music" className="goc-hero-img" />
+              <img src="/goc2026.png" alt="4and.one music player logo - GOC 2026 Latin Final Music" className="goc-hero-img" />
             </div>
           </div>
           <div className="hero-actions mobile-actions">

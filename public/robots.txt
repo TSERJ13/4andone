@@ -1,0 +1,6 @@
+User-agent: *
+Allow: /
+Disallow: /admin/
+Disallow: /sa-login/
+
+Sitemap: https://4and.one/sitemap.xml

@@ -36,8 +36,13 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
       }
     };
     window.addEventListener('open-full-player', handleOpenFullPlayer);
+
+    if (pathname?.startsWith('/track/')) {
+      handleOpenFullPlayer();
+    }
+
     return () => window.removeEventListener('open-full-player', handleOpenFullPlayer);
-  }, []);
+  }, [pathname]);
 
   // Orientation/Resize-Aware State Synchronization - MUST be before conditional returns
   useEffect(() => {

@@ -42,6 +42,22 @@ export default function Home() {
 
   const [visibleTrackCount, setVisibleTrackCount] = useState(25);
 
+  // Auto-play shared track link when opening https://4and.one/?track=... in browser
+  React.useEffect(() => {
+    if (tracks.length > 0 && typeof window !== 'undefined') {
+      const urlParams = new URLSearchParams(window.location.search);
+      const sharedTrackId = urlParams.get('track') || urlParams.get('id');
+      if (sharedTrackId) {
+        const foundTrack = tracks.find(
+          t => String(t.id) === sharedTrackId || t.title.toLowerCase() === sharedTrackId.toLowerCase()
+        );
+        if (foundTrack) {
+          loadTrack(foundTrack);
+        }
+      }
+    }
+  }, [tracks, loadTrack]);
+
   const newArrivals = React.useMemo(() => {
     return tracks.filter(t =>
       t.style?.toLowerCase() !== 'fitness' &&

@@ -1377,6 +1377,50 @@ export const AudioProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     }
   }, [togglePlay, seek, seekRelative]);
 
+  // Global Keyboard Shortcuts for Dancers & Coaches
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      const activeEl = document.activeElement;
+      if (
+        activeEl &&
+        (activeEl.tagName === 'INPUT' ||
+          activeEl.tagName === 'TEXTAREA' ||
+          (activeEl as HTMLElement).isContentEditable)
+      ) {
+        return;
+      }
+
+      if (e.code === 'Space') {
+        e.preventDefault();
+        togglePlay();
+      } else if (e.code === 'ArrowLeft') {
+        e.preventDefault();
+        seekRelative(-5);
+      } else if (e.code === 'ArrowRight') {
+        e.preventDefault();
+        seekRelative(5);
+      } else if (e.code === 'ArrowUp') {
+        e.preventDefault();
+        setVolume(Math.min(1, volumeRef.current + 0.1));
+      } else if (e.code === 'ArrowDown') {
+        e.preventDefault();
+        setVolume(Math.max(0, volumeRef.current - 0.1));
+      } else if (e.code === 'KeyN') {
+        e.preventDefault();
+        playNext();
+      } else if (e.code === 'KeyP') {
+        e.preventDefault();
+        playPrevious();
+      } else if (e.code === 'KeyF') {
+        e.preventDefault();
+        toggleFinalMode();
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [togglePlay, seekRelative, setVolume, playNext, playPrevious, toggleFinalMode]);
+
   return (
     <PlayerContext.Provider value={{
       isPlaying,

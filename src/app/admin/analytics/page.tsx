@@ -849,7 +849,7 @@ export default function AdminAnalytics() {
         .online-now-title strong { color:#fff; }
         .live-dot { width:8px; height:8px; border-radius:50%; background:#1db954; flex-shrink:0; animation:livePulse 2s infinite; }
         @keyframes livePulse { 0%{box-shadow:0 0 0 0 rgba(29,185,84,0.6)} 70%{box-shadow:0 0 0 8px rgba(29,185,84,0)} 100%{box-shadow:0 0 0 0 rgba(29,185,84,0)} }
-        .online-now-list { display:flex; gap:8px; flex-wrap:wrap; align-items:center; }
+        .online-now-list { display:flex; gap:8px; flex-wrap:wrap; align-items:center; margin-top:14px; padding-top:14px; border-top:1px solid rgba(255,255,255,0.06); }
         .online-now-empty { font-size:12px; color:#52525b; font-style:italic; }
         .online-user-chip { display:flex; align-items:center; gap:8px; padding:6px 12px 6px 6px; border-radius:24px; position:relative; }
         .online-user-chip.tg { background:rgba(29,185,84,0.12); border:1px solid rgba(29,185,84,0.2); }

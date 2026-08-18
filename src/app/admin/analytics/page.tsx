@@ -53,7 +53,7 @@ function getDateRange(period: Period) {
   return { start, end: now };
 }
 
-// Comprehensive country flags — 80+ countries
+// Comprehensive country flags — 150+ countries
 const COUNTRY_FLAGS: Record<string, string> = {
   // Europe
   GE:'🇬🇪', DE:'🇩🇪', FR:'🇫🇷', GB:'🇬🇧', IT:'🇮🇹', ES:'🇪🇸', PL:'🇵🇱',
@@ -62,28 +62,43 @@ const COUNTRY_FLAGS: Record<string, string> = {
   BG:'🇧🇬', HR:'🇭🇷', SI:'🇸🇮', RS:'🇷🇸', BA:'🇧🇦', MK:'🇲🇰', AL:'🇦🇱',
   LT:'🇱🇹', LV:'🇱🇻', EE:'🇪🇪', IE:'🇮🇪', LU:'🇱🇺', MT:'🇲🇹', CY:'🇨🇾',
   MD:'🇲🇩', ME:'🇲🇪', IS:'🇮🇸', LI:'🇱🇮', MC:'🇲🇨', SM:'🇸🇲', VA:'🇻🇦',
+  XK:'🇽🇰', AD:'🇦🇩', FO:'🇫🇴', GI:'🇬🇮', IM:'🇮🇲', JE:'🇯🇪', GG:'🇬🇬',
   // CIS / Eastern Europe
   RU:'🇷🇺', UA:'🇺🇦', BY:'🇧🇾', KZ:'🇰🇿', UZ:'🇺🇿', TM:'🇹🇲', KG:'🇰🇬',
-  TJ:'🇹🇯', AZ:'🇦🇿', AM:'🇦🇲',
+  TJ:'🇹🇯', AZ:'🇦🇿', AM:'🇦🇲', GE2:'🇬🇪',
   // Middle East
   TR:'🇹🇷', IL:'🇮🇱', SA:'🇸🇦', AE:'🇦🇪', QA:'🇶🇦', KW:'🇰🇼', BH:'🇧🇭',
-  OM:'🇴🇲', JO:'🇯🇴', LB:'🇱🇧', IQ:'🇮🇶', IR:'🇮🇷',
+  OM:'🇴🇲', JO:'🇯🇴', LB:'🇱🇧', IQ:'🇮🇶', IR:'🇮🇷', YE:'🇾🇪', SY:'🇸🇾',
+  PS:'🇵🇸', AF:'🇦🇫',
   // Americas
   US:'🇺🇸', CA:'🇨🇦', MX:'🇲🇽', BR:'🇧🇷', AR:'🇦🇷', CO:'🇨🇴', CL:'🇨🇱',
   PE:'🇵🇪', VE:'🇻🇪', EC:'🇪🇨', BO:'🇧🇴', PY:'🇵🇾', UY:'🇺🇾', CR:'🇨🇷',
   PA:'🇵🇦', GT:'🇬🇹', HN:'🇭🇳', SV:'🇸🇻', NI:'🇳🇮', CU:'🇨🇺', DO:'🇩🇴',
+  JM:'🇯🇲', TT:'🇹🇹', HT:'🇭🇹', PR:'🇵🇷', BB:'🇧🇧', GY:'🇬🇾', SR:'🇸🇷',
+  BZ:'🇧🇿', LC:'🇱🇨', VC:'🇻🇨', GD:'🇬🇩', AG:'🇦🇬', DM:'🇩🇲', KN:'🇰🇳',
   // Asia-Pacific
   JP:'🇯🇵', KR:'🇰🇷', CN:'🇨🇳', IN:'🇮🇳', PK:'🇵🇰', BD:'🇧🇩', LK:'🇱🇰',
   TH:'🇹🇭', VN:'🇻🇳', ID:'🇮🇩', PH:'🇵🇭', MY:'🇲🇾', SG:'🇸🇬', HK:'🇭🇰',
-  TW:'🇹🇼', NZ:'🇳🇿', AU:'🇦🇺',
+  TW:'🇹🇼', NZ:'🇳🇿', AU:'🇦🇺', MN:'🇲🇳', MM:'🇲🇲', KH:'🇰🇭', LA:'🇱🇦',
+  NP:'🇳🇵', BT:'🇧🇹', MV:'🇲🇻', TL:'🇹🇱', BN:'🇧🇳', FJ:'🇫🇯', PG:'🇵🇬',
+  SB:'🇸🇧', VU:'🇻🇺', WS:'🇼🇸', KI:'🇰🇮', FM:'🇫🇲', PW:'🇵🇼', MH:'🇲🇭',
   // Africa
   ZA:'🇿🇦', EG:'🇪🇬', NG:'🇳🇬', KE:'🇰🇪', ET:'🇪🇹', GH:'🇬🇭', MA:'🇲🇦',
-  TN:'🇹🇳', DZ:'🇩🇿', SN:'🇸🇳',
+  TN:'🇹🇳', DZ:'🇩🇿', SN:'🇸🇳', TZ:'🇹🇿', UG:'🇺🇬', RW:'🇷🇼', ZM:'🇿🇲',
+  ZW:'🇿🇼', BW:'🇧🇼', NA:'🇳🇦', MZ:'🇲🇿', AO:'🇦🇴', MG:'🇲🇬', CI:'🇨🇮',
+  CM:'🇨🇲', SN2:'🇸🇳', ML:'🇲🇱', BF:'🇧🇫', NE:'🇳🇪', TD:'🇹🇩', SD:'🇸🇩',
+  SS:'🇸🇸', SO:'🇸🇴', DJ:'🇩🇯', ER:'🇪🇷', LY:'🇱🇾', MR:'🇲🇷', GM:'🇬🇲',
+  GN:'🇬🇳', GW:'🇬🇼', SL:'🇸🇱', LR:'🇱🇷', TG:'🇹🇬', BJ:'🇧🇯', GQ:'🇬🇶',
+  CF:'🇨🇫', CG:'🇨🇬', CD:'🇨🇩', GA:'🇬🇦', ST:'🇸🇹', CV:'🇨🇻', KM:'🇰🇲',
+  SC:'🇸🇨', MU:'🇲🇺', LS:'🇱🇸', SZ:'🇸🇿', MW:'🇲🇼',
+  // French overseas / island territories
+  RE:'🇷🇪', GP:'🇬🇵', MQ:'🇲🇶', GF:'🇬🇫', YT:'🇾🇹', PM:'🇵🇲', NC:'🇳🇨',
+  PF:'🇵🇫', WF:'🇼🇫', TF:'🇹🇫', MF:'🇲🇫', BL:'🇧🇱',
 };
 
 function getFlag(code: string): string {
-  if (!code) return '🌍';
-  return COUNTRY_FLAGS[code.toUpperCase()] || code.toUpperCase();
+  if (!code || code.toLowerCase() === 'unknown') return '🌍';
+  return COUNTRY_FLAGS[code.toUpperCase()] || '🏳️';
 }
 
 const STYLE_COLORS: Record<string, string> = {
@@ -140,6 +155,8 @@ const periodLabel: Record<Period, string> = {
 export default function AdminAnalytics() {
   const { tracks, folders, finalFolders, styles } = useStudio();
   const [period, setPeriod] = useState<Period>('week');
+  const [topTrackPeriod, setTopTrackPeriod] = useState<'24h' | '7d' | '30d' | 'all'>('30d');
+  const [onlineExpanded, setOnlineExpanded] = useState(false);
   const [buckets, setBuckets] = useState<VisitBucket[]>([]);
   const [totals, setTotals] = useState({ today: 0, week: 0, month: 0, year: 0 });
   const [uniqueTotals, setUniqueTotals] = useState({ today: 0, week: 0, month: 0, year: 0 });
@@ -152,6 +169,7 @@ export default function AdminAnalytics() {
   const [referrerStats, setReferrerStats] = useState<ReferrerStat[]>([]);
   const [liveUsers, setLiveUsers] = useState<{ session_id: string; name: string | null; is_telegram: boolean }[]>([]);
   const [loading, setLoading] = useState(true);
+  const [tracksLoading, setTracksLoading] = useState(false);
 
   const tracksRef = React.useRef(tracks);
   React.useEffect(() => { tracksRef.current = tracks; }, [tracks]);
@@ -263,47 +281,7 @@ export default function AdminAnalytics() {
 
       // --- Top Tracks — always fetch track details directly from Supabase ---
       const rawTopTracks = (topTracksRes?.data || []) as { track_id: string; style: string; play_count: number; share_count: number; view_count: number; total_duration: number }[];
-
-      // Fallback: aggregate from track_plays if RPC returned nothing
-      let playsData = rawTopTracks;
-      if (!playsData.length) {
-        const { data: fallbackPlays } = await supabase
-          .from('track_plays')
-          .select('track_id, style')
-          .gte('created_at', monthStart.toISOString());
-        const counts: Record<string, number> = {};
-        (fallbackPlays || []).forEach((p: { track_id: string }) => {
-          counts[p.track_id] = (counts[p.track_id] || 0) + 1;
-        });
-        playsData = Object.entries(counts)
-          .sort((a, b) => b[1] - a[1])
-          .slice(0, 10)
-          .map(([track_id, play_count]) => ({ track_id, style: '', play_count, share_count: 0, view_count: 0, total_duration: 0 }));
-      }
-
-      // Fetch track details directly from Supabase (avoids StudioProvider race)
-      const trackIds = playsData.map(r => r.track_id);
-      const { data: dbTracks } = trackIds.length
-        ? await supabase.from('tracks').select('id, title, artist, style').in('id', trackIds)
-        : { data: [] };
-      const dbTrackMap: Record<string, { title: string; artist: string; style: string }> = {};
-      (dbTracks || []).forEach((t: { id: string; title: string; artist: string; style: string }) => {
-        dbTrackMap[t.id] = t;
-      });
-
-      setTopTracks(playsData.map(row => {
-        const t = dbTrackMap[row.track_id];
-        return {
-          id: row.track_id,
-          title: t?.title || '—',
-          artist: t?.artist || '—',
-          style: t?.style || row.style || '',
-          play_count: Number(row.play_count) || 0,
-          share_count: Number(row.share_count) || 0,
-          view_count: Number(row.view_count) || 0,
-          total_duration: Number(row.total_duration) || 0,
-        };
-      }));
+      await enrichAndSetTopTracks(rawTopTracks, monthStart);
 
       // --- Style Chart (new RPC, fallback to track_plays client-side) ---
       if (styleRes?.data && styleRes.data.length > 0) {
@@ -349,6 +327,62 @@ export default function AdminAnalytics() {
       setLoading(false);
     }
   }, [period, totals.month]);
+
+  // --- Separate Top Tracks fetcher (called on period tab change) ---
+  const enrichAndSetTopTracks = useCallback(async (
+    rawData: { track_id: string; style: string; play_count: number; share_count: number; view_count: number; total_duration: number }[],
+    fallbackStart: Date
+  ) => {
+    let playsData = rawData;
+    if (!playsData.length) {
+      const { data: fallbackPlays } = await supabase
+        .from('track_plays')
+        .select('track_id, style')
+        .gte('created_at', fallbackStart.toISOString());
+      const counts: Record<string, number> = {};
+      (fallbackPlays || []).forEach((p: { track_id: string }) => {
+        counts[p.track_id] = (counts[p.track_id] || 0) + 1;
+      });
+      playsData = Object.entries(counts)
+        .sort((a, b) => b[1] - a[1])
+        .slice(0, 10)
+        .map(([track_id, play_count]) => ({ track_id, style: '', play_count, share_count: 0, view_count: 0, total_duration: 0 }));
+    }
+    const trackIds = playsData.map(r => r.track_id);
+    const { data: dbTracks } = trackIds.length
+      ? await supabase.from('tracks').select('id, title, artist, style').in('id', trackIds)
+      : { data: [] };
+    const dbMap: Record<string, { title: string; artist: string; style: string }> = {};
+    (dbTracks || []).forEach((t: { id: string; title: string; artist: string; style: string }) => { dbMap[t.id] = t; });
+    setTopTracks(playsData.map(row => {
+      const t = dbMap[row.track_id];
+      return { id: row.track_id, title: t?.title || '—', artist: t?.artist || '—', style: t?.style || row.style || '', play_count: Number(row.play_count) || 0, share_count: Number(row.share_count) || 0, view_count: Number(row.view_count) || 0, total_duration: Number(row.total_duration) || 0 };
+    }));
+  }, []);
+
+  const fetchTopTracksForPeriod = useCallback(async (tp: '24h' | '7d' | '30d' | 'all') => {
+    setTracksLoading(true);
+    try {
+      const now = new Date();
+      let start: Date | null = new Date(now);
+      if (tp === '24h') { start.setHours(start.getHours() - 24); }
+      else if (tp === '7d') { start.setDate(start.getDate() - 7); }
+      else if (tp === '30d') { start.setDate(start.getDate() - 30); }
+      else { start = null; } // all time
+
+      const query = supabase.rpc('get_top_tracks_with_events', {
+        start_time: (start || new Date('2020-01-01')).toISOString(),
+        limit_val: 10,
+      });
+      const { data } = await Promise.resolve(query).catch(() => ({ data: null }));
+      await enrichAndSetTopTracks(
+        (data || []) as { track_id: string; style: string; play_count: number; share_count: number; view_count: number; total_duration: number }[],
+        start || new Date('2020-01-01')
+      );
+    } finally {
+      setTracksLoading(false);
+    }
+  }, [enrichAndSetTopTracks]);
 
   useEffect(() => { fetch_(); }, [fetch_]);
 
@@ -416,33 +450,45 @@ export default function AdminAnalytics() {
         </button>
       </div>
 
-      {/* Online Now Panel — who is on the site this second */}
+      {/* Online Now Panel — collapsible */}
       <div className="online-now-panel glass">
-        <div className="online-now-header">
+        <button className="online-now-header" onClick={() => setOnlineExpanded(e => !e)}>
           <span className="live-dot" />
           <Wifi size={16} />
           <span className="online-now-title">
-            Online Now — <strong>{liveUsers.length}</strong> {liveUsers.length === 1 ? 'person' : 'people'}
+            Online Now — <strong style={{ color: '#fff' }}>{liveUsers.length}</strong>
+            {' '}{liveUsers.length === 1 ? 'person' : 'people'}
           </span>
-        </div>
-        <div className="online-now-list">
-          {liveUsers.length === 0 ? (
-            <span className="online-now-empty">No one online right now</span>
-          ) : (
-            liveUsers.map(u => (
-              <div key={u.session_id} className={`online-user-chip ${u.is_telegram ? 'tg' : 'anon'}`}>
-                <div className="online-user-avatar">
-                  {u.name ? u.name.charAt(0).toUpperCase() : '?'}
+          <div className="online-now-pills">
+            {liveUsers.filter(u => u.is_telegram && u.name).slice(0, 4).map(u => (
+              <span key={u.session_id} className="mini-chip tg">{u.name}</span>
+            ))}
+            {liveUsers.filter(u => !u.is_telegram).length > 0 && (
+              <span className="mini-chip anon">{liveUsers.filter(u => !u.is_telegram).length} anon</span>
+            )}
+          </div>
+          <span className="online-chevron">{onlineExpanded ? '▲' : '▼'}</span>
+        </button>
+        {onlineExpanded && (
+          <div className="online-now-list">
+            {liveUsers.length === 0 ? (
+              <span className="online-now-empty">No one online right now</span>
+            ) : (
+              liveUsers.map(u => (
+                <div key={u.session_id} className={`online-user-chip ${u.is_telegram ? 'tg' : 'anon'}`}>
+                  <div className="online-user-avatar">
+                    {u.name ? u.name.charAt(0).toUpperCase() : '?'}
+                  </div>
+                  <div className="online-user-info">
+                    <span className="online-user-name">{u.name || 'Anonymous'}</span>
+                    <span className="online-user-type">{u.is_telegram ? '✈️ Telegram' : '🌐 Web'}</span>
+                  </div>
+                  <span className="online-pulse" />
                 </div>
-                <div className="online-user-info">
-                  <span className="online-user-name">{u.name || 'Anonymous'}</span>
-                  <span className="online-user-type">{u.is_telegram ? '✈️ Telegram' : '🌐 Web'}</span>
-                </div>
-                <span className="online-pulse" />
-              </div>
-            ))
-          )}
-        </div>
+              ))
+            )}
+          </div>
+        )}
       </div>
 
       {/* Summary Strip */}
@@ -704,7 +750,21 @@ export default function AdminAnalytics() {
           <div className="panel-head">
             <Music size={18} className="text-primary"/>
             <h3>Top Tracks</h3>
-            <span className="panel-sub">30D</span>
+            <div className="period-tabs small-tabs">
+              {(['24h', '7d', '30d', 'all'] as const).map(tp => (
+                <button
+                  key={tp}
+                  className={`ptab ${topTrackPeriod === tp ? 'active' : ''}`}
+                  onClick={() => {
+                    setTopTrackPeriod(tp);
+                    fetchTopTracksForPeriod(tp);
+                  }}
+                >
+                  {tp === 'all' ? 'All' : tp.toUpperCase()}
+                </button>
+              ))}
+            </div>
+            {tracksLoading && <div className="mini-spinner"/>}
           </div>
           {loading ? <div className="panel-empty">Loading...</div> :
            topTracks.length === 0 ? <div className="panel-empty">No play data yet</div> : (
@@ -776,7 +836,15 @@ export default function AdminAnalytics() {
 
         /* Online Now Panel */
         .online-now-panel { padding:16px 20px; border-radius:16px; background:linear-gradient(135deg, rgba(29,185,84,0.1), rgba(29,185,84,0.02)); border:1px solid rgba(29,185,84,0.2); }
-        .online-now-header { display:flex; align-items:center; gap:8px; color:#1db954; margin-bottom:12px; }
+        .online-now-header { display:flex; align-items:center; gap:8px; color:#1db954; width:100%; background:none; border:none; cursor:pointer; padding:0; text-align:left; }
+        .online-now-pills { display:flex; gap:5px; flex-wrap:nowrap; overflow:hidden; flex:1; }
+        .mini-chip { font-size:10px; font-weight:700; padding:2px 8px; border-radius:20px; white-space:nowrap; }
+        .mini-chip.tg { background:rgba(29,185,84,0.15); color:#1db954; }
+        .mini-chip.anon { background:rgba(255,255,255,0.07); color:#71717a; }
+        .online-chevron { font-size:10px; color:#52525b; flex-shrink:0; margin-left:auto; }
+        .mini-spinner { width:14px; height:14px; border:2px solid rgba(255,255,255,0.1); border-top-color:#1db954; border-radius:50%; animation:spinA 0.7s linear infinite; flex-shrink:0; }
+        .small-tabs { gap:2px; background:rgba(255,255,255,0.04); padding:3px; border-radius:8px; }
+        .small-tabs .ptab { padding:3px 8px; font-size:10px; border-radius:6px; }
         .online-now-title { font-size:13px; font-weight:700; color:#a1a1aa; }
         .online-now-title strong { color:#fff; }
         .live-dot { width:8px; height:8px; border-radius:50%; background:#1db954; flex-shrink:0; animation:livePulse 2s infinite; }

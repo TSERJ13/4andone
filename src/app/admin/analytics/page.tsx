@@ -158,17 +158,23 @@ export default function AdminAnalytics() {
 
   const fetch_ = useCallback(async () => {
     setLoading(true);
-    const localTracks = tracksRef.current || [];
     try {
-      const { start } = getDateRange(period);
       const now = new Date();
       const todayStart = new Date(now); todayStart.setHours(0, 0, 0, 0);
-      const weekStart = new Date(now); weekStart.setDate(now.getDate() - now.getDay()); weekStart.setHours(0, 0, 0, 0);
+      // Use last 7 days for week (avoids UTC vs local timezone mismatch)
+      const weekStart = new Date(now); weekStart.setDate(now.getDate() - 6); weekStart.setHours(0, 0, 0, 0);
       const monthStart = new Date(now); monthStart.setDate(1); monthStart.setHours(0, 0, 0, 0);
       const yearStart = new Date(now); yearStart.setMonth(0, 1); yearStart.setHours(0, 0, 0, 0);
 
+      // For period chart: use 7 days back for week, otherwise normal range
+      let chartStart: Date;
+      if (period === 'day') { chartStart = todayStart; }
+      else if (period === 'week') { chartStart = weekStart; }
+      else if (period === 'month') { chartStart = monthStart; }
+      else { chartStart = yearStart; }
+
       const [
-        metricsRes, countryRes, trafficRes, recentRes, tgData,
+        metricsRes, countryRes, recentRes, tgData,
         topTracksRes, styleRes, referrerRes,
       ] = await Promise.all([
         supabase.rpc('get_platform_metrics', {
@@ -178,23 +184,67 @@ export default function AdminAnalytics() {
           year_start: yearStart.toISOString(),
         }),
         supabase.rpc('get_country_stats', { start_time: yearStart.toISOString() }),
-        supabase.rpc('get_traffic_buckets', { period_type: period, start_time: start.toISOString() }),
         supabase.rpc('get_recent_activity', { limit_val: 15 }),
         supabase.from('telegram_users').select('*').order('visit_count', { ascending: false }),
-        // Top tracks with event breakdown (new RPC)
         Promise.resolve(supabase.rpc('get_top_tracks_with_events', {
           start_time: monthStart.toISOString(),
           limit_val: 10,
         })).catch(() => ({ data: null })),
-        // Style chart (new RPC; fallback to client-side if fails)
         Promise.resolve(supabase.rpc('get_style_chart_30d', {
           start_time: monthStart.toISOString(),
         })).catch(() => ({ data: null })),
-        // Referrer breakdown (new RPC)
         Promise.resolve(supabase.rpc('get_referrer_stats', {
           start_time: monthStart.toISOString(),
         })).catch(() => ({ data: null })),
       ]);
+
+      // --- Client-side traffic chart (avoids UTC timezone issues) ---
+      const { data: rawVisits } = await supabase
+        .from('page_visits')
+        .select('created_at')
+        .gte('created_at', chartStart.toISOString());
+
+      const visits = (rawVisits || []) as { created_at: string }[];
+      let resolvedBuckets: VisitBucket[] = [];
+
+      if (period === 'day') {
+        const b: Record<number, number> = {};
+        for (let h = 0; h < 24; h++) b[h] = 0;
+        visits.forEach(r => { b[new Date(r.created_at).getHours()]++; });
+        resolvedBuckets = Array.from({ length: 24 }, (_, h) => ({
+          label: `${h.toString().padStart(2, '0')}h`,
+          count: b[h] || 0,
+        }));
+      } else if (period === 'week') {
+        // Last 7 days, using local date
+        const dayLabels: string[] = [];
+        const dayCounts: Record<string, number> = {};
+        for (let i = 6; i >= 0; i--) {
+          const d = new Date(now);
+          d.setDate(now.getDate() - i);
+          const key = d.toLocaleDateString('en', { weekday: 'short' });
+          dayLabels.push(key);
+          dayCounts[key] = 0;
+        }
+        visits.forEach(r => {
+          const key = new Date(r.created_at).toLocaleDateString('en', { weekday: 'short' });
+          if (key in dayCounts) dayCounts[key]++;
+        });
+        resolvedBuckets = dayLabels.map(l => ({ label: l, count: dayCounts[l] || 0 }));
+      } else if (period === 'month') {
+        const dim = new Date(now.getFullYear(), now.getMonth() + 1, 0).getDate();
+        const b: Record<number, number> = {};
+        for (let d = 1; d <= dim; d++) b[d] = 0;
+        visits.forEach(r => { b[new Date(r.created_at).getDate()]++; });
+        resolvedBuckets = Array.from({ length: dim }, (_, i) => ({ label: (i + 1).toString(), count: b[i + 1] || 0 }));
+      } else {
+        const months = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+        const b: Record<number, number> = {};
+        for (let m = 0; m < 12; m++) b[m] = 0;
+        visits.forEach(r => { b[new Date(r.created_at).getMonth()]++; });
+        resolvedBuckets = months.map((l, i) => ({ label: l, count: b[i] || 0 }));
+      }
+      setBuckets(resolvedBuckets);
 
       // --- Metrics ---
       if (metricsRes.data?.length > 0) {
@@ -210,73 +260,50 @@ export default function AdminAnalytics() {
       // --- Recent Activity ---
       setRecentActivity((recentRes.data || []) as RecentActivity[]);
 
-      // --- Traffic Buckets ---
-      const dbBuckets = (trafficRes.data || []) as { bucket_label: string; visit_count: number }[];
-      let resolvedBuckets: VisitBucket[] = [];
-      if (period === 'day') {
-        resolvedBuckets = Array.from({ length: 24 }).map((_, h) => {
-          const label = `${h.toString().padStart(2, '0')}h`;
-          const dbMatch = dbBuckets.find(x => x.bucket_label === label);
-          return { label, count: dbMatch ? Number(dbMatch.visit_count) : 0 };
-        });
-      } else if (period === 'week') {
-        const days = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
-        resolvedBuckets = days.map(day => {
-          const dbMatch = dbBuckets.find(x => x.bucket_label.toLowerCase() === day.toLowerCase());
-          return { label: day, count: dbMatch ? Number(dbMatch.visit_count) : 0 };
-        });
-      } else if (period === 'month') {
-        const dim = new Date(now.getFullYear(), now.getMonth() + 1, 0).getDate();
-        resolvedBuckets = Array.from({ length: dim }).map((_, i) => {
-          const d = (i + 1).toString().padStart(2, '0');
-          const dbMatch = dbBuckets.find(x => x.bucket_label === d);
-          return { label: (i + 1).toString(), count: dbMatch ? Number(dbMatch.visit_count) : 0 };
-        });
-      } else {
-        const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
-        resolvedBuckets = months.map(m => {
-          const dbMatch = dbBuckets.find(x => x.bucket_label.toLowerCase() === m.toLowerCase());
-          return { label: m, count: dbMatch ? Number(dbMatch.visit_count) : 0 };
-        });
-      }
-      setBuckets(resolvedBuckets);
 
-      // --- Top Tracks (with event breakdown from new RPC, fallback to client-side) ---
-      if (topTracksRes?.data && topTracksRes.data.length > 0) {
-        const enriched = (topTracksRes.data as { track_id: string; style: string; play_count: number; share_count: number; view_count: number; total_duration: number }[])
-          .map(row => {
-            const t = localTracks.find(tt => tt.id === row.track_id);
-            return {
-              id: row.track_id,
-              title: t?.title || 'Unknown Track',
-              artist: t?.artist || 'Unknown',
-              style: t?.style || row.style || 'Unknown',
-              play_count: Number(row.play_count) || 0,
-              share_count: Number(row.share_count) || 0,
-              view_count: Number(row.view_count) || 0,
-              total_duration: Number(row.total_duration) || 0,
-            };
-          });
-        setTopTracks(enriched);
-      } else {
-        // Fallback: client-side aggregation from track_plays
+      // --- Top Tracks — always fetch track details directly from Supabase ---
+      const rawTopTracks = (topTracksRes?.data || []) as { track_id: string; style: string; play_count: number; share_count: number; view_count: number; total_duration: number }[];
+
+      // Fallback: aggregate from track_plays if RPC returned nothing
+      let playsData = rawTopTracks;
+      if (!playsData.length) {
         const { data: fallbackPlays } = await supabase
           .from('track_plays')
-          .select('track_id, style, duration_seconds, created_at')
+          .select('track_id, style')
           .gte('created_at', monthStart.toISOString());
-        const trackCounts: Record<string, number> = {};
+        const counts: Record<string, number> = {};
         (fallbackPlays || []).forEach((p: { track_id: string }) => {
-          trackCounts[p.track_id] = (trackCounts[p.track_id] || 0) + 1;
+          counts[p.track_id] = (counts[p.track_id] || 0) + 1;
         });
-        const enriched = Object.entries(trackCounts)
+        playsData = Object.entries(counts)
           .sort((a, b) => b[1] - a[1])
           .slice(0, 10)
-          .map(([id, count]) => {
-            const t = localTracks.find(tt => tt.id === id);
-            return { id, title: t?.title || 'Unknown', artist: t?.artist || 'Unknown', style: t?.style || '', play_count: count, share_count: 0, view_count: 0, total_duration: 0 };
-          });
-        setTopTracks(enriched);
+          .map(([track_id, play_count]) => ({ track_id, style: '', play_count, share_count: 0, view_count: 0, total_duration: 0 }));
       }
+
+      // Fetch track details directly from Supabase (avoids StudioProvider race)
+      const trackIds = playsData.map(r => r.track_id);
+      const { data: dbTracks } = trackIds.length
+        ? await supabase.from('tracks').select('id, title, artist, style').in('id', trackIds)
+        : { data: [] };
+      const dbTrackMap: Record<string, { title: string; artist: string; style: string }> = {};
+      (dbTracks || []).forEach((t: { id: string; title: string; artist: string; style: string }) => {
+        dbTrackMap[t.id] = t;
+      });
+
+      setTopTracks(playsData.map(row => {
+        const t = dbTrackMap[row.track_id];
+        return {
+          id: row.track_id,
+          title: t?.title || '—',
+          artist: t?.artist || '—',
+          style: t?.style || row.style || '',
+          play_count: Number(row.play_count) || 0,
+          share_count: Number(row.share_count) || 0,
+          view_count: Number(row.view_count) || 0,
+          total_duration: Number(row.total_duration) || 0,
+        };
+      }));
 
       // --- Style Chart (new RPC, fallback to track_plays client-side) ---
       if (styleRes?.data && styleRes.data.length > 0) {
@@ -291,7 +318,7 @@ export default function AdminAnalytics() {
         (playsForStyle || []).forEach((p: { track_id: string; style: string | null }) => {
           let s = (p.style || '').trim();
           if (!s || s.toLowerCase() === 'unknown') {
-            s = localTracks.find(tt => tt.id === p.track_id)?.style || 'Unknown';
+            s = 'Unknown';
           }
           if (!s) s = 'Unknown';
           styleCounts[s] = (styleCounts[s] || 0) + 1;
@@ -389,27 +416,31 @@ export default function AdminAnalytics() {
         </button>
       </div>
 
-      {/* Live Banner */}
-      <div className="live-banner glass">
-        <div className="live-left">
+      {/* Online Now Panel — who is on the site this second */}
+      <div className="online-now-panel glass">
+        <div className="online-now-header">
           <span className="live-dot" />
-          <Wifi size={18} />
-          <span className="live-count">{liveUsers.length}</span>
-          <span className="live-text">{liveUsers.length === 1 ? 'person online now' : 'people online now'}</span>
+          <Wifi size={16} />
+          <span className="online-now-title">
+            Online Now — <strong>{liveUsers.length}</strong> {liveUsers.length === 1 ? 'person' : 'people'}
+          </span>
         </div>
-        <div className="live-names">
-          {liveUsers.filter(u => u.is_telegram && u.name).length > 0 ? (
-            liveUsers.filter(u => u.is_telegram && u.name).slice(0, 8).map(u => (
-              <span key={u.session_id} className="live-chip">{u.name}</span>
-            ))
+        <div className="online-now-list">
+          {liveUsers.length === 0 ? (
+            <span className="online-now-empty">No one online right now</span>
           ) : (
-            <span className="live-empty">
-              {liveUsers.length > 0 ? 'Anonymous web visitors' : 'No one online right now'}
-            </span>
-          )}
-          {liveUsers.filter(u => !u.is_telegram).length > 0 &&
-            liveUsers.filter(u => u.is_telegram && u.name).length > 0 && (
-            <span className="live-chip anon">+{liveUsers.filter(u => !u.is_telegram).length} anonymous</span>
+            liveUsers.map(u => (
+              <div key={u.session_id} className={`online-user-chip ${u.is_telegram ? 'tg' : 'anon'}`}>
+                <div className="online-user-avatar">
+                  {u.name ? u.name.charAt(0).toUpperCase() : '?'}
+                </div>
+                <div className="online-user-info">
+                  <span className="online-user-name">{u.name || 'Anonymous'}</span>
+                  <span className="online-user-type">{u.is_telegram ? '✈️ Telegram' : '🌐 Web'}</span>
+                </div>
+                <span className="online-pulse" />
+              </div>
+            ))
           )}
         </div>
       </div>
@@ -743,11 +774,24 @@ export default function AdminAnalytics() {
         .spin { animation:spinA 0.8s linear infinite; }
         @keyframes spinA { to { transform:rotate(360deg); } }
 
-        /* Live banner */
-        .live-banner { display:flex; align-items:center; justify-content:space-between; gap:16px; padding:14px 20px; border-radius:14px; background:linear-gradient(135deg, rgba(29,185,84,0.12), rgba(29,185,84,0.03)); border:1px solid rgba(29,185,84,0.2); flex-wrap:wrap; }
-        .live-left { display:flex; align-items:center; gap:10px; color:#1db954; }
-        .live-dot { width:9px; height:9px; border-radius:50%; background:#1db954; box-shadow:0 0 0 0 rgba(29,185,84,0.7); animation:livePulse 2s infinite; }
-        @keyframes livePulse { 0%{box-shadow:0 0 0 0 rgba(29,185,84,0.6)} 70%{box-shadow:0 0 0 10px rgba(29,185,84,0)} 100%{box-shadow:0 0 0 0 rgba(29,185,84,0)} }
+        /* Online Now Panel */
+        .online-now-panel { padding:16px 20px; border-radius:16px; background:linear-gradient(135deg, rgba(29,185,84,0.1), rgba(29,185,84,0.02)); border:1px solid rgba(29,185,84,0.2); }
+        .online-now-header { display:flex; align-items:center; gap:8px; color:#1db954; margin-bottom:12px; }
+        .online-now-title { font-size:13px; font-weight:700; color:#a1a1aa; }
+        .online-now-title strong { color:#fff; }
+        .live-dot { width:8px; height:8px; border-radius:50%; background:#1db954; flex-shrink:0; animation:livePulse 2s infinite; }
+        @keyframes livePulse { 0%{box-shadow:0 0 0 0 rgba(29,185,84,0.6)} 70%{box-shadow:0 0 0 8px rgba(29,185,84,0)} 100%{box-shadow:0 0 0 0 rgba(29,185,84,0)} }
+        .online-now-list { display:flex; gap:8px; flex-wrap:wrap; align-items:center; }
+        .online-now-empty { font-size:12px; color:#52525b; font-style:italic; }
+        .online-user-chip { display:flex; align-items:center; gap:8px; padding:6px 12px 6px 6px; border-radius:24px; position:relative; }
+        .online-user-chip.tg { background:rgba(29,185,84,0.12); border:1px solid rgba(29,185,84,0.2); }
+        .online-user-chip.anon { background:rgba(255,255,255,0.05); border:1px solid rgba(255,255,255,0.08); }
+        .online-user-avatar { width:26px; height:26px; border-radius:50%; background:#1db954; color:black; font-size:11px; font-weight:900; display:flex; align-items:center; justify-content:center; flex-shrink:0; }
+        .online-user-chip.anon .online-user-avatar { background:#3f3f46; color:#a1a1aa; }
+        .online-user-info { display:flex; flex-direction:column; gap:1px; }
+        .online-user-name { font-size:12px; font-weight:700; color:#e4e4e7; line-height:1; }
+        .online-user-type { font-size:10px; color:#71717a; line-height:1; }
+        .online-pulse { width:6px; height:6px; border-radius:50%; background:#1db954; position:absolute; top:6px; right:6px; animation:livePulse 2s infinite; }
         .live-count { font-size:22px; font-weight:900; color:#fff; }
         .live-text { font-size:13px; font-weight:600; color:#a1a1aa; }
         .live-names { display:flex; gap:6px; flex-wrap:wrap; align-items:center; }

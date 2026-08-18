@@ -81,7 +81,8 @@ export default function AnalyticsTracker() {
             user_ref: userRef,
             country_code: countryCode,
             country_name: countryName,
-            duration_seconds: 0
+            duration_seconds: 0,
+            referrer: document.referrer || null,
           })
           .select("id")
           .single();

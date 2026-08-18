@@ -414,38 +414,40 @@ const AddTrackModal = ({ isOpen, onClose, onAdd, initialData }: AddTrackModalPro
 
       <style jsx>{`
         .modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.85); backdrop-filter: blur(16px); display: flex; align-items: center; justify-content: center; z-index: 10000; padding: 20px; }
-        .modal-content { width: 100%; max-width: 850px; padding: 30px 40px; border-radius: 32px; background: #0a0a0a; border: 1px solid rgba(255,255,255,0.08); box-shadow: 0 25px 50px -12px rgba(0,0,0,0.5); max-height: 90vh; overflow-y: auto; }
+        .modal-content { width: 100%; max-width: 850px; padding: 30px 36px; border-radius: 32px; background: #0a0a0a; border: 1px solid rgba(255,255,255,0.08); box-shadow: 0 25px 50px -12px rgba(0,0,0,0.5); max-height: 90vh; overflow-y: auto; box-sizing: border-box; }
         .header-title.centered { width: 100%; text-align: center; margin-bottom: 20px; }
         .header-title h3 { font-size: 24px; font-weight: 800; letter-spacing: -0.5px; }
 
-        .form-redistribution-row { display: flex; gap: 40px; margin-bottom: 20px; align-items: flex-start; }
-        .artwork-column { width: 200px; flex-shrink: 0; text-align: center; }
-        .artwork-compact-dropzone.large { width: 200px; height: 200px; border-radius: 24px; border: 2px dashed rgba(255,255,255,0.1); cursor: pointer; position: relative; overflow: hidden; background: rgba(255,255,255,0.02); transition: all 0.3s; }
+        .form-redistribution-row { display: flex; gap: 24px; margin-bottom: 20px; align-items: flex-start; width: 100%; min-width: 0; }
+        .artwork-column { width: 120px; flex-shrink: 0; text-align: center; }
+        .artwork-compact-dropzone.large { width: 120px; height: 120px; border-radius: 20px; border: 2px dashed rgba(255,255,255,0.1); cursor: pointer; position: relative; overflow: hidden; background: rgba(255,255,255,0.02); transition: all 0.3s; display: flex; align-items: center; justify-content: center; }
         .artwork-compact-dropzone.large:hover { border-color: #1db954; transform: translateY(-4px); background: rgba(29, 185, 84, 0.05); }
         .artwork-compact-dropzone img { width: 100%; height: 100%; object-fit: cover; }
+        .placeholder { display: flex; align-items: center; justify-content: center; width: 100%; height: 100%; color: #71717a; }
 
-        .primary-info-column { flex-grow: 1; display: flex; flex-direction: column; gap: 20px; }
-        .secondary-fields-box { display: flex; flex-direction: column; gap: 16px; margin-bottom: 20px; padding-top: 15px; border-top: 1px solid rgba(255,255,255,0.05); }
+        .primary-info-column { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 16px; width: 100%; }
+        .secondary-fields-box { display: flex; flex-direction: column; gap: 16px; margin-bottom: 20px; padding-top: 15px; border-top: 1px solid rgba(255,255,255,0.05); width: 100%; min-width: 0; }
         
-        .form-grid-split { display: grid; grid-template-columns: 1.2fr 1fr; gap: 30px; }
+        .form-grid-split { display: grid; grid-template-columns: 1.2fr 1fr; gap: 24px; width: 100%; min-width: 0; }
+        .form-group { width: 100%; min-width: 0; box-sizing: border-box; }
         label { font-size: 11px; font-weight: 900; color: #71717a; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 8px; display: block; }
         
-        .input-wrapper.large { background: rgba(255,255,255,0.03); border-radius: 16px; border: 1px solid rgba(255,255,255,0.08); display: flex; align-items: center; padding: 0 18px; }
-        .input-wrapper.large input { background: transparent; border: none; outline: none; height: 56px; color: white; width: 100%; padding: 0 15px; font-size: 16px; font-weight: 500; }
+        .input-wrapper.large { background: rgba(255,255,255,0.03); border-radius: 16px; border: 1px solid rgba(255,255,255,0.08); display: flex; align-items: center; padding: 0 16px; width: 100%; min-width: 0; box-sizing: border-box; }
+        .input-wrapper.large input { background: transparent; border: none; outline: none; height: 52px; color: white; width: 100%; min-width: 0; padding: 0 12px; font-size: 15px; font-weight: 500; }
         .focus-glow:focus-within { border-color: #1db954; box-shadow: 0 0 15px -5px rgba(29, 185, 84, 0.5); }
 
-        .recent-artists { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 10px; }
-        .artist-suggestion { padding: 6px 14px; border-radius: 10px; background: rgba(255,255,255,0.05); color: #71717a; font-size: 12px; font-weight: 700; border: none; cursor: pointer; transition: all 0.2s; }
+        .recent-artists { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
+        .artist-suggestion { padding: 5px 12px; border-radius: 10px; background: rgba(255,255,255,0.05); color: #71717a; font-size: 11px; font-weight: 700; border: none; cursor: pointer; transition: all 0.2s; }
         .artist-suggestion:hover { background: #1db954; color: black; }
 
-        .styles-list { display: flex; flex-wrap: wrap; gap: 10px; }
-        .style-chip { padding: 10px 18px; border-radius: 14px; background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.08); color: #a1a1aa; font-size: 13px; font-weight: 700; cursor: pointer; display: flex; align-items: center; gap: 10px; transition: all 0.2s; }
+        .styles-list { display: flex; flex-wrap: wrap; gap: 8px; }
+        .style-chip { padding: 8px 14px; border-radius: 14px; background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.08); color: #a1a1aa; font-size: 12px; font-weight: 700; cursor: pointer; display: flex; align-items: center; gap: 8px; transition: all 0.2s; }
         .style-chip .dot { width: 8px; height: 8px; border-radius: 50%; background: var(--chip-color); }
         .style-chip.active { background: rgba(255,255,255,0.08); color: white; border-color: var(--chip-color); box-shadow: 0 0 20px -5px var(--chip-color); }
 
-        .speed-split { display: grid; grid-template-columns: 1fr 1fr; gap: 15px; }
-        .speed-input-box { background: rgba(255,255,255,0.03); border-radius: 16px; border: 1px solid rgba(255,255,255,0.08); display: flex; align-items: center; padding: 0 15px; }
-        .speed-input-box input { background: transparent; border: none; outline: none; height: 50px; color: white; width: 100%; text-align: center; font-size: 15px; font-weight: 700; }
+        .speed-split { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; width: 100%; }
+        .speed-input-box { background: rgba(255,255,255,0.03); border-radius: 16px; border: 1px solid rgba(255,255,255,0.08); display: flex; align-items: center; padding: 0 12px; width: 100%; min-width: 0; box-sizing: border-box; }
+        .speed-input-box input { background: transparent; border: none; outline: none; height: 48px; color: white; width: 100%; min-width: 0; text-align: center; font-size: 14px; font-weight: 700; }
 
         .goc-mode-selector { display: flex; gap: 10px; width: 100%; }
         .goc-mode-chip { 
@@ -469,25 +471,54 @@ const AddTrackModal = ({ isOpen, onClose, onAdd, initialData }: AddTrackModalPro
         .goc-sub-chip.latin.active { background: rgba(247, 151, 30, 0.15); border-color: #f7971e; color: #f7971e; box-shadow: 0 0 12px rgba(247, 151, 30, 0.2); }
         .goc-sub-chip.standard.active { background: rgba(33, 147, 176, 0.15); border-color: #2193b0; color: #2193b0; box-shadow: 0 0 12px rgba(33, 147, 176, 0.2); }
 
-        .visibility-pill-expanded { height: 50px; border-radius: 16px; background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.08); display: flex; align-items: center; gap: 15px; padding: 0 20px; cursor: pointer; transition: all 0.3s; }
+        .visibility-pill-expanded { height: 48px; border-radius: 16px; background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.08); display: flex; align-items: center; gap: 12px; padding: 0 16px; cursor: pointer; transition: all 0.3s; width: 100%; box-sizing: border-box; }
         .visibility-pill-expanded.public .dot { background: #1db954; box-shadow: 0 0 10px #1db954; }
         .visibility-pill-expanded.closed .dot { background: #ffbc11; box-shadow: 0 0 10px #ffbc11; }
-        .visibility-pill-expanded span { font-size: 13px; font-weight: 800; color: white; }
+        .visibility-pill-expanded span { font-size: 12px; font-weight: 800; color: white; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 
         .tags-list { display: flex; flex-wrap: wrap; gap: 8px; }
         .tag-item { padding: 8px 16px; border-radius: 30px; background: rgba(255,255,255,0.03); color: #71717a; font-size: 12px; font-weight: 800; border: 1px solid transparent; cursor: pointer; transition: all 0.2s; }
         .tag-item.active { border-color: var(--tag-color); background: rgba(255,255,255,0.08); color: white; box-shadow: 0 0 15px -5px var(--tag-color); }
 
-        .audio-zone.large { margin-top: 10px; height: 75px; border-radius: 20px; border: 2px dashed rgba(255,255,255,0.1); display: flex; align-items: center; justify-content: center; gap: 15px; font-size: 15px; font-weight: 700; color: #71717a; cursor: pointer; transition: all 0.2s; }
+        .audio-zone.large { margin-top: 10px; height: 64px; border-radius: 18px; border: 2px dashed rgba(255,255,255,0.1); display: flex; align-items: center; justify-content: center; gap: 12px; font-size: 14px; font-weight: 700; color: #71717a; cursor: pointer; transition: all 0.2s; width: 100%; box-sizing: border-box; }
         .audio-zone.large:hover { border-color: #1db954; background: rgba(29, 185, 84, 0.05); color: white; }
         .spinner { width: 20px; height: 20px; border: 3px solid rgba(255,255,255,0.1); border-top-color: #1db954; border-radius: 50%; animation: spin 1s linear infinite; }
         @keyframes spin { to { transform: rotate(360deg); } }
 
-        .modal-footer { display: flex; justify-content: flex-end; gap: 15px; margin-top: 40px; }
-        .btn-primary { height: 56px; padding: 0 40px; border-radius: 18px; background: #1db954; color: black; font-weight: 900; font-size: 15px; text-transform: uppercase; letter-spacing: 1px; cursor: pointer; border: none; transition: transform 0.2s; }
+        .modal-footer { display: flex; justify-content: flex-end; gap: 15px; margin-top: 30px; }
+        .btn-primary { height: 52px; padding: 0 36px; border-radius: 16px; background: #1db954; color: black; font-weight: 900; font-size: 14px; text-transform: uppercase; letter-spacing: 1px; cursor: pointer; border: none; transition: transform 0.2s; }
         .btn-primary:active { transform: scale(0.96); }
-        .btn-secondary { height: 56px; padding: 0 30px; border-radius: 18px; background: rgba(255,255,255,0.05); color: #71717a; font-weight: 700; border: none; cursor: pointer; }
+        .btn-secondary { height: 52px; padding: 0 24px; border-radius: 16px; background: rgba(255,255,255,0.05); color: #71717a; font-weight: 700; border: none; cursor: pointer; }
         .btn-secondary:hover { color: white; background: rgba(255,255,255,0.1); }
+
+        @media (max-width: 640px) {
+          .modal-overlay { padding: 8px; }
+          .modal-content { padding: 20px 16px; border-radius: 24px; max-height: 94vh; }
+          .header-title.centered { margin-bottom: 14px; }
+          .header-title.centered h3 { font-size: 18px; }
+
+          .form-redistribution-row { flex-direction: row; gap: 14px; margin-bottom: 16px; align-items: flex-start; }
+          .artwork-column { width: 90px; flex-shrink: 0; }
+          .artwork-compact-dropzone.large { width: 90px; height: 90px; border-radius: 16px; }
+
+          .primary-info-column { gap: 12px; }
+          .input-wrapper.large { padding: 0 10px; }
+          .input-wrapper.large input { height: 46px; font-size: 13px; padding: 0 6px; }
+
+          .form-grid-split { grid-template-columns: 1fr; gap: 14px; }
+          .goc-mode-selector { flex-direction: column; gap: 8px; }
+          .sub-chips-row { flex-direction: column; gap: 8px; }
+          .speed-split { gap: 10px; }
+
+          .styles-list { gap: 6px; }
+          .style-chip { padding: 8px 12px; font-size: 12px; }
+          .tags-list { gap: 6px; }
+          .tag-item { padding: 6px 12px; font-size: 11px; }
+
+          .audio-zone.large { height: 56px; font-size: 13px; gap: 10px; border-radius: 16px; }
+          .modal-footer { margin-top: 20px; flex-direction: column-reverse; gap: 10px; }
+          .btn-primary, .btn-secondary { width: 100%; height: 48px; font-size: 14px; border-radius: 14px; }
+        }
       `}</style>
     </div>
   );

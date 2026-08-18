@@ -19,6 +19,7 @@ interface TelegramUser {
   username?: string;
   last_seen: string;
   visit_count: number;
+  country_code?: string;
   country_name?: string;
 }
 interface RecentActivity {
@@ -96,9 +97,30 @@ const COUNTRY_FLAGS: Record<string, string> = {
   PF:'🇵🇫', WF:'🇼🇫', TF:'🇹🇫', MF:'🇲🇫', BL:'🇧🇱',
 };
 
-function getFlag(code: string): string {
-  if (!code || code.toLowerCase() === 'unknown') return '🌍';
-  return COUNTRY_FLAGS[code.toUpperCase()] || '🏳️';
+const COUNTRY_NAME_TO_CODE: Record<string, string> = {
+  'GEORGIA': 'GE', 'GERMANY': 'DE', 'FRANCE': 'FR', 'UNITED KINGDOM': 'GB', 'ITALY': 'IT',
+  'SPAIN': 'ES', 'POLAND': 'PL', 'NETHERLANDS': 'NL', 'BELGIUM': 'BE', 'SWEDEN': 'SE',
+  'NORWAY': 'NO', 'DENMARK': 'DK', 'FINLAND': 'FI', 'SWITZERLAND': 'CH', 'AUSTRIA': 'AT',
+  'PORTUGAL': 'PT', 'GREECE': 'GR', 'CZECHIA': 'CZ', 'SLOVAKIA': 'SK', 'HUNGARY': 'HU',
+  'ROMANIA': 'RO', 'BULGARIA': 'BG', 'CROATIA': 'HR', 'SLOVENIA': 'SI', 'SERBIA': 'RS',
+  'LATVIA': 'LV', 'LITHUANIA': 'LT', 'ESTONIA': 'EE', 'IRELAND': 'IE', 'UKRAINE': 'UA',
+  'BELARUS': 'BY', 'KAZAKHSTAN': 'KZ', 'UZBEKISTAN': 'UZ', 'TURKEY': 'TR', 'ISRAEL': 'IL',
+  'UNITED STATES': 'US', 'CANADA': 'CA', 'MEXICO': 'MX', 'BRAZIL': 'BR', 'ARGENTINA': 'AR',
+  'JAPAN': 'JP', 'SOUTH KOREA': 'KR', 'CHINA': 'CN', 'INDIA': 'IN', 'AUSTRALIA': 'AU',
+  'MONGOLIA': 'MN', 'SURINAME': 'SR', 'ANDORRA': 'AD', 'LESOTHO': 'LS', 'REUNION': 'RE',
+  'VIETNAM': 'VN', 'RUSSIAN FEDERATION': 'RU', 'RUSSIA': 'RU',
+};
+
+function getFlag(codeOrName?: string, secondaryCode?: string): string {
+  if (secondaryCode && COUNTRY_FLAGS[secondaryCode.toUpperCase()]) {
+    return COUNTRY_FLAGS[secondaryCode.toUpperCase()];
+  }
+  if (!codeOrName || codeOrName.toLowerCase() === 'unknown') return '🌍';
+  const upper = codeOrName.toUpperCase();
+  if (COUNTRY_FLAGS[upper]) return COUNTRY_FLAGS[upper];
+  const mapped = COUNTRY_NAME_TO_CODE[upper];
+  if (mapped && COUNTRY_FLAGS[mapped]) return COUNTRY_FLAGS[mapped];
+  return '🏳️';
 }
 
 const STYLE_COLORS: Record<string, string> = {
@@ -640,7 +662,7 @@ export default function AdminAnalytics() {
                       </div>
                       <div className="tg-meta">
                         {u.username ? `@${u.username} · ` : ''}
-                        {getFlag(u.country_name || '')} {u.country_name || 'Unknown'} · {fmtDate(u.last_seen)}
+                        {getFlag(u.country_name || u.country_code || '', u.country_code)} {u.country_name || u.country_code || 'Unknown'} · {fmtDate(u.last_seen)}
                       </div>
                     </div>
                     <div className="tg-visits">{u.visit_count}x</div>

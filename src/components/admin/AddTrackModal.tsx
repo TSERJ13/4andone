@@ -263,7 +263,26 @@ const AddTrackModal = ({ isOpen, onClose, onAdd, initialData }: AddTrackModalPro
                       });
                     }}
                   >
-                    <span>🏆 GOC 2026 Special Album</span>
+                    <span>🏆 GOC 2026</span>
+                  </button>
+
+                  <button
+                    type="button"
+                    className={`goc-mode-chip dancestar-main ${formData.album === 'Dance Star Band' ? 'active-dancestar' : ''}`}
+                    style={{
+                      borderColor: formData.album === 'Dance Star Band' ? '#d946ef' : undefined,
+                      color: formData.album === 'Dance Star Band' ? '#d946ef' : undefined,
+                      backgroundColor: formData.album === 'Dance Star Band' ? 'rgba(217, 70, 239, 0.15)' : undefined,
+                    }}
+                    onClick={() => {
+                      setFormData(p => {
+                        const newTags = [...p.tags];
+                        if (!newTags.includes('Dance Star Band')) newTags.push('Dance Star Band');
+                        return { ...p, album: 'Dance Star Band', tags: newTags };
+                      });
+                    }}
+                  >
+                    <span>🎷 Dance Star Band</span>
                   </button>
                 </div>
 

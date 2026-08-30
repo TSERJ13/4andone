@@ -2,14 +2,14 @@
 
 import React from 'react';
 import Link from 'next/link';
-import { Play, Mic2, Timer, Flame, Music2, Disc, Heart } from 'lucide-react';
+import { Play, Mic2, Timer, Flame, Music2, Disc, Heart, ChevronLeft, ChevronRight } from 'lucide-react';
 import { useAudio } from '@/components/audio/AudioProvider';
 import { useStudio } from '@/components/admin/StudioProvider';
 import { useAuth } from '@/context/AuthContext';
 import { formatDuration } from '@/utils/format';
 import { getMPMFromBPM } from '@/utils/audio';
 import ConfirmModal from '@/components/admin/ConfirmModal';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { UserBadge } from '@/components/auth/UserBadge';
 import { useRouter } from 'next/navigation';
 import { Marquee } from '@/components/layout/Marquee';
@@ -41,6 +41,18 @@ export default function Home() {
   });
 
   const [visibleTrackCount, setVisibleTrackCount] = useState(25);
+
+  // 10-Second Hero Carousel State (0 = Dance Star Band, 1 = GOC 2026)
+  const [currentSlide, setCurrentSlide] = useState(0);
+  const [isCarouselPaused, setIsCarouselPaused] = useState(false);
+
+  useEffect(() => {
+    if (isCarouselPaused) return;
+    const timer = setInterval(() => {
+      setCurrentSlide(prev => (prev === 0 ? 1 : 0));
+    }, 10000);
+    return () => clearInterval(timer);
+  }, [isCarouselPaused]);
 
   // Auto-play shared track link when opening https://4and.one/?track=... in browser
   React.useEffect(() => {
@@ -177,53 +189,51 @@ export default function Home() {
           </p>
         </div>
 
-        {/* Special Collections Banners (GOC 2026 & Dance Star Band) */}
-        <div className="hero-collections-grid" style={{ marginBottom: '40px', position: 'relative' }}>
-          <div className="hero-top-right" style={{ position: 'absolute', top: '16px', right: '16px', zIndex: 10 }}>
+        {/* 10-Second Auto-Rotating Hero Carousel Banner */}
+        <div 
+          className="hero-carousel-wrapper"
+          onMouseEnter={() => setIsCarouselPaused(true)}
+          onMouseLeave={() => setIsCarouselPaused(false)}
+          style={{ marginBottom: '48px', position: 'relative' }}
+        >
+          <div className="hero-top-right">
             <UserBadge />
           </div>
 
-          <div className="collections-grid-row" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: '24px' }}>
-            {/* GOC 2026 Card */}
-            <div className="hero-section goc-hero-section glass" style={{ margin: 0, padding: '32px 28px' }}>
-              <div className="hero-content-wrapper" style={{ gap: '20px' }}>
-                <div className="hero-content">
-                  <span className="goc-badge">SPECIAL COLLECTION</span>
-                  <h2 className="hero-title text-gradient" style={{ fontSize: '2.2rem', marginBottom: '12px' }}>
-                    GOC FINAL 2026<br />MUSIC
-                  </h2>
-                  <p className="hero-desc" style={{ fontSize: '0.85rem', marginBottom: '20px' }}>
-                    Exclusive German Open Championship finals music. Isolated collection with dedicated Latin & Standard Final Mode.
-                  </p>
-                  <div className="hero-actions">
-                    <button className="btn-primary goc-btn" aria-label="Open GOC Album" onClick={() => router.push('/album/goc-2026')}>
-                      Open GOC Album
-                    </button>
-                    <button className="btn-outline glass" aria-label="Open Final Mode" onClick={() => router.push('/album/goc-2026')}>
-                      Final Mode
-                    </button>
-                  </div>
-                </div>
-                <div className="goc-hero-card-preview" style={{ width: '160px', height: '100px' }} onClick={() => router.push('/album/goc-2026')}>
-                  <img src="/goc2026.png" alt="GOC 2026 Latin Final Music" className="goc-hero-img" />
-                </div>
-              </div>
-            </div>
+          {/* Navigation Controls: Arrows */}
+          <button 
+            className="carousel-nav-btn prev glass"
+            onClick={() => setCurrentSlide(prev => (prev === 0 ? 1 : 0))}
+            aria-label="Previous Banner"
+          >
+            <ChevronLeft size={22} />
+          </button>
+          <button 
+            className="carousel-nav-btn next glass"
+            onClick={() => setCurrentSlide(prev => (prev === 0 ? 1 : 0))}
+            aria-label="Next Banner"
+          >
+            <ChevronRight size={22} />
+          </button>
 
-            {/* Dance Star Band Card */}
-            <div className="hero-section glass dancestar-hero-card" style={{ margin: 0, padding: '32px 28px', background: 'linear-gradient(135deg, rgba(217, 70, 239, 0.15) 0%, rgba(20, 20, 20, 0.7) 100%)', borderColor: 'rgba(217, 70, 239, 0.25)' }}>
-              <div className="hero-content-wrapper" style={{ gap: '20px' }}>
+          {/* SLIDE 0: DANCE STAR BAND (LIVE SOUNDS) - STARTS FIRST */}
+          {currentSlide === 0 && (
+            <header className="hero-section glass dancestar-hero-section animate-fade-in" style={{
+              background: 'linear-gradient(135deg, rgba(217, 70, 239, 0.18) 0%, rgba(20, 20, 20, 0.7) 100%)',
+              borderColor: 'rgba(217, 70, 239, 0.3)'
+            }}>
+              <div className="hero-content-wrapper">
                 <div className="hero-content">
                   <span className="goc-badge" style={{ background: 'linear-gradient(90deg, #d946ef, #8b5cf6)', boxShadow: '0 4px 15px rgba(217, 70, 239, 0.3)' }}>
                     LIVE SOUNDS COLLECTION
                   </span>
-                  <h2 className="hero-title text-gradient" style={{ fontSize: '2.2rem', marginBottom: '12px', background: 'linear-gradient(90deg, #ffffff, #d946ef)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }}>
+                  <h2 className="hero-title text-gradient" style={{ background: 'linear-gradient(90deg, #ffffff, #d946ef, #a855f7)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }}>
                     DANCE STAR BAND<br />LIVE SOUNDS
                   </h2>
-                  <p className="hero-desc" style={{ fontSize: '0.85rem', marginBottom: '20px' }}>
+                  <p className="hero-desc">
                     Exclusive Live Dance Band Sounds. Isolated collection with dedicated Latin & Standard Final Mode practice.
                   </p>
-                  <div className="hero-actions">
+                  <div className="hero-actions desktop-actions">
                     <button className="btn-primary" style={{ background: 'linear-gradient(90deg, #d946ef, #8b5cf6)', color: 'white', border: 'none', boxShadow: '0 4px 15px rgba(217, 70, 239, 0.4)' }} onClick={() => router.push('/album/dance-star-band')}>
                       Open Live Album
                     </button>
@@ -232,11 +242,67 @@ export default function Home() {
                     </button>
                   </div>
                 </div>
-                <div className="goc-hero-card-preview" style={{ width: '160px', height: '100px', borderColor: 'rgba(217, 70, 239, 0.3)' }} onClick={() => router.push('/album/dance-star-band')}>
+                <div className="goc-hero-card-preview" style={{ borderColor: 'rgba(217, 70, 239, 0.3)' }} onClick={() => router.push('/album/dance-star-band')}>
                   <img src="/dancestar.jpg" alt="Dance Star Band Live Sounds" className="goc-hero-img" />
                 </div>
               </div>
-            </div>
+              <div className="hero-actions mobile-actions">
+                <button className="btn-primary" style={{ background: 'linear-gradient(90deg, #d946ef, #8b5cf6)', color: 'white', border: 'none' }} onClick={() => router.push('/album/dance-star-band')}>
+                  Open Live Album
+                </button>
+                <button className="btn-outline glass" onClick={() => router.push('/album/dance-star-band')}>
+                  Final Mode
+                </button>
+              </div>
+            </header>
+          )}
+
+          {/* SLIDE 1: GOC FINAL 2026 MUSIC */}
+          {currentSlide === 1 && (
+            <header className="hero-section goc-hero-section glass animate-fade-in">
+              <div className="hero-content-wrapper">
+                <div className="hero-content">
+                  <span className="goc-badge">SPECIAL COLLECTION</span>
+                  <h2 className="hero-title text-gradient">GOC FINAL 2026<br />MUSIC</h2>
+                  <p className="hero-desc">
+                    Exclusive German Open Championship finals music. Isolated collection with dedicated Latin & Standard Final Mode practice.
+                  </p>
+                  <div className="hero-actions desktop-actions">
+                    <button className="btn-primary goc-btn" aria-label="Open GOC Album" onClick={() => router.push('/album/goc-2026')}>
+                      Open GOC Album
+                    </button>
+                    <button className="btn-outline glass" aria-label="Open Final Mode" onClick={() => router.push('/album/goc-2026')}>
+                      Final Mode
+                    </button>
+                  </div>
+                </div>
+                <div className="goc-hero-card-preview" onClick={() => router.push('/album/goc-2026')}>
+                  <img src="/goc2026.png" alt="GOC 2026 Latin Final Music" className="goc-hero-img" />
+                </div>
+              </div>
+              <div className="hero-actions mobile-actions">
+                <button className="btn-primary goc-btn" onClick={() => router.push('/album/goc-2026')}>
+                  Open GOC Album
+                </button>
+                <button className="btn-outline glass" onClick={() => router.push('/album/goc-2026')}>
+                  Final Mode
+                </button>
+              </div>
+            </header>
+          )}
+
+          {/* Dot Indicators */}
+          <div className="carousel-dots-container">
+            <button 
+              className={`carousel-dot ${currentSlide === 0 ? 'active dancestar' : ''}`}
+              onClick={() => setCurrentSlide(0)}
+              title="Dance Star Band"
+            />
+            <button 
+              className={`carousel-dot ${currentSlide === 1 ? 'active goc' : ''}`}
+              onClick={() => setCurrentSlide(1)}
+              title="GOC Final 2026"
+            />
           </div>
         </div>
 
@@ -428,6 +494,84 @@ export default function Home() {
       />
 
       <style jsx>{`
+        .carousel-nav-btn {
+          position: absolute;
+          top: 50%;
+          transform: translateY(-50%);
+          z-index: 15;
+          width: 42px;
+          height: 42px;
+          border-radius: 50%;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          background: rgba(0, 0, 0, 0.4);
+          border: 1px solid rgba(255, 255, 255, 0.15);
+          color: white;
+          cursor: pointer;
+          transition: all 0.25s ease;
+        }
+
+        .carousel-nav-btn:hover {
+          background: rgba(0, 0, 0, 0.8);
+          border-color: rgba(255, 255, 255, 0.4);
+          transform: translateY(-50%) scale(1.08);
+        }
+
+        .carousel-nav-btn.prev {
+          left: 12px;
+        }
+
+        .carousel-nav-btn.next {
+          right: 12px;
+        }
+
+        .carousel-dots-container {
+          position: absolute;
+          bottom: 16px;
+          left: 50%;
+          transform: translateX(-50%);
+          display: flex;
+          align-items: center;
+          gap: 10px;
+          z-index: 15;
+        }
+
+        .carousel-dot {
+          width: 12px;
+          height: 12px;
+          border-radius: 50%;
+          background: rgba(255, 255, 255, 0.25);
+          border: 1px solid rgba(255, 255, 255, 0.4);
+          cursor: pointer;
+          transition: all 0.3s ease;
+        }
+
+        .carousel-dot.active.dancestar {
+          width: 32px;
+          border-radius: 12px;
+          background: linear-gradient(90deg, #d946ef, #8b5cf6);
+          border-color: #d946ef;
+          box-shadow: 0 0 12px rgba(217, 70, 239, 0.6);
+        }
+
+        .carousel-dot.active.goc {
+          width: 32px;
+          border-radius: 12px;
+          background: linear-gradient(90deg, #ff4b2b, #ff416c);
+          border-color: #ff416c;
+          box-shadow: 0 0 12px rgba(255, 65, 108, 0.6);
+        }
+
+        .animate-fade-in {
+          animation: fadeIn 0.6s ease;
+        }
+
+        @keyframes fadeIn {
+          from { opacity: 0; transform: scale(0.98); }
+          to { opacity: 1; transform: scale(1); }
+        }
+
         .home-container {
           padding-bottom: 140px;
         }

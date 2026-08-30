@@ -572,17 +572,23 @@ export default function Home() {
           to { opacity: 1; transform: scale(1); }
         }
 
-        .home-container {
-          padding-bottom: 140px;
+        .hero-carousel-wrapper {
+          height: 380px;
+          min-height: 380px;
+          margin-bottom: 48px;
+          position: relative;
         }
 
         .hero-section {
-          padding: 50px 40px;
+          height: 100%;
+          min-height: 380px;
+          box-sizing: border-box;
+          padding: 44px 40px;
           border-radius: 24px;
           display: flex;
           align-items: center;
           justify-content: space-between;
-          margin-bottom: 48px;
+          margin-bottom: 0;
           background: linear-gradient(135deg, rgba(229, 9, 20, 0.15) 0%, rgba(20, 20, 20, 0.6) 100%);
           border: 1px solid rgba(255, 60, 60, 0.2);
           gap: 40px;
@@ -877,13 +883,21 @@ export default function Home() {
         }
 
         @media (max-width: 768px) {
+          .hero-carousel-wrapper {
+            height: auto;
+            min-height: 220px;
+            margin-bottom: 24px;
+          }
+
           .hero-section {
+            height: auto;
+            min-height: 220px;
             flex-direction: column;
             padding: 16px 14px 14px 14px;
             text-align: left;
             align-items: stretch;
             gap: 14px;
-            margin-bottom: 20px;
+            margin-bottom: 0;
             border-radius: 20px;
           }
 

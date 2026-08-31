@@ -24,10 +24,16 @@ const s3Client = new S3Client({
 export async function GET(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url);
-    const key = searchParams.get('key');
+    let key = searchParams.get('key');
 
     if (!key) {
       return NextResponse.json({ error: 'Key is required' }, { status: 400 });
+    }
+
+    try {
+      key = decodeURIComponent(key);
+    } catch (e) {
+      // Keep key as is if decoding fails
     }
 
     const command = new GetObjectCommand({
@@ -56,8 +62,18 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'fileName is required' }, { status: 400 });
     }
 
-    // Sanitize filename
-    const safeFileName = `${Date.now()}-${fileName.replace(/\s+/g, '-')}`;
+    // Sanitize filename to safe ASCII
+    const parts = fileName.split('.');
+    const ext = parts.length > 1 ? parts.pop() : 'mp3';
+    const rawName = parts.join('.');
+    
+    const cleanName = rawName
+      .normalize('NFD')
+      .replace(/[\u0300-\u036f]/g, '')
+      .replace(/[^a-zA-Z0-9_-]/g, '_')
+      .replace(/_+/g, '_');
+      
+    const safeFileName = `${Date.now()}-${cleanName}.${ext}`;
 
     const command = new PutObjectCommand({
       Bucket: R2_BUCKET_NAME,
@@ -71,14 +87,11 @@ export async function POST(request: NextRequest) {
     const R2_DOMAIN = process.env.NEXT_PUBLIC_R2_PUBLIC_URL || 'https://pub-c41b1121b311f676bdc114d143278d18.r2.dev';
     const publicUrl = `${R2_DOMAIN}/${safeFileName}`;
 
-    // R2-POST-SIGN Success
-
     return NextResponse.json({ 
       uploadUrl: signedUrl, 
       publicUrl: publicUrl 
     });
   } catch (error: any) {
-    // R2-POST-SIGN Failure
     return NextResponse.json({ 
       error: error.message || 'Failed to generate upload URL' 
     }, { status: 500 });

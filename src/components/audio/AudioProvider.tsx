@@ -618,7 +618,7 @@ export const AudioProvider: React.FC<{ children: React.ReactNode }> = ({ childre
 
           if (!storageKey) throw new Error("Invalid remote URL storage key");
 
-          const signRes = await fetch(`/api/upload?key=${storageKey}`);
+          const signRes = await fetch(`/api/upload?key=${encodeURIComponent(storageKey)}`);
 
           if (signRes.ok) {
             const { url } = await signRes.json();

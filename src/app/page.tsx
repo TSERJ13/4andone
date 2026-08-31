@@ -194,7 +194,6 @@ export default function Home() {
           className="hero-carousel-wrapper"
           onMouseEnter={() => setIsCarouselPaused(true)}
           onMouseLeave={() => setIsCarouselPaused(false)}
-          style={{ marginBottom: '48px', position: 'relative' }}
         >
           <div className="hero-top-right">
             <UserBadge />
@@ -216,79 +215,87 @@ export default function Home() {
             <ChevronRight size={22} />
           </button>
 
-          {/* SLIDE 0: DANCE STAR BAND (LIVE SOUNDS) - STARTS FIRST */}
-          <header 
-            className={`hero-section glass dancestar-hero-section carousel-slide ${currentSlide === 0 ? 'active' : ''}`}
+          {/* Horizontal Slide Track */}
+          <div 
+            className="carousel-track"
             style={{
-              background: 'linear-gradient(135deg, rgba(217, 70, 239, 0.18) 0%, rgba(20, 20, 20, 0.7) 100%)',
-              borderColor: 'rgba(217, 70, 239, 0.3)'
+              transform: `translateX(-${currentSlide * 50}%)`
             }}
           >
-            <div className="hero-content-wrapper">
-              <div className="hero-content">
-                <span className="goc-badge" style={{ background: 'linear-gradient(90deg, #d946ef, #8b5cf6)', boxShadow: '0 4px 15px rgba(217, 70, 239, 0.3)' }}>
-                  LIVE SOUNDS COLLECTION
-                </span>
-                <h2 className="hero-title text-gradient" style={{ background: 'linear-gradient(90deg, #ffffff, #d946ef, #a855f7)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }}>
-                  DANCE STAR BAND<br />LIVE SOUNDS
-                </h2>
-                <p className="hero-desc">
-                  Exclusive Live Dance Band Sounds. Isolated collection with dedicated Latin & Standard Final Mode practice.
-                </p>
-                <div className="hero-actions desktop-actions">
-                  <button className="btn-primary" style={{ background: 'linear-gradient(90deg, #d946ef, #8b5cf6)', color: 'white', border: 'none', boxShadow: '0 4px 15px rgba(217, 70, 239, 0.4)' }} onClick={() => router.push('/album/dance-star-band')}>
-                    Open Live Album
-                  </button>
-                  <button className="btn-outline glass" onClick={() => router.push('/album/dance-star-band')}>
-                    Final Mode
-                  </button>
+            {/* SLIDE 0: DANCE STAR BAND (LIVE SOUNDS) - STARTS FIRST */}
+            <header 
+              className="hero-section glass dancestar-hero-section"
+              style={{
+                background: 'linear-gradient(135deg, rgba(217, 70, 239, 0.18) 0%, rgba(20, 20, 20, 0.7) 100%)',
+                borderColor: 'rgba(217, 70, 239, 0.3)'
+              }}
+            >
+              <div className="hero-content-wrapper">
+                <div className="hero-content">
+                  <span className="goc-badge" style={{ background: 'linear-gradient(90deg, #d946ef, #8b5cf6)', boxShadow: '0 4px 15px rgba(217, 70, 239, 0.3)' }}>
+                    LIVE SOUNDS COLLECTION
+                  </span>
+                  <h2 className="hero-title text-gradient" style={{ background: 'linear-gradient(90deg, #ffffff, #d946ef, #a855f7)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }}>
+                    DANCE STAR BAND<br />LIVE SOUNDS
+                  </h2>
+                  <p className="hero-desc">
+                    Exclusive Live Dance Band Sounds. Isolated collection with dedicated Latin & Standard Final Mode practice.
+                  </p>
+                  <div className="hero-actions desktop-actions">
+                    <button className="btn-primary" style={{ background: 'linear-gradient(90deg, #d946ef, #8b5cf6)', color: 'white', border: 'none', boxShadow: '0 4px 15px rgba(217, 70, 239, 0.4)' }} onClick={() => router.push('/album/dance-star-band')}>
+                      Open Live Album
+                    </button>
+                    <button className="btn-outline glass" onClick={() => router.push('/album/dance-star-band')}>
+                      Final Mode
+                    </button>
+                  </div>
+                </div>
+                <div className="goc-hero-card-preview" style={{ borderColor: 'rgba(217, 70, 239, 0.3)' }} onClick={() => router.push('/album/dance-star-band')}>
+                  <img src="/dancestar.jpg" alt="Dance Star Band Live Sounds" className="goc-hero-img" />
                 </div>
               </div>
-              <div className="goc-hero-card-preview" style={{ borderColor: 'rgba(217, 70, 239, 0.3)' }} onClick={() => router.push('/album/dance-star-band')}>
-                <img src="/dancestar.jpg" alt="Dance Star Band Live Sounds" className="goc-hero-img" />
+              <div className="hero-actions mobile-actions">
+                <button className="btn-primary" style={{ background: 'linear-gradient(90deg, #d946ef, #8b5cf6)', color: 'white', border: 'none' }} onClick={() => router.push('/album/dance-star-band')}>
+                  Open Live Album
+                </button>
+                <button className="btn-outline glass" onClick={() => router.push('/album/dance-star-band')}>
+                  Final Mode
+                </button>
               </div>
-            </div>
-            <div className="hero-actions mobile-actions">
-              <button className="btn-primary" style={{ background: 'linear-gradient(90deg, #d946ef, #8b5cf6)', color: 'white', border: 'none' }} onClick={() => router.push('/album/dance-star-band')}>
-                Open Live Album
-              </button>
-              <button className="btn-outline glass" onClick={() => router.push('/album/dance-star-band')}>
-                Final Mode
-              </button>
-            </div>
-          </header>
+            </header>
 
-          {/* SLIDE 1: GOC FINAL 2026 MUSIC */}
-          <header className={`hero-section goc-hero-section glass carousel-slide ${currentSlide === 1 ? 'active' : ''}`}>
-            <div className="hero-content-wrapper">
-              <div className="hero-content">
-                <span className="goc-badge">SPECIAL COLLECTION</span>
-                <h2 className="hero-title text-gradient">GOC FINAL 2026<br />MUSIC</h2>
-                <p className="hero-desc">
-                  Exclusive German Open Championship finals music. Isolated collection with dedicated Latin & Standard Final Mode practice.
-                </p>
-                <div className="hero-actions desktop-actions">
-                  <button className="btn-primary goc-btn" aria-label="Open GOC Album" onClick={() => router.push('/album/goc-2026')}>
-                    Open GOC Album
-                  </button>
-                  <button className="btn-outline glass" aria-label="Open Final Mode" onClick={() => router.push('/album/goc-2026')}>
-                    Final Mode
-                  </button>
+            {/* SLIDE 1: GOC FINAL 2026 MUSIC */}
+            <header className="hero-section goc-hero-section glass">
+              <div className="hero-content-wrapper">
+                <div className="hero-content">
+                  <span className="goc-badge">SPECIAL COLLECTION</span>
+                  <h2 className="hero-title text-gradient">GOC FINAL 2026<br />MUSIC</h2>
+                  <p className="hero-desc">
+                    Exclusive German Open Championship finals music. Isolated collection with dedicated Latin & Standard Final Mode practice.
+                  </p>
+                  <div className="hero-actions desktop-actions">
+                    <button className="btn-primary goc-btn" aria-label="Open GOC Album" onClick={() => router.push('/album/goc-2026')}>
+                      Open GOC Album
+                    </button>
+                    <button className="btn-outline glass" aria-label="Open Final Mode" onClick={() => router.push('/album/goc-2026')}>
+                      Final Mode
+                    </button>
+                  </div>
+                </div>
+                <div className="goc-hero-card-preview" onClick={() => router.push('/album/goc-2026')}>
+                  <img src="/goc2026.png" alt="GOC 2026 Latin Final Music" className="goc-hero-img" />
                 </div>
               </div>
-              <div className="goc-hero-card-preview" onClick={() => router.push('/album/goc-2026')}>
-                <img src="/goc2026.png" alt="GOC 2026 Latin Final Music" className="goc-hero-img" />
+              <div className="hero-actions mobile-actions">
+                <button className="btn-primary goc-btn" onClick={() => router.push('/album/goc-2026')}>
+                  Open GOC Album
+                </button>
+                <button className="btn-outline glass" onClick={() => router.push('/album/goc-2026')}>
+                  Final Mode
+                </button>
               </div>
-            </div>
-            <div className="hero-actions mobile-actions">
-              <button className="btn-primary goc-btn" onClick={() => router.push('/album/goc-2026')}>
-                Open GOC Album
-              </button>
-              <button className="btn-outline glass" onClick={() => router.push('/album/goc-2026')}>
-                Final Mode
-              </button>
-            </div>
-          </header>
+            </header>
+          </div>
 
           {/* Dot Indicators */}
           <div className="carousel-dots-container">
@@ -572,32 +579,22 @@ export default function Home() {
         }
 
         .hero-carousel-wrapper {
-          height: 420px;
-          min-height: 420px;
-          margin-bottom: 48px;
           position: relative;
-        }
-
-        .carousel-slide {
-          position: absolute;
-          inset: 0;
           width: 100%;
-          height: 100%;
-          opacity: 0;
-          pointer-events: none;
-          transform: scale(0.97);
-          transition: opacity 1.2s cubic-bezier(0.4, 0, 0.2, 1), transform 1.2s cubic-bezier(0.4, 0, 0.2, 1);
+          border-radius: 24px;
+          overflow: hidden;
+          margin-bottom: 48px;
         }
 
-        .carousel-slide.active {
-          opacity: 1;
-          pointer-events: auto;
-          transform: scale(1);
+        .carousel-track {
+          display: flex;
+          width: 200%;
+          transition: transform 0.6s cubic-bezier(0.25, 1, 0.5, 1);
         }
 
         .hero-section {
-          height: 100%;
-          min-height: 420px;
+          width: 50%;
+          flex-shrink: 0;
           box-sizing: border-box;
           padding: 50px 40px;
           border-radius: 24px;

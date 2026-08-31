@@ -72,6 +72,25 @@ export default function Home() {
     touchEndX.current = null;
   };
 
+  // Auto-hiding Carousel Arrow Controls (Fades out after 2 seconds of inactivity)
+  const [areArrowsVisible, setAreArrowsVisible] = useState(true);
+  const arrowsTimeoutRef = React.useRef<NodeJS.Timeout | null>(null);
+
+  const resetArrowsTimer = React.useCallback(() => {
+    setAreArrowsVisible(true);
+    if (arrowsTimeoutRef.current) clearTimeout(arrowsTimeoutRef.current);
+    arrowsTimeoutRef.current = setTimeout(() => {
+      setAreArrowsVisible(false);
+    }, 2000);
+  }, []);
+
+  useEffect(() => {
+    resetArrowsTimer();
+    return () => {
+      if (arrowsTimeoutRef.current) clearTimeout(arrowsTimeoutRef.current);
+    };
+  }, [resetArrowsTimer]);
+
   useEffect(() => {
     if (isCarouselPaused) return;
     const timer = setInterval(() => {
@@ -227,28 +246,29 @@ export default function Home() {
 
         {/* 10-Second Auto-Rotating Hero Carousel Banner */}
         <div 
-          className="hero-carousel-wrapper"
-          onMouseEnter={() => setIsCarouselPaused(true)}
-          onMouseLeave={() => setIsCarouselPaused(false)}
-          onTouchStart={handleTouchStart}
-          onTouchMove={handleTouchMove}
+          className={`hero-carousel-wrapper ${currentSlide === 0 ? 'slide-dancestar' : 'slide-goc'}`}
+          onMouseEnter={() => { setIsCarouselPaused(true); resetArrowsTimer(); }}
+          onMouseLeave={() => { setIsCarouselPaused(false); setAreArrowsVisible(false); }}
+          onMouseMove={resetArrowsTimer}
+          onTouchStart={(e) => { resetArrowsTimer(); handleTouchStart(e); }}
+          onTouchMove={(e) => { resetArrowsTimer(); handleTouchMove(e); }}
           onTouchEnd={handleTouchEnd}
         >
           <div className="hero-top-right">
             <UserBadge />
           </div>
 
-          {/* Navigation Controls: Sleek Compact Arrows */}
+          {/* Navigation Controls: Smart Auto-Hiding Arrows */}
           <button 
-            className="carousel-nav-btn prev glass"
-            onClick={() => setCurrentSlide(prev => (prev === 0 ? 1 : 0))}
+            className={`carousel-nav-btn prev glass ${areArrowsVisible ? 'visible' : ''}`}
+            onClick={() => { resetArrowsTimer(); setCurrentSlide(prev => (prev === 0 ? 1 : 0)); }}
             aria-label="Previous Banner"
           >
             <ChevronLeft size={16} className="nav-arrow-icon" />
           </button>
           <button 
-            className="carousel-nav-btn next glass"
-            onClick={() => setCurrentSlide(prev => (prev === 0 ? 1 : 0))}
+            className={`carousel-nav-btn next glass ${areArrowsVisible ? 'visible' : ''}`}
+            onClick={() => { resetArrowsTimer(); setCurrentSlide(prev => (prev === 0 ? 1 : 0)); }}
             aria-label="Next Banner"
           >
             <ChevronRight size={16} className="nav-arrow-icon" />
@@ -553,8 +573,15 @@ export default function Home() {
           border: 1px solid rgba(255, 255, 255, 0.15);
           color: rgba(255, 255, 255, 0.9);
           cursor: pointer;
-          transition: all 0.25s ease;
+          opacity: 0;
+          pointer-events: none;
+          transition: opacity 0.4s ease, transform 0.25s ease, background 0.25s ease, border-color 0.25s ease;
           box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+        }
+
+        .carousel-nav-btn.visible {
+          opacity: 1;
+          pointer-events: auto;
         }
 
         .carousel-nav-btn:hover {
@@ -574,7 +601,7 @@ export default function Home() {
 
         .carousel-dots-container {
           position: absolute;
-          bottom: 16px;
+          bottom: 12px;
           left: 50%;
           transform: translateX(-50%);
           display: flex;
@@ -624,6 +651,18 @@ export default function Home() {
           border-radius: 24px;
           overflow: hidden;
           margin-bottom: 48px;
+          border: 1px solid rgba(255, 255, 255, 0.15);
+          transition: border-color 0.6s ease, box-shadow 0.6s ease;
+        }
+
+        .hero-carousel-wrapper.slide-dancestar {
+          border-color: rgba(217, 70, 239, 0.45);
+          box-shadow: 0 12px 35px -5px rgba(217, 70, 239, 0.25);
+        }
+
+        .hero-carousel-wrapper.slide-goc {
+          border-color: rgba(255, 65, 108, 0.45);
+          box-shadow: 0 12px 35px -5px rgba(255, 65, 108, 0.25);
         }
 
         .carousel-track {
@@ -636,14 +675,14 @@ export default function Home() {
           width: 50%;
           flex-shrink: 0;
           box-sizing: border-box;
-          padding: 50px 40px;
-          border-radius: 24px;
+          padding: 44px 40px 40px 40px;
+          border-radius: 0 !important;
+          border: none !important;
           display: flex;
           align-items: center;
           justify-content: space-between;
           margin-bottom: 0;
           background: linear-gradient(135deg, rgba(229, 9, 20, 0.15) 0%, rgba(20, 20, 20, 0.6) 100%);
-          border: 1px solid rgba(255, 60, 60, 0.2);
           gap: 40px;
           position: relative;
           overflow: hidden;
@@ -938,8 +977,9 @@ export default function Home() {
         @media (max-width: 768px) {
           .hero-carousel-wrapper {
             height: auto;
-            min-height: 220px;
+            min-height: 250px;
             margin-bottom: 24px;
+            border-radius: 20px;
           }
 
           .carousel-nav-btn {
@@ -963,16 +1003,19 @@ export default function Home() {
             height: 14px !important;
           }
 
+          .carousel-dots-container {
+            bottom: 10px;
+          }
+
           .hero-section {
             height: auto;
-            min-height: 220px;
+            min-height: 250px;
             flex-direction: column;
-            padding: 16px 14px 14px 14px;
+            padding: 16px 14px 40px 14px !important;
             text-align: left;
             align-items: stretch;
             gap: 14px;
             margin-bottom: 0;
-            border-radius: 20px;
           }
 
           .hero-content-wrapper {

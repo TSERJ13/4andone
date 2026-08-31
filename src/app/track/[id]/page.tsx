@@ -89,5 +89,31 @@ export default async function TrackPage({ params }: Props) {
     }
   } catch (e) {}
 
-  return <TrackClientView trackId={id} initialTrack={initialTrack} />;
+  const jsonLd = initialTrack ? {
+    '@context': 'https://schema.org',
+    '@type': 'MusicRecording',
+    'name': initialTrack.title,
+    'byArtist': {
+      '@type': 'MusicGroup',
+      'name': initialTrack.artist || '4and.one Music'
+    },
+    'genre': `${initialTrack.style || 'Dancesport'} / Ballroom Dance Music`,
+    'url': `https://4and.one/track/${id}`,
+    'audio': initialTrack.audioUrl ? {
+      '@type': 'AudioObject',
+      'contentUrl': initialTrack.audioUrl
+    } : undefined
+  } : null;
+
+  return (
+    <>
+      {jsonLd && (
+        <script
+          type="application/ld+json"
+          dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
+        />
+      )}
+      <TrackClientView trackId={id} initialTrack={initialTrack} />
+    </>
+  );
 }

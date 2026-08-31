@@ -46,6 +46,32 @@ export default function Home() {
   const [currentSlide, setCurrentSlide] = useState(0);
   const [isCarouselPaused, setIsCarouselPaused] = useState(false);
 
+  // Touch Swipe Gesture State for Mobile Carousel
+  const touchStartX = React.useRef<number | null>(null);
+  const touchEndX = React.useRef<number | null>(null);
+
+  const handleTouchStart = (e: React.TouchEvent) => {
+    touchStartX.current = e.targetTouches[0].clientX;
+    touchEndX.current = null;
+  };
+
+  const handleTouchMove = (e: React.TouchEvent) => {
+    touchEndX.current = e.targetTouches[0].clientX;
+  };
+
+  const handleTouchEnd = () => {
+    if (touchStartX.current === null || touchEndX.current === null) return;
+    const distance = touchStartX.current - touchEndX.current;
+    const minSwipeDistance = 35;
+    if (distance > minSwipeDistance) {
+      setCurrentSlide(prev => (prev === 0 ? 1 : 0));
+    } else if (distance < -minSwipeDistance) {
+      setCurrentSlide(prev => (prev === 0 ? 1 : 0));
+    }
+    touchStartX.current = null;
+    touchEndX.current = null;
+  };
+
   useEffect(() => {
     if (isCarouselPaused) return;
     const timer = setInterval(() => {
@@ -204,25 +230,28 @@ export default function Home() {
           className="hero-carousel-wrapper"
           onMouseEnter={() => setIsCarouselPaused(true)}
           onMouseLeave={() => setIsCarouselPaused(false)}
+          onTouchStart={handleTouchStart}
+          onTouchMove={handleTouchMove}
+          onTouchEnd={handleTouchEnd}
         >
           <div className="hero-top-right">
             <UserBadge />
           </div>
 
-          {/* Navigation Controls: Arrows */}
+          {/* Navigation Controls: Sleek Compact Arrows */}
           <button 
             className="carousel-nav-btn prev glass"
             onClick={() => setCurrentSlide(prev => (prev === 0 ? 1 : 0))}
             aria-label="Previous Banner"
           >
-            <ChevronLeft size={22} />
+            <ChevronLeft size={16} className="nav-arrow-icon" />
           </button>
           <button 
             className="carousel-nav-btn next glass"
             onClick={() => setCurrentSlide(prev => (prev === 0 ? 1 : 0))}
             aria-label="Next Banner"
           >
-            <ChevronRight size={22} />
+            <ChevronRight size={16} className="nav-arrow-icon" />
           </button>
 
           {/* Horizontal Slide Track */}
@@ -513,31 +542,34 @@ export default function Home() {
           top: 50%;
           transform: translateY(-50%);
           z-index: 15;
-          width: 42px;
-          height: 42px;
+          width: 32px;
+          height: 32px;
           border-radius: 50%;
           display: flex;
           align-items: center;
           justify-content: center;
-          background: rgba(0, 0, 0, 0.4);
+          background: rgba(0, 0, 0, 0.45);
+          backdrop-filter: blur(8px);
           border: 1px solid rgba(255, 255, 255, 0.15);
-          color: white;
+          color: rgba(255, 255, 255, 0.9);
           cursor: pointer;
           transition: all 0.25s ease;
+          box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
         }
 
         .carousel-nav-btn:hover {
-          background: rgba(0, 0, 0, 0.8);
+          background: rgba(255, 255, 255, 0.2);
           border-color: rgba(255, 255, 255, 0.4);
-          transform: translateY(-50%) scale(1.08);
+          color: white;
+          transform: translateY(-50%) scale(1.1);
         }
 
         .carousel-nav-btn.prev {
-          left: 12px;
+          left: 10px;
         }
 
         .carousel-nav-btn.next {
-          right: 12px;
+          right: 10px;
         }
 
         .carousel-dots-container {
@@ -908,6 +940,27 @@ export default function Home() {
             height: auto;
             min-height: 220px;
             margin-bottom: 24px;
+          }
+
+          .carousel-nav-btn {
+            width: 26px;
+            height: 26px;
+            background: rgba(0, 0, 0, 0.45);
+            border: 1px solid rgba(255, 255, 255, 0.18);
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.4);
+          }
+
+          .carousel-nav-btn.prev {
+            left: 5px;
+          }
+
+          .carousel-nav-btn.next {
+            right: 5px;
+          }
+
+          :global(.nav-arrow-icon) {
+            width: 14px !important;
+            height: 14px !important;
           }
 
           .hero-section {

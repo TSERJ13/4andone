@@ -685,16 +685,20 @@ export const AudioProvider: React.FC<{ children: React.ReactNode }> = ({ childre
             const err = audio.error;
             let msg = `Stream error: ${track.title}`;
             if (err) {
-              if (!isRetry) {
-                const urlObj = new URL(url);
-                const fileName = urlObj.pathname.split('/').pop();
-                if (fileName) {
-                  const R2_PUBLIC = process.env.NEXT_PUBLIC_R2_PUBLIC_URL || 'https://pub-c41b1121b311f676bdc114d143278d18.r2.dev';
-                  const fallbackUrl = `${R2_PUBLIC}/${fileName}`;
-                  // Preserve the current Final Mode flag on retry — otherwise a
-                  // mid-session load failure would silently drop out of Final Mode.
-                  loadTrack({ ...track, audioUrl: fallbackUrl }, true, isFinalModeRef.current);
-                  return;
+              if (err.code === 3 || err.code === 4) {
+                msg = `Format Error: ${track.title} (.mpa / unsupported codec). Convert to MP3 and re-upload.`;
+              } else if (!isRetry) {
+                try {
+                  const urlObj = new URL(url);
+                  const fileName = urlObj.pathname.split('/').pop();
+                  if (fileName) {
+                    const R2_PUBLIC = process.env.NEXT_PUBLIC_R2_PUBLIC_URL || 'https://pub-c41b1121b311f676bdc114d143278d18.r2.dev';
+                    const fallbackUrl = `${R2_PUBLIC}/${fileName}`;
+                    loadTrack({ ...track, audioUrl: fallbackUrl }, true, isFinalModeRef.current);
+                    return;
+                  }
+                } catch (e) {
+                  // Fallthrough
                 }
               }
             }

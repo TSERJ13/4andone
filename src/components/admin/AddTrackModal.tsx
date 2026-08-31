@@ -143,27 +143,80 @@ const AddTrackModal = ({ isOpen, onClose, onAdd, initialData }: AddTrackModalPro
       let duration = initialData?.duration || 0;
 
       if (selectedFile) {
+        const audioFileType = selectedFile.type || 'audio/mpeg';
         const signRes = await fetch('/api/upload', {
-          method: 'POST', headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ fileName: selectedFile.name, fileType: selectedFile.type || 'audio/mpeg' })
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ fileName: selectedFile.name, fileType: audioFileType })
         });
+
+        if (!signRes.ok) {
+          const errData = await signRes.json().catch(() => ({}));
+          throw new Error(errData.error || `Upload URL signing failed (${signRes.status})`);
+        }
+
         const { uploadUrl, publicUrl } = await signRes.json();
-        await fetch(uploadUrl, { method: 'PUT', body: selectedFile, headers: { 'Content-Type': selectedFile.type } });
+
+        const putRes = await fetch(uploadUrl, {
+          method: 'PUT',
+          body: selectedFile,
+          headers: { 'Content-Type': audioFileType }
+        });
+
+        if (!putRes.ok) {
+          throw new Error(`File upload to storage failed (${putRes.status})`);
+        }
+
         audioUrl = publicUrl;
-        
-        duration = await new Promise((resolve) => {
-          const audio = new Audio(); audio.src = URL.createObjectURL(selectedFile);
-          audio.onloadedmetadata = () => { resolve(Math.round(audio.duration)); URL.revokeObjectURL(audio.src); };
+
+        duration = await new Promise<number>((resolve) => {
+          try {
+            const audio = new Audio();
+            const objectUrl = URL.createObjectURL(selectedFile);
+            audio.src = objectUrl;
+            audio.onloadedmetadata = () => {
+              const dur = Math.round(audio.duration || 0);
+              URL.revokeObjectURL(objectUrl);
+              resolve(dur);
+            };
+            audio.onerror = () => {
+              URL.revokeObjectURL(objectUrl);
+              resolve(0);
+            };
+            setTimeout(() => {
+              URL.revokeObjectURL(objectUrl);
+              resolve(0);
+            }, 2500);
+          } catch (e) {
+            resolve(0);
+          }
         });
       }
 
       if (coverFile) {
+        const coverFileType = coverFile.type || 'image/jpeg';
         const signRes = await fetch('/api/upload', {
-          method: 'POST', headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ fileName: `covers/${Date.now()}_${coverFile.name}`, fileType: coverFile.type || 'image/jpeg' })
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ fileName: `covers/${Date.now()}_${coverFile.name}`, fileType: coverFileType })
         });
+
+        if (!signRes.ok) {
+          const errData = await signRes.json().catch(() => ({}));
+          throw new Error(errData.error || "Cover image upload URL signing failed");
+        }
+
         const { uploadUrl, publicUrl } = await signRes.json();
-        await fetch(uploadUrl, { method: 'PUT', body: coverFile, headers: { 'Content-Type': coverFile.type } });
+        const putRes = await fetch(uploadUrl, {
+          method: 'PUT',
+          body: coverFile,
+          headers: { 'Content-Type': coverFileType }
+        });
+
+        if (!putRes.ok) {
+          throw new Error("Cover image upload to storage failed");
+        }
+
         artworkUrl = publicUrl;
       }
 
@@ -175,17 +228,38 @@ const AddTrackModal = ({ isOpen, onClose, onAdd, initialData }: AddTrackModalPro
       if (formData.album === 'GOC 2026' && !finalTags.includes('GOC 2026')) {
         finalTags.push('GOC 2026');
       }
+      if (formData.album === 'Dance Star Band' && !finalTags.includes('Dance Star Band')) {
+        finalTags.push('Dance Star Band');
+      }
 
-      await onAdd({ ...formData, tags: finalTags, album: formData.album || undefined, audioUrl, artworkUrl, duration, id: initialData?.id || `track_${Date.now()}` });
+      await onAdd({
+        ...formData,
+        tags: finalTags,
+        album: formData.album || undefined,
+        audioUrl,
+        artworkUrl,
+        duration,
+        id: initialData?.id || `track_${Date.now()}`
+      });
+
       if (formData.artist && !recentArtists.includes(formData.artist)) {
         const updated = [formData.artist, ...recentArtists.slice(0, 11)];
         setRecentArtists(updated);
         localStorage.setItem('recentArtists', JSON.stringify(updated));
       }
+
       await refreshData();
       setIsSuccess(true);
-      setTimeout(() => { setIsSubmitting(false); setIsSuccess(false); onClose(); }, 1500);
-    } catch (err: any) { setValidationError(err.message || "Failed to upload."); setIsSubmitting(false); }
+      setTimeout(() => {
+        setIsSubmitting(false);
+        setIsSuccess(false);
+        onClose();
+      }, 1500);
+    } catch (err: any) {
+      console.error("[ADD-TRACK-ERROR]", err);
+      setValidationError(err.message || "Failed to upload track.");
+      setIsSubmitting(false);
+    }
   };
 
   return (
@@ -199,6 +273,24 @@ const AddTrackModal = ({ isOpen, onClose, onAdd, initialData }: AddTrackModalPro
           <div className="success-state"><CheckCircle2 size={64} className="text-primary animate-bounce" /><h3>Success!</h3></div>
         ) : (
           <form className="modal-form" onSubmit={handleSubmit}>
+            {validationError && (
+              <div className="validation-error-banner glass animate-in" style={{
+                background: 'rgba(239, 68, 68, 0.15)',
+                border: '1px solid rgba(239, 68, 68, 0.3)',
+                color: '#f87171',
+                padding: '12px 16px',
+                borderRadius: '14px',
+                marginBottom: '16px',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '10px',
+                fontSize: '13px',
+                fontWeight: 700
+              }}>
+                <AlertTriangle size={18} />
+                <span>{validationError}</span>
+              </div>
+            )}
             <div className="form-redistribution-row">
               {/* Left Column: Artwork */}
               <div className="artwork-column">
@@ -424,8 +516,10 @@ const AddTrackModal = ({ isOpen, onClose, onAdd, initialData }: AddTrackModalPro
             </div>
 
             <footer className="modal-footer">
-              <button type="button" className="btn-secondary" onClick={onClose}>Cancel</button>
-              <button type="submit" className="btn-primary" disabled={isSubmitting || isAnalyzing}>Save Track</button>
+              <button type="button" className="btn-secondary" onClick={onClose} disabled={isSubmitting}>Cancel</button>
+              <button type="submit" className="btn-primary" disabled={isSubmitting || isAnalyzing}>
+                {isSubmitting ? 'Uploading...' : 'Save Track'}
+              </button>
             </footer>
           </form>
         )}

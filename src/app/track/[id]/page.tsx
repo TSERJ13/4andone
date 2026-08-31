@@ -19,14 +19,29 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
     if (track) {
       const trackTitle = track.title;
       const artistLine = track.artist ? `Artist: ${track.artist}` : 'Artist: 4and.one Music';
-      const trackDesc = `${artistLine}\nFree web music player for Dancesport and Ballroom dancers.`;
+      const styleLine = track.style ? `Dance Style: ${track.style}` : 'Dancesport Music';
+      const trackDesc = `${trackTitle} - ${artistLine} • ${styleLine}. Listen and practice online with BPM speed tempo control on 4and.one Music.`;
       const thumbUrl = track.artwork_url || 'https://4and.one/og-thumb.png';
 
       return {
-        title: `${trackTitle} - ${artistLine} | 4and.one`,
+        title: `${trackTitle} - ${track.artist || 'Dancesport'} (${track.style || 'Ballroom'}) | 4and.one`,
         description: trackDesc,
+        keywords: [
+          trackTitle,
+          track.artist,
+          track.style,
+          `${track.style} music`,
+          'dancesport music',
+          'ballroom dance music',
+          'latin dance music',
+          'standard dance music',
+          '4andone'
+        ].filter(Boolean),
+        alternates: {
+          canonical: `https://4and.one/track/${id}`,
+        },
         openGraph: {
-          title: trackTitle,
+          title: `${trackTitle} - ${track.artist || 'Dancesport'}`,
           description: trackDesc,
           url: `https://4and.one/track/${id}`,
           siteName: '4and.one Music',
@@ -34,9 +49,9 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
           images: [
             {
               url: thumbUrl,
-              width: 160,
-              height: 160,
-              alt: `${track.title} logo`,
+              width: 300,
+              height: 300,
+              alt: `${track.title} cover`,
             },
           ],
           audio: track.audio_url ? [

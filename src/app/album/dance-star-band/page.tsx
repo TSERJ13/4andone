@@ -768,6 +768,9 @@ export default function DanceStarBandPage() {
         }
 
         @media (max-width: 768px) {
+          .discipline-tabs-container {
+            flex-direction: column;
+          }
           .goc-hero {
             flex-direction: column;
             text-align: center;

@@ -70,14 +70,24 @@ export default function Home() {
     }
   }, [tracks, loadTrack]);
 
+  const isSpecialAlbumTrack = React.useCallback((t: any) => {
+    if (!t) return false;
+    const albumLower = (t.album || '').toLowerCase();
+    if (albumLower === 'goc 2026' || albumLower === 'dance star band') return true;
+    if (t.tags?.some((tag: string) => {
+      const tg = tag.toLowerCase();
+      return tg === 'goc 2026' || tg === 'goc' || tg === 'dance star band' || tg === 'dance star' || tg === 'dancestar';
+    })) return true;
+    return false;
+  }, []);
+
   const newArrivals = React.useMemo(() => {
     return tracks.filter(t =>
       t.style?.toLowerCase() !== 'fitness' &&
       !t.tags?.some(tag => tag.toLowerCase() === 'closed' || tag === 'დახურული') &&
-      t.album !== 'GOC 2026' &&
-      !t.tags?.some(tag => tag.toUpperCase() === 'GOC 2026' || tag.toUpperCase() === 'GOC')
+      !isSpecialAlbumTrack(t)
     );
-  }, [tracks]);
+  }, [tracks, isSpecialAlbumTrack]);
 
   const checkAuthAndExecute = (action: () => void, actionName: string) => {
     if (!isAuthenticated) {
@@ -327,8 +337,7 @@ export default function Home() {
                   t.style?.toLowerCase() === style.title.toLowerCase() &&
                   !t.tags?.some(tag => tag.toLowerCase() === 'closed' || tag === 'დახურული') &&
                   t.style?.toLowerCase() !== 'fitness' &&
-                  t.album !== 'GOC 2026' &&
-                  !t.tags?.some(tag => tag.toUpperCase() === 'GOC 2026' || tag.toUpperCase() === 'GOC')
+                  !isSpecialAlbumTrack(t)
                 ).length;
                 return (
                   <Link
@@ -371,8 +380,7 @@ export default function Home() {
                   t.style?.toLowerCase() === style.title.toLowerCase() &&
                   !t.tags?.some(tag => tag.toLowerCase() === 'closed' || tag === 'დახურული') &&
                   t.style?.toLowerCase() !== 'fitness' &&
-                  t.album !== 'GOC 2026' &&
-                  !t.tags?.some(tag => tag.toUpperCase() === 'GOC 2026' || tag.toUpperCase() === 'GOC')
+                  !isSpecialAlbumTrack(t)
                 ).length;
                 return (
                   <Link

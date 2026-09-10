@@ -123,6 +123,7 @@ export const KofiModal: React.FC = () => {
           width: 100%;
           max-width: 480px;
           height: 90vh;
+          height: 90dvh;
           max-height: 760px;
           background: #111111;
           border-radius: 24px;
@@ -142,6 +143,7 @@ export const KofiModal: React.FC = () => {
           padding: 14px 18px;
           border-bottom: 1px solid rgba(255, 255, 255, 0.08);
           background: #161616;
+          flex-shrink: 0;
         }
 
         .kofi-brand {
@@ -221,7 +223,8 @@ export const KofiModal: React.FC = () => {
           flex: 1;
           width: 100%;
           background: #f9f9f9;
-          overflow: hidden;
+          overflow-y: auto;
+          -webkit-overflow-scrolling: touch;
         }
 
         .kofi-loader {
@@ -250,6 +253,7 @@ export const KofiModal: React.FC = () => {
 
         iframe#kofiframe {
           width: 100%;
+          min-height: 680px;
           height: 100%;
           border: none;
           display: block;
@@ -273,15 +277,33 @@ export const KofiModal: React.FC = () => {
 
         @media (max-width: 640px) {
           .kofi-modal-overlay {
-            padding: 8px;
+            padding: 8px 6px;
+            align-items: flex-end;
           }
           .kofi-modal-content {
-            height: 94vh;
-            max-height: none;
-            border-radius: 20px;
+            height: 95vh;
+            height: 95dvh;
+            max-height: 95dvh;
+            border-radius: 24px 24px 18px 18px;
+            margin-bottom: env(safe-area-inset-bottom, 0);
+          }
+          .kofi-modal-header {
+            padding: 12px 14px;
           }
           .kofi-title-box p {
             max-width: 190px;
+          }
+        }
+
+        @media (max-height: 700px) {
+          .kofi-modal-overlay {
+            padding: 4px;
+          }
+          .kofi-modal-content {
+            height: 98vh;
+            height: 98dvh;
+            max-height: 98dvh;
+            border-radius: 16px;
           }
         }
       `}</style>

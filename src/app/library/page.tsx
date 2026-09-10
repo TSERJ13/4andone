@@ -20,13 +20,15 @@ import { useAuth } from '@/context/AuthContext';
 import { getMPMFromBPM } from '@/utils/audio';
 import { formatDuration } from '@/utils/format';
 import ConfirmModal from '@/components/admin/ConfirmModal';
+import CreatePlaylistModal from '@/components/library/CreatePlaylistModal';
 import { Marquee } from '@/components/layout/Marquee';
 
 export default function LibraryPage() {
   const router = useRouter();
-  const { tracks, folders, styles, finalTracks, addToFinal, removeFromFinal, toggleFavorite } = useStudio();
+  const { tracks, folders, folderTracksMap, styles, finalTracks, addToFinal, removeFromFinal, toggleFavorite } = useStudio();
   const { isPlaying, title: playingTitle, loadTrack } = useAudio();
   const { isAuthenticated, setIsAuthModalOpen } = useAuth();
+  const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
 
   const [infoModal, setInfoModal] = useState({
     isOpen: false,
@@ -65,57 +67,58 @@ export default function LibraryPage() {
         <div className="collection-grid">
           <div 
             onClick={() => router.push('/library/favorites')}
-            className="collection-card glass"
+            className="collection-card liked-card glass"
             style={{ cursor: 'pointer' }}
           >
             <div className="card-icon" style={{ color: '#f43f5e' }}>
-              <Heart size={20} fill="#f43f5e" />
+              <Heart size={26} fill="#f43f5e" />
             </div>
             <div className="card-info">
               <h3>Liked Songs</h3>
-              <p className="meta text-secondary">All favorites</p>
+              <p className="meta text-secondary">
+                {tracks.filter(t => t.isFavorite && !t.tags?.some(tag => tag.toLowerCase() === 'closed' || tag === 'დახურული')).length} Tracks
+              </p>
             </div>
           </div>
 
+          <div 
+            className="collection-card create-card glass"
+            onClick={() => checkAuthAndExecute(() => setIsCreateModalOpen(true), 'create playlists')}
+            style={{ cursor: 'pointer' }}
+          >
+            <div className="card-icon" style={{ color: '#1db954' }}>
+              <Plus size={26} strokeWidth={2.5} />
+            </div>
+            <div className="card-info">
+              <h3>Create Playlist</h3>
+              <p className="meta text-secondary">New Playlist</p>
+            </div>
+          </div>
 
-            <div 
+          {folders.map((folder) => (
+            <Link 
+              key={folder.id} 
+              href={`/library/${folder.id}`} 
               className="collection-card glass"
-              onClick={() => checkAuthAndExecute(() => {/* playlist logic */}, 'create playlists')}
-              style={{ cursor: 'pointer' }}
             >
-              <div className="card-icon" style={{ color: '#1db954' }}>
-                <Plus size={20} />
+              <div className="card-visual" style={{ 
+                background: `linear-gradient(135deg, ${folder.color}, transparent)`,
+                opacity: 0.1 
+              }} />
+              <div className="card-icon" style={{ color: folder.color }}>
+                <Disc size={24} />
               </div>
               <div className="card-info">
-                <h3>Create Playlist</h3>
-                <p className="meta text-secondary">New Playlist</p>
+                <h3>{folder.name}</h3>
+                <p className="meta text-secondary">{tracks.filter(t => 
+                  (t.folderId === folder.id || folderTracksMap?.[folder.id]?.includes(t.id)) && 
+                  t.style?.toLowerCase() !== 'fitness' &&
+                  !t.tags?.some(tag => tag.toLowerCase() === 'closed' || tag === 'დახურული')
+                ).length} Tracks</p>
               </div>
-            </div>
-
-            {folders.map((folder) => (
-              <Link 
-                key={folder.id} 
-                href={`/library/${folder.id}`} 
-                className="collection-card glass"
-              >
-                <div className="card-visual" style={{ 
-                  background: `linear-gradient(135deg, ${folder.color}, transparent)`,
-                  opacity: 0.1 
-                }} />
-                <div className="card-icon" style={{ color: folder.color }}>
-                  <Disc size={20} />
-                </div>
-                <div className="card-info">
-                  <h3>{folder.name}</h3>
-                  <p className="meta text-secondary">{tracks.filter(t => 
-                    t.folderId === folder.id && 
-                    t.style?.toLowerCase() !== 'fitness' &&
-                    !t.tags?.some(tag => tag.toLowerCase() === 'closed' || tag === 'დახურული')
-                  ).length} Tracks</p>
-                </div>
-              </Link>
-            ))}
-          </div>
+            </Link>
+          ))}
+        </div>
       </section>
 
       <section className="library-section">
@@ -205,6 +208,12 @@ export default function LibraryPage() {
         variant="primary"
         onClose={() => setInfoModal(prev => ({ ...prev, isOpen: false }))}
         onConfirm={infoModal.onConfirm}
+      />
+
+      <CreatePlaylistModal
+        isOpen={isCreateModalOpen}
+        onClose={() => setIsCreateModalOpen(false)}
+        onSuccess={(newFolder) => router.push(`/library/${newFolder.id}`)}
       />
 
       <style jsx>{`
@@ -401,17 +410,21 @@ export default function LibraryPage() {
             padding-bottom: 120px;
           }
           .collection-grid {
-            display: flex;
-            flex-wrap: wrap;
-            justify-content: flex-start;
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
             gap: 12px;
           }
           .collection-card {
-            padding: 8px !important;
-            width: 75px !important;
-            height: 75px !important;
-            border-radius: 24px !important;
-            gap: 4px !important;
+            padding: 14px 10px !important;
+            width: 100% !important;
+            height: 114px !important;
+            border-radius: 20px !important;
+            gap: 6px !important;
+            display: flex !important;
+            flex-direction: column !important;
+            align-items: center !important;
+            justify-content: center !important;
+            box-sizing: border-box !important;
             flex-shrink: 0 !important;
           }
           .collection-card.placeholder-card {
@@ -420,12 +433,31 @@ export default function LibraryPage() {
             color: var(--text-secondary);
           }
           .card-icon, .card-icon-premium {
-            width: 32px;
-            height: 32px;
-            border-radius: 10px;
+            width: 48px !important;
+            height: 48px !important;
+            border-radius: 14px !important;
+            display: flex !important;
+            align-items: center !important;
+            justify-content: center !important;
+            margin-bottom: 2px !important;
           }
-          .card-info h3 { font-size: 0.8rem; letter-spacing: -0.5px; } /* Slightly smaller for mobile */
-          .card-info .meta { display: none; }
+          .card-icon svg {
+            width: 28px !important;
+            height: 28px !important;
+          }
+          .card-info h3 { 
+            font-size: 0.88rem !important; 
+            font-weight: 750 !important; 
+            letter-spacing: -0.3px !important; 
+            margin: 0 !important;
+            white-space: nowrap !important;
+          }
+          .card-info .meta { 
+            display: block !important; 
+            font-size: 11px !important; 
+            opacity: 0.55 !important;
+            margin-top: 2px !important;
+          }
 
         }
       `}</style>

@@ -1,20 +1,20 @@
 "use client";
 
-import React from 'react';
-import { useParams } from 'next/navigation';
-import { Play, Pause, Clock, Music2, MoreHorizontal, Heart, Disc, ListMusic, GripVertical } from 'lucide-react';
+import React, { useState } from 'react';
+import { useParams, useRouter } from 'next/navigation';
+import { Play, Pause, Clock, Music2, MoreHorizontal, Heart, Disc, ListMusic, GripVertical, Trash2, X } from 'lucide-react';
 import { useStudio, Track } from '@/components/admin/StudioProvider';
 import { useAudio } from '@/components/audio/AudioProvider';
 import { useAuth } from '@/context/AuthContext';
 import { formatDuration } from '@/utils/format';
 import ConfirmModal from '@/components/admin/ConfirmModal';
-import { useState } from 'react';
 import { getMPMFromBPM } from '@/utils/audio';
 import { Marquee } from '@/components/layout/Marquee';
 
 const PlaylistPage = () => {
   const { id } = useParams();
-  const { tracks, folders, styles, reorderGlobalTracks, finalTracks, addToFinal, removeFromFinal, toggleFavorite } = useStudio();
+  const router = useRouter();
+  const { tracks, folders, folderTracksMap, styles, reorderGlobalTracks, finalTracks, addToFinal, removeFromFinal, toggleFavorite, removeFolder, removeTrackFromFolder } = useStudio();
   const { isPlaying, title: playingTitle, loadTrack } = useAudio();
   const { isAuthenticated, setIsAuthModalOpen } = useAuth();
 
@@ -58,7 +58,7 @@ const PlaylistPage = () => {
 
   const folder = folders.find(f => f.id === id);
   const playlistTracks = tracks.filter(t =>
-    t.folderId === id &&
+    (t.folderId === id || folderTracksMap?.[id as string]?.includes(t.id)) &&
     !t.tags?.some(tag => tag.toLowerCase() === 'closed' || tag === 'დახურული')
   );
 
@@ -83,8 +83,14 @@ const PlaylistPage = () => {
   return (
     <div className="playlist-page animate-in">
       <header className="page-header">
-        <div className="icon-large glass">
-          <ListMusic size={64} />
+        <div 
+          className="icon-large glass"
+          style={{ 
+            background: folder?.color ? `linear-gradient(135deg, ${folder.color}88, #121212)` : undefined,
+            borderColor: folder?.color ? `${folder.color}44` : undefined
+          }}
+        >
+          <ListMusic size={64} style={{ color: folder?.color || 'inherit' }} />
         </div>
         <div className="head-content">
           <span className="label">{playlist.type}</span>
@@ -103,6 +109,28 @@ const PlaylistPage = () => {
         >
           {isPlaying && playlist.tracks.some(t => t.title === playingTitle) ? <div className="playing-bars"><span></span><span></span><span></span></div> : <Play fill="currentColor" size={24} />}
         </button>
+
+        {id !== 'favorites' && folder && (
+          <button
+            className="btn-delete-playlist"
+            onClick={() => {
+              setInfoModal({
+                isOpen: true,
+                title: 'Delete Playlist',
+                message: `Are you sure you want to delete "${folder.name}"?`,
+                onConfirm: async () => {
+                  setInfoModal(prev => ({ ...prev, isOpen: false }));
+                  await removeFolder(id as string);
+                  router.push('/library');
+                }
+              });
+            }}
+            title="Delete Playlist"
+          >
+            <Trash2 size={16} />
+            <span>Delete</span>
+          </button>
+        )}
       </div>
 
       <div className="tracks-list">
@@ -161,6 +189,20 @@ const PlaylistPage = () => {
                 >
                   <Heart size={16} fill={track.isFavorite ? "#ff4b2b" : "none"} color={track.isFavorite ? "#ff4b2b" : "currentColor"} />
                 </button>
+
+                {id !== 'favorites' && (
+                  <button
+                    className="remove-track-action"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      removeTrackFromFolder(id as string, track.id);
+                    }}
+                    title="Remove from playlist"
+                  >
+                    <X size={16} />
+                  </button>
+                )}
+
                 <div className="play-action">
                   {isPlaying && (playingTitle === track.title || playingTitle === track.id) ? (
                     <div className="playing-bars"><span></span><span></span><span></span></div>
@@ -213,9 +255,47 @@ const PlaylistPage = () => {
         }
         .play-btn-large:hover { transform: scale(1.05); }
         
+        .btn-delete-playlist {
+          display: flex;
+          align-items: center;
+          gap: 6px;
+          padding: 8px 16px;
+          margin-left: 16px;
+          border-radius: 20px;
+          background: rgba(244, 63, 94, 0.1);
+          border: 1px solid rgba(244, 63, 94, 0.25);
+          color: #f43f5e;
+          font-size: 13px;
+          font-weight: 700;
+          cursor: pointer;
+          transition: all 0.2s;
+        }
+        .btn-delete-playlist:hover {
+          background: rgba(244, 63, 94, 0.2);
+          transform: translateY(-1px);
+        }
+
         .fav-action { opacity: 0.4; transition: all 0.2s; background: none; border: none; cursor: pointer; color: #555; }
         .fav-action:hover, .fav-action.active-heart { opacity: 1; transform: scale(1.1); }
         .fav-action.active-heart { color: #ff4b2b; }
+        
+        .remove-track-action {
+          opacity: 0.4;
+          transition: all 0.2s;
+          background: none;
+          border: none;
+          cursor: pointer;
+          color: #71717a;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          padding: 4px;
+        }
+        .remove-track-action:hover {
+          opacity: 1;
+          color: #f43f5e;
+          transform: scale(1.15);
+        }
         
         .text-secondary { color: #71717a; }
         .text-primary { color: var(--primary); }

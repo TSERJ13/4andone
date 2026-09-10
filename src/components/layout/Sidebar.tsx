@@ -16,6 +16,7 @@ import {
 import { useStudio } from "@/components/admin/StudioProvider";
 import { useAuth } from '@/context/AuthContext';
 import ConfirmModal from '@/components/admin/ConfirmModal';
+import CreatePlaylistModal from '@/components/library/CreatePlaylistModal';
 import { useRouter } from 'next/navigation';
 
 const Sidebar = () => {
@@ -25,15 +26,14 @@ const Sidebar = () => {
   const { folders } = useStudio();
   const { isAuthenticated, setIsAuthModalOpen } = useAuth();
   const [showAuthPrompt, setShowAuthPrompt] = React.useState(false);
+  const [isCreateModalOpen, setIsCreateModalOpen] = React.useState(false);
 
   const handleCreatePlaylist = () => {
     if (!isAuthenticated) {
       setShowAuthPrompt(true);
       return;
     }
-    // If authenticated, we redirect to library where they can manage folders
-    // or trigger a specific folder creation logic if we add it globally
-    router.push('/library');
+    setIsCreateModalOpen(true);
   };
 
   if (isAdmin) return null;
@@ -102,6 +102,12 @@ const Sidebar = () => {
           setShowAuthPrompt(false);
           setIsAuthModalOpen(true);
         }}
+      />
+
+      <CreatePlaylistModal
+        isOpen={isCreateModalOpen}
+        onClose={() => setIsCreateModalOpen(false)}
+        onSuccess={(newFolder) => router.push(`/library/${newFolder.id}`)}
       />
 
       <style jsx>{`

@@ -739,6 +739,21 @@ export const AudioProvider: React.FC<{ children: React.ReactNode }> = ({ childre
             }
           };
 
+          // SYNC AUDIO LIFECYCLE WITH MEDIASESSION & LOCK-SCREEN CONTROLS
+          audio.onplay = () => {
+            if (currentToken !== loadingTokenRef.current) return;
+            setIsPlaying(true);
+            isPlayingRef.current = true;
+            if ('mediaSession' in navigator) navigator.mediaSession.playbackState = 'playing';
+          };
+
+          audio.onpause = () => {
+            if (currentToken !== loadingTokenRef.current) return;
+            setIsPlaying(false);
+            isPlayingRef.current = false;
+            if ('mediaSession' in navigator) navigator.mediaSession.playbackState = 'paused';
+          };
+
           // ATTACH EVENT-DRIVEN MONITORING (Frame-accurate limit checks)
           audio.ontimeupdate = () => {
             if (currentToken !== loadingTokenRef.current) return;
@@ -959,9 +974,9 @@ export const AudioProvider: React.FC<{ children: React.ReactNode }> = ({ childre
           ]
         });
 
-        // ACTION HANDLERS: Crucial for background playback on iOS PWA
-        navigator.mediaSession.setActionHandler('play', () => { togglePlay(); });
-        navigator.mediaSession.setActionHandler('pause', () => { togglePlay(); });
+        // ACTION HANDLERS: Crucial for background playback on iOS PWA & Lock-Screen
+        navigator.mediaSession.setActionHandler('play', () => { playAudio(); });
+        navigator.mediaSession.setActionHandler('pause', () => { pauseAudio(); });
         navigator.mediaSession.setActionHandler('previoustrack', () => { playPrevious(); });
         navigator.mediaSession.setActionHandler('nexttrack', () => { playNext(); });
         
@@ -1153,35 +1168,50 @@ export const AudioProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     };
   }, [isPlaying, isPauseCountdown, isLoading, duration, isFinalMode, title]);
 
-  const togglePlay = React.useCallback(async () => {
-    // Mobile browsers require resume() on user gesture
-    if (!isLoaded) return;
-
-    if (isPlayingRef.current) {
-      if (nativePlayerRef.current) nativePlayerRef.current.pause();
-      if (wakeLockRef.current) {
-        wakeLockRef.current.release().then(() => { wakeLockRef.current = null; });
-      }
-      setIsPlaying(false);
-      if ('mediaSession' in navigator) navigator.mediaSession.playbackState = 'paused';
-    } else {
+  const playAudio = React.useCallback(async () => {
+    if (!isLoaded || !nativePlayerRef.current) return;
+    try {
       const startTime = currentTimeRef.current >= duration ? 0 : currentTimeRef.current;
-      if (nativePlayerRef.current) {
-        nativePlayerRef.current.currentTime = startTime;
-        playPromiseRef.current = nativePlayerRef.current.play();
-        playPromiseRef.current.catch(() => {}).finally(() => { playPromiseRef.current = null; });
-      }
+      nativePlayerRef.current.currentTime = startTime;
+      playPromiseRef.current = nativePlayerRef.current.play();
+      await playPromiseRef.current;
+      setIsPlaying(true);
+      isPlayingRef.current = true;
+      if ('mediaSession' in navigator) navigator.mediaSession.playbackState = 'playing';
       if (heartbeatRef.current) heartbeatRef.current.play().catch(() => {});
       if ('wakeLock' in navigator) {
         (navigator as any).wakeLock.request('screen').then((lock: any) => {
           wakeLockRef.current = lock;
         }).catch(() => {});
       }
-      setIsPlaying(true);
-      if ('mediaSession' in navigator) navigator.mediaSession.playbackState = 'playing';
       notifyOtherTabs();
+    } catch (err) {
+      console.warn('[AUDIO-ENGINE] playAudio failed:', err);
+    } finally {
+      playPromiseRef.current = null;
     }
   }, [isLoaded, duration]);
+
+  const pauseAudio = React.useCallback(() => {
+    if (nativePlayerRef.current) {
+      nativePlayerRef.current.pause();
+      if (wakeLockRef.current) {
+        wakeLockRef.current.release().then(() => { wakeLockRef.current = null; }).catch(() => {});
+      }
+      setIsPlaying(false);
+      isPlayingRef.current = false;
+      if ('mediaSession' in navigator) navigator.mediaSession.playbackState = 'paused';
+    }
+  }, []);
+
+  const togglePlay = React.useCallback(async () => {
+    if (!isLoaded) return;
+    if (isPlayingRef.current) {
+      pauseAudio();
+    } else {
+      await playAudio();
+    }
+  }, [isLoaded, playAudio, pauseAudio]);
 
   const setBpm = React.useCallback((newBpm: number, persistent = true) => {
     // 1. ALWAYS UPDATE NATIVE IMMEDIATELY (Near-zero latency)
@@ -1369,8 +1399,8 @@ export const AudioProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   // REGISTER MEDIA SESSION ACTIONS
   useEffect(() => {
     if ('mediaSession' in navigator) {
-      navigator.mediaSession.setActionHandler('play', () => togglePlay());
-      navigator.mediaSession.setActionHandler('pause', () => togglePlay());
+      navigator.mediaSession.setActionHandler('play', () => playAudio());
+      navigator.mediaSession.setActionHandler('pause', () => pauseAudio());
       navigator.mediaSession.setActionHandler('seekbackward', () => seekRelative(-10));
       navigator.mediaSession.setActionHandler('seekforward', () => seekRelative(10));
       navigator.mediaSession.setActionHandler('previoustrack', () => playPrevious());
@@ -1379,7 +1409,7 @@ export const AudioProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         if (details.seekTime !== undefined) seek(details.seekTime);
       });
     }
-  }, [togglePlay, seek, seekRelative]);
+  }, [playAudio, pauseAudio, seek, seekRelative]);
 
   // Global Keyboard Shortcuts for Dancers & Coaches
   useEffect(() => {

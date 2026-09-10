@@ -392,6 +392,7 @@ button {
   display: flex;
   flex-direction: column;
   gap: 4px;
+  padding-right: 16px;
 }
 
 .track-name {
@@ -507,7 +508,7 @@ button {
 @media (max-width: 768px) {
   .track-row {
     grid-template-columns: 14px 24px 1fr auto auto;
-    gap: 4px;
+    gap: 8px;
     padding: 14px 16px 14px 10px;
     border-radius: 12px;
     min-height: 62px;
@@ -517,11 +518,27 @@ button {
     display: none;
   }
 
+  .track-info-col {
+    padding-right: 22px;
+    position: relative;
+    overflow: hidden;
+  }
+
+  .track-info-col .track-name {
+    -webkit-mask-image: linear-gradient(to right, #000 calc(100% - 24px), transparent 100%);
+    mask-image: linear-gradient(to right, #000 calc(100% - 24px), transparent 100%);
+  }
+
+  .track-info-col .track-artist {
+    -webkit-mask-image: linear-gradient(to right, #000 calc(100% - 24px), transparent 100%);
+    mask-image: linear-gradient(to right, #000 calc(100% - 24px), transparent 100%);
+  }
+
   .track-badge-col {
     display: flex;
     align-items: center;
     justify-content: flex-end;
-    margin-right: 14px;
+    margin-right: 10px;
     flex-shrink: 0;
   }
 
@@ -751,6 +768,18 @@ button {
   margin-bottom: 12px;
   cursor: pointer;
   touch-action: none;
+  user-select: none;
+  -webkit-user-select: none;
+}
+.mfp-progress-bar-container::after {
+  content: '';
+  position: absolute;
+  top: -18px;
+  bottom: -18px;
+  left: -10px;
+  right: -10px;
+  z-index: 20;
+  cursor: pointer;
 }
 .mfp-progress-fill {
   height: 100%;

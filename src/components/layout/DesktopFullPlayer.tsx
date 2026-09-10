@@ -55,6 +55,7 @@ export default function DesktopFullPlayer({ onClose }: { onClose: () => void }) 
   const [isDragging, setIsDragging] = useState(false);
   const [dragProgress, setDragProgress] = useState(0);
   const progressRef = useRef<HTMLDivElement>(null);
+  const lastSeekRef = useRef<number>(0);
   const speedPopoverRef = useRef<HTMLDivElement>(null);
 
   // Click outside to close speed selector
@@ -136,47 +137,91 @@ export default function DesktopFullPlayer({ onClose }: { onClose: () => void }) 
     if (!progressRef.current || !totalDur) return;
     const rect = progressRef.current.getBoundingClientRect();
     const x = Math.max(0, Math.min(clientX - rect.left, rect.width));
-    const percentage = x / rect.width;
+    const percentage = rect.width > 0 ? x / rect.width : 0;
     const newTime = percentage * totalDur;
     setDragProgress(percentage * 100);
     return newTime;
   };
 
-  const handleInteractionStart = (e: React.MouseEvent | React.TouchEvent) => {
+  const handlePointerDown = (e: React.PointerEvent<HTMLDivElement>) => {
     if (isFinalMode) return;
+    e.preventDefault();
+    e.stopPropagation();
+    try {
+      e.currentTarget.setPointerCapture(e.pointerId);
+    } catch {}
     setIsDragging(true);
-    const clientX = 'touches' in e ? e.touches[0].clientX : e.clientX;
-    handleSeek(clientX);
+    const newTime = handleSeek(e.clientX);
+    if (newTime !== undefined && !isPlaying) {
+      seek(newTime);
+    }
   };
 
-  const handleInteractionMove = useCallback((e: MouseEvent | TouchEvent) => {
-    if (!isDragging) return;
-    const clientX = 'touches' in e ? e.touches[0].clientX : e.clientX;
-    handleSeek(clientX);
-  }, [isDragging, totalDur]);
+  const handlePointerMove = (e: React.PointerEvent<HTMLDivElement>) => {
+    if (!isDragging || isFinalMode) return;
+    e.preventDefault();
+    e.stopPropagation();
+    const newTime = handleSeek(e.clientX);
+    if (isPlaying && newTime !== undefined) {
+      const now = Date.now();
+      if (now - lastSeekRef.current > 120) {
+        seek(newTime);
+        lastSeekRef.current = now;
+      }
+    }
+  };
 
-  const handleInteractionEnd = useCallback((e: MouseEvent | TouchEvent) => {
-    if (!isDragging) return;
-    const clientX = 'touches' in e ? (e.changedTouches[0]?.clientX || 0) : e.clientX;
-    const newTime = handleSeek(clientX);
+  const handlePointerUp = (e: React.PointerEvent<HTMLDivElement>) => {
+    if (!isDragging || isFinalMode) return;
+    e.preventDefault();
+    e.stopPropagation();
+    try {
+      e.currentTarget.releasePointerCapture(e.pointerId);
+    } catch {}
+    const newTime = handleSeek(e.clientX);
     if (newTime !== undefined) seek(newTime);
     setIsDragging(false);
-  }, [isDragging, seek, totalDur]);
+  };
+
+  const handlePointerCancel = (e: React.PointerEvent<HTMLDivElement>) => {
+    if (!isDragging) return;
+    try {
+      e.currentTarget.releasePointerCapture(e.pointerId);
+    } catch {}
+    setIsDragging(false);
+  };
 
   useEffect(() => {
-    if (isDragging && !isFinalMode) {
-      window.addEventListener('mousemove', handleInteractionMove);
-      window.addEventListener('mouseup', handleInteractionEnd);
-      window.addEventListener('touchmove', handleInteractionMove, { passive: false });
-      window.addEventListener('touchend', handleInteractionEnd);
-    }
-    return () => {
-      window.removeEventListener('mousemove', handleInteractionMove);
-      window.removeEventListener('mouseup', handleInteractionEnd);
-      window.removeEventListener('touchmove', handleInteractionMove);
-      window.removeEventListener('touchend', handleInteractionEnd);
+    if (!isDragging || isFinalMode) return;
+
+    const handleWindowPointerMove = (e: PointerEvent) => {
+      e.preventDefault();
+      const newTime = handleSeek(e.clientX);
+      if (isPlaying && newTime !== undefined) {
+        const now = Date.now();
+        if (now - lastSeekRef.current > 120) {
+          seek(newTime);
+          lastSeekRef.current = now;
+        }
+      }
     };
-  }, [isDragging, isFinalMode, handleInteractionMove, handleInteractionEnd]);
+
+    const handleWindowPointerUp = (e: PointerEvent) => {
+      const newTime = handleSeek(e.clientX);
+      if (newTime !== undefined) seek(newTime);
+      setIsDragging(false);
+    };
+
+    window.addEventListener('pointermove', handleWindowPointerMove, { passive: false });
+    window.addEventListener('pointerup', handleWindowPointerUp);
+    window.addEventListener('pointercancel', handleWindowPointerUp);
+
+    return () => {
+      window.removeEventListener('pointermove', handleWindowPointerMove);
+      window.removeEventListener('pointerup', handleWindowPointerUp);
+      window.removeEventListener('pointercancel', handleWindowPointerUp);
+    };
+  }, [isDragging, isPlaying, totalDur, seek, isFinalMode]);
 
   // V13 Cycle: Repeat -> Repeat1 -> Shuffle -> None
   const [cycleState, setCycleState] = useState<'none' | 'repeat' | 'repeat1' | 'shuffle'>('none');
@@ -296,12 +341,15 @@ export default function DesktopFullPlayer({ onClose }: { onClose: () => void }) 
              <div className="control-stage">
                 <div className="timeline-strip-pro-v13">
                    <span className="time-code">{formatDuration(isDragging ? (dragProgress / 100) * (totalDur || 1) : currentTime)}</span>
-                   <div 
-                     className="timeline-track-thick" 
-                     ref={progressRef}
-                     onMouseDown={handleInteractionStart}
-                     onTouchStart={handleInteractionStart}
-                   >
+                    <div 
+                      className="timeline-track-thick" 
+                      ref={progressRef}
+                      onPointerDown={handlePointerDown}
+                      onPointerMove={handlePointerMove}
+                      onPointerUp={handlePointerUp}
+                      onPointerCancel={handlePointerCancel}
+                      style={{ touchAction: 'none' }}
+                    >
                      <div className="timeline-bg"></div>
                      <div className="timeline-fill" style={{ width: `${displayProgress}%` }}></div>
                      <div className="timeline-head-bold" style={{ left: `${displayProgress}%` }}></div>
@@ -846,7 +894,29 @@ export default function DesktopFullPlayer({ onClose }: { onClose: () => void }) 
           .timeline-strip-pro-v13 { width: 100%; max-width: 600px; gap: 16px; }
         }
         .time-code { font-family: 'JetBrains Mono', monospace; font-size: 10.45px; opacity: 0.15; width: 44px; text-align: center; }
-        .timeline-track-thick { flex: 1; height: 10px; background: rgba(255,255,255,0.06); border-radius: 5px; position: relative; cursor: pointer; display: flex; align-items: center; }
+        .timeline-track-thick { 
+          flex: 1; 
+          height: 10px; 
+          background: rgba(255,255,255,0.06); 
+          border-radius: 5px; 
+          position: relative; 
+          cursor: pointer; 
+          display: flex; 
+          align-items: center; 
+          touch-action: none;
+          user-select: none;
+          -webkit-user-select: none;
+        }
+        .timeline-track-thick::after {
+          content: '';
+          position: absolute;
+          top: -18px;
+          bottom: -18px;
+          left: -10px;
+          right: -10px;
+          z-index: 20;
+          cursor: pointer;
+        }
         .timeline-fill { height: 100%; background: var(--accent); border-radius: 5px; transition: width 0.1s linear; }
         .timeline-head-bold { width: 18px; height: 18px; background: white; border-radius: 50%; position: absolute; transform: translate(-50%, -50%); top: 50%; box-shadow: 0 4px 16px rgba(0,0,0,1); }
 

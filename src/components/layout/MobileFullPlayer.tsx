@@ -70,6 +70,7 @@ const MobileFullPlayer = ({ isOpen, onClose }: MobileFullPlayerProps) => {
   const [dragProgress, setDragProgress] = useState(0);
   const [authPrompt, setAuthPrompt] = useState({ isOpen: false, action: '' });
   const progressRef = useRef<HTMLDivElement>(null);
+  const lastSeekRef = useRef<number>(0);
 
   const handleShareTrack = () => {
     const currentTrack = tracks.find(t => t.title === title);
@@ -96,52 +97,97 @@ const MobileFullPlayer = ({ isOpen, onClose }: MobileFullPlayerProps) => {
   };
 
   const handleSeek = (clientX: number) => {
-    if (!progressRef.current || !duration) return;
+    const activeDur = isFinalMode ? sessionDuration : duration;
+    if (!progressRef.current || !activeDur) return;
     const rect = progressRef.current.getBoundingClientRect();
     const x = Math.max(0, Math.min(clientX - rect.left, rect.width));
-    const percentage = x / rect.width;
-    const newTime = percentage * duration;
+    const percentage = rect.width > 0 ? x / rect.width : 0;
+    const newTime = percentage * activeDur;
     setDragProgress(percentage * 100);
     return newTime;
   };
 
-  const handleInteractionStart = (e: React.MouseEvent | React.TouchEvent) => {
+  const handlePointerDown = (e: React.PointerEvent<HTMLDivElement>) => {
     if (isFinalMode) return;
+    e.preventDefault();
+    e.stopPropagation();
+    try {
+      e.currentTarget.setPointerCapture(e.pointerId);
+    } catch {}
     setIsDragging(true);
-    const clientX = 'touches' in e ? e.touches[0].clientX : e.clientX;
-    handleSeek(clientX);
+    const newTime = handleSeek(e.clientX);
+    if (newTime !== undefined && !isPlaying) {
+      seek(newTime);
+    }
   };
 
-  const handleInteractionMove = useCallback((e: MouseEvent | TouchEvent) => {
-    if (!isDragging) return;
-    const clientX = 'touches' in e ? e.touches[0].clientX : e.clientX;
-    handleSeek(clientX);
-  }, [isDragging]);
+  const handlePointerMove = (e: React.PointerEvent<HTMLDivElement>) => {
+    if (!isDragging || isFinalMode) return;
+    e.preventDefault();
+    e.stopPropagation();
+    const newTime = handleSeek(e.clientX);
+    if (isPlaying && newTime !== undefined) {
+      const now = Date.now();
+      if (now - lastSeekRef.current > 120) {
+        seek(newTime);
+        lastSeekRef.current = now;
+      }
+    }
+  };
 
-  const handleInteractionEnd = useCallback((e: MouseEvent | TouchEvent) => {
-    if (!isDragging) return;
-    const clientX = 'touches' in e ? (e.changedTouches[0]?.clientX || 0) : e.clientX;
-    const newTime = handleSeek(clientX);
+  const handlePointerUp = (e: React.PointerEvent<HTMLDivElement>) => {
+    if (!isDragging || isFinalMode) return;
+    e.preventDefault();
+    e.stopPropagation();
+    try {
+      e.currentTarget.releasePointerCapture(e.pointerId);
+    } catch {}
+    const newTime = handleSeek(e.clientX);
     if (newTime !== undefined) {
       seek(newTime);
     }
     setIsDragging(false);
-  }, [isDragging, seek]);
+  };
+
+  const handlePointerCancel = (e: React.PointerEvent<HTMLDivElement>) => {
+    if (!isDragging) return;
+    try {
+      e.currentTarget.releasePointerCapture(e.pointerId);
+    } catch {}
+    setIsDragging(false);
+  };
 
   useEffect(() => {
-    if (isDragging && !isFinalMode) {
-      window.addEventListener('mousemove', handleInteractionMove);
-      window.addEventListener('mouseup', handleInteractionEnd);
-      window.addEventListener('touchmove', handleInteractionMove, { passive: false });
-      window.addEventListener('touchend', handleInteractionEnd);
-    }
-    return () => {
-      window.removeEventListener('mousemove', handleInteractionMove);
-      window.removeEventListener('mouseup', handleInteractionEnd);
-      window.removeEventListener('touchmove', handleInteractionMove);
-      window.removeEventListener('touchend', handleInteractionEnd);
+    if (!isDragging || isFinalMode) return;
+
+    const handleWindowPointerMove = (e: PointerEvent) => {
+      e.preventDefault();
+      const newTime = handleSeek(e.clientX);
+      if (isPlaying && newTime !== undefined) {
+        const now = Date.now();
+        if (now - lastSeekRef.current > 120) {
+          seek(newTime);
+          lastSeekRef.current = now;
+        }
+      }
     };
-  }, [isDragging, isFinalMode, handleInteractionMove, handleInteractionEnd]);
+
+    const handleWindowPointerUp = (e: PointerEvent) => {
+      const newTime = handleSeek(e.clientX);
+      if (newTime !== undefined) seek(newTime);
+      setIsDragging(false);
+    };
+
+    window.addEventListener('pointermove', handleWindowPointerMove, { passive: false });
+    window.addEventListener('pointerup', handleWindowPointerUp);
+    window.addEventListener('pointercancel', handleWindowPointerUp);
+
+    return () => {
+      window.removeEventListener('pointermove', handleWindowPointerMove);
+      window.removeEventListener('pointerup', handleWindowPointerUp);
+      window.removeEventListener('pointercancel', handleWindowPointerUp);
+    };
+  }, [isDragging, isPlaying, duration, sessionDuration, seek, isFinalMode]);
 
   const handleToggleSpeed = () => {
     if (showSpeed) {
@@ -253,12 +299,15 @@ const MobileFullPlayer = ({ isOpen, onClose }: MobileFullPlayerProps) => {
           <div
             className="mfp-progress-bar-container"
             ref={progressRef}
-            onMouseDown={handleInteractionStart}
-            onTouchStart={handleInteractionStart}
+            onPointerDown={handlePointerDown}
+            onPointerMove={handlePointerMove}
+            onPointerUp={handlePointerUp}
+            onPointerCancel={handlePointerCancel}
             style={{
               cursor: isFinalMode ? 'not-allowed' : 'pointer',
               opacity: isFinalMode ? 0.7 : 1,
-              pointerEvents: isFinalMode ? 'none' : 'auto'
+              pointerEvents: isFinalMode ? 'none' : 'auto',
+              touchAction: 'none'
             }}
           >
             <div className={`mfp-progress-fill ${isFinalMode ? 'mfp-final-active' : ''}`} style={{ width: `${displayProgress}%` }}></div>

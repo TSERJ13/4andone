@@ -115,61 +115,95 @@ const PlayerBar = ({ onExpand }: { onExpand?: () => void }) => {
   };
 
   const handleSeekUpdate = (clientX: number) => {
-    if (!progressRef.current || !duration) return;
+    const activeDur = isFinalMode ? sessionDuration : duration;
+    if (!progressRef.current || !activeDur) return;
     const rect = progressRef.current.getBoundingClientRect();
     const x = Math.max(0, Math.min(clientX - rect.left, rect.width));
-    const percentage = x / rect.width;
+    const percentage = rect.width > 0 ? x / rect.width : 0;
     setDragProgress(percentage * 100);
-    return percentage * duration;
+    return percentage * activeDur;
   };
 
-  const getClientX = (e: React.MouseEvent | React.TouchEvent | MouseEvent | TouchEvent) => {
-    if ('touches' in e) {
-      return e.touches[0]?.clientX || (e as any).changedTouches?.[0]?.clientX || 0;
-    }
-    return (e as MouseEvent).clientX;
-  };
-
-  const handleInteractionStart = (e: React.MouseEvent | React.TouchEvent) => {
+  const handlePointerDown = (e: React.PointerEvent<HTMLDivElement>) => {
     if (isFinalMode) return;
+    e.preventDefault();
+    e.stopPropagation();
+    try {
+      e.currentTarget.setPointerCapture(e.pointerId);
+    } catch {}
     setIsDragging(true);
-    handleSeekUpdate(getClientX(e));
+    const newTime = handleSeekUpdate(e.clientX);
+    if (newTime !== undefined && !isPlaying) {
+      seek(newTime);
+    }
+  };
+
+  const handlePointerMove = (e: React.PointerEvent<HTMLDivElement>) => {
+    if (!isDragging || isFinalMode) return;
+    e.preventDefault();
+    e.stopPropagation();
+    const newTime = handleSeekUpdate(e.clientX);
+
+    if (isPlaying && newTime !== undefined) {
+      const now = Date.now();
+      if (now - lastSeekRef.current > 120) {
+        seek(newTime);
+        lastSeekRef.current = now;
+      }
+    }
+  };
+
+  const handlePointerUp = (e: React.PointerEvent<HTMLDivElement>) => {
+    if (!isDragging || isFinalMode) return;
+    e.preventDefault();
+    e.stopPropagation();
+    try {
+      e.currentTarget.releasePointerCapture(e.pointerId);
+    } catch {}
+    const newTime = handleSeekUpdate(e.clientX);
+    if (newTime !== undefined) seek(newTime);
+    setIsDragging(false);
+  };
+
+  const handlePointerCancel = (e: React.PointerEvent<HTMLDivElement>) => {
+    if (!isDragging) return;
+    try {
+      e.currentTarget.releasePointerCapture(e.pointerId);
+    } catch {}
+    setIsDragging(false);
   };
 
   useEffect(() => {
-    const handleMove = (e: MouseEvent | TouchEvent) => {
-      if (!isDragging || isFinalMode) return;
-      const newTime = handleSeekUpdate(getClientX(e));
+    if (!isDragging || isFinalMode) return;
 
-      // LIVE SCRUBBING: If playing, update position in real-time but with throttling for Safari stability
+    const handleWindowPointerMove = (e: PointerEvent) => {
+      e.preventDefault();
+      const newTime = handleSeekUpdate(e.clientX);
       if (isPlaying && newTime !== undefined) {
         const now = Date.now();
-        if (now - lastSeekRef.current > 150) { // Throttle to ~6.6fps for audio engine safety on iPad
+        if (now - lastSeekRef.current > 120) {
           seek(newTime);
           lastSeekRef.current = now;
         }
       }
     };
-    const handleUp = (e: MouseEvent | TouchEvent) => {
-      if (!isDragging || isFinalMode) return;
-      const newTime = handleSeekUpdate(getClientX(e));
+
+    const handleWindowPointerUp = (e: PointerEvent) => {
+      const newTime = handleSeekUpdate(e.clientX);
       if (newTime !== undefined) seek(newTime);
       setIsDragging(false);
     };
 
-    if (isDragging && !isFinalMode) {
-      window.addEventListener('mousemove', handleMove);
-      window.addEventListener('mouseup', handleUp);
-      window.addEventListener('touchmove', handleMove, { passive: false });
-      window.addEventListener('touchend', handleUp);
-    }
+    window.addEventListener('pointermove', handleWindowPointerMove, { passive: false });
+    window.addEventListener('pointerup', handleWindowPointerUp);
+    window.addEventListener('pointercancel', handleWindowPointerUp);
+
     return () => {
-      window.removeEventListener('mousemove', handleMove);
-      window.removeEventListener('mouseup', handleUp);
-      window.removeEventListener('touchmove', handleMove);
-      window.removeEventListener('touchend', handleUp);
+      window.removeEventListener('pointermove', handleWindowPointerMove);
+      window.removeEventListener('pointerup', handleWindowPointerUp);
+      window.removeEventListener('pointercancel', handleWindowPointerUp);
     };
-  }, [isDragging, isPlaying, duration, seek, isFinalMode]);
+  }, [isDragging, isPlaying, duration, sessionDuration, seek, isFinalMode]);
 
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
@@ -342,8 +376,10 @@ const PlayerBar = ({ onExpand }: { onExpand?: () => void }) => {
             <div
               className={`progress-bar-bg ${isDragging ? 'is-dragging' : ''}`}
               ref={progressRef}
-              onMouseDown={handleInteractionStart}
-              onTouchStart={handleInteractionStart}
+              onPointerDown={handlePointerDown}
+              onPointerMove={handlePointerMove}
+              onPointerUp={handlePointerUp}
+              onPointerCancel={handlePointerCancel}
               role="slider"
               aria-label="Track progress bar"
               aria-valuemin={0}
@@ -705,16 +741,20 @@ const PlayerBar = ({ onExpand }: { onExpand?: () => void }) => {
           cursor: pointer;
           display: flex;
           align-items: center;
+          touch-action: none;
+          user-select: none;
+          -webkit-user-select: none;
         }
         /* Increased hit area */
         .progress-bar-bg::after {
           content: '';
           position: absolute;
-          top: -12px;
-          bottom: -12px;
-          left: 0;
-          right: 0;
-          z-index: 10;
+          top: -18px;
+          bottom: -18px;
+          left: -10px;
+          right: -10px;
+          z-index: 20;
+          cursor: pointer;
         }
         .progress-bar-fill {
           height: 100%;
@@ -1018,17 +1058,25 @@ const PlayerBar = ({ onExpand }: { onExpand?: () => void }) => {
             top: 0;
             left: 0;
             width: 100%;
-            height: 3px;
+            height: 6px;
             padding: 0;
             max-width: none;
             display: flex !important;
+            touch-action: none;
           }
           .time-text {
             display: none;
           }
           .progress-bar-bg {
-            height: 3px;
+            height: 4px;
             border-radius: 0;
+            touch-action: none;
+          }
+          .progress-bar-bg::after {
+            top: -6px;
+            bottom: -16px;
+            left: 0;
+            right: 0;
           }
           .progress-bar-fill {
             border-radius: 0;

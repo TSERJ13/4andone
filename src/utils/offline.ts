@@ -12,6 +12,8 @@ export const getOfflineTrackIds = (): string[] => {
   }
 };
 
+export const getDownloadedTrackIds = getOfflineTrackIds;
+
 export const isTrackDownloaded = (trackId: string): boolean => {
   if (!trackId || typeof window === 'undefined') return false;
   const list = getOfflineTrackIds();

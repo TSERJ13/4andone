@@ -64,10 +64,10 @@ export const OfflineDownloadButton: React.FC<OfflineDownloadButtonProps> = ({
       disabled={downloaded || isDownloading}
       title={
         downloaded
-          ? 'Downloaded for offline listening (ინტერნეტის გარეშე)'
+          ? 'Downloaded'
           : isDownloading
           ? 'Downloading...'
-          : 'Download for offline playback (შიდა მეხსიერებაში შენახვა)'
+          : 'Download'
       }
       aria-label={downloaded ? 'Track downloaded' : 'Download track for offline'}
       style={{

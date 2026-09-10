@@ -288,66 +288,68 @@ export default function DesktopFullPlayer({ onClose }: { onClose: () => void }) 
              </div>
 
              <div className="metadata-stage">
-                 <div className="metadata-actions-refined">
-                    <button 
-                      className={`console-action-btn-v13 favorite-btn-pro ${currentTrack?.isFavorite ? 'active' : ''}`}
-                      onClick={() => currentTrack && toggleFavorite(currentTrack.id)}
-                      aria-label="Add to Favorites"
-                      title="Add to Favorites"
-                    >
-                      <Heart size={36} fill={currentTrack?.isFavorite ? "#ef4444" : "none"} />
-                    </button>
+                <div className="text-center min-w-0 mb-3">
+                   <h1 className="refined-title-v8 truncate">{title}</h1>
+                   <p className="refined-artist-v8 truncate">{artist}</p>
+                </div>
 
-                    <button 
-                      className="console-action-btn-v13"
-                      onClick={() => setIsAddToPlaylistOpen(true)}
-                      aria-label="Add to Playlist"
-                      title="Add to Playlist"
-                    >
-                      <Plus size={34} />
-                    </button>
+                <div className="metadata-actions-refined">
+                   {/* 1. Heart */}
+                   <button 
+                     className={`console-action-btn-v13 favorite-btn-pro ${currentTrack?.isFavorite ? 'active' : ''}`}
+                     onClick={() => currentTrack && toggleFavorite(currentTrack.id)}
+                     aria-label="Add to Favorites"
+                     title="Favorite"
+                   >
+                     <Heart size={24} fill={currentTrack?.isFavorite ? "#ef4444" : "none"} />
+                   </button>
 
-                    <button 
-                      className="console-action-btn-v13 share-btn-pro"
-                      onClick={handleShareTrack}
-                      aria-label="Share Track Link"
-                      title="Share Track Link"
-                    >
-                      <Share2 size={34} />
-                    </button>
-                    
-                    <div className="text-center min-w-0 px-64">
-                       <h1 className="refined-title-v8 truncate">{title}</h1>
-                       <p className="refined-artist-v8 truncate">{artist}</p>
-                    </div>
-                    
-                    {/* Speed Selector - Improved Proximity V19 */}
-                       <div className="relative">
-                          <button 
-                            className={`console-action-btn-v13 gauge-trigger-v19 ${showSpeed ? 'active' : ''}`} 
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              setShowSpeed(!showSpeed);
-                            }}
-                          >
-                             <Gauge size={36} />
-                          </button>
+                   {/* 2. Plus */}
+                   <button 
+                     className="console-action-btn-v13"
+                     onClick={() => setIsAddToPlaylistOpen(true)}
+                     aria-label="Add to Playlist"
+                     title="Add to Playlist"
+                   >
+                     <Plus size={24} />
+                   </button>
 
-                          {showSpeed && (
-                            <div className="speed-popover-v17 animate-in" ref={speedPopoverRef} onClick={(e) => e.stopPropagation()}>
-                               <SpeedSelector 
-                                 currentBpm={bpm} 
-                                 onSelect={val => setBpm(val)} 
-                                 onClose={() => setShowSpeed(false)} 
-                                 isFinalMode={isFinalMode}
-                               />
-                            </div>
-                          )}
-                       </div>
-                 </div>
-                
-                <div className="bpm-pill glass mt-8" style={isFinalMode ? { color: '#ef4444', borderColor: 'rgba(239, 68, 68, 0.3)' } : {}}>
-                  {currentTrack?.style} • {currentTrack?.bpm} BPM
+                   {/* 3. Style & BPM Pill */}
+                   {currentTrack && (
+                     <div className="bpm-pill glass" style={isFinalMode ? { color: '#ef4444', borderColor: 'rgba(239, 68, 68, 0.3)' } : {}}>
+                       {currentTrack.style} • {currentTrack.bpm} BPM
+                     </div>
+                   )}
+
+                   {/* 4. Download */}
+                   <div className="console-action-btn-v13">
+                     <OfflineDownloadButton track={currentTrack} iconSize={24} />
+                   </div>
+
+                   {/* 5. BPM Changer / Speed Selector */}
+                   <div className="relative">
+                      <button 
+                        className={`console-action-btn-v13 gauge-trigger-v19 ${showSpeed ? 'active' : ''}`} 
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setShowSpeed(!showSpeed);
+                        }}
+                        title="Playback Speed"
+                      >
+                         <Gauge size={24} />
+                      </button>
+
+                      {showSpeed && (
+                        <div className="speed-popover-v17 animate-in" ref={speedPopoverRef} onClick={(e) => e.stopPropagation()}>
+                           <SpeedSelector 
+                             currentBpm={bpm} 
+                             onSelect={val => setBpm(val)} 
+                             onClose={() => setShowSpeed(false)} 
+                             isFinalMode={isFinalMode}
+                           />
+                        </div>
+                      )}
+                   </div>
                 </div>
              </div>
 
@@ -417,24 +419,21 @@ export default function DesktopFullPlayer({ onClose }: { onClose: () => void }) 
                         />
                       </div>
 
-                      <div className="flex items-center gap-4">
-                          <OfflineDownloadButton track={currentTrack} iconSize={22} />
-                          <div className="final-mode-lockdown-v17">
-                             <div className="practice-info-v13">
-                                <Timer size={16} className={isFinalMode ? 'text-danger' : 'opacity-20'} />
-                                <span className={isFinalMode ? 'text-danger' : 'opacity-20'}>Final Mode</span>
-                             </div>
-                             <label className="switch-v13">
-                               <input 
-                                 type="checkbox" 
-                                 checked={isFinalMode} 
-                                 onChange={toggleFinalMode} 
-                                 disabled={!!activeMode}
-                               />
-                               <span className="slider-v13 round-v11"></span>
-                             </label>
-                          </div>
-                       </div>
+                      <div className="final-mode-lockdown-v17">
+                         <div className="practice-info-v13">
+                            <Timer size={16} className={isFinalMode ? 'text-danger' : 'opacity-20'} />
+                            <span className={isFinalMode ? 'text-danger' : 'opacity-20'}>Final Mode</span>
+                         </div>
+                         <label className="switch-v13">
+                           <input 
+                             type="checkbox" 
+                             checked={isFinalMode} 
+                             onChange={toggleFinalMode} 
+                             disabled={!!activeMode}
+                           />
+                           <span className="slider-v13 round-v11"></span>
+                         </label>
+                      </div>
                    </div>
                 </div>
              </div>
@@ -451,7 +450,10 @@ export default function DesktopFullPlayer({ onClose }: { onClose: () => void }) 
              ) : (
                <div style={{ height: '32px' }}></div>
              )}
-             <button onClick={onClose} className="console-exit-btn glass"><X size={18} /></button>
+             <div className="flex items-center gap-2">
+               <button onClick={handleShareTrack} className="console-exit-btn glass" title="Share Track"><Share2 size={16} /></button>
+               <button onClick={onClose} className="console-exit-btn glass" title="Close"><X size={16} /></button>
+             </div>
            </header>
            
            <div className="sidebar-scroll custom-scrollbar">
@@ -775,31 +777,44 @@ export default function DesktopFullPlayer({ onClose }: { onClose: () => void }) 
         .countdown-ring .label { font-size: 10px; font-weight: 900; text-transform: uppercase; letter-spacing: 5px; opacity: 0.2; }
 
         .metadata-stage { width: 100%; max-width: 900px; display: flex; flex-direction: column; align-items: center; position: relative; z-index: 1000; }
-        .metadata-actions-refined { display: flex; align-items: center; justify-content: center; width: 100%; }
+        .metadata-actions-refined { 
+          display: flex; 
+          align-items: center; 
+          justify-content: center; 
+          gap: 16px; 
+          width: 100%; 
+          margin-top: 14px;
+        }
         
         .refined-title-v8 { font-size: 22.8px; font-weight: 900; letter-spacing: -0.4px; line-height: 1.2; color: white; text-align: center; }
-        .refined-artist-v8 { font-size: 13px; text-transform: uppercase; font-weight: 800; letter-spacing: 4px; opacity: 0.4; margin-top: 8px; text-align: center; color: white; }
+        .refined-artist-v8 { font-size: 13px; text-transform: uppercase; font-weight: 800; letter-spacing: 4px; opacity: 0.4; margin-top: 6px; text-align: center; color: white; }
 
         @media (max-width: 1360px) {
           .refined-title-v8 { font-size: 18px; }
           .refined-artist-v8 { font-size: 11px; letter-spacing: 3px; }
         }
         
-        .console-action-btn-v13 { color: rgba(255,255,255,0.6); transition: all 0.2s; padding: 12px; transform: translateY(48px); cursor: pointer; }
-        .favorite-btn-pro { transform: translate(-120px, 48px) !important; }
-        .gauge-trigger-v19 { transform: translate(120px, 48px) !important; }
-        .console-action-btn-v13:hover { color: white; opacity: 1; }
-        .favorite-btn-pro:hover { transform: translate(-120px, 48px) scale(1.1) !important; }
-        .gauge-trigger-v19:hover { transform: translate(120px, 48px) scale(1.1) !important; }
+        .console-action-btn-v13 { 
+          color: rgba(255,255,255,0.6); 
+          transition: all 0.2s; 
+          padding: 8px; 
+          cursor: pointer; 
+          display: flex;
+          align-items: center;
+          justify-content: center;
+        }
+        .console-action-btn-v13:hover { 
+          color: white; 
+          transform: scale(1.1); 
+        }
         .console-action-btn-v13.active { color: var(--accent); opacity: 1; }
         .favorite-btn-pro.active { color: #ef4444 !important; }
 
         .speed-popover-v17 {
           position: absolute;
-          bottom: 100%;
-          right: 0;
-          transform: translateY(380px);
-          margin-bottom: 0;
+          bottom: calc(100% + 16px);
+          left: 50%;
+          transform: translateX(-50%);
           z-index: 99999;
           background: #0d0d0d;
           border: 1px solid rgba(255,255,255,0.1);

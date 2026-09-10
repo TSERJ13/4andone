@@ -259,48 +259,34 @@ const MobileFullPlayer = ({ isOpen, onClose }: MobileFullPlayerProps) => {
 
         <div className="mfp-track-meta">
           <div className="mfp-meta-top">
-            <div className="flex items-center gap-1">
-              <div className="mfp-meta-btn flex items-center justify-center">
-                <OfflineDownloadButton track={currentTrack} iconSize={26} />
-              </div>
-              <button
-                className={`mfp-meta-btn mfp-final-toggle ${isFinalMode ? 'active-final' : ''}`}
-                onClick={toggleFinalMode}
-                disabled={!!activeMode}
-                title="Final Mode"
-              >
-                <Timer size={28} />
-              </button>
-            </div>
+            <button
+              className={`mfp-meta-btn mfp-final-toggle ${isFinalMode ? 'active-final' : ''}`}
+              onClick={toggleFinalMode}
+              disabled={!!activeMode}
+              title="Final Mode"
+            >
+              <Timer size={28} />
+            </button>
+
             <div className="mfp-text-center">
               <div className="mfp-title-wrapper">
                 <Marquee text={title || ''} speed={30} isActive={isPlaying} className="mfp-title-marquee" />
               </div>
               <p className="mfp-artist truncate">{artist}</p>
             </div>
-            <div className="flex items-center gap-1">
-              <button
-                className={`mfp-meta-btn mfp-favorite ${tracks.find(t => t.title === title)?.isFavorite ? 'active' : ''}`}
-                onClick={() => {
-                  checkAuthAndExecute(() => {
-                    const track = tracks.find(t => t.title === title);
-                    if (track) toggleFavorite(track.id);
-                  }, 'favorite tracks');
-                }}
-                title="Favorite"
-              >
-                <Heart size={28} fill={tracks.find(t => t.title === title)?.isFavorite ? "currentColor" : "none"} />
-              </button>
-              <button
-                className="mfp-meta-btn"
-                onClick={() => {
-                  checkAuthAndExecute(() => setIsAddToPlaylistOpen(true), 'manage playlists');
-                }}
-                title="Add to playlist"
-              >
-                <Plus size={28} />
-              </button>
-            </div>
+
+            <button
+              className={`mfp-meta-btn mfp-favorite ${tracks.find(t => t.title === title)?.isFavorite ? 'active' : ''}`}
+              onClick={() => {
+                checkAuthAndExecute(() => {
+                  const track = tracks.find(t => t.title === title);
+                  if (track) toggleFavorite(track.id);
+                }, 'favorite tracks');
+              }}
+              title="Favorite"
+            >
+              <Heart size={28} fill={tracks.find(t => t.title === title)?.isFavorite ? "currentColor" : "none"} />
+            </button>
 
             {/* Speed Button for Landscape */}
             <button className="mfp-landscape-speed-btn" onClick={handleToggleSpeed}>
@@ -308,13 +294,57 @@ const MobileFullPlayer = ({ isOpen, onClose }: MobileFullPlayerProps) => {
             </button>
           </div>
 
-          <button
-            className={`mfp-speed-tag ${bpm !== 100 ? 'active' : ''}`}
-            onClick={handleToggleSpeed}
-          >
-            <Gauge size={14} />
-            <span>{bpm}% BPM</span>
-          </button>
+          <div className="mfp-sub-actions-row flex items-center justify-center gap-6 mt-1">
+            {/* Left of 100% BPM: Add to playlist (+) */}
+            <button
+              className="mfp-sub-action-btn"
+              onClick={() => {
+                checkAuthAndExecute(() => setIsAddToPlaylistOpen(true), 'manage playlists');
+              }}
+              title="Add to Playlist"
+              aria-label="Add to Playlist"
+              style={{
+                background: 'rgba(255, 255, 255, 0.05)',
+                border: '1px solid rgba(255, 255, 255, 0.08)',
+                borderRadius: '50%',
+                width: '36px',
+                height: '36px',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                color: 'rgba(255, 255, 255, 0.7)'
+              }}
+            >
+              <Plus size={20} />
+            </button>
+
+            {/* Center: Speed Tag */}
+            <button
+              className={`mfp-speed-tag ${bpm !== 100 ? 'active' : ''}`}
+              onClick={handleToggleSpeed}
+            >
+              <Gauge size={14} />
+              <span>{bpm}% BPM</span>
+            </button>
+
+            {/* Right of 100% BPM: Offline Download */}
+            <div
+              className="mfp-sub-action-btn"
+              style={{
+                background: 'rgba(255, 255, 255, 0.05)',
+                border: '1px solid rgba(255, 255, 255, 0.08)',
+                borderRadius: '50%',
+                width: '36px',
+                height: '36px',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                color: 'rgba(255, 255, 255, 0.7)'
+              }}
+            >
+              <OfflineDownloadButton track={currentTrack} iconSize={18} />
+            </div>
+          </div>
         </div>
 
         <div className="mfp-progress-section">

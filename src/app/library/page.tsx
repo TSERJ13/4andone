@@ -10,7 +10,9 @@ import {
   History,
   TrendingUp,
   Play,
-  Pause
+  Pause,
+  ArrowDownToLine,
+  CheckCircle2
 } from 'lucide-react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
@@ -22,6 +24,7 @@ import { formatDuration } from '@/utils/format';
 import ConfirmModal from '@/components/admin/ConfirmModal';
 import CreatePlaylistModal from '@/components/library/CreatePlaylistModal';
 import { Marquee } from '@/components/layout/Marquee';
+import { getDownloadedTrackIds, subscribeToOfflineUpdates } from '@/utils/offline';
 
 export default function LibraryPage() {
   const router = useRouter();
@@ -29,6 +32,16 @@ export default function LibraryPage() {
   const { isPlaying, title: playingTitle, loadTrack } = useAudio();
   const { isAuthenticated, setIsAuthModalOpen } = useAuth();
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
+  const [downloadedIds, setDownloadedIds] = useState<string[]>([]);
+  const [viewMode, setViewMode] = useState<'all' | 'downloaded'>('all');
+
+  React.useEffect(() => {
+    setDownloadedIds(getDownloadedTrackIds());
+    const unsubscribe = subscribeToOfflineUpdates(() => {
+      setDownloadedIds(getDownloadedTrackIds());
+    });
+    return unsubscribe;
+  }, []);
 
   const [infoModal, setInfoModal] = useState({
     isOpen: false,
@@ -82,6 +95,31 @@ export default function LibraryPage() {
           </div>
 
           <div 
+            onClick={() => setViewMode(viewMode === 'downloaded' ? 'all' : 'downloaded')}
+            className="collection-card glass"
+            style={{ 
+              cursor: 'pointer',
+              borderColor: viewMode === 'downloaded' ? '#22c55e' : undefined,
+              boxShadow: viewMode === 'downloaded' ? '0 0 20px rgba(34, 197, 94, 0.25)' : undefined
+            }}
+          >
+            <div className="card-icon" style={{ color: '#22c55e' }}>
+              <ArrowDownToLine size={26} />
+            </div>
+            <div className="card-info">
+              <div className="flex items-center gap-2">
+                <h3>Downloaded</h3>
+                {viewMode === 'downloaded' && (
+                  <span className="text-[10px] uppercase font-black px-1.5 py-0.5 rounded bg-[#22c55e]/20 text-[#22c55e]">Active</span>
+                )}
+              </div>
+              <p className="meta text-secondary">
+                {downloadedIds.length} On Device
+              </p>
+            </div>
+          </div>
+
+          <div 
             className="collection-card create-card glass"
             onClick={() => checkAuthAndExecute(() => setIsCreateModalOpen(true), 'create playlists')}
             style={{ cursor: 'pointer' }}
@@ -123,38 +161,57 @@ export default function LibraryPage() {
 
       <section className="library-section">
         <div className="section-header">
-          <TrendingUp size={18} className="text-secondary" />
-          <h2>Recent Practice</h2>
+          {viewMode === 'downloaded' ? <ArrowDownToLine size={18} color="#22c55e" /> : <TrendingUp size={18} className="text-secondary" />}
+          <h2>{viewMode === 'downloaded' ? `Downloaded On This Device (${downloadedIds.length})` : 'Recent Practice'}</h2>
         </div>
         <div className="tracks-list">
-          {tracks.filter(t => 
-            t.style?.toLowerCase() !== 'fitness' && 
-            !t.tags?.some(tag => tag.toLowerCase() === 'closed' || tag === 'დახურული')
-          ).length > 0 ? tracks.filter(t => 
-            t.style?.toLowerCase() !== 'fitness' && 
-            !t.tags?.some(tag => tag.toLowerCase() === 'closed' || tag === 'დახურული')
-          ).slice(0, 10).map((track, i) => (
-            <div
-              key={track.id}
-              className={`track-row ${isPlaying && playingTitle === track.title ? 'is-active' : ''}`}
-              onClick={() => loadTrack(track)}
-              style={{ cursor: 'pointer' }}
-            >
-              <div className="track-index">{i + 1}</div>
-              <div className="track-icon-col">
-                <Disc size={18} />
-              </div>
-              <div className="track-info-col">
-                <Marquee 
-                  text={track.title} 
-                  className="track-name" 
-                  isActive={isPlaying && (playingTitle === track.title || playingTitle === track.id)}
-                />
-                <p className="track-artist">
-                  {track.artist}
-                  {track.duration ? ` • ${formatDuration(track.duration)}` : ''}
-                </p>
-              </div>
+          {(() => {
+            const list = viewMode === 'downloaded'
+              ? tracks.filter(t => downloadedIds.includes(t.id))
+              : tracks.filter(t => 
+                  t.style?.toLowerCase() !== 'fitness' && 
+                  !t.tags?.some(tag => tag.toLowerCase() === 'closed' || tag === 'დახურული')
+                ).slice(0, 10);
+
+            if (list.length === 0) {
+              return (
+                <div className="empty-state p-8 text-center text-secondary">
+                  {viewMode === 'downloaded'
+                    ? 'No downloaded tracks on this device yet. Click the download button (⬇️) on any track to save it offline.'
+                    : 'No practice tracks available.'}
+                </div>
+              );
+            }
+
+            return list.map((track, i) => (
+              <div
+                key={track.id}
+                className={`track-row ${isPlaying && playingTitle === track.title ? 'is-active' : ''}`}
+                onClick={() => loadTrack(track)}
+                style={{ cursor: 'pointer' }}
+              >
+                <div className="track-index">{i + 1}</div>
+                <div className="track-icon-col">
+                  <Disc size={18} />
+                </div>
+                <div className="track-info-col">
+                  <div className="flex items-center gap-1.5">
+                    <Marquee 
+                      text={track.title} 
+                      className="track-name" 
+                      isActive={isPlaying && (playingTitle === track.title || playingTitle === track.id)}
+                    />
+                    {downloadedIds.includes(track.id) && (
+                      <span title="Stored on device (ინტერნეტის გარეშე)" style={{ color: '#22c55e', flexShrink: 0, display: 'inline-flex' }}>
+                        <CheckCircle2 size={13} />
+                      </span>
+                    )}
+                  </div>
+                  <p className="track-artist">
+                    {track.artist}
+                    {track.duration ? ` • ${formatDuration(track.duration)}` : ''}
+                  </p>
+                </div>
 
               <div className="track-badge-col">
                 {styles.find(s => s.title.toLowerCase() === track.style?.toLowerCase()) && (
@@ -192,11 +249,8 @@ export default function LibraryPage() {
                 </div>
               </div>
             </div>
-          )) : (
-            <div className="empty-lib-state glass">
-              <p>No tracks added to your library yet.</p>
-            </div>
-          )}
+          ));
+        })()}
         </div>
       </section>
 

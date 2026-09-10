@@ -17,7 +17,6 @@ import { useStudio } from "@/components/admin/StudioProvider";
 import { useAuth } from '@/context/AuthContext';
 import ConfirmModal from '@/components/admin/ConfirmModal';
 import { useRouter } from 'next/navigation';
-import { KofiButton } from '@/components/kofi/KofiButton';
 
 const Sidebar = () => {
   const pathname = usePathname();
@@ -92,10 +91,6 @@ const Sidebar = () => {
         ))}
       </nav>
 
-      <div className="sidebar-footer">
-        <KofiButton variant="sidebar" />
-      </div>
-
       <ConfirmModal 
         isOpen={showAuthPrompt}
         title="Connect Telegram"
@@ -121,12 +116,6 @@ const Sidebar = () => {
           padding: 8px 12px 24px;
         }
 
-        .sidebar-footer {
-          margin-top: auto;
-          padding: 12px 16px;
-          display: flex;
-          align-items: center;
-        }
 
         .create-playlist-btn {
           width: 100%;

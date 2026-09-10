@@ -28,45 +28,35 @@ export const KofiButton: React.FC<KofiButtonProps> = ({
         onClick={handleClick}
         className={`kofi-sidebar-btn ${className}`}
         title="Support 4and.one on Ko-fi"
+        aria-label="Support 4and.one on Ko-fi"
         type="button"
       >
-        <div className="icon-box">
-          <LiveCoffeeIcon size={20} />
-        </div>
-        <span className="kofi-label">{label}</span>
+        <LiveCoffeeIcon size={22} />
 
         <style jsx>{`
           .kofi-sidebar-btn {
-            display: flex;
-            align-items: center;
-            gap: 12px;
-            padding: 12px 14px;
-            border-radius: 10px;
-            color: #ffffff;
-            font-size: 13px;
-            font-weight: 700;
-            background: rgba(29, 185, 84, 0.08);
-            border: 1px solid rgba(29, 185, 84, 0.25);
-            cursor: pointer;
-            width: 100%;
-            text-align: left;
-            transition: all 0.2s ease;
-          }
-          .kofi-sidebar-btn:hover {
-            background: rgba(29, 185, 84, 0.18);
-            border-color: #1db954;
-            transform: translateY(-1px);
-            box-shadow: 0 4px 15px rgba(29, 185, 84, 0.25);
-          }
-          .icon-box {
-            display: flex;
+            display: inline-flex;
             align-items: center;
             justify-content: center;
-            flex-shrink: 0;
+            width: 44px;
+            height: 44px;
+            border-radius: 12px;
+            color: #ffffff;
+            background: rgba(255, 255, 255, 0.04);
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            cursor: pointer;
+            transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+            backdrop-filter: blur(12px);
+            -webkit-backdrop-filter: blur(12px);
           }
-          .kofi-label {
-            flex: 1;
-            letter-spacing: -0.2px;
+          .kofi-sidebar-btn:hover {
+            background: rgba(255, 255, 255, 0.09);
+            border-color: rgba(255, 255, 255, 0.2);
+            transform: translateY(-2px);
+            box-shadow: 0 4px 16px rgba(0, 0, 0, 0.4);
+          }
+          .kofi-sidebar-btn:active {
+            transform: scale(0.95);
           }
         `}</style>
       </button>

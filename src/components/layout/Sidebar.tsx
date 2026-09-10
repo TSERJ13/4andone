@@ -123,7 +123,9 @@ const Sidebar = () => {
 
         .sidebar-footer {
           margin-top: auto;
-          padding: 12px;
+          padding: 12px 16px;
+          display: flex;
+          align-items: center;
         }
 
         .create-playlist-btn {

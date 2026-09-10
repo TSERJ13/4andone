@@ -1,7 +1,8 @@
 "use client";
 
 import React, { useState, useEffect, useRef } from 'react';
-import { X, Coffee, ExternalLink, Loader2 } from 'lucide-react';
+import { X, ExternalLink, Loader2 } from 'lucide-react';
+import { LiveCoffeeIcon } from './LiveCoffeeIcon';
 
 export const KofiModal: React.FC = () => {
   const [isOpen, setIsOpen] = useState(false);
@@ -59,7 +60,7 @@ export const KofiModal: React.FC = () => {
         <div className="kofi-modal-header">
           <div className="kofi-brand">
             <div className="kofi-icon-box">
-              <Coffee size={18} className="text-primary" />
+              <LiveCoffeeIcon size={18} />
             </div>
             <div className="kofi-title-box">
               <h3>Support 4and.one</h3>

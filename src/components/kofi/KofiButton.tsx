@@ -1,7 +1,7 @@
 "use client";
 
-import React, { useState } from 'react';
-import { Coffee } from 'lucide-react';
+import React from 'react';
+import { LiveCoffeeIcon } from './LiveCoffeeIcon';
 
 interface KofiButtonProps {
   variant?: 'pill' | 'sidebar' | 'compact';
@@ -31,10 +31,9 @@ export const KofiButton: React.FC<KofiButtonProps> = ({
         type="button"
       >
         <div className="icon-box">
-          <Coffee size={20} className="kofi-icon" />
+          <LiveCoffeeIcon size={20} />
         </div>
         <span className="kofi-label">{label}</span>
-        <span className="kofi-heart">☕</span>
 
         <style jsx>{`
           .kofi-sidebar-btn {
@@ -63,15 +62,11 @@ export const KofiButton: React.FC<KofiButtonProps> = ({
             display: flex;
             align-items: center;
             justify-content: center;
-            color: #1db954;
+            flex-shrink: 0;
           }
           .kofi-label {
             flex: 1;
             letter-spacing: -0.2px;
-          }
-          .kofi-heart {
-            font-size: 14px;
-            opacity: 0.9;
           }
         `}</style>
       </button>
@@ -87,7 +82,7 @@ export const KofiButton: React.FC<KofiButtonProps> = ({
       type="button"
     >
       <span className="kofi-icon-wrapper">
-        <Coffee size={15} strokeWidth={2.4} className="kofi-svg-icon" />
+        <LiveCoffeeIcon size={16} />
       </span>
       <span className="kofi-text">{label}</span>
 

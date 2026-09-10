@@ -137,17 +137,21 @@ const SearchPage = () => {
                         className="track-name" 
                         isActive={isPlaying && (playingTitle === track.title || playingTitle === track.id)}
                       />
-                      <div className="artist-badge-row">
-                        <p className="track-artist">{track.artist}</p>
-                        {styles.find(s => s.title.toLowerCase() === track.style?.toLowerCase()) && (
-                          <span 
-                            className="style-badge-pill" 
-                            style={{ backgroundColor: styles.find(s => s.title.toLowerCase() === track.style?.toLowerCase())?.color }}
-                          >
-                            {track.style}
-                          </span>
-                        )}
-                      </div>
+                      <p className="track-artist">
+                        {track.artist}
+                        {track.duration ? ` • ${formatDuration(track.duration)}` : ''}
+                      </p>
+                    </div>
+
+                    <div className="track-badge-col">
+                      {styles.find(s => s.title.toLowerCase() === track.style?.toLowerCase()) && (
+                        <span 
+                          className="style-badge-pill" 
+                          style={{ backgroundColor: styles.find(s => s.title.toLowerCase() === track.style?.toLowerCase())?.color }}
+                        >
+                          {track.style}
+                        </span>
+                      )}
                     </div>
                     
                     <div className="track-meta-col">

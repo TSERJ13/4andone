@@ -189,6 +189,9 @@ export default function Home() {
         <div className="skeleton-line full skeleton-shimmer" style={{ height: '14px', width: '120px', marginBottom: '4px' }}></div>
         <div className="skeleton-line half skeleton-shimmer" style={{ height: '10px', width: '80px' }}></div>
       </div>
+      <div className="track-badge-col">
+        <div className="skeleton-shimmer" style={{ width: '45px', height: '14px', borderRadius: '4px', opacity: 0.15 }}></div>
+      </div>
       <div className="track-meta-col skeleton-shimmer" style={{ width: '60px', height: '12px', opacity: 0.2, marginLeft: 'auto' }}></div>
       <div className="track-actions-col">
         <div className="skeleton-shimmer" style={{ width: '18px', height: '18px', borderRadius: '4px', opacity: 0.2 }}></div>
@@ -483,20 +486,21 @@ export default function Home() {
                         className="track-name" 
                         isActive={isPlaying && (playingTitle === track.title || playingTitle === track.id)}
                       />
-                      <div className="artist-badge-row">
-                        <p className="track-artist">
-                          {track.artist}
-                          {track.duration ? ` • ${formatDuration(track.duration)}` : ''}
-                        </p>
-                        {styles.find(s => s.title.toLowerCase() === track.style?.toLowerCase()) && (
-                          <span 
-                            className="style-badge-pill" 
-                            style={{ backgroundColor: styles.find(s => s.title.toLowerCase() === track.style?.toLowerCase())?.color }}
-                          >
-                            {track.style}
-                          </span>
-                        )}
-                      </div>
+                      <p className="track-artist">
+                        {track.artist}
+                        {track.duration ? ` • ${formatDuration(track.duration)}` : ''}
+                      </p>
+                    </div>
+
+                    <div className="track-badge-col">
+                      {styles.find(s => s.title.toLowerCase() === track.style?.toLowerCase()) && (
+                        <span 
+                          className="style-badge-pill" 
+                          style={{ backgroundColor: styles.find(s => s.title.toLowerCase() === track.style?.toLowerCase())?.color }}
+                        >
+                          {track.style}
+                        </span>
+                      )}
                     </div>
                     
                     <div className="track-meta-col">

@@ -229,20 +229,21 @@ export default function GocAlbumPage() {
                               className="track-name"
                               isActive={isPlaying && (playingTitle === track.title || playingTitle === track.id)}
                             />
-                            <div className="artist-badge-row">
-                              <p className="track-artist">
-                                {displayArtist}
-                                {track.duration ? ` • ${formatDuration(track.duration)}` : ''}
-                              </p>
-                              {trackStyleName && (
-                                <span 
-                                  className="style-badge-pill" 
-                                  style={{ backgroundColor: badgeColor }}
-                                >
-                                  {trackStyleName.toUpperCase()}
-                                </span>
-                              )}
-                            </div>
+                            <p className="track-artist">
+                              {displayArtist}
+                              {track.duration ? ` • ${formatDuration(track.duration)}` : ''}
+                            </p>
+                          </div>
+
+                          <div className="track-badge-col">
+                            {trackStyleName && (
+                              <span 
+                                className="style-badge-pill" 
+                                style={{ backgroundColor: badgeColor }}
+                              >
+                                {trackStyleName.toUpperCase()}
+                              </span>
+                            )}
                           </div>
 
                           <div className="track-meta-col">

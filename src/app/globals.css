@@ -326,7 +326,7 @@ button {
 
 .track-row {
   display: grid;
-  grid-template-columns: 20px 24px 1fr 140px auto;
+  grid-template-columns: 20px 24px 1fr 100px 110px auto;
   align-items: center;
   padding: 12px 17px 10px 16px;
   border-radius: 16px;
@@ -334,8 +334,15 @@ button {
   border: 1px solid rgba(255, 255, 255, 0.06);
   transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
   cursor: pointer;
-  gap: 8px;
+  gap: 12px;
   margin-bottom: 2px;
+}
+
+.track-badge-col {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
 }
 
 .track-row:hover {
@@ -499,15 +506,23 @@ button {
 /* Mobile Adjustments */
 @media (max-width: 768px) {
   .track-row {
-    grid-template-columns: 14px 24px 1fr auto;
-    gap: 2px;
-    padding: 14px 18px 14px 10px;
+    grid-template-columns: 14px 24px 1fr auto auto;
+    gap: 4px;
+    padding: 14px 16px 14px 10px;
     border-radius: 12px;
     min-height: 62px;
   }
 
   .track-meta-col {
     display: none;
+  }
+
+  .track-badge-col {
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    margin-right: 14px;
+    flex-shrink: 0;
   }
 
   .track-index {

@@ -18,27 +18,8 @@ export const KofiButton: React.FC<KofiButtonProps> = ({
     e.preventDefault();
     e.stopPropagation();
 
-    // 1. Try triggering Ko-fi's official overlay widget if loaded on page
-    try {
-      const iframes = document.querySelectorAll<HTMLIFrameElement>(
-        '.floatingchat-container, .floatingchat-container-mobi'
-      );
-      for (const frame of Array.from(iframes)) {
-        const doc = frame.contentDocument;
-        if (doc) {
-          const btn = doc.querySelector<HTMLElement>('.floatingchat-donate-button');
-          if (btn) {
-            btn.click();
-            return;
-          }
-        }
-      }
-    } catch (err) {
-      console.warn('Could not trigger Ko-fi overlay widget directly:', err);
-    }
-
-    // 2. Direct reliable fallback: open official 4andone Ko-fi page in a new tab
-    window.open('https://ko-fi.com/4andone', '_blank', 'noopener,noreferrer');
+    // Open the official Ko-fi payment iframe modal directly on the same page
+    window.dispatchEvent(new CustomEvent('open-kofi-modal'));
   };
 
   if (variant === 'sidebar') {

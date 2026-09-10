@@ -9,6 +9,7 @@ import { useAuth } from '@/context/AuthContext';
 import { useAudio } from '@/components/audio/AudioProvider';
 import { useVisitTracker } from '@/hooks/useVisitTracker';
 import { AuthModal } from '@/components/auth/AuthModal';
+import { KofiModal } from '@/components/kofi/KofiModal';
 import MobileFullPlayer from './MobileFullPlayer';
 import DesktopFullPlayer from './DesktopFullPlayer';
 
@@ -92,6 +93,8 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
         isOpen={isAuthModalOpen} 
         onClose={() => setIsAuthModalOpen(false)} 
       />
+
+      <KofiModal />
       
       <MobileFullPlayer 
         isOpen={isFullPlayerOpen}

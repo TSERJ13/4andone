@@ -373,25 +373,6 @@ export default async function RootLayout({
             crossOrigin="anonymous"
           />
         )}
-        <Script
-          id="kofi-overlay-script"
-          src="https://storage.ko-fi.com/cdn/scripts/overlay-widget.js"
-          strategy="lazyOnload"
-        />
-        <Script id="kofi-init" strategy="lazyOnload">
-          {`
-            window.addEventListener('load', function() {
-              if (typeof kofiWidgetOverlay !== 'undefined') {
-                kofiWidgetOverlay.draw('4andone', {
-                  'type': 'floating-chat',
-                  'floating-chat.donateButton.text': 'Buy Me Coffee',
-                  'floating-chat.donateButton.background-color': '#1db954',
-                  'floating-chat.donateButton.text-color': '#ffffff'
-                });
-              }
-            });
-          `}
-        </Script>
       </body>
     </html>
 );

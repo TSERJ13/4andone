@@ -16,7 +16,8 @@ import {
   Heart,
   Disc,
   Tally3,
-  Share2
+  Share2,
+  Plus
 } from 'lucide-react';
 import { useAudio } from '@/components/audio/AudioProvider';
 import { useStudio } from '@/components/admin/StudioProvider';
@@ -25,6 +26,8 @@ import ConfirmModal from '@/components/admin/ConfirmModal';
 import SpeedSelector from '@/components/audio/SpeedSelector';
 import { formatDuration } from '@/utils/format';
 import { Marquee } from '@/components/layout/Marquee';
+import AddToPlaylistModal from '@/components/audio/AddToPlaylistModal';
+import OfflineDownloadButton from '@/components/audio/OfflineDownloadButton';
 
 interface MobileFullPlayerProps {
   isOpen: boolean;
@@ -69,6 +72,7 @@ const MobileFullPlayer = ({ isOpen, onClose }: MobileFullPlayerProps) => {
   const [isDragging, setIsDragging] = useState(false);
   const [dragProgress, setDragProgress] = useState(0);
   const [authPrompt, setAuthPrompt] = useState({ isOpen: false, action: '' });
+  const [isAddToPlaylistOpen, setIsAddToPlaylistOpen] = useState(false);
   const progressRef = useRef<HTMLDivElement>(null);
   const lastSeekRef = useRef<number>(0);
 
@@ -255,30 +259,48 @@ const MobileFullPlayer = ({ isOpen, onClose }: MobileFullPlayerProps) => {
 
         <div className="mfp-track-meta">
           <div className="mfp-meta-top">
-            <button
-              className={`mfp-meta-btn mfp-final-toggle ${isFinalMode ? 'active-final' : ''}`}
-              onClick={toggleFinalMode}
-              disabled={!!activeMode}
-            >
-              <Timer size={32} />
-            </button>
+            <div className="flex items-center gap-1">
+              <div className="mfp-meta-btn flex items-center justify-center">
+                <OfflineDownloadButton track={currentTrack} iconSize={26} />
+              </div>
+              <button
+                className={`mfp-meta-btn mfp-final-toggle ${isFinalMode ? 'active-final' : ''}`}
+                onClick={toggleFinalMode}
+                disabled={!!activeMode}
+                title="Final Mode"
+              >
+                <Timer size={28} />
+              </button>
+            </div>
             <div className="mfp-text-center">
               <div className="mfp-title-wrapper">
                 <Marquee text={title || ''} speed={30} isActive={isPlaying} className="mfp-title-marquee" />
               </div>
               <p className="mfp-artist truncate">{artist}</p>
             </div>
-            <button
-              className={`mfp-meta-btn mfp-favorite ${tracks.find(t => t.title === title)?.isFavorite ? 'active' : ''}`}
-              onClick={() => {
-                checkAuthAndExecute(() => {
-                  const track = tracks.find(t => t.title === title);
-                  if (track) toggleFavorite(track.id);
-                }, 'favorite tracks');
-              }}
-            >
-              <Heart size={32} fill={tracks.find(t => t.title === title)?.isFavorite ? "currentColor" : "none"} />
-            </button>
+            <div className="flex items-center gap-1">
+              <button
+                className={`mfp-meta-btn mfp-favorite ${tracks.find(t => t.title === title)?.isFavorite ? 'active' : ''}`}
+                onClick={() => {
+                  checkAuthAndExecute(() => {
+                    const track = tracks.find(t => t.title === title);
+                    if (track) toggleFavorite(track.id);
+                  }, 'favorite tracks');
+                }}
+                title="Favorite"
+              >
+                <Heart size={28} fill={tracks.find(t => t.title === title)?.isFavorite ? "currentColor" : "none"} />
+              </button>
+              <button
+                className="mfp-meta-btn"
+                onClick={() => {
+                  checkAuthAndExecute(() => setIsAddToPlaylistOpen(true), 'manage playlists');
+                }}
+                title="Add to playlist"
+              >
+                <Plus size={28} />
+              </button>
+            </div>
 
             {/* Speed Button for Landscape */}
             <button className="mfp-landscape-speed-btn" onClick={handleToggleSpeed}>
@@ -418,6 +440,12 @@ const MobileFullPlayer = ({ isOpen, onClose }: MobileFullPlayerProps) => {
           setAuthPrompt(prev => ({ ...prev, isOpen: false }));
           setIsAuthModalOpen(true);
         }}
+      />
+
+      <AddToPlaylistModal
+        isOpen={isAddToPlaylistOpen}
+        onClose={() => setIsAddToPlaylistOpen(false)}
+        track={currentTrack || null}
       />
 
       <style jsx>{`

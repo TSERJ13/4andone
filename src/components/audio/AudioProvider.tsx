@@ -593,50 +593,59 @@ export const AudioProvider: React.FC<{ children: React.ReactNode }> = ({ childre
 
       let finalUrl = track.audioUrl;
 
-      // AUTO-HEALING: If track was saved with "undefined/" due to missing env vars
-      if (finalUrl?.startsWith('undefined/')) {
-        const R2_FALLBACK = process.env.NEXT_PUBLIC_R2_PUBLIC_URL || 'https://pub-c41b1121b311f676bdc114d143278d18.r2.dev';
-        finalUrl = finalUrl.replace('undefined/', `${R2_FALLBACK}/`);
-      }
-
-      const isRemote = finalUrl?.startsWith('http');
-
-      // 1. If REMOTE (Cloudflare R2), we try signed first, fallback to public on error if needed
-      if (isRemote && finalUrl) {
+      // 0. LOCAL OFFLINE STORAGE (IndexedDB) CHECK FIRST
+      let isLocalAvailable = false;
+      if (track.id) {
         try {
-          const R2_DOMAIN = process.env.NEXT_PUBLIC_R2_PUBLIC_URL || 'https://pub-c41b1121b311f676bdc114d143278d18.r2.dev';
-          const domainNormalized = R2_DOMAIN.replace(/\/$/, '');
-          
-          // EXTRACT FULL KEY: Take everything after the domain to handle nested paths
-          let storageKey = '';
-          if (finalUrl.includes(domainNormalized)) {
-            storageKey = finalUrl.split(`${domainNormalized}/`)[1];
-          } else {
-            // Fallback for custom or direct URLs
-            storageKey = finalUrl.split('/').slice(3).join('/');
+          const cachedBlob = await getAudioFile(track.id);
+          if (cachedBlob && cachedBlob.size > 0) {
+            finalUrl = URL.createObjectURL(cachedBlob);
+            activeBlobUrlRef.current = finalUrl;
+            isLocalAvailable = true;
           }
-
-          if (!storageKey) throw new Error("Invalid remote URL storage key");
-
-          const signRes = await fetch(`/api/upload?key=${encodeURIComponent(storageKey)}`);
-
-          if (signRes.ok) {
-            const { url } = await signRes.json();
-            finalUrl = url;
-          } else {
-            // FALLBACK: Use environment Public R2 URL with the full gathered path
-            finalUrl = `${domainNormalized}/${storageKey}`;
-          }
-        } catch (e) {
-          console.error("[AUDIO-ENGINE] Playback signing failed:", e);
+        } catch (idbErr) {
+          console.warn('[AUDIO-ENGINE] IndexedDB check failed:', idbErr);
         }
       }
-      // 2. Legacy Fallback (IndexedDB)
-      else if (track.id) {
-        const file = await getAudioFile(track.id);
-        if (file) {
-          finalUrl = URL.createObjectURL(file);
-          activeBlobUrlRef.current = finalUrl;
+
+      // 1. If not available offline, fetch from Cloudflare R2 / Network
+      if (!isLocalAvailable) {
+        // AUTO-HEALING: If track was saved with "undefined/" due to missing env vars
+        if (finalUrl?.startsWith('undefined/')) {
+          const R2_FALLBACK = process.env.NEXT_PUBLIC_R2_PUBLIC_URL || 'https://pub-c41b1121b311f676bdc114d143278d18.r2.dev';
+          finalUrl = finalUrl.replace('undefined/', `${R2_FALLBACK}/`);
+        }
+
+        const isRemote = finalUrl?.startsWith('http');
+
+        if (isRemote && finalUrl) {
+          try {
+            const R2_DOMAIN = process.env.NEXT_PUBLIC_R2_PUBLIC_URL || 'https://pub-c41b1121b311f676bdc114d143278d18.r2.dev';
+            const domainNormalized = R2_DOMAIN.replace(/\/$/, '');
+            
+            // EXTRACT FULL KEY: Take everything after the domain to handle nested paths
+            let storageKey = '';
+            if (finalUrl.includes(domainNormalized)) {
+              storageKey = finalUrl.split(`${domainNormalized}/`)[1];
+            } else {
+              // Fallback for custom or direct URLs
+              storageKey = finalUrl.split('/').slice(3).join('/');
+            }
+
+            if (!storageKey) throw new Error("Invalid remote URL storage key");
+
+            const signRes = await fetch(`/api/upload?key=${encodeURIComponent(storageKey)}`);
+
+            if (signRes.ok) {
+              const { url } = await signRes.json();
+              finalUrl = url;
+            } else {
+              // FALLBACK: Use environment Public R2 URL with the full gathered path
+              finalUrl = `${domainNormalized}/${storageKey}`;
+            }
+          } catch (e) {
+            console.error("[AUDIO-ENGINE] Playback signing failed:", e);
+          }
         }
       }
 
@@ -744,14 +753,54 @@ export const AudioProvider: React.FC<{ children: React.ReactNode }> = ({ childre
             if (currentToken !== loadingTokenRef.current) return;
             setIsPlaying(true);
             isPlayingRef.current = true;
-            if ('mediaSession' in navigator) navigator.mediaSession.playbackState = 'playing';
+            if ('mediaSession' in navigator) {
+              navigator.mediaSession.playbackState = 'playing';
+              const trackDur = audio.duration || duration || 0;
+              if ((navigator.mediaSession as any).setPositionState && trackDur > 0) {
+                try {
+                  navigator.mediaSession.setPositionState({
+                    duration: trackDur,
+                    playbackRate: audio.playbackRate || 1.0,
+                    position: Math.min(audio.currentTime, trackDur)
+                  });
+                } catch {}
+              }
+            }
           };
 
           audio.onpause = () => {
             if (currentToken !== loadingTokenRef.current) return;
             setIsPlaying(false);
             isPlayingRef.current = false;
-            if ('mediaSession' in navigator) navigator.mediaSession.playbackState = 'paused';
+            if ('mediaSession' in navigator) {
+              navigator.mediaSession.playbackState = 'paused';
+              const trackDur = audio.duration || duration || 0;
+              if ((navigator.mediaSession as any).setPositionState && trackDur > 0) {
+                try {
+                  navigator.mediaSession.setPositionState({
+                    duration: trackDur,
+                    playbackRate: audio.playbackRate || 1.0,
+                    position: Math.min(audio.currentTime, trackDur)
+                  });
+                } catch {}
+              }
+            }
+          };
+
+          audio.onseeked = () => {
+            if (currentToken !== loadingTokenRef.current) return;
+            if ('mediaSession' in navigator) {
+              const trackDur = audio.duration || duration || 0;
+              if ((navigator.mediaSession as any).setPositionState && trackDur > 0) {
+                try {
+                  navigator.mediaSession.setPositionState({
+                    duration: trackDur,
+                    playbackRate: audio.playbackRate || 1.0,
+                    position: Math.min(audio.currentTime, trackDur)
+                  });
+                } catch {}
+              }
+            }
           };
 
           // ATTACH EVENT-DRIVEN MONITORING (Frame-accurate limit checks)
@@ -1169,16 +1218,30 @@ export const AudioProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   }, [isPlaying, isPauseCountdown, isLoading, duration, isFinalMode, title]);
 
   const playAudio = React.useCallback(async () => {
-    if (!isLoaded || !nativePlayerRef.current) return;
+    if (!nativePlayerRef.current) return;
     try {
-      const startTime = currentTimeRef.current >= duration ? 0 : currentTimeRef.current;
-      nativePlayerRef.current.currentTime = startTime;
+      if (nativePlayerRef.current.ended || (duration > 0 && nativePlayerRef.current.currentTime >= duration)) {
+        nativePlayerRef.current.currentTime = 0;
+      }
       playPromiseRef.current = nativePlayerRef.current.play();
       await playPromiseRef.current;
       setIsPlaying(true);
       isPlayingRef.current = true;
-      if ('mediaSession' in navigator) navigator.mediaSession.playbackState = 'playing';
-      if (heartbeatRef.current) heartbeatRef.current.play().catch(() => {});
+
+      if ('mediaSession' in navigator) {
+        navigator.mediaSession.playbackState = 'playing';
+        const trackDur = nativePlayerRef.current.duration || duration || 0;
+        if ((navigator.mediaSession as any).setPositionState && trackDur > 0) {
+          try {
+            navigator.mediaSession.setPositionState({
+              duration: trackDur,
+              playbackRate: nativePlayerRef.current.playbackRate || 1.0,
+              position: Math.min(nativePlayerRef.current.currentTime, trackDur)
+            });
+          } catch {}
+        }
+      }
+
       if ('wakeLock' in navigator) {
         (navigator as any).wakeLock.request('screen').then((lock: any) => {
           wakeLockRef.current = lock;
@@ -1190,7 +1253,7 @@ export const AudioProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     } finally {
       playPromiseRef.current = null;
     }
-  }, [isLoaded, duration]);
+  }, [duration]);
 
   const pauseAudio = React.useCallback(() => {
     if (nativePlayerRef.current) {
@@ -1200,9 +1263,22 @@ export const AudioProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       }
       setIsPlaying(false);
       isPlayingRef.current = false;
-      if ('mediaSession' in navigator) navigator.mediaSession.playbackState = 'paused';
+
+      if ('mediaSession' in navigator) {
+        navigator.mediaSession.playbackState = 'paused';
+        const trackDur = nativePlayerRef.current.duration || duration || 0;
+        if ((navigator.mediaSession as any).setPositionState && trackDur > 0) {
+          try {
+            navigator.mediaSession.setPositionState({
+              duration: trackDur,
+              playbackRate: nativePlayerRef.current.playbackRate || 1.0,
+              position: Math.min(nativePlayerRef.current.currentTime, trackDur)
+            });
+          } catch {}
+        }
+      }
     }
-  }, []);
+  }, [duration]);
 
   const togglePlay = React.useCallback(async () => {
     if (!isLoaded) return;
@@ -1234,21 +1310,30 @@ export const AudioProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   }, []);
 
   const seek = React.useCallback((time: number) => {
-    if (isLoaded && nativePlayerRef.current) {
-      const safeTime = Math.max(0, Math.min(time, duration));
+    if (nativePlayerRef.current) {
+      const trackDur = duration || nativePlayerRef.current.duration || 0;
+      const safeTime = Math.max(0, Math.min(time, trackDur || 999999));
       const wasPlaying = isPlayingRef.current;
       nativePlayerRef.current.currentTime = safeTime;
       setCurrentTime(safeTime);
       currentTimeRef.current = safeTime;
-      if (wasPlaying) {
-        if (nativePlayerRef.current.paused) {
-           playPromiseRef.current = nativePlayerRef.current.play();
-           playPromiseRef.current.catch(() => {}).finally(() => { playPromiseRef.current = null; });
-        }
-        setIsPlaying(true);
+
+      if ('mediaSession' in navigator && (navigator.mediaSession as any).setPositionState && trackDur > 0) {
+        try {
+          navigator.mediaSession.setPositionState({
+            duration: trackDur,
+            playbackRate: nativePlayerRef.current.playbackRate || 1.0,
+            position: safeTime
+          });
+        } catch {}
+      }
+
+      if (wasPlaying && nativePlayerRef.current.paused) {
+        playPromiseRef.current = nativePlayerRef.current.play();
+        playPromiseRef.current.catch(() => {}).finally(() => { playPromiseRef.current = null; });
       }
     }
-  }, [isLoaded, duration]);
+  }, [duration]);
 
   const seekRelative = React.useCallback((seconds: number) => {
     if (nativePlayerRef.current && isLoaded) {
@@ -1401,15 +1486,23 @@ export const AudioProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     if ('mediaSession' in navigator) {
       navigator.mediaSession.setActionHandler('play', () => playAudio());
       navigator.mediaSession.setActionHandler('pause', () => pauseAudio());
-      navigator.mediaSession.setActionHandler('seekbackward', () => seekRelative(-10));
-      navigator.mediaSession.setActionHandler('seekforward', () => seekRelative(10));
+      navigator.mediaSession.setActionHandler('seekbackward', (details) => {
+        const offset = details.seekOffset || 10;
+        seekRelative(-offset);
+      });
+      navigator.mediaSession.setActionHandler('seekforward', (details) => {
+        const offset = details.seekOffset || 10;
+        seekRelative(offset);
+      });
       navigator.mediaSession.setActionHandler('previoustrack', () => playPrevious());
       navigator.mediaSession.setActionHandler('nexttrack', () => playNext());
       navigator.mediaSession.setActionHandler('seekto', (details) => {
-        if (details.seekTime !== undefined) seek(details.seekTime);
+        if (details.seekTime !== undefined) {
+          seek(details.seekTime);
+        }
       });
     }
-  }, [playAudio, pauseAudio, seek, seekRelative]);
+  }, [playAudio, pauseAudio, seek, seekRelative, playPrevious, playNext]);
 
   // Global Keyboard Shortcuts for Dancers & Coaches
   useEffect(() => {

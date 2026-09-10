@@ -27,10 +27,12 @@ import { useAudio } from '@/components/audio/AudioProvider';
 import SpeedSelector from '@/components/audio/SpeedSelector';
 import { useStudio, Track } from '@/components/admin/StudioProvider';
 import { useAuth } from '@/context/AuthContext';
-import ConfirmModal from '@/components/admin/ConfirmModal';
 import { getMPMFromBPM } from '@/utils/audio';
 import { formatDuration } from '@/utils/format';
 import { Marquee } from '@/components/layout/Marquee';
+import ConfirmModal from '@/components/admin/ConfirmModal';
+import AddToPlaylistModal from '@/components/audio/AddToPlaylistModal';
+import OfflineDownloadButton from '@/components/audio/OfflineDownloadButton';
 
 const PlayerBar = ({ onExpand }: { onExpand?: () => void }) => {
   const pathname = usePathname();
@@ -78,6 +80,7 @@ const PlayerBar = ({ onExpand }: { onExpand?: () => void }) => {
 
   const { isAuthenticated, setIsAuthModalOpen } = useAuth();
   const [authPrompt, setAuthPrompt] = useState({ isOpen: false, action: '' });
+  const [isAddToPlaylistOpen, setIsAddToPlaylistOpen] = useState(false);
 
   const handleShareTrack = () => {
     const currentTrack = tracks.find(t => t.title === title);
@@ -297,7 +300,7 @@ const PlayerBar = ({ onExpand }: { onExpand?: () => void }) => {
         {/* Main Controls */}
         <div className="player-controls">
           <div className="control-buttons">
-            {/* Heart/Favorite - Pro Glass Style */}
+            {/* 1. Left Button 1: Heart/Favorite */}
             <button
               className={`feature-btn glass ${tracks.find(t => t.title === title)?.isFavorite ? 'active active-heart' : ''}`}
               aria-label="Add to favorite tracks"
@@ -309,22 +312,23 @@ const PlayerBar = ({ onExpand }: { onExpand?: () => void }) => {
                   }
                 }, 'favorite tracks');
               }}
-              style={{ marginRight: '16px' }}
+              style={{ marginRight: '8px' }}
             >
               <Heart size={18} fill={tracks.find(t => t.title === title)?.isFavorite ? "currentColor" : "none"} />
             </button>
 
-            {/* Share Track Button */}
+            {/* 2. Left Button 2: Add to Playlist (+) */}
             <button
               className="feature-btn glass"
-              aria-label="Share track link"
-              title="Share track link"
-              onClick={handleShareTrack}
-              style={{ marginRight: '32px' }}
+              aria-label="Add to playlist"
+              title="Add to playlist"
+              onClick={() => checkAuthAndExecute(() => setIsAddToPlaylistOpen(true), 'manage playlists')}
+              style={{ marginRight: '24px' }}
             >
-              <Share2 size={18} />
+              <Plus size={18} />
             </button>
 
+            {/* Center Controls: SkipBack, Play/Pause, SkipForward */}
             <button
               className="control-btn"
               aria-label="Play previous track"
@@ -359,15 +363,23 @@ const PlayerBar = ({ onExpand }: { onExpand?: () => void }) => {
               style={{ opacity: isFinalMode ? 0.3 : 1, cursor: isFinalMode ? 'not-allowed' : 'pointer', marginLeft: '4px' }}
             ><SkipForward size={24} fill="currentColor" /></button>
 
-            {/* Universal Mode Toggle - Pro Glass Style */}
-            <button
-              className={`feature-btn glass ${isShuffle || isRepeat ? 'active' : ''}`}
-              aria-label={isShuffle ? "Shuffle mode active" : isRepeat ? "Repeat one mode active" : "Normal list mode active"}
-              onClick={togglePlaybackMode}
-              title={isShuffle ? "Shuffle" : isRepeat ? "Repeat One" : "List Order"}
-              style={{ marginLeft: '48px' }} /* Increased distance from the triplet */
+            {/* 3. Right Button 1: Offline Download */}
+            <div
+              className="feature-btn glass"
+              style={{ marginLeft: '24px', padding: '8px 12px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
             >
-              {isShuffle ? <Shuffle size={18} /> : isRepeat ? <Repeat size={18} /> : <ListMusic size={18} />}
+              <OfflineDownloadButton track={currentTrack} iconSize={18} />
+            </div>
+
+            {/* 4. Right Button 2: Share Track Link */}
+            <button
+              className="feature-btn glass"
+              aria-label="Share track link"
+              title="Share track link"
+              onClick={handleShareTrack}
+              style={{ marginLeft: '8px' }}
+            >
+              <Share2 size={18} />
             </button>
           </div>
 
@@ -407,6 +419,17 @@ const PlayerBar = ({ onExpand }: { onExpand?: () => void }) => {
 
         <div className="extra-controls">
           <div className="special-features">
+            {/* Universal Mode Toggle - Pro Glass Style */}
+            <button
+              className={`feature-btn glass ${isShuffle || isRepeat ? 'active' : ''}`}
+              aria-label={isShuffle ? "Shuffle mode active" : isRepeat ? "Repeat one mode active" : "Normal list mode active"}
+              onClick={togglePlaybackMode}
+              title={isShuffle ? "Shuffle" : isRepeat ? "Repeat One" : "List Order"}
+              style={{ padding: '8px 12px' }}
+            >
+              {isShuffle ? <Shuffle size={18} /> : isRepeat ? <Repeat size={18} /> : <ListMusic size={18} />}
+            </button>
+
             <div className="speed-control-wrapper">
               <button
                 className={`action-btn-speed icon-only ${bpm !== 100 ? 'active' : ''}`}
@@ -493,6 +516,12 @@ const PlayerBar = ({ onExpand }: { onExpand?: () => void }) => {
           setAuthPrompt(prev => ({ ...prev, isOpen: false }))
           setIsAuthModalOpen(true);
         }}
+      />
+
+      <AddToPlaylistModal
+        isOpen={isAddToPlaylistOpen}
+        onClose={() => setIsAddToPlaylistOpen(false)}
+        track={currentTrack || null}
       />
 
       <style jsx>{`

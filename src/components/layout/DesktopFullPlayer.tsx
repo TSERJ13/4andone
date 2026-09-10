@@ -23,7 +23,8 @@ import {
   Infinity,
   ListMusic,
   Music2,
-  Share2
+  Share2,
+  Plus
 } from 'lucide-react';
 import { Marquee } from '@/components/layout/Marquee';
 import { useAudio } from '@/components/audio/AudioProvider';
@@ -31,6 +32,8 @@ import { useStudio } from '@/components/admin/StudioProvider';
 import { useAuth } from '@/context/AuthContext';
 import SpeedSelector from '@/components/audio/SpeedSelector';
 import { formatDuration } from '@/utils/format';
+import AddToPlaylistModal from '@/components/audio/AddToPlaylistModal';
+import OfflineDownloadButton from '@/components/audio/OfflineDownloadButton';
 
 const LATIN_FIRST_ORDER: Record<string, number> = {
   // Latin First
@@ -54,6 +57,7 @@ export default function DesktopFullPlayer({ onClose }: { onClose: () => void }) 
   const [showSpeed, setShowSpeed] = useState(false);
   const [isDragging, setIsDragging] = useState(false);
   const [dragProgress, setDragProgress] = useState(0);
+  const [isAddToPlaylistOpen, setIsAddToPlaylistOpen] = useState(false);
   const progressRef = useRef<HTMLDivElement>(null);
   const lastSeekRef = useRef<number>(0);
   const speedPopoverRef = useRef<HTMLDivElement>(null);
@@ -295,6 +299,15 @@ export default function DesktopFullPlayer({ onClose }: { onClose: () => void }) 
                     </button>
 
                     <button 
+                      className="console-action-btn-v13"
+                      onClick={() => setIsAddToPlaylistOpen(true)}
+                      aria-label="Add to Playlist"
+                      title="Add to Playlist"
+                    >
+                      <Plus size={34} />
+                    </button>
+
+                    <button 
                       className="console-action-btn-v13 share-btn-pro"
                       onClick={handleShareTrack}
                       aria-label="Share Track Link"
@@ -404,21 +417,24 @@ export default function DesktopFullPlayer({ onClose }: { onClose: () => void }) 
                         />
                       </div>
 
-                      <div className="final-mode-lockdown-v17">
-                         <div className="practice-info-v13">
-                            <Timer size={16} className={isFinalMode ? 'text-danger' : 'opacity-20'} />
-                            <span className={isFinalMode ? 'text-danger' : 'opacity-20'}>Final Mode</span>
-                         </div>
-                         <label className="switch-v13">
-                           <input 
-                             type="checkbox" 
-                             checked={isFinalMode} 
-                             onChange={toggleFinalMode} 
-                             disabled={!!activeMode}
-                           />
-                           <span className="slider-v13 round-v11"></span>
-                         </label>
-                      </div>
+                      <div className="flex items-center gap-4">
+                          <OfflineDownloadButton track={currentTrack} iconSize={22} />
+                          <div className="final-mode-lockdown-v17">
+                             <div className="practice-info-v13">
+                                <Timer size={16} className={isFinalMode ? 'text-danger' : 'opacity-20'} />
+                                <span className={isFinalMode ? 'text-danger' : 'opacity-20'}>Final Mode</span>
+                             </div>
+                             <label className="switch-v13">
+                               <input 
+                                 type="checkbox" 
+                                 checked={isFinalMode} 
+                                 onChange={toggleFinalMode} 
+                                 disabled={!!activeMode}
+                               />
+                               <span className="slider-v13 round-v11"></span>
+                             </label>
+                          </div>
+                       </div>
                    </div>
                 </div>
              </div>
@@ -619,11 +635,17 @@ export default function DesktopFullPlayer({ onClose }: { onClose: () => void }) 
                   ))}
                </div>
              )}
-           </div>
-        </aside>
-      </div>
+            </div>
+         </aside>
+       </div>
 
-      <style jsx>{`
+       <AddToPlaylistModal
+         isOpen={isAddToPlaylistOpen}
+         onClose={() => setIsAddToPlaylistOpen(false)}
+         track={currentTrack || null}
+       />
+
+       <style jsx>{`
         .desktop-player-overlay {
           position: fixed;
           inset: 0;

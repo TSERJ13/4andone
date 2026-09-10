@@ -45,18 +45,14 @@ export const KofiButton: React.FC<KofiButtonProps> = ({
             background: rgba(255, 255, 255, 0.04);
             border: 1px solid rgba(255, 255, 255, 0.08);
             cursor: pointer;
-            transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+            transition: background 0.2s ease, border-color 0.2s ease, box-shadow 0.2s ease;
             backdrop-filter: blur(12px);
             -webkit-backdrop-filter: blur(12px);
           }
           .kofi-sidebar-btn:hover {
             background: rgba(255, 255, 255, 0.09);
             border-color: rgba(255, 255, 255, 0.2);
-            transform: translateY(-2px);
             box-shadow: 0 4px 16px rgba(0, 0, 0, 0.4);
-          }
-          .kofi-sidebar-btn:active {
-            transform: scale(0.95);
           }
         `}</style>
       </button>
@@ -94,7 +90,7 @@ export const KofiButton: React.FC<KofiButtonProps> = ({
           font-weight: 700;
           letter-spacing: -0.2px;
           cursor: pointer;
-          transition: all 0.22s cubic-bezier(0.2, 0, 0, 1);
+          transition: background 0.2s ease, border-color 0.2s ease, box-shadow 0.2s ease;
           box-shadow: 0 2px 8px rgba(0, 0, 0, 0.4);
           user-select: none;
         }
@@ -104,11 +100,6 @@ export const KofiButton: React.FC<KofiButtonProps> = ({
           border-color: #1db954;
           color: #ffffff;
           box-shadow: 0 0 18px rgba(29, 185, 84, 0.35), 0 2px 8px rgba(0, 0, 0, 0.5);
-          transform: translateY(-1.5px);
-        }
-
-        .kofi-pill-btn:active {
-          transform: scale(0.96);
         }
 
         .kofi-icon-wrapper {
@@ -116,12 +107,7 @@ export const KofiButton: React.FC<KofiButtonProps> = ({
           align-items: center;
           justify-content: center;
           color: #1db954;
-          transition: transform 0.2s ease;
           filter: drop-shadow(0 0 4px rgba(29, 185, 84, 0.5));
-        }
-
-        .kofi-pill-btn:hover .kofi-icon-wrapper {
-          transform: rotate(-10deg) scale(1.1);
         }
 
         .kofi-text {

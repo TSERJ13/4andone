@@ -17,6 +17,7 @@ import { useStudio } from "@/components/admin/StudioProvider";
 import { useAuth } from '@/context/AuthContext';
 import ConfirmModal from '@/components/admin/ConfirmModal';
 import { useRouter } from 'next/navigation';
+import { KofiButton } from '@/components/kofi/KofiButton';
 
 const Sidebar = () => {
   const pathname = usePathname();
@@ -92,7 +93,7 @@ const Sidebar = () => {
       </nav>
 
       <div className="sidebar-footer">
-        {/* Footer info or legacy links if needed */}
+        <KofiButton variant="sidebar" />
       </div>
 
       <ConfirmModal 

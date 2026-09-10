@@ -11,6 +11,7 @@ import { getMPMFromBPM } from '@/utils/audio';
 import ConfirmModal from '@/components/admin/ConfirmModal';
 import { useState, useEffect } from 'react';
 import { UserBadge } from '@/components/auth/UserBadge';
+import { KofiButton } from '@/components/kofi/KofiButton';
 import { useRouter } from 'next/navigation';
 import { Marquee } from '@/components/layout/Marquee';
 
@@ -242,6 +243,12 @@ export default function Home() {
           <p>
             Sportinių šokių muzika, Pramoginių šokių muzika, Sporta deju mūzika, Balles deju mūzika.
           </p>
+        </div>
+
+        {/* Top Header Row with Buy Me Coffee & Profile */}
+        <div className="home-top-header">
+          <KofiButton />
+          <UserBadge />
         </div>
 
         {/* 10-Second Auto-Rotating Hero Carousel Banner */}
@@ -557,6 +564,16 @@ export default function Home() {
       />
 
       <style jsx>{`
+        .home-top-header {
+          display: flex;
+          align-items: center;
+          justify-content: space-between;
+          margin-bottom: 16px;
+          padding: 0 4px;
+          position: relative;
+          z-index: 20;
+        }
+
         .carousel-nav-btn {
           position: absolute;
           top: 50%;

@@ -921,3 +921,26 @@ button {
   0%, 15% { transform: translateX(0); }
   85%, 100% { transform: translateX(calc(-100% + var(--container-width, 100%))); }
 }
+
+/* Ko-fi Floating Widget Customization: Hide default bottom button, keep popup accessible */
+.floatingchat-container-wrap,
+.floatingchat-container-wrap-mobi {
+  position: fixed !important;
+  bottom: -9999px !important;
+  left: -9999px !important;
+  opacity: 0 !important;
+  pointer-events: none !important;
+  width: 1px !important;
+  height: 1px !important;
+  overflow: hidden !important;
+}
+
+/* Ensure Ko-fi donation popup dialog floats gracefully above all player bars */
+.floating-chat-kofi-popup-iframe,
+.floating-chat-kofi-popup-iframe-mobi {
+  z-index: 10005 !important;
+  border-radius: 20px !important;
+  overflow: hidden !important;
+  box-shadow: 0 25px 80px rgba(0, 0, 0, 0.85) !important;
+  border: 1px solid rgba(255, 255, 255, 0.12) !important;
+}

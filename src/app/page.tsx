@@ -261,10 +261,6 @@ export default function Home() {
           onTouchMove={(e) => { resetArrowsTimer(); handleTouchMove(e); }}
           onTouchEnd={handleTouchEnd}
         >
-          <div className="hero-top-right">
-            <UserBadge />
-          </div>
-
           {/* Navigation Controls: Smart Auto-Hiding Arrows */}
           <button 
             className={`carousel-nav-btn prev glass ${areArrowsVisible ? 'visible' : ''}`}

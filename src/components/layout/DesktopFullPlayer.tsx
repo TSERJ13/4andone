@@ -301,7 +301,7 @@ export default function DesktopFullPlayer({ onClose }: { onClose: () => void }) 
                      aria-label="Add to Favorites"
                      title="Favorite"
                    >
-                     <Heart size={24} fill={currentTrack?.isFavorite ? "#ef4444" : "none"} />
+                     <Heart size={30} fill={currentTrack?.isFavorite ? "#ef4444" : "none"} />
                    </button>
 
                    {/* 2. Plus */}
@@ -311,19 +311,32 @@ export default function DesktopFullPlayer({ onClose }: { onClose: () => void }) 
                      aria-label="Add to Playlist"
                      title="Add to Playlist"
                    >
-                     <Plus size={24} />
+                     <Plus size={30} />
                    </button>
 
-                   {/* 3. Style & BPM Pill */}
+                   {/* 3. Style & BPM Pill (Clickable -> toggles BPM Speed) */}
                    {currentTrack && (
-                     <div className="bpm-pill glass" style={isFinalMode ? { color: '#ef4444', borderColor: 'rgba(239, 68, 68, 0.3)' } : {}}>
+                     <button
+                       type="button"
+                       className={`bpm-pill glass ${showSpeed ? 'active-pill' : ''}`}
+                       onClick={(e) => {
+                         e.stopPropagation();
+                         setShowSpeed(!showSpeed);
+                       }}
+                       title="Toggle Playback Speed"
+                       style={{
+                         cursor: 'pointer',
+                         transition: 'all 0.2s',
+                         ...(isFinalMode ? { color: '#ef4444', borderColor: 'rgba(239, 68, 68, 0.3)' } : {})
+                       }}
+                     >
                        {currentTrack.style} • {currentTrack.bpm} BPM
-                     </div>
+                     </button>
                    )}
 
                    {/* 4. Download */}
                    <div className="console-action-btn-v13">
-                     <OfflineDownloadButton track={currentTrack} iconSize={24} />
+                     <OfflineDownloadButton track={currentTrack} iconSize={28} />
                    </div>
 
                    {/* 5. BPM Changer / Speed Selector */}
@@ -336,7 +349,7 @@ export default function DesktopFullPlayer({ onClose }: { onClose: () => void }) 
                         }}
                         title="Playback Speed"
                       >
-                         <Gauge size={24} />
+                         <Gauge size={30} />
                       </button>
 
                       {showSpeed && (
@@ -781,12 +794,12 @@ export default function DesktopFullPlayer({ onClose }: { onClose: () => void }) 
           display: flex; 
           align-items: center; 
           justify-content: center; 
-          gap: 16px; 
+          gap: 28px; 
           width: 100%; 
-          margin-top: 14px;
+          margin-top: 18px;
         }
         
-        .refined-title-v8 { font-size: 22.8px; font-weight: 900; letter-spacing: -0.4px; line-height: 1.2; color: white; text-align: center; }
+        .refined-title-v8 { font-size: 23px; font-weight: 900; letter-spacing: -0.4px; line-height: 1.2; color: white; text-align: center; }
         .refined-artist-v8 { font-size: 13px; text-transform: uppercase; font-weight: 800; letter-spacing: 4px; opacity: 0.4; margin-top: 6px; text-align: center; color: white; }
 
         @media (max-width: 1360px) {
@@ -795,17 +808,18 @@ export default function DesktopFullPlayer({ onClose }: { onClose: () => void }) 
         }
         
         .console-action-btn-v13 { 
-          color: rgba(255,255,255,0.6); 
+          color: rgba(255,255,255,0.7); 
           transition: all 0.2s; 
-          padding: 8px; 
+          padding: 10px; 
           cursor: pointer; 
           display: flex;
           align-items: center;
           justify-content: center;
+          border-radius: 50%;
         }
         .console-action-btn-v13:hover { 
           color: white; 
-          transform: scale(1.1); 
+          transform: scale(1.15); 
         }
         .console-action-btn-v13.active { color: var(--accent); opacity: 1; }
         .favorite-btn-pro.active { color: #ef4444 !important; }
@@ -892,15 +906,23 @@ export default function DesktopFullPlayer({ onClose }: { onClose: () => void }) 
         }
 
         .bpm-pill { 
-          padding: 10px 32px; 
+          padding: 12px 36px; 
           border-radius: 40px; 
           font-weight: 900; 
-          font-size: 10.45px; 
+          font-size: 11.5px; 
           text-transform: uppercase; 
           letter-spacing: 3px;
           color: var(--accent); 
-          background: rgba(255,255,255,0.05);
-          border: 1px solid rgba(255,255,255,0.1);
+          background: rgba(255,255,255,0.06);
+          border: 1px solid rgba(255,255,255,0.12);
+          cursor: pointer;
+          transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+        .bpm-pill:hover, .bpm-pill.active-pill {
+          background: rgba(255,255,255,0.12);
+          border-color: var(--accent);
+          transform: scale(1.05);
+          box-shadow: 0 0 25px rgba(29, 185, 84, 0.3);
         }
 
         /* CONTROL STAGE: stacks the timeline and the transport deck with a

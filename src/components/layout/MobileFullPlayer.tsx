@@ -294,29 +294,11 @@ const MobileFullPlayer = ({ isOpen, onClose }: MobileFullPlayerProps) => {
             </button>
           </div>
 
-          <div className="mfp-sub-actions-row flex items-center justify-center gap-6 mt-1">
-            {/* Left of 100% BPM: Add to playlist (+) */}
-            <button
-              className="mfp-sub-action-btn"
-              onClick={() => {
-                checkAuthAndExecute(() => setIsAddToPlaylistOpen(true), 'manage playlists');
-              }}
-              title="Add to Playlist"
-              aria-label="Add to Playlist"
-              style={{
-                background: 'rgba(255, 255, 255, 0.05)',
-                border: '1px solid rgba(255, 255, 255, 0.08)',
-                borderRadius: '50%',
-                width: '36px',
-                height: '36px',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                color: 'rgba(255, 255, 255, 0.7)'
-              }}
-            >
-              <Plus size={20} />
-            </button>
+          <div className="mfp-sub-actions-row">
+            {/* Left: Offline Download */}
+            <div className="mfp-sub-action-btn">
+              <OfflineDownloadButton track={currentTrack} iconSize={18} />
+            </div>
 
             {/* Center: Speed Tag */}
             <button
@@ -327,23 +309,17 @@ const MobileFullPlayer = ({ isOpen, onClose }: MobileFullPlayerProps) => {
               <span>{bpm}% BPM</span>
             </button>
 
-            {/* Right of 100% BPM: Offline Download */}
-            <div
+            {/* Right: Add to playlist (+) */}
+            <button
               className="mfp-sub-action-btn"
-              style={{
-                background: 'rgba(255, 255, 255, 0.05)',
-                border: '1px solid rgba(255, 255, 255, 0.08)',
-                borderRadius: '50%',
-                width: '36px',
-                height: '36px',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                color: 'rgba(255, 255, 255, 0.7)'
+              onClick={() => {
+                checkAuthAndExecute(() => setIsAddToPlaylistOpen(true), 'manage playlists');
               }}
+              title="Add to Playlist"
+              aria-label="Add to Playlist"
             >
-              <OfflineDownloadButton track={currentTrack} iconSize={18} />
-            </div>
+              <Plus size={20} />
+            </button>
           </div>
         </div>
 
@@ -507,6 +483,38 @@ const MobileFullPlayer = ({ isOpen, onClose }: MobileFullPlayerProps) => {
         }
         .mfp-title-marquee :global(.marquee-content) {
           font-weight: inherit;
+        }
+
+        .mfp-sub-actions-row {
+          display: flex !important;
+          flex-direction: row !important;
+          align-items: center !important;
+          justify-content: space-between !important;
+          width: 100% !important;
+          padding: 0 16px !important;
+          margin-top: 8px !important;
+          box-sizing: border-box !important;
+        }
+
+        .mfp-sub-action-btn {
+          width: 38px !important;
+          height: 38px !important;
+          border-radius: 50% !important;
+          background: rgba(255, 255, 255, 0.05) !important;
+          border: 1px solid rgba(255, 255, 255, 0.08) !important;
+          display: flex !important;
+          align-items: center !important;
+          justify-content: center !important;
+          color: rgba(255, 255, 255, 0.75) !important;
+          transition: all 0.2s !important;
+          cursor: pointer !important;
+          flex-shrink: 0 !important;
+        }
+
+        .mfp-sub-action-btn:hover {
+          background: rgba(255, 255, 255, 0.1) !important;
+          color: white !important;
+          transform: scale(1.08) !important;
         }
 
         .disc-final-overlay-red {

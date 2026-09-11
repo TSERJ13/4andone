@@ -2,10 +2,11 @@
 
 import React, { useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
-import { Play, Pause, Clock, Music2, MoreHorizontal, Heart, Disc, ListMusic, GripVertical, Trash2, X } from 'lucide-react';
+import { Play, Pause, Clock, Music2, MoreHorizontal, Heart, Disc, ListMusic, GripVertical, Trash2, X, CheckCircle2 } from 'lucide-react';
 import { useStudio, Track } from '@/components/admin/StudioProvider';
 import { useAudio } from '@/components/audio/AudioProvider';
 import { useAuth } from '@/context/AuthContext';
+import { useDownloadedTracks } from '@/hooks/useDownloadedTracks';
 import { formatDuration } from '@/utils/format';
 import ConfirmModal from '@/components/admin/ConfirmModal';
 import { getMPMFromBPM } from '@/utils/audio';
@@ -17,6 +18,7 @@ const PlaylistPage = () => {
   const { tracks, folders, folderTracksMap, styles, reorderGlobalTracks, finalTracks, addToFinal, removeFromFinal, toggleFavorite, removeFolder, removeTrackFromFolder } = useStudio();
   const { isPlaying, title: playingTitle, loadTrack } = useAudio();
   const { isAuthenticated, setIsAuthModalOpen } = useAuth();
+  const downloadedIds = useDownloadedTracks();
 
   const [infoModal, setInfoModal] = useState({
     isOpen: false,
@@ -149,11 +151,20 @@ const PlaylistPage = () => {
                 <Disc size={18} />
               </div>
               <div className="track-info-col">
-                <Marquee 
-                  text={track.title} 
-                  className="track-name" 
-                  isActive={isPlaying && (playingTitle === track.title || playingTitle === track.id)}
-                />
+                <div className="track-title-row">
+                  <div className="track-title-marquee-wrapper">
+                    <Marquee 
+                      text={track.title} 
+                      className="track-name" 
+                      isActive={isPlaying && (playingTitle === track.title || playingTitle === track.id)}
+                    />
+                  </div>
+                  {downloadedIds.includes(track.id) && (
+                    <span className="track-downloaded-badge" title="Stored on device (Offline)">
+                      <CheckCircle2 size={13} />
+                    </span>
+                  )}
+                </div>
                 <p className="track-artist">
                   {track.artist}
                   {track.duration ? ` • ${formatDuration(track.duration)}` : ''}

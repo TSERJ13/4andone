@@ -21,12 +21,14 @@ import {
   Maximize,
   LayoutGrid,
   ChevronsUp,
-  Share2
+  Share2,
+  CheckCircle2
 } from 'lucide-react';
 import { useAudio } from '@/components/audio/AudioProvider';
 import SpeedSelector from '@/components/audio/SpeedSelector';
 import { useStudio, Track } from '@/components/admin/StudioProvider';
 import { useAuth } from '@/context/AuthContext';
+import { useDownloadedTracks } from '@/hooks/useDownloadedTracks';
 import { getMPMFromBPM } from '@/utils/audio';
 import { formatDuration } from '@/utils/format';
 import { Marquee } from '@/components/layout/Marquee';
@@ -81,6 +83,7 @@ const PlayerBar = ({ onExpand }: { onExpand?: () => void }) => {
   const { isAuthenticated, setIsAuthModalOpen } = useAuth();
   const [authPrompt, setAuthPrompt] = useState({ isOpen: false, action: '' });
   const [isAddToPlaylistOpen, setIsAddToPlaylistOpen] = useState(false);
+  const downloadedIds = useDownloadedTracks();
 
   const handleShareTrack = () => {
     const currentTrack = tracks.find(t => t.title === title);
@@ -267,8 +270,13 @@ const PlayerBar = ({ onExpand }: { onExpand?: () => void }) => {
              )}
           </div>
           <div className="track-details px-4 min-w-0">
-            <div className="track-title truncate font-bold text-[13.3px]" title={title}>
-              {title}
+            <div className="track-title truncate font-bold text-[13.3px] flex items-center gap-1.5" title={title}>
+              <span className="truncate">{title}</span>
+              {currentTrack && downloadedIds.includes(currentTrack.id) && (
+                <span className="track-downloaded-badge" title="Stored on device (Offline)">
+                  <CheckCircle2 size={13} />
+                </span>
+              )}
             </div>
             <div className="track-artist truncate text-xs text-white/50 flex items-center gap-2">
               <div className="artist-badge-row">

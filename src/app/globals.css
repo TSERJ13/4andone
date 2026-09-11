@@ -202,7 +202,7 @@ button {
     flex: 1;
     width: 100%;
     padding: 24px 16px;
-    padding-bottom: calc(58px + max(6px, calc(env(safe-area-inset-bottom, 0px) * 0.42)) + 64px + 24px);
+    padding-bottom: calc(58px + max(8px, calc(env(safe-area-inset-bottom, 0px) * 0.54)) + 64px + 24px);
     border-radius: 0;
   }
 
@@ -240,8 +240,8 @@ button {
   bottom: 0;
   left: 0;
   right: 0;
-  /* Auto-adapts to any phone: 72px on iPhone with home bar, 64px on phones without home bar */
-  height: calc(58px + max(6px, calc(env(safe-area-inset-bottom, 0px) * 0.42)));
+  /* Auto-adapts to any phone: 76px on iPhone with home bar, 66px on phones without home bar */
+  height: calc(58px + max(8px, calc(env(safe-area-inset-bottom, 0px) * 0.54)));
   z-index: 1000;
   grid-template-columns: repeat(4, 1fr);
   align-items: stretch;
@@ -251,8 +251,8 @@ button {
   border-top: 1px solid rgba(255, 255, 255, 0.1);
   border-radius: 0;
   box-shadow: 0 -4px 30px rgba(0, 0, 0, 0.5);
-  /* Top 4px, sides 12px, bottom auto-aligned with phone's swipe bar (14px on iPhone) */
-  padding: 4px 12px max(6px, calc(env(safe-area-inset-bottom, 0px) * 0.42));
+  /* Top 4px, sides 12px, bottom auto-aligned with phone's swipe bar (~18px on iPhone) */
+  padding: 4px 12px max(8px, calc(env(safe-area-inset-bottom, 0px) * 0.54));
 }
 
 @media (max-width: 1024px) {
@@ -387,6 +387,27 @@ button {
   flex-direction: column;
   gap: 4px;
   padding-right: 16px;
+}
+
+.track-title-row {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  max-width: 100%;
+}
+
+.track-title-marquee-wrapper {
+  min-width: 0;
+  max-width: fit-content;
+  flex-shrink: 1;
+}
+
+.track-downloaded-badge {
+  color: #22c55e;
+  display: inline-flex;
+  align-items: center;
+  flex-shrink: 0;
+  vertical-align: middle;
 }
 
 .track-name {

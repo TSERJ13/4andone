@@ -6,11 +6,13 @@ import {
   Play,
   Pause,
   Heart,
-  Disc
+  Disc,
+  CheckCircle2
 } from 'lucide-react';
 import { useAudio } from '@/components/audio/AudioProvider';
 import { useStudio } from '@/components/admin/StudioProvider';
 import { useAuth } from '@/context/AuthContext';
+import { useDownloadedTracks } from '@/hooks/useDownloadedTracks';
 import ConfirmModal from '@/components/admin/ConfirmModal';
 import { getMPMFromBPM } from '@/utils/audio';
 import { formatDuration } from '@/utils/format';
@@ -36,6 +38,7 @@ const MobileMiniPlayer = ({ onExpand }: { onExpand: () => void }) => {
   const { tracks, finalTracks, toggleFavorite } = useStudio();
   const { isAuthenticated, setIsAuthModalOpen } = useAuth();
   const [authPrompt, setAuthPrompt] = useState({ isOpen: false, action: '' });
+  const downloadedIds = useDownloadedTracks();
 
   const checkAuthAndExecute = (action: () => void, actionName: string) => {
     if (!isAuthenticated) {
@@ -82,8 +85,13 @@ const MobileMiniPlayer = ({ onExpand }: { onExpand: () => void }) => {
                   <Disc size={20} className={isPlaying ? 'rotating' : ''} />
                 </div>
                 <div className="text-info truncate">
-                  <div className="title truncate font-bold text-sm text-white" title={title}>
-                    {title}
+                  <div className="title truncate font-bold text-sm text-white flex items-center gap-1.5" title={title}>
+                    <span className="truncate">{title}</span>
+                    {currentTrack && downloadedIds.includes(currentTrack.id) && (
+                      <span className="track-downloaded-badge" title="Stored on device (Offline)">
+                        <CheckCircle2 size={13} />
+                      </span>
+                    )}
                   </div>
                   <span className="artist truncate text-xs text-white/50">
                     {artist}
@@ -138,7 +146,7 @@ const MobileMiniPlayer = ({ onExpand }: { onExpand: () => void }) => {
       <style jsx>{`
         .mini-player-outer-wrapper {
           position: fixed;
-          bottom: calc(58px + max(6px, calc(env(safe-area-inset-bottom, 0px) * 0.42)) + 10px);
+          bottom: calc(58px + max(8px, calc(env(safe-area-inset-bottom, 0px) * 0.54)) + 10px);
           left: 12px;
           right: 12px;
           z-index: 9990;

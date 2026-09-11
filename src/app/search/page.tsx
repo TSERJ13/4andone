@@ -1,10 +1,11 @@
 "use client";
 
 import React, { useState } from 'react';
-import { Search, Music2, Disc, Play, Pause, Heart, Flag } from 'lucide-react';
+import { Search, Music2, Disc, Play, Pause, Heart, Flag, CheckCircle2 } from 'lucide-react';
 import { useStudio } from '@/components/admin/StudioProvider';
 import { useAudio } from '@/components/audio/AudioProvider';
 import { useAuth } from '@/context/AuthContext';
+import { useDownloadedTracks } from '@/hooks/useDownloadedTracks';
 import Link from 'next/link';
 import { getMPMFromBPM } from '@/utils/audio';
 import { formatDuration } from '@/utils/format';
@@ -16,6 +17,7 @@ const SearchPage = () => {
   const { tracks, styles, finalTracks, addToFinal, removeFromFinal, toggleFavorite } = useStudio();
   const { isPlaying, title: playingTitle, loadTrack } = useAudio();
   const { isAuthenticated, setIsAuthModalOpen } = useAuth();
+  const downloadedIds = useDownloadedTracks();
 
   const [infoModal, setInfoModal] = useState({
     isOpen: false,
@@ -131,11 +133,20 @@ const SearchPage = () => {
                       <Disc size={18} />
                     </div>
                     <div className="track-info-col">
-                      <Marquee 
-                        text={track.title} 
-                        className="track-name" 
-                        isActive={isPlaying && (playingTitle === track.title || playingTitle === track.id)}
-                      />
+                      <div className="track-title-row">
+                        <div className="track-title-marquee-wrapper">
+                          <Marquee 
+                            text={track.title} 
+                            className="track-name" 
+                            isActive={isPlaying && (playingTitle === track.title || playingTitle === track.id)}
+                          />
+                        </div>
+                        {downloadedIds.includes(track.id) && (
+                          <span className="track-downloaded-badge" title="Stored on device (Offline)">
+                            <CheckCircle2 size={13} />
+                          </span>
+                        )}
+                      </div>
                       <p className="track-artist">
                         {track.artist}
                         {track.duration ? ` • ${formatDuration(track.duration)}` : ''}

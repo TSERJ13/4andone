@@ -17,11 +17,13 @@ import {
   Disc,
   Tally3,
   Share2,
-  Plus
+  Plus,
+  CheckCircle2
 } from 'lucide-react';
 import { useAudio } from '@/components/audio/AudioProvider';
 import { useStudio } from '@/components/admin/StudioProvider';
 import { useAuth } from '@/context/AuthContext';
+import { useDownloadedTracks } from '@/hooks/useDownloadedTracks';
 import ConfirmModal from '@/components/admin/ConfirmModal';
 import SpeedSelector from '@/components/audio/SpeedSelector';
 import { formatDuration } from '@/utils/format';
@@ -73,6 +75,7 @@ const MobileFullPlayer = ({ isOpen, onClose }: MobileFullPlayerProps) => {
   const [dragProgress, setDragProgress] = useState(0);
   const [authPrompt, setAuthPrompt] = useState({ isOpen: false, action: '' });
   const [isAddToPlaylistOpen, setIsAddToPlaylistOpen] = useState(false);
+  const downloadedIds = useDownloadedTracks();
   const progressRef = useRef<HTMLDivElement>(null);
   const lastSeekRef = useRef<number>(0);
 
@@ -261,7 +264,16 @@ const MobileFullPlayer = ({ isOpen, onClose }: MobileFullPlayerProps) => {
           <div className="mfp-meta-top">
             <div className="mfp-text-center">
               <div className="mfp-title-wrapper">
-                <Marquee text={title || ''} speed={30} isActive={isPlaying} className="mfp-title-marquee" />
+                <div className="track-title-row justify-center" style={{ width: '100%', justifyContent: 'center' }}>
+                  <div className="track-title-marquee-wrapper">
+                    <Marquee text={title || ''} speed={30} isActive={isPlaying} className="mfp-title-marquee" />
+                  </div>
+                  {tracks.find(t => t.title === title) && downloadedIds.includes(tracks.find(t => t.title === title)!.id) && (
+                    <span className="track-downloaded-badge" title="Stored on device (Offline)">
+                      <CheckCircle2 size={16} />
+                    </span>
+                  )}
+                </div>
               </div>
               <p className="mfp-artist truncate">{artist}</p>
             </div>

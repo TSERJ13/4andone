@@ -2,10 +2,11 @@
 
 import React, { useState, useMemo } from 'react';
 import Link from 'next/link';
-import { Play, Disc, Flame, Music2, Heart, Zap, Activity, Settings } from 'lucide-react';
+import { Play, Disc, Flame, Music2, Heart, Zap, Activity, Settings, CheckCircle2 } from 'lucide-react';
 import { useAudio } from '@/components/audio/AudioProvider';
 import { useStudio, Track } from '@/components/admin/StudioProvider';
 import { useAuth } from '@/context/AuthContext';
+import { useDownloadedTracks } from '@/hooks/useDownloadedTracks';
 import { formatDuration } from '@/utils/format';
 import { getMPMFromBPM } from '@/utils/audio';
 import { Marquee } from '@/components/layout/Marquee';
@@ -18,6 +19,7 @@ export default function GocAlbumPage() {
   const { loadTrack, isPlaying, title: playingTitle, setActiveMode, setSessionTracks } = useAudio();
   const { tracks, styles, toggleFavorite, isLoading } = useStudio();
   const { isAuthenticated, setIsAuthModalOpen } = useAuth();
+  const downloadedIds = useDownloadedTracks();
 
   const [activeTab, setActiveTab] = useState<'Latin' | 'Standard'>('Latin');
   const [showPasoSettingsModal, setShowPasoSettingsModal] = useState(false);
@@ -223,11 +225,20 @@ export default function GocAlbumPage() {
                             <Disc size={18} />
                           </div>
                           <div className="track-info-col">
-                            <Marquee
-                              text={displayTitle}
-                              className="track-name"
-                              isActive={isPlaying && (playingTitle === track.title || playingTitle === track.id)}
-                            />
+                            <div className="track-title-row">
+                              <div className="track-title-marquee-wrapper">
+                                <Marquee
+                                  text={displayTitle}
+                                  className="track-name"
+                                  isActive={isPlaying && (playingTitle === track.title || playingTitle === track.id)}
+                                />
+                              </div>
+                              {downloadedIds.includes(track.id) && (
+                                <span className="track-downloaded-badge" title="Stored on device (Offline)">
+                                  <CheckCircle2 size={13} />
+                                </span>
+                              )}
+                            </div>
                             <p className="track-artist">
                               {displayArtist}
                               {track.duration ? ` • ${formatDuration(track.duration)}` : ''}

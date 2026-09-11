@@ -120,13 +120,16 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
   };
 
   return (
-    <div className={`app-container ${mounted && isPlayerActive ? 'player-active' : ''}`}>
-      <OfflineBanner />
-      <Sidebar />
-      <main className="main-content">
-        {children}
-      </main>
-      <PlayerBar onExpand={handleExpand} />
+    <>
+      <div className={`app-container ${mounted && isPlayerActive ? 'player-active' : ''}`}>
+        <OfflineBanner />
+        <Sidebar />
+        <main className="main-content">
+          {children}
+        </main>
+        <PlayerBar onExpand={handleExpand} />
+      </div>
+
       <MobileNav onExpand={() => setIsFullPlayerOpen(true)} />
       
       <AuthModal 
@@ -147,6 +150,6 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
             onClose={() => setIsDesktopExpanded(false)} 
         />
       )}
-    </div>
+    </>
   );
 }

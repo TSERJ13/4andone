@@ -138,7 +138,7 @@ const MobileMiniPlayer = ({ onExpand }: { onExpand: () => void }) => {
       <style jsx>{`
         .mini-player-outer-wrapper {
           position: fixed;
-          bottom: calc(72px + env(safe-area-inset-bottom, 0px) + 12px);
+          bottom: 76px;
           left: 12px;
           right: 12px;
           z-index: 9990;

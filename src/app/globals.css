@@ -202,8 +202,8 @@ button {
     flex: 1;
     width: 100%;
     padding: 24px 16px;
-    /* Space for mini player (64px) + gap (12px) + nav (76px) + home indicator + extra */
-    padding-bottom: calc(76px + env(safe-area-inset-bottom, 0px) + 64px + 24px);
+    /* Browser mode: nav(76px) + gap(12px) + mini-player(64px) + extra(24px) */
+    padding-bottom: 176px;
     border-radius: 0;
   }
 
@@ -238,9 +238,7 @@ button {
 .mobile-nav {
   display: none; /* Hide by default for Web/Desktop */
   position: fixed;
-  /* Sit above the home indicator so content is never hidden behind it.
-     The ::after pseudo-element fills the gap below with matching background. */
-  bottom: env(safe-area-inset-bottom, 0px);
+  bottom: 0;  /* Browser mode: viewport already ends above browser toolbar */
   left: 0;
   right: 0;
   height: 76px;
@@ -256,24 +254,35 @@ button {
   padding: 8px 12px;
 }
 
-/* Fill the home indicator zone below the nav with the same background */
-.mobile-nav::after {
-  content: '';
-  position: absolute;
-  top: 100%;
-  left: 0;
-  right: 0;
-  height: env(safe-area-inset-bottom, 0px);
-  background: rgba(10, 10, 10, 0.85);
-  backdrop-filter: blur(25px);
-  -webkit-backdrop-filter: blur(25px);
-}
-
 @media (max-width: 1024px) {
   .mobile-nav {
     display: grid; /* Only visible on Mobile viewports */
   }
 }
+
+/* PWA standalone (home screen app): viewport extends to screen edges.
+   Sit above the home indicator and fill the gap below with background. */
+@media (display-mode: standalone) {
+  .mobile-nav {
+    bottom: env(safe-area-inset-bottom, 0px);
+  }
+  .mobile-nav::after {
+    content: '';
+    position: absolute;
+    top: 100%;
+    left: 0;
+    right: 0;
+    height: env(safe-area-inset-bottom, 0px);
+    background: rgba(10, 10, 10, 0.85);
+    backdrop-filter: blur(25px);
+    -webkit-backdrop-filter: blur(25px);
+  }
+  /* PWA mode: also add safe area to scroll padding */
+  .main-content {
+    padding-bottom: calc(176px + env(safe-area-inset-bottom, 0px));
+  }
+}
+
 
 .mobile-nav-item {
   display: flex;

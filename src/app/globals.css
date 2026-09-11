@@ -238,23 +238,35 @@ button {
 .mobile-nav {
   display: none; /* Hide by default for Web/Desktop */
   position: fixed;
-  bottom: 0;
+  /* Sit above the home indicator so content is never hidden behind it.
+     The ::after pseudo-element fills the gap below with matching background. */
+  bottom: env(safe-area-inset-bottom, 0px);
   left: 0;
   right: 0;
-  /* Height = icon area (62px) + home indicator safe area.
-     With viewportFit:cover the nav sits over the home indicator,
-     so the height must include it to avoid the nav content being clipped. */
-  height: calc(62px + env(safe-area-inset-bottom, 0px));
+  height: 62px;
   z-index: 1000;
   grid-template-columns: repeat(4, 1fr);
-  align-items: flex-start; /* icons at the top, safe area at bottom */
+  align-items: stretch;
   background: rgba(10, 10, 10, 0.85);
   backdrop-filter: blur(25px);
   -webkit-backdrop-filter: blur(25px);
   border-top: 1px solid rgba(255, 255, 255, 0.1);
   border-radius: 0;
   box-shadow: 0 -4px 30px rgba(0, 0, 0, 0.5);
-  padding: 8px 12px 0;
+  padding: 8px 12px;
+}
+
+/* Fill the home indicator zone below the nav with the same background */
+.mobile-nav::after {
+  content: '';
+  position: absolute;
+  top: 100%;
+  left: 0;
+  right: 0;
+  height: env(safe-area-inset-bottom, 0px);
+  background: rgba(10, 10, 10, 0.85);
+  backdrop-filter: blur(25px);
+  -webkit-backdrop-filter: blur(25px);
 }
 
 @media (max-width: 1024px) {

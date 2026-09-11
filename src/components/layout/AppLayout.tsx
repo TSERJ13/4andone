@@ -19,6 +19,8 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
   const [mounted, setMounted] = useState(false);
   const [isFullPlayerOpen, setIsFullPlayerOpen] = useState(false);
   const [isDesktopExpanded, setIsDesktopExpanded] = useState(false);
+  const [debugInfo, setDebugInfo] = useState<string | null>(null);
+  const [debugHidden, setDebugHidden] = useState(false);
 
   // Hooks must ALWAYS be at the top level and in the same order
   useVisitTracker(); // Track one visit per session
@@ -44,7 +46,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
     }
 
     if (typeof window !== 'undefined' && 'caches' in window) {
-      const CURRENT_VERSION = '4andone-cache-v24';
+      const CURRENT_VERSION = '4andone-cache-v25';
       let lastVersion: string | null = null;
       try {
         lastVersion = localStorage.getItem('4andone_pwa_version');
@@ -77,6 +79,74 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
         // rather than risk repeating it on every subsequent load.
       }
     }
+  }, []);
+
+  // Measures the gap iOS/WKWebView standalone mode sometimes leaves between
+  // window.innerHeight and the actually-visible window.visualViewport, and
+  // exposes it as the --ios-bottom-gap CSS variable so .mobile-nav's
+  // `bottom: calc(0px - var(--ios-bottom-gap))` (globals.css) can compensate.
+  //
+  // This used to live in a <head> inline script (layout.tsx) that ran
+  // synchronously during HTML parsing. Two separate rounds showed that was
+  // the wrong place for it: a DOM-node-creating debug badge there threw on
+  // document.body being null and (because the throw happened before the
+  // retry/listener setup that followed it) silently killed the whole script
+  // forever, breaking React hydration when the throw was later fixed but the
+  // node-append itself still landed mid-hydration; and this plain
+  // measurement, even error-guarded, read window.visualViewport before it
+  // had a real value that early, so it permanently recorded a bogus 0px gap
+  // on devices that never fire a later resize/scroll event.
+  //
+  // A React effect in an already-mounted client component has neither
+  // problem: it runs strictly after hydration commits and after first paint,
+  // so visualViewport already reflects reality, and it only ever touches a
+  // CSS custom property (never appends nodes or mutates other elements'
+  // attributes), so it can't produce a hydration mismatch.
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+
+    const measure = () => {
+      try {
+        if (!window.visualViewport) return;
+        const vv = window.visualViewport;
+        let gap = window.innerHeight - (vv.height + vv.offsetTop);
+        if (!(gap > 0)) gap = 0;
+        if (gap > 200) gap = 0; // guard against on-screen-keyboard resizes
+        document.documentElement.style.setProperty('--ios-bottom-gap', `${gap}px`);
+
+        const standalone = document.documentElement.classList.contains('pwa-standalone')
+          || window.matchMedia('(display-mode: standalone)').matches
+          || (window.navigator as { standalone?: boolean }).standalone === true;
+        setDebugInfo(
+          `AppLayout measure\n` +
+          `standalone: ${standalone}\n` +
+          `innerH: ${window.innerHeight}\n` +
+          `vvpH: ${vv.height} vvpT: ${vv.offsetTop}\n` +
+          `ios-bottom-gap: ${gap}px`
+        );
+      } catch (e) {
+        // no-op — never let a measurement failure affect the rest of the page
+      }
+    };
+
+    measure();
+    // visualViewport can still take a tick or two to reflect the real
+    // post-hydration layout on some iOS builds, so retry a few times on top
+    // of the live event listeners below.
+    const retryTimers = [50, 150, 400, 900, 1800].map((ms) => setTimeout(measure, ms));
+
+    window.addEventListener('resize', measure);
+    window.addEventListener('orientationchange', measure);
+    window.visualViewport?.addEventListener('resize', measure);
+    window.visualViewport?.addEventListener('scroll', measure);
+
+    return () => {
+      retryTimers.forEach(clearTimeout);
+      window.removeEventListener('resize', measure);
+      window.removeEventListener('orientationchange', measure);
+      window.visualViewport?.removeEventListener('resize', measure);
+      window.visualViewport?.removeEventListener('scroll', measure);
+    };
   }, []);
 
   useEffect(() => {
@@ -158,9 +228,36 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
 
       {/* Desktop/iPad Full Player Overlay */}
       {isDesktopExpanded && (
-        <DesktopFullPlayer 
-            onClose={() => setIsDesktopExpanded(false)} 
+        <DesktopFullPlayer
+            onClose={() => setIsDesktopExpanded(false)}
         />
+      )}
+
+      {/* Temporary diagnostic readout for the iOS standalone bottom-gap fix.
+          Rendered by React (state -> JSX), never via manual DOM creation, so
+          unlike the earlier version of this badge it cannot cause a
+          hydration mismatch. Remove once the fix is confirmed on-device. */}
+      {debugInfo && !debugHidden && (
+        <div
+          onClick={() => setDebugHidden(true)}
+          style={{
+            position: 'fixed',
+            bottom: 8,
+            left: 8,
+            zIndex: 99999,
+            background: 'rgba(200,0,0,.82)',
+            color: '#fff',
+            font: '10px/1.4 monospace',
+            padding: '6px 8px',
+            borderRadius: 6,
+            whiteSpace: 'pre',
+            maxWidth: 240,
+            cursor: 'pointer',
+          }}
+        >
+          {debugInfo}
+          {'\n(tap to hide)'}
+        </div>
       )}
     </>
   );

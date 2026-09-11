@@ -262,24 +262,22 @@ button {
   }
 }
 
-/* PWA Standalone Mode (Only when saved to Home Screen - fills the marked bottom space) */
+/* PWA Standalone Mode (Only when saved to Home Screen - cleanly sits in the bottom area) */
 @media (display-mode: standalone) {
   .mobile-nav {
-    height: 72px !important;
-    padding: 0 12px !important;
+    height: 68px !important;
+    padding: 4px 12px 0 !important;
     background: rgba(10, 10, 10, 0.98);
-    bottom: 0 !important;
+    bottom: -16px !important;
   }
 
   .mobile-nav-item {
-    justify-content: flex-end !important;
-    padding-bottom: 8px !important;
-    gap: 3px !important;
+    gap: 4px !important;
   }
 
   .mobile-nav-item::before {
-    inset: auto 4px 4px 4px !important;
-    height: 48px !important;
+    inset: 2px 4px 4px 4px !important;
+    height: auto !important;
   }
 
   .mobile-nav::after {
@@ -288,35 +286,33 @@ button {
     top: 100%;
     left: 0;
     right: 0;
-    height: 60px;
+    height: 100px;
     background: rgba(10, 10, 10, 0.98);
     pointer-events: none;
   }
 
   .main-content {
-    padding-bottom: 155px !important;
+    padding-bottom: 145px !important;
   }
 }
 
 html.pwa-standalone .mobile-nav,
 body.pwa-standalone .mobile-nav {
-  height: 72px !important;
-  padding: 0 12px !important;
+  height: 68px !important;
+  padding: 4px 12px 0 !important;
   background: rgba(10, 10, 10, 0.98);
-  bottom: 0 !important;
+  bottom: -16px !important;
 }
 
 html.pwa-standalone .mobile-nav-item,
 body.pwa-standalone .mobile-nav-item {
-  justify-content: flex-end !important;
-  padding-bottom: 8px !important;
-  gap: 3px !important;
+  gap: 4px !important;
 }
 
 html.pwa-standalone .mobile-nav-item::before,
 body.pwa-standalone .mobile-nav-item::before {
-  inset: auto 4px 4px 4px !important;
-  height: 48px !important;
+  inset: 2px 4px 4px 4px !important;
+  height: auto !important;
 }
 
 html.pwa-standalone .mobile-nav::after,
@@ -326,14 +322,14 @@ body.pwa-standalone .mobile-nav::after {
   top: 100%;
   left: 0;
   right: 0;
-  height: 60px;
+  height: 100px;
   background: rgba(10, 10, 10, 0.98);
   pointer-events: none;
 }
 
 html.pwa-standalone .main-content,
 body.pwa-standalone .main-content {
-  padding-bottom: 155px !important;
+  padding-bottom: 145px !important;
 }
 
 .mobile-nav-item {

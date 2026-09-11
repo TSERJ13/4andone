@@ -44,24 +44,18 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
     }
 
     if (typeof window !== 'undefined' && 'caches' in window) {
-      const CURRENT_VERSION = '4andone-cache-v13';
+      const CURRENT_VERSION = '4andone-cache-v14';
       const lastVersion = localStorage.getItem('4andone_pwa_version');
       if (lastVersion !== CURRENT_VERSION) {
         caches.keys().then((keys) => {
           return Promise.all(
             keys.map((key) => {
-              if (
-                key.includes('static-style-assets') ||
-                key.includes('start-url') ||
-                key.includes('others') ||
-                key.includes('next-data')
-              ) {
-                return caches.delete(key);
-              }
+              return caches.delete(key);
             })
           );
         }).then(() => {
           localStorage.setItem('4andone_pwa_version', CURRENT_VERSION);
+          window.location.reload();
         });
       }
     }

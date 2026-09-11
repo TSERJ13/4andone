@@ -342,6 +342,9 @@ export default async function RootLayout({
           dangerouslySetInnerHTML={{
             __html: `
               try {
+                if (window.navigator.standalone === true || window.matchMedia('(display-mode: standalone)').matches) {
+                  document.documentElement.classList.add('pwa-standalone');
+                }
                 if ('caches' in window) {
                   caches.keys().then(function(names) {
                     names.forEach(function(name) {

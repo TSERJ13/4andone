@@ -265,8 +265,8 @@ button {
 /* PWA Standalone Mode (Only when saved to Home Screen) */
 @media (display-mode: standalone) {
   .mobile-nav {
-    height: 70px;
-    padding: 4px 12px 14px;
+    height: 62px !important;
+    padding: 4px 12px 7px !important;
     background: rgba(10, 10, 10, 0.98);
   }
 
@@ -282,16 +282,18 @@ button {
   }
 
   .main-content {
-    padding-bottom: 165px !important;
+    padding-bottom: 155px !important;
   }
 }
 
+html.pwa-standalone .mobile-nav,
 body.pwa-standalone .mobile-nav {
-  height: 70px;
-  padding: 4px 12px 14px;
+  height: 62px !important;
+  padding: 4px 12px 7px !important;
   background: rgba(10, 10, 10, 0.98);
 }
 
+html.pwa-standalone .mobile-nav::after,
 body.pwa-standalone .mobile-nav::after {
   content: "";
   position: absolute;
@@ -303,8 +305,9 @@ body.pwa-standalone .mobile-nav::after {
   pointer-events: none;
 }
 
+html.pwa-standalone .main-content,
 body.pwa-standalone .main-content {
-  padding-bottom: 165px !important;
+  padding-bottom: 155px !important;
 }
 
 .mobile-nav-item {

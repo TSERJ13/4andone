@@ -46,7 +46,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
     }
 
     if (typeof window !== 'undefined' && 'caches' in window) {
-      const CURRENT_VERSION = '4andone-cache-v25';
+      const CURRENT_VERSION = '4andone-cache-v26';
       let lastVersion: string | null = null;
       try {
         lastVersion = localStorage.getItem('4andone_pwa_version');
@@ -117,13 +117,67 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
         const standalone = document.documentElement.classList.contains('pwa-standalone')
           || window.matchMedia('(display-mode: standalone)').matches
           || (window.navigator as { standalone?: boolean }).standalone === true;
-        setDebugInfo(
+
+        let debugText =
           `AppLayout measure\n` +
           `standalone: ${standalone}\n` +
           `innerH: ${window.innerHeight}\n` +
           `vvpH: ${vv.height} vvpT: ${vv.offsetTop}\n` +
-          `ios-bottom-gap: ${gap}px`
-        );
+          `ios-bottom-gap: ${gap}px`;
+
+        if (standalone) {
+          const nav = document.querySelector('.mobile-nav') as HTMLElement | null;
+          const miniWrap = document.querySelector('.mini-player-outer-wrapper') as HTMLElement | null;
+
+          const rectBefore = nav ? nav.getBoundingClientRect() : null;
+
+          // DECISIVE DATA POINT: --ios-bottom-gap measured 0 (visualViewport
+          // matches innerHeight exactly), yet the nav still visibly falls
+          // short of the true screen edge — proving the gap isn't a viewport
+          // *size* problem at all. It's that "position:fixed; bottom:0"
+          // itself doesn't resolve to the real screen edge in this iOS
+          // build. So: stop trusting bottom:0, and instead pin the nav with
+          // an explicit pixel "top" computed from the real screen height —
+          // an edge that IS reliable. Runs here (a mounted React effect,
+          // strictly after hydration) rather than the old <head> script, so
+          // it only ever mutates already-hydrated elements' style attribute
+          // — never creates nodes or runs before/during hydration — and
+          // cannot repeat the crash from two rounds ago.
+          const realBottom = vv.offsetTop + vv.height;
+          const cs = getComputedStyle(document.documentElement);
+          const envBottom = parseFloat(cs.getPropertyValue('--__probe-safe-bottom')) || 0;
+          const floorInset = Math.max(envBottom, 20);
+          const navHeight = 72 + floorInset;
+          const navTop = realBottom - navHeight;
+
+          if (nav) {
+            nav.style.setProperty('position', 'fixed', 'important');
+            nav.style.setProperty('top', `${navTop}px`, 'important');
+            nav.style.setProperty('bottom', 'auto', 'important');
+            nav.style.setProperty('height', `${navHeight}px`, 'important');
+            nav.style.setProperty('padding', `6px 12px ${10 + floorInset}px`, 'important');
+          }
+          if (miniWrap) {
+            const miniHeight = 64; // matches .mini-player's own CSS height
+            const miniGap = 10;
+            const miniTop = navTop - miniGap - miniHeight;
+            miniWrap.style.setProperty('position', 'fixed', 'important');
+            miniWrap.style.setProperty('top', `${miniTop}px`, 'important');
+            miniWrap.style.setProperty('bottom', 'auto', 'important');
+          }
+
+          const rectAfter = nav ? nav.getBoundingClientRect() : null;
+
+          debugText +=
+            `\nenv-bottom: ${envBottom}\n` +
+            `navTop-set: ${navTop} navH: ${navHeight}\n` +
+            `rect.bottom before: ${rectBefore ? Math.round(rectBefore.bottom) : 'n/a'}\n` +
+            `rect.bottom after: ${rectAfter ? Math.round(rectAfter.bottom) : 'n/a'}\n` +
+            `screen bottom: ${Math.round(realBottom)}\n` +
+            `remaining gap: ${rectAfter ? Math.round(realBottom - rectAfter.bottom) : 'n/a'}px`;
+        }
+
+        setDebugInfo(debugText);
       } catch (e) {
         // no-op — never let a measurement failure affect the rest of the page
       }

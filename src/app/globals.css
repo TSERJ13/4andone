@@ -265,8 +265,8 @@ button {
 /* PWA Standalone Mode (Only when saved to Home Screen) */
 @media (display-mode: standalone) {
   .mobile-nav {
-    height: calc(56px + env(safe-area-inset-bottom, 20px));
-    padding: 4px 12px env(safe-area-inset-bottom, 20px);
+    height: 70px;
+    padding: 4px 12px 14px;
     background: rgba(10, 10, 10, 0.98);
   }
 
@@ -282,13 +282,13 @@ button {
   }
 
   .main-content {
-    padding-bottom: calc(56px + env(safe-area-inset-bottom, 20px) + 64px + 24px) !important;
+    padding-bottom: 165px !important;
   }
 }
 
 body.pwa-standalone .mobile-nav {
-  height: calc(56px + env(safe-area-inset-bottom, 20px));
-  padding: 4px 12px env(safe-area-inset-bottom, 20px);
+  height: 70px;
+  padding: 4px 12px 14px;
   background: rgba(10, 10, 10, 0.98);
 }
 
@@ -304,7 +304,7 @@ body.pwa-standalone .mobile-nav::after {
 }
 
 body.pwa-standalone .main-content {
-  padding-bottom: calc(56px + env(safe-area-inset-bottom, 20px) + 64px + 24px) !important;
+  padding-bottom: 165px !important;
 }
 
 .mobile-nav-item {

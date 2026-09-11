@@ -338,6 +338,28 @@ export default async function RootLayout({
           type="application/ld+json"
           dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLdSchema) }}
         />
+        <script
+          dangerouslySetInnerHTML={{
+            __html: `
+              try {
+                if ('caches' in window) {
+                  caches.keys().then(function(names) {
+                    names.forEach(function(name) {
+                      if (name.indexOf('static-style-assets') !== -1 || name.indexOf('workbox-precache') !== -1) {
+                        caches.delete(name);
+                      }
+                    });
+                  });
+                }
+                if ('serviceWorker' in navigator) {
+                  navigator.serviceWorker.getRegistrations().then(function(regs) {
+                    regs.forEach(function(reg) { reg.update(); });
+                  });
+                }
+              } catch (e) {}
+            `,
+          }}
+        />
       </head>
       <body className={inter.className} suppressHydrationWarning>
         <AuthProvider>

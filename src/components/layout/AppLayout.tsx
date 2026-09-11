@@ -27,6 +27,12 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
   
   useEffect(() => {
     setMounted(true);
+    // Detect PWA standalone mode (more reliable than CSS media query on iOS)
+    const isPWA = window.matchMedia('(display-mode: standalone)').matches
+      || (window.navigator as { standalone?: boolean }).standalone === true;
+    if (isPWA) {
+      document.body.classList.add('pwa-standalone');
+    }
   }, []);
 
   useEffect(() => {

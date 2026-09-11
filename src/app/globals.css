@@ -202,8 +202,8 @@ button {
     flex: 1;
     width: 100%;
     padding: 24px 16px;
-    /* Browser mode: nav(76px) + gap(12px) + mini-player(64px) + extra(24px) */
-    padding-bottom: 176px;
+    /* Nav (72px) + safe-area + gap (12px) + mini-player (64px) + comfortable scroll clearance (32px) */
+    padding-bottom: calc(180px + env(safe-area-inset-bottom, 0px));
     border-radius: 0;
   }
 
@@ -238,20 +238,20 @@ button {
 .mobile-nav {
   display: none; /* Hide by default for Web/Desktop */
   position: fixed;
-  bottom: 0;  /* Browser mode: viewport already ends above browser toolbar */
+  bottom: 0;
   left: 0;
   right: 0;
-  height: 76px;
+  height: calc(72px + env(safe-area-inset-bottom, 0px));
   z-index: 1000;
   grid-template-columns: repeat(4, 1fr);
   align-items: stretch;
-  background: rgba(10, 10, 10, 0.85);
+  background: rgba(10, 10, 10, 0.95);
   backdrop-filter: blur(25px);
   -webkit-backdrop-filter: blur(25px);
   border-top: 1px solid rgba(255, 255, 255, 0.1);
   border-radius: 0;
   box-shadow: 0 -4px 30px rgba(0, 0, 0, 0.5);
-  padding: 8px 12px;
+  padding: 6px 12px calc(6px + env(safe-area-inset-bottom, 0px)) 12px;
 }
 
 @media (max-width: 1024px) {
@@ -260,51 +260,27 @@ button {
   }
 }
 
-/* PWA standalone (home screen app): viewport extends to screen edges.
-   Sit above the home indicator and fill the gap below with background. */
-@media (display-mode: standalone) {
-  .mobile-nav {
-    bottom: env(safe-area-inset-bottom, 0px);
-  }
-  .mobile-nav::after {
-    content: '';
-    position: absolute;
-    top: 100%;
-    left: 0;
-    right: 0;
-    height: env(safe-area-inset-bottom, 0px);
-    background: rgba(10, 10, 10, 0.85);
-    backdrop-filter: blur(25px);
-    -webkit-backdrop-filter: blur(25px);
-  }
-  /* PWA mode: also add safe area to scroll padding */
-  .main-content {
-    padding-bottom: calc(176px + env(safe-area-inset-bottom, 0px));
-  }
-}
-
-
 .mobile-nav-item {
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  gap: 6px; /* Optimized gap */
+  gap: 5px;
   color: rgba(255, 255, 255, 0.4);
   transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
   text-decoration: none;
   position: relative;
-  border-radius: 16px;
+  border-radius: 14px;
   z-index: 1;
 }
 
-/* Background Highlight (Mimicking Admin Style) */
+/* Background Highlight (Mimicking Admin Style) - Taller pill with breathing room */
 .mobile-nav-item::before {
   content: "";
   position: absolute;
-  inset: 4px;
+  inset: 1px 6px;
   background: rgba(255, 255, 255, 0.05);
-  border-radius: 14px;
+  border-radius: 12px;
   opacity: 0;
   transition: all 0.3s ease;
   z-index: -1;
@@ -315,6 +291,7 @@ button {
   font-weight: 700;
   text-transform: uppercase;
   letter-spacing: 0.5px;
+  line-height: 1;
 }
 
 /* Icon Container - Fixed size for alignment */

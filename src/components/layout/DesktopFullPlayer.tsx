@@ -267,6 +267,15 @@ export default function DesktopFullPlayer({ onClose }: { onClose: () => void }) 
     <div className={`desktop-player-overlay animate-fade-in ${isFinalMode ? 'final-active' : ''}`} style={{ zIndex: 9999, background: '#121212' }}>
       <div className="dp-console-wrapper">
         <main className="dp-player-console">
+          <button 
+            onClick={handleShareTrack} 
+            className="dp-share-corner-btn glass" 
+            title="Share Track"
+            aria-label="Share Track"
+          >
+            <Share2 size={18} />
+          </button>
+
           <div className="console-body">
              <div className="visualizer-stage-v8">
                 <div 
@@ -339,17 +348,7 @@ export default function DesktopFullPlayer({ onClose }: { onClose: () => void }) 
                      <OfflineDownloadButton track={currentTrack} iconSize={28} />
                    </div>
 
-                   {/* 5. Share */}
-                   <button 
-                     className="console-action-btn-v13"
-                     onClick={handleShareTrack}
-                     aria-label="Share Track"
-                     title="Share Track"
-                   >
-                     <Share2 size={28} />
-                   </button>
-
-                   {/* 6. BPM Changer / Speed Selector */}
+                   {/* 5. BPM Changer / Speed Selector */}
                    <div className="relative">
                       <button 
                         className={`console-action-btn-v13 gauge-trigger-v19 ${showSpeed ? 'active' : ''}`} 
@@ -707,29 +706,48 @@ export default function DesktopFullPlayer({ onClose }: { onClose: () => void }) 
           flex-direction: column;
           height: 100%;
           justify-content: center;
-          transform: translateY(-6%); /* Raised total 6% per user request */
+          position: relative;
         }
-               @media (max-height: 950px) {
+
+        .dp-share-corner-btn {
+          position: absolute;
+          top: 20px;
+          right: 32px;
+          width: 48px;
+          height: 48px;
+          border-radius: 14px;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          color: rgba(255, 255, 255, 0.7);
+          cursor: pointer;
+          z-index: 100;
+          transition: all 0.2s ease;
+        }
+        .dp-share-corner-btn:hover {
+          color: #ffffff;
+          transform: scale(1.08);
+        }
+
+        @media (max-height: 950px) {
           .console-body { gap: 32px !important; }
           .metadata-stage { transform: scale(0.95); }
         }
 
         @media (max-height: 850px) {
-          .dp-player-console { transform: scale(0.9) translateY(-6%); transform-origin: left center; }
-          .console-body { gap: 24px !important; }
+          .console-body { transform: scale(0.9) translateY(-6%) !important; gap: 24px !important; transform-origin: center center; }
           .metadata-stage { transform: scale(0.9); margin-top: -10px; }
           .transport-section { margin-top: 10px; }
         }
         
         @media (max-height: 750px) {
-          .dp-player-console { transform: scale(0.85) translateY(-6%); transform-origin: left center; }
-          .console-body { gap: 16px !important; }
+          .console-body { transform: scale(0.85) translateY(-6%) !important; gap: 16px !important; transform-origin: center center; }
           .metadata-stage { transform: scale(0.85); margin-top: -20px; }
           .transport-section { margin-top: 0; }
         }
 
         @media (max-height: 680px) {
-          .dp-player-console { transform: scale(0.75) translateY(-6%); transform-origin: left center; }
+          .console-body { transform: scale(0.75) translateY(-6%) !important; transform-origin: center center; }
           .console-header-v3 { margin-bottom: 0 !important; }
         }
 
@@ -741,6 +759,7 @@ export default function DesktopFullPlayer({ onClose }: { onClose: () => void }) 
           justify-content: center; 
           gap: 64px; 
           position: relative;
+          transform: translateY(-6%); /* Raised total 6% per user request */
         }
 
          .visualizer-stage-v8 { position: relative; }
@@ -801,7 +820,7 @@ export default function DesktopFullPlayer({ onClose }: { onClose: () => void }) 
           display: flex; 
           align-items: center; 
           justify-content: center; 
-          gap: 22px; 
+          gap: 28px; 
           width: 100%; 
           margin-top: 18px;
         }

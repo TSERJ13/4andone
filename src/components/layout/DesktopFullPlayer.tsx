@@ -339,7 +339,17 @@ export default function DesktopFullPlayer({ onClose }: { onClose: () => void }) 
                      <OfflineDownloadButton track={currentTrack} iconSize={28} />
                    </div>
 
-                   {/* 5. BPM Changer / Speed Selector */}
+                   {/* 5. Share */}
+                   <button 
+                     className="console-action-btn-v13"
+                     onClick={handleShareTrack}
+                     aria-label="Share Track"
+                     title="Share Track"
+                   >
+                     <Share2 size={28} />
+                   </button>
+
+                   {/* 6. BPM Changer / Speed Selector */}
                    <div className="relative">
                       <button 
                         className={`console-action-btn-v13 gauge-trigger-v19 ${showSpeed ? 'active' : ''}`} 
@@ -463,10 +473,7 @@ export default function DesktopFullPlayer({ onClose }: { onClose: () => void }) 
              ) : (
                <div style={{ height: '32px' }}></div>
              )}
-             <div className="flex items-center gap-2">
-               <button onClick={handleShareTrack} className="console-exit-btn glass" title="Share Track"><Share2 size={16} /></button>
-               <button onClick={onClose} className="console-exit-btn glass" title="Close"><X size={16} /></button>
-             </div>
+             <button onClick={onClose} className="console-exit-btn glass" title="Close"><X size={18} /></button>
            </header>
            
            <div className="sidebar-scroll custom-scrollbar">
@@ -794,7 +801,7 @@ export default function DesktopFullPlayer({ onClose }: { onClose: () => void }) 
           display: flex; 
           align-items: center; 
           justify-content: center; 
-          gap: 28px; 
+          gap: 22px; 
           width: 100%; 
           margin-top: 18px;
         }

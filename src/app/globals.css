@@ -265,10 +265,21 @@ button {
 /* PWA Standalone Mode (Only when saved to Home Screen - fills the marked bottom space) */
 @media (display-mode: standalone) {
   .mobile-nav {
-    height: 68px !important;
-    padding: 6px 12px 12px !important;
+    height: 72px !important;
+    padding: 0 12px !important;
     background: rgba(10, 10, 10, 0.98);
-    bottom: -12px !important;
+    bottom: 0 !important;
+  }
+
+  .mobile-nav-item {
+    justify-content: flex-end !important;
+    padding-bottom: 8px !important;
+    gap: 3px !important;
+  }
+
+  .mobile-nav-item::before {
+    inset: auto 4px 4px 4px !important;
+    height: 48px !important;
   }
 
   .mobile-nav::after {
@@ -283,16 +294,29 @@ button {
   }
 
   .main-content {
-    padding-bottom: 140px !important;
+    padding-bottom: 155px !important;
   }
 }
 
 html.pwa-standalone .mobile-nav,
 body.pwa-standalone .mobile-nav {
-  height: 68px !important;
-  padding: 6px 12px 12px !important;
+  height: 72px !important;
+  padding: 0 12px !important;
   background: rgba(10, 10, 10, 0.98);
-  bottom: -12px !important;
+  bottom: 0 !important;
+}
+
+html.pwa-standalone .mobile-nav-item,
+body.pwa-standalone .mobile-nav-item {
+  justify-content: flex-end !important;
+  padding-bottom: 8px !important;
+  gap: 3px !important;
+}
+
+html.pwa-standalone .mobile-nav-item::before,
+body.pwa-standalone .mobile-nav-item::before {
+  inset: auto 4px 4px 4px !important;
+  height: 48px !important;
 }
 
 html.pwa-standalone .mobile-nav::after,
@@ -309,7 +333,7 @@ body.pwa-standalone .mobile-nav::after {
 
 html.pwa-standalone .main-content,
 body.pwa-standalone .main-content {
-  padding-bottom: 140px !important;
+  padding-bottom: 155px !important;
 }
 
 .mobile-nav-item {

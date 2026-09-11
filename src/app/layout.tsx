@@ -360,11 +360,30 @@ export default async function RootLayout({
                 // correct, so this can never make a correctly-positioned device
                 // worse than it already is.
                 (function () {
+                  // TEMPORARY diagnostic, remove once the standalone nav gap
+                  // is confirmed fixed. Shows automatically whenever the app
+                  // is running in standalone (Home Screen) mode — NOT gated
+                  // behind a ?navdebug=1 query param, because iOS launches
+                  // the Home Screen icon at the manifest's fixed start_url
+                  // ("/") and never preserves a query string from however you
+                  // got there, so a query-param gate can never actually be
+                  // triggered from the installed app. Tap the badge to
+                  // hide/show it.
                   var debugEl = null;
+                  var debugHidden = false;
+                  function isStandalone() {
+                    return document.documentElement.classList.contains('pwa-standalone')
+                      || window.matchMedia('(display-mode: standalone)').matches
+                      || window.navigator.standalone === true;
+                  }
                   function ensureDebug() {
-                    if (debugEl || !/[?&]navdebug=1/.test(location.search)) return;
+                    if (debugEl || !isStandalone()) return;
                     debugEl = document.createElement('div');
-                    debugEl.setAttribute('style', 'position:fixed;top:8px;right:8px;z-index:99999;background:rgba(255,0,0,.85);color:#fff;font:10px/1.4 monospace;padding:6px 8px;border-radius:6px;pointer-events:none;white-space:pre;');
+                    debugEl.setAttribute('style', 'position:fixed;top:8px;right:8px;z-index:99999;background:rgba(255,0,0,.88);color:#fff;font:10px/1.4 monospace;padding:6px 8px;border-radius:6px;white-space:pre;');
+                    debugEl.addEventListener('click', function () {
+                      debugHidden = !debugHidden;
+                      debugEl.style.display = debugHidden ? 'none' : 'block';
+                    });
                     document.body.appendChild(debugEl);
                   }
                   function measure() {
@@ -377,21 +396,27 @@ export default async function RootLayout({
                       if (gap > 200) gap = 0; // guard against on-screen-keyboard resizes
                       document.documentElement.style.setProperty('--ios-bottom-gap', gap + 'px');
                       document.documentElement.style.setProperty('--real-vh', vvh + 'px');
-                      if (/[?&]navdebug=1/.test(location.search)) {
+                      if (isStandalone()) {
                         ensureDebug();
-                        if (debugEl) {
+                        if (debugEl && !debugHidden) {
                           var cs = getComputedStyle(document.documentElement);
                           debugEl.textContent =
                             'innerH: ' + ih + '\\n' +
                             'vvpH: ' + vvh + '\\n' +
                             'gap: ' + gap + '\\n' +
                             'env-bottom: ' + (cs.getPropertyValue('--__probe-safe-bottom') || 'n/a') + '\\n' +
-                            'standalone: ' + document.documentElement.classList.contains('pwa-standalone');
+                            'standalone: ' + isStandalone() + '\\n' +
+                            '(tap to hide)';
                         }
                       }
                     } catch (e) {}
                   }
                   measure();
+                  // Standalone-class detection above can race this script on
+                  // first paint; re-check shortly after load in case the
+                  // class gets added a tick later.
+                  setTimeout(measure, 300);
+                  setTimeout(measure, 1500);
                   window.addEventListener('resize', measure);
                   window.addEventListener('orientationchange', measure);
                   if (window.visualViewport) {

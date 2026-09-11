@@ -202,7 +202,7 @@ button {
     flex: 1;
     width: 100%;
     padding: 24px 16px;
-    padding-bottom: 175px;
+    padding-bottom: calc(58px + max(6px, calc(env(safe-area-inset-bottom, 0px) * 0.42)) + 64px + 24px);
     border-radius: 0;
   }
 
@@ -233,14 +233,15 @@ button {
   -webkit-text-fill-color: transparent;
 }
 
-/* Mobile Navigation Styles */
+/* Mobile Navigation Styles - Auto-adapting to any phone's bottom bar */
 .mobile-nav {
   display: none; /* Hide by default for Web/Desktop */
   position: fixed;
   bottom: 0;
   left: 0;
   right: 0;
-  height: 82px;
+  /* Auto-adapts to any phone: 72px on iPhone with home bar, 64px on phones without home bar */
+  height: calc(58px + max(6px, calc(env(safe-area-inset-bottom, 0px) * 0.42)));
   z-index: 1000;
   grid-template-columns: repeat(4, 1fr);
   align-items: stretch;
@@ -250,7 +251,8 @@ button {
   border-top: 1px solid rgba(255, 255, 255, 0.1);
   border-radius: 0;
   box-shadow: 0 -4px 30px rgba(0, 0, 0, 0.5);
-  padding: 6px 12px 20px;
+  /* Top 4px, sides 12px, bottom auto-aligned with phone's swipe bar (14px on iPhone) */
+  padding: 4px 12px max(6px, calc(env(safe-area-inset-bottom, 0px) * 0.42));
 }
 
 @media (max-width: 1024px) {
@@ -264,12 +266,12 @@ button {
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  gap: 4px;
+  gap: 3px;
   color: rgba(255, 255, 255, 0.4);
   transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
   text-decoration: none;
   position: relative;
-  border-radius: 14px;
+  border-radius: 12px;
   z-index: 1;
 }
 
@@ -277,7 +279,7 @@ button {
 .mobile-nav-item::before {
   content: "";
   position: absolute;
-  inset: 2px 6px;
+  inset: 1px 6px;
   background: rgba(255, 255, 255, 0.05);
   border-radius: 12px;
   opacity: 0;
@@ -295,8 +297,8 @@ button {
 
 /* Icon Container - Fixed size for alignment */
 .mobile-nav-item svg {
-  width: 22px;
-  height: 22px;
+  width: 20px;
+  height: 20px;
   transition: all 0.2s ease;
 }
 

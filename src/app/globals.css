@@ -202,7 +202,7 @@ button {
     flex: 1;
     width: 100%;
     padding: 24px 16px;
-    padding-bottom: calc(56px + max(6px, calc(env(safe-area-inset-bottom, 0px) * 0.4)) + 64px + 24px);
+    padding-bottom: 160px;
     border-radius: 0;
   }
 
@@ -233,15 +233,15 @@ button {
   -webkit-text-fill-color: transparent;
 }
 
-/* Mobile Navigation Styles - Auto-adapting to any phone's bottom bar */
+/* Mobile Navigation Styles - Rock-solid fixed positioning (never jumps on enter/load) */
 .mobile-nav {
   display: none; /* Hide by default for Web/Desktop */
   position: fixed;
   bottom: 0;
   left: 0;
   right: 0;
-  /* Grounded near bottom: ~70px on iPhone with home bar, 62px on phones without home bar */
-  height: calc(56px + max(6px, calc(env(safe-area-inset-bottom, 0px) * 0.4)));
+  /* Fixed 68px height: stable across all states, no dynamic safe-area jumps */
+  height: 68px;
   z-index: 1000;
   grid-template-columns: repeat(4, 1fr);
   align-items: stretch;
@@ -251,8 +251,8 @@ button {
   border-top: 1px solid rgba(255, 255, 255, 0.1);
   border-radius: 0;
   box-shadow: 0 -4px 30px rgba(0, 0, 0, 0.5);
-  /* Sits right near the bottom with comfortable ~14px margin above home indicator */
-  padding: 4px 12px max(6px, calc(env(safe-area-inset-bottom, 0px) * 0.4));
+  /* Sits near bottom with 13px padding, safely above the home indicator without touching bezel */
+  padding: 4px 12px 13px;
 }
 
 @media (max-width: 1024px) {

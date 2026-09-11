@@ -352,188 +352,20 @@ export default async function RootLayout({
                 // cannot see, so a plain "position:fixed; bottom:0" bar still
                 // lands short of the true screen edge no matter how tall it is.
                 // --ios-bottom-gap exposes that measured shortfall so CSS can
-                // shift fixed bottom bars down to compensate. --real-vh exposes
-                // the actually-visible height so anything sized off 100dvh (the
-                // Ko-fi modal) can be capped to what's really on screen instead
-                // of overflowing past it. Both default to safe no-ops (0px /
-                // 100dvh) whenever visualViewport is unsupported or already
-                // correct, so this can never make a correctly-positioned device
-                // worse than it already is.
+                // shift fixed bottom bars down to compensate. Defaults to 0px
+                // (no-op) whenever visualViewport is unsupported or the gap is
+                // 0, so this can never make a correctly-positioned device worse.
                 (function () {
-                  // BUILD_MARKER: bump this literal on every diagnostic
-                  // round. If the badge below ever shows a DIFFERENT marker
-                  // than the one just shipped (or shows nothing at all),
-                  // that alone proves this exact script isn't the one
-                  // executing on the device — i.e. the device is running
-                  // something cached from before this change, regardless of
-                  // what's live on GitHub/Vercel.
-                  var BUILD_MARKER = 'v7-body-null-fix';
-                  var debugEl = null;
-                  var debugHidden = false;
-                  function isStandalone() {
-                    return document.documentElement.classList.contains('pwa-standalone')
-                      || window.matchMedia('(display-mode: standalone)').matches
-                      || window.navigator.standalone === true;
-                  }
-                  function hardReset() {
-                    try {
-                      if ('caches' in window) {
-                        caches.keys().then(function (keys) {
-                          return Promise.all(keys.map(function (k) { return caches.delete(k); }));
-                        }).finally(function () {
-                          try { localStorage.clear(); } catch (e) {}
-                          window.location.reload();
-                        });
-                      } else {
-                        try { localStorage.clear(); } catch (e) {}
-                        window.location.reload();
-                      }
-                    } catch (e) {
-                      window.location.reload();
-                    }
-                  }
-                  function ensureDebug() {
-                    // Now shows in EVERY mode (not just standalone) so a
-                    // plain Safari tab visit can confirm, with zero Home
-                    // Screen re-adding, whether the latest deploy is even
-                    // reaching this device at all. Small and semi-transparent
-                    // so it stays out of the way; tap the label to
-                    // hide/show, tap "RELOAD" to force-clear every cache and
-                    // reload right now.
-                    //
-                    // ROOT-CAUSE FIX: this script runs in <head>, synchronously
-                    // during HTML parsing — document.body does not exist yet on
-                    // the very first call. appendChild on a null body used to
-                    // throw here, and because that throw happened INSIDE the
-                    // very first synchronous measure() call (before the
-                    // setTimeout/MutationObserver/listener registrations below
-                    // it even ran), it silently killed the entire script forever
-                    // on every load: no retries were ever scheduled, so nothing
-                    // ever ran again no matter what the code said. Guard against
-                    // a missing body instead of throwing — measure() is retried
-                    // on its own schedule, so this simply waits for the next tick.
-                    if (!document.body) return;
-                    if (debugEl) return;
-                    debugEl = document.createElement('div');
-                    debugEl.setAttribute('style', 'position:fixed;bottom:8px;left:8px;z-index:99999;background:rgba(200,0,0,.82);color:#fff;font:10px/1.4 monospace;padding:6px 8px;border-radius:6px;white-space:pre;max-width:240px;');
-                    var label = document.createElement('div');
-                    label.addEventListener('click', function () {
-                      debugHidden = !debugHidden;
-                      label.style.display = debugHidden ? 'none' : 'block';
-                    });
-                    var reloadBtn = document.createElement('div');
-                    reloadBtn.textContent = '[ RELOAD & CLEAR CACHE ]';
-                    reloadBtn.setAttribute('style', 'margin-top:4px;padding:3px;background:#fff;color:#c00;text-align:center;border-radius:3px;font-weight:bold;');
-                    reloadBtn.addEventListener('click', function (e) {
-                      e.stopPropagation();
-                      hardReset();
-                    });
-                    debugEl.appendChild(label);
-                    debugEl.appendChild(reloadBtn);
-                    debugEl._label = label;
-                    document.body.appendChild(debugEl);
-                  }
-
-                  // DECISIVE FIX: stop trusting "position:fixed; bottom:0" at
-                  // all in standalone mode. Every previous attempt (CSS
-                  // env()/height/padding math, the --ios-bottom-gap
-                  // compensation) assumed bottom:0's reference point is
-                  // trustworthy and just needed the right offset added to
-                  // it — but if bottom:0 itself is unreliable on this
-                  // device/iOS build, no CSS value written relative to it
-                  // can ever land correctly, no matter how many times it's
-                  // adjusted. TOP positioning does not have this history of
-                  // problems on iOS. So: measure the real visible screen
-                  // height directly (window.visualViewport), and position
-                  // the nav with "top: measuredHeight - barHeight" instead
-                  // of "bottom: 0" — anchored from the edge that's actually
-                  // reliable. Applied as forced inline !important styles
-                  // directly on the DOM nodes (not via a CSS custom
-                  // property + calc()), so it cannot be silently defeated by
-                  // a stylesheet cascade/specificity issue either.
-                  function applyForcedPosition() {
-                    var nav = document.querySelector('.mobile-nav');
-                    var miniWrap = document.querySelector('.mini-player-outer-wrapper');
-                    var standalone = isStandalone();
-                    var navTop = null, navHeight = null, envBottom = null, vvh = null, vvt = null, realBottom = null;
-                    try {
-                      if (standalone) {
-                        vvh = window.visualViewport ? window.visualViewport.height : window.innerHeight;
-                        vvt = window.visualViewport ? window.visualViewport.offsetTop : 0;
-                        realBottom = vvt + vvh; // true screen bottom, measured from the top:0 origin
-                        var cs = getComputedStyle(document.documentElement);
-                        envBottom = parseFloat(cs.getPropertyValue('--__probe-safe-bottom')) || 0;
-                        var floorInset = Math.max(envBottom, 20); // guard against env() genuinely resolving to 0
-                        navHeight = 72 + floorInset;
-                        navTop = realBottom - navHeight;
-
-                        if (nav) {
-                          nav.style.setProperty('position', 'fixed', 'important');
-                          nav.style.setProperty('top', navTop + 'px', 'important');
-                          nav.style.setProperty('bottom', 'auto', 'important');
-                          nav.style.setProperty('height', navHeight + 'px', 'important');
-                          nav.style.setProperty('padding', '6px 12px ' + (10 + floorInset) + 'px', 'important');
-                        }
-
-                        if (miniWrap) {
-                          var miniHeight = 64; // matches .mini-player's own CSS height
-                          var miniGap = 10;
-                          var miniTop = navTop - miniGap - miniHeight;
-                          miniWrap.style.setProperty('position', 'fixed', 'important');
-                          miniWrap.style.setProperty('top', miniTop + 'px', 'important');
-                          miniWrap.style.setProperty('bottom', 'auto', 'important');
-                        }
-                      }
-                    } catch (e) {}
-
-                    // Report status regardless of standalone/found state —
-                    // this is the whole point: we need to see "false" and
-                    // "not found" just as clearly as success.
-                    if (debugEl && debugEl._label && !debugHidden) {
-                      debugEl._label.textContent =
-                        'BUILD: ' + BUILD_MARKER + '\\n' +
-                        'standalone: ' + standalone + '\\n' +
-                        'navFound: ' + !!nav + ' miniFound: ' + !!miniWrap + '\\n' +
-                        (standalone
-                          ? ('vvpH: ' + vvh + ' vvpT: ' + vvt + '\\n' +
-                             'env-bottom: ' + envBottom + '\\n' +
-                             'navTop: ' + navTop + ' navH: ' + navHeight)
-                          : '(not standalone — no position forced)') + '\\n' +
-                        '(tap label to hide)';
-                    }
-                  }
-
                   function measure() {
-                    // Each half wrapped independently: if either one throws
-                    // for any reason, the other still runs AND — critically —
-                    // execution still falls through to the setTimeout/
-                    // MutationObserver/listener registrations that follow this
-                    // function's first synchronous call below. Previously an
-                    // uncaught throw here aborted all of that permanently.
-                    try { ensureDebug(); } catch (e) {}
-                    try { applyForcedPosition(); } catch (e) {}
+                    try {
+                      if (!window.visualViewport) return;
+                      var gap = window.innerHeight - (window.visualViewport.height + window.visualViewport.offsetTop);
+                      if (!(gap > 0)) gap = 0;
+                      if (gap > 200) gap = 0; // guard against on-screen-keyboard resizes
+                      document.documentElement.style.setProperty('--ios-bottom-gap', gap + 'px');
+                    } catch (e) {}
                   }
-
                   measure();
-                  // .mobile-nav / .mini-player-outer-wrapper are rendered by
-                  // React client-side, so they don't exist yet when this
-                  // <head> script first runs. Retry on a short schedule
-                  // until they show up, and watch for later re-renders too.
-                  setTimeout(measure, 100);
-                  setTimeout(measure, 300);
-                  setTimeout(measure, 800);
-                  setTimeout(measure, 1500);
-                  setTimeout(measure, 3000);
-                  if ('MutationObserver' in window) {
-                    var mo = new MutationObserver(measure);
-                    if (document.body) {
-                      mo.observe(document.body, { childList: true, subtree: true });
-                    } else {
-                      document.addEventListener('DOMContentLoaded', function () {
-                        mo.observe(document.body, { childList: true, subtree: true });
-                      });
-                    }
-                  }
                   window.addEventListener('resize', measure);
                   window.addEventListener('orientationchange', measure);
                   if (window.visualViewport) {

@@ -326,7 +326,7 @@ button {
 
 .track-row {
   display: grid;
-  grid-template-columns: 20px 24px 1fr 100px 110px auto;
+  grid-template-columns: 24px 1fr 100px 110px auto;
   align-items: center;
   padding: 12px 17px 10px 16px;
   border-radius: 16px;
@@ -357,21 +357,7 @@ button {
 }
 
 .track-index {
-  font-size: 13px; /* Reduced for better 3-digit support */
-  font-weight: 950;
-  opacity: 0.7;
-  text-align: left;
-  width: 16px; /* Optimized width */
-  margin-right: 8px; /* Added spacing from disk icon */
-}
-
-@media (max-width: 768px) {
-  .track-index {
-    font-size: 10.5px !important; /* Enforced ultra-compact for 3-digit support */
-    width: 14px !important;
-    opacity: 0.5 !important;
-    margin-right: 6px !important; /* Consistent spacing on mobile */
-  }
+  display: none !important;
 }
 
 .track-icon-col {
@@ -507,11 +493,11 @@ button {
 /* Mobile Adjustments */
 @media (max-width: 768px) {
   .track-row {
-    grid-template-columns: 14px 24px 1fr auto auto;
-    gap: 8px;
-    padding: 14px 16px 14px 10px;
+    grid-template-columns: 24px 1fr auto auto;
+    gap: 10px;
+    padding: 12px 14px;
     border-radius: 12px;
-    min-height: 62px;
+    min-height: 58px;
   }
 
   .track-meta-col {
@@ -519,35 +505,27 @@ button {
   }
 
   .track-info-col {
-    padding-right: 22px;
+    padding-right: 6px;
     position: relative;
     overflow: hidden;
   }
 
   .track-info-col .track-name {
-    -webkit-mask-image: linear-gradient(to right, #000 calc(100% - 24px), transparent 100%);
-    mask-image: linear-gradient(to right, #000 calc(100% - 24px), transparent 100%);
+    -webkit-mask-image: linear-gradient(to right, #000 calc(100% - 16px), transparent 100%);
+    mask-image: linear-gradient(to right, #000 calc(100% - 16px), transparent 100%);
   }
 
   .track-info-col .track-artist {
-    -webkit-mask-image: linear-gradient(to right, #000 calc(100% - 24px), transparent 100%);
-    mask-image: linear-gradient(to right, #000 calc(100% - 24px), transparent 100%);
+    -webkit-mask-image: linear-gradient(to right, #000 calc(100% - 16px), transparent 100%);
+    mask-image: linear-gradient(to right, #000 calc(100% - 16px), transparent 100%);
   }
 
   .track-badge-col {
     display: flex;
     align-items: center;
     justify-content: flex-end;
-    margin-right: 10px;
+    margin-right: 6px;
     flex-shrink: 0;
-  }
-
-  .track-index {
-    font-size: 18px;
-    font-weight: 950;
-    opacity: 0.7;
-    text-align: left;
-    width: 14px;
   }
 
   .track-name {

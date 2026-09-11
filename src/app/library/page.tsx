@@ -173,7 +173,6 @@ export default function LibraryPage() {
                 onClick={() => loadTrack(track)}
                 style={{ cursor: 'pointer' }}
               >
-                <div className="track-index">{i + 1}</div>
                 <div className="track-icon-col">
                   <Disc size={18} />
                 </div>

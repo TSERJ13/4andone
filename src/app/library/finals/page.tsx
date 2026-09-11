@@ -510,7 +510,6 @@ const FinalsPage = () => {
                 className={`track-row ${isPlaying && (playingTitle === track.title || playingTitle === track.id) ? 'is-active' : ''}`}
                 onClick={() => loadTrack(track, false, true)}
               >
-                <div className="track-index">{i + 1}</div>
                 <div className="track-icon-col">
                   <Disc size={18} />
                 </div>

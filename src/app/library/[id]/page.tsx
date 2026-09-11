@@ -145,7 +145,6 @@ const PlaylistPage = () => {
               onDrop={(e) => handleDrop(e, i)}
               onClick={() => loadTrack(track)}
             >
-              <div className="track-index">{i + 1}</div>
               <div className="track-icon-col">
                 <Disc size={18} />
               </div>

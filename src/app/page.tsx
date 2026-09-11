@@ -181,7 +181,6 @@ export default function Home() {
 
   const SkeletonRow = () => (
     <div className="track-row skeleton" style={{ pointerEvents: 'none' }}>
-      <div className="track-index skeleton-shimmer" style={{ width: '12px', height: '14px', margin: '0 auto', opacity: 0.1 }}></div>
       <div className="track-icon-col">
         <div className="skeleton-shimmer" style={{ width: '20px', height: '20px', borderRadius: '4px', opacity: 0.2 }}></div>
       </div>
@@ -476,7 +475,6 @@ export default function Home() {
                     className={`track-row ${isPlaying && (playingTitle === track.title || playingTitle === track.id) ? 'is-active' : ''}`}
                     onClick={() => handlePlay(track)}
                   >
-                    <div className="track-index">{i + 1}</div>
                     <div className="track-icon-col">
                       <Disc size={18} />
                     </div>

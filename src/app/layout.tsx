@@ -345,6 +345,34 @@ export default async function RootLayout({
                 if (window.navigator.standalone === true || window.matchMedia('(display-mode: standalone)').matches) {
                   document.documentElement.classList.add('pwa-standalone');
                 }
+                // Measure any gap iOS leaves between window.innerHeight and the
+                // actually visible viewport (window.visualViewport). On some
+                // iOS/WKWebView versions the standalone webview applies an
+                // internal bottom content inset that env(safe-area-inset-bottom)
+                // cannot see, so a plain "position:fixed; bottom:0" bar still
+                // lands short of the true screen edge no matter how tall it is.
+                // --ios-bottom-gap exposes that measured shortfall so CSS can
+                // shift fixed bottom bars down to compensate. Defaults to 0px
+                // (no-op) whenever visualViewport is unsupported or the gap is
+                // 0, so this can never make a correctly-positioned device worse.
+                (function () {
+                  function measure() {
+                    try {
+                      if (!window.visualViewport) return;
+                      var gap = window.innerHeight - (window.visualViewport.height + window.visualViewport.offsetTop);
+                      if (!(gap > 0)) gap = 0;
+                      if (gap > 200) gap = 0; // guard against on-screen-keyboard resizes
+                      document.documentElement.style.setProperty('--ios-bottom-gap', gap + 'px');
+                    } catch (e) {}
+                  }
+                  measure();
+                  window.addEventListener('resize', measure);
+                  window.addEventListener('orientationchange', measure);
+                  if (window.visualViewport) {
+                    window.visualViewport.addEventListener('resize', measure);
+                    window.visualViewport.addEventListener('scroll', measure);
+                  }
+                })();
                 if ('caches' in window) {
                   caches.keys().then(function(names) {
                     names.forEach(function(name) {

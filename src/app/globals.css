@@ -280,6 +280,14 @@ button {
     height: calc(72px + env(safe-area-inset-bottom, 0px)) !important;
     padding: 6px 12px calc(10px + env(safe-area-inset-bottom, 0px)) !important;
     background: rgba(10, 10, 10, 0.98);
+    /* Belt-and-suspenders: on some iOS/WKWebView versions the fixed
+       containing block used for `bottom:0` is itself shrunk by an
+       internal scroll-view inset that env(safe-area-inset-bottom)
+       cannot see or correct for. --ios-bottom-gap is measured live in
+       <head> (layout.tsx) via window.visualViewport and defaults to
+       0px (no-op) when unsupported/unset, so this never regresses
+       devices where bottom:0 already lands correctly. */
+    bottom: calc(0px - var(--ios-bottom-gap, 0px)) !important;
   }
 
   .main-content {
@@ -292,6 +300,7 @@ body.pwa-standalone .mobile-nav {
   height: calc(72px + env(safe-area-inset-bottom, 0px)) !important;
   padding: 6px 12px calc(10px + env(safe-area-inset-bottom, 0px)) !important;
   background: rgba(10, 10, 10, 0.98);
+  bottom: calc(0px - var(--ios-bottom-gap, 0px)) !important;
 }
 
 html.pwa-standalone .main-content,

@@ -155,13 +155,13 @@ const MobileMiniPlayer = ({ onExpand }: { onExpand: () => void }) => {
 
         @media (display-mode: standalone) {
           .mini-player-outer-wrapper {
-            bottom: calc(82px + env(safe-area-inset-bottom, 0px)) !important;
+            bottom: calc(82px + env(safe-area-inset-bottom, 0px) - var(--ios-bottom-gap, 0px)) !important;
           }
         }
 
         :global(html.pwa-standalone) .mini-player-outer-wrapper,
         :global(body.pwa-standalone) .mini-player-outer-wrapper {
-          bottom: calc(82px + env(safe-area-inset-bottom, 0px)) !important;
+          bottom: calc(82px + env(safe-area-inset-bottom, 0px) - var(--ios-bottom-gap, 0px)) !important;
         }
 
         .mini-player-wrapper {

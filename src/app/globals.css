@@ -182,16 +182,12 @@ button {
   .app-container {
     display: flex;
     flex-direction: column;
-    /* 100dvh = dynamic viewport height — always matches the real visible area.
-       100vh on iOS Safari includes space behind the address bar, causing a
-       jump when the bar is shown. dvh fixes this without any JS hacks. */
-    height: 100vh;           /* fallback for older browsers */
-    height: 100dvh;          /* iOS 15.4+ / Android Chrome 108+ */
-    /* Push content below iPhone notch / Dynamic Island */
+    height: 100vh;
+    height: 100dvh;
+    /* Top safe area: push content below notch / Dynamic Island */
     padding-top: env(safe-area-inset-top, 0px);
     width: 100vw;
     overflow-x: hidden;
-    overflow-y: hidden;
     gap: 0;
     padding-left: 0;
     padding-right: 0;
@@ -206,7 +202,8 @@ button {
     flex: 1;
     width: 100%;
     padding: 24px 16px;
-    padding-bottom: 200px; /* Space for MiniPlayer + Grounded BottomNav */
+    /* Space for mini player (64px) + gap (12px) + nav (62px) + home indicator + extra */
+    padding-bottom: calc(62px + env(safe-area-inset-bottom, 0px) + 64px + 24px);
     border-radius: 0;
   }
 
@@ -244,18 +241,20 @@ button {
   bottom: 0;
   left: 0;
   right: 0;
-  height: 96px; /* Match PlayerBar height */
+  /* Height = icon area (62px) + home indicator safe area.
+     With viewportFit:cover the nav sits over the home indicator,
+     so the height must include it to avoid the nav content being clipped. */
+  height: calc(62px + env(safe-area-inset-bottom, 0px));
   z-index: 1000;
   grid-template-columns: repeat(4, 1fr);
-  align-items: stretch; /* Stretch items to full height */
+  align-items: flex-start; /* icons at the top, safe area at bottom */
   background: rgba(10, 10, 10, 0.85);
   backdrop-filter: blur(25px);
   -webkit-backdrop-filter: blur(25px);
   border-top: 1px solid rgba(255, 255, 255, 0.1);
-  border-radius: 0; /* Flat bottom as requested */
+  border-radius: 0;
   box-shadow: 0 -4px 30px rgba(0, 0, 0, 0.5);
-  padding: 8px 12px;
-  padding-bottom: calc(8px + env(safe-area-inset-bottom)); /* Safe Area Support */
+  padding: 8px 12px 0;
 }
 
 @media (max-width: 1024px) {

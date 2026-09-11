@@ -202,7 +202,7 @@ button {
     flex: 1;
     width: 100%;
     padding: 24px 16px;
-    padding-bottom: calc(58px + max(8px, calc(env(safe-area-inset-bottom, 0px) * 0.54)) + 64px + 24px);
+    padding-bottom: calc(56px + max(6px, calc(env(safe-area-inset-bottom, 0px) * 0.4)) + 64px + 24px);
     border-radius: 0;
   }
 
@@ -240,8 +240,8 @@ button {
   bottom: 0;
   left: 0;
   right: 0;
-  /* Auto-adapts to any phone: 76px on iPhone with home bar, 66px on phones without home bar */
-  height: calc(58px + max(8px, calc(env(safe-area-inset-bottom, 0px) * 0.54)));
+  /* Grounded near bottom: ~70px on iPhone with home bar, 62px on phones without home bar */
+  height: calc(56px + max(6px, calc(env(safe-area-inset-bottom, 0px) * 0.4)));
   z-index: 1000;
   grid-template-columns: repeat(4, 1fr);
   align-items: stretch;
@@ -251,8 +251,8 @@ button {
   border-top: 1px solid rgba(255, 255, 255, 0.1);
   border-radius: 0;
   box-shadow: 0 -4px 30px rgba(0, 0, 0, 0.5);
-  /* Top 4px, sides 12px, bottom auto-aligned with phone's swipe bar (~18px on iPhone) */
-  padding: 4px 12px max(8px, calc(env(safe-area-inset-bottom, 0px) * 0.54));
+  /* Sits right near the bottom with comfortable ~14px margin above home indicator */
+  padding: 4px 12px max(6px, calc(env(safe-area-inset-bottom, 0px) * 0.4));
 }
 
 @media (max-width: 1024px) {

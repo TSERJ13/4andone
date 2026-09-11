@@ -236,31 +236,80 @@ button {
   -webkit-text-fill-color: transparent;
 }
 
-/* Mobile Navigation Styles */
+/* Mobile Navigation Styles - Browser Mode Default (Safari & Chrome) */
 .mobile-nav {
   display: none; /* Hide by default for Web/Desktop */
   position: fixed;
   bottom: 0;
   left: 0;
   right: 0;
-  height: 96px; /* Match PlayerBar height */
+  height: 72px;
   z-index: 1000;
   grid-template-columns: repeat(4, 1fr);
-  align-items: stretch; /* Stretch items to full height */
-  background: rgba(10, 10, 10, 0.85);
+  align-items: stretch;
+  background: rgba(10, 10, 10, 0.96);
   backdrop-filter: blur(25px);
   -webkit-backdrop-filter: blur(25px);
   border-top: 1px solid rgba(255, 255, 255, 0.1);
-  border-radius: 0; /* Flat bottom as requested */
+  border-radius: 0;
   box-shadow: 0 -4px 30px rgba(0, 0, 0, 0.5);
-  padding: 8px 12px;
-  padding-bottom: calc(8px + env(safe-area-inset-bottom, 0px)); /* Safe Area Support */
+  padding: 6px 12px 10px;
 }
 
 @media (max-width: 1024px) {
   .mobile-nav {
     display: grid; /* Only visible on Mobile viewports */
   }
+}
+
+/* PWA Standalone Mode (Only when saved to Home Screen - fills the marked bottom space) */
+@media (display-mode: standalone) {
+  .mobile-nav {
+    height: 68px !important;
+    padding: 6px 12px 12px !important;
+    background: rgba(10, 10, 10, 0.98);
+    bottom: -12px !important;
+  }
+
+  .mobile-nav::after {
+    content: "";
+    position: absolute;
+    top: 100%;
+    left: 0;
+    right: 0;
+    height: 60px;
+    background: rgba(10, 10, 10, 0.98);
+    pointer-events: none;
+  }
+
+  .main-content {
+    padding-bottom: 140px !important;
+  }
+}
+
+html.pwa-standalone .mobile-nav,
+body.pwa-standalone .mobile-nav {
+  height: 68px !important;
+  padding: 6px 12px 12px !important;
+  background: rgba(10, 10, 10, 0.98);
+  bottom: -12px !important;
+}
+
+html.pwa-standalone .mobile-nav::after,
+body.pwa-standalone .mobile-nav::after {
+  content: "";
+  position: absolute;
+  top: 100%;
+  left: 0;
+  right: 0;
+  height: 60px;
+  background: rgba(10, 10, 10, 0.98);
+  pointer-events: none;
+}
+
+html.pwa-standalone .main-content,
+body.pwa-standalone .main-content {
+  padding-bottom: 140px !important;
 }
 
 .mobile-nav-item {

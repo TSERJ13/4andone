@@ -12,6 +12,7 @@ import { AuthModal } from '@/components/auth/AuthModal';
 import { KofiModal } from '@/components/kofi/KofiModal';
 import MobileFullPlayer from './MobileFullPlayer';
 import DesktopFullPlayer from './DesktopFullPlayer';
+import OfflineBanner from './OfflineBanner';
 
 export default function AppLayout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
@@ -82,6 +83,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
 
   return (
     <div className={`app-container ${mounted && isPlayerActive ? 'player-active' : ''}`}>
+      <OfflineBanner />
       <Sidebar />
       <main className="main-content">
         {children}

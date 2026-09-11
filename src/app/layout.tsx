@@ -360,6 +360,14 @@ export default async function RootLayout({
                 // correct, so this can never make a correctly-positioned device
                 // worse than it already is.
                 (function () {
+                  // BUILD_MARKER: bump this literal on every diagnostic
+                  // round. If the badge below ever shows a DIFFERENT marker
+                  // than the one just shipped (or shows nothing at all),
+                  // that alone proves this exact script isn't the one
+                  // executing on the device — i.e. the device is running
+                  // something cached from before this change, regardless of
+                  // what's live on GitHub/Vercel.
+                  var BUILD_MARKER = 'v6-always-on';
                   var debugEl = null;
                   var debugHidden = false;
                   function isStandalone() {
@@ -367,14 +375,49 @@ export default async function RootLayout({
                       || window.matchMedia('(display-mode: standalone)').matches
                       || window.navigator.standalone === true;
                   }
+                  function hardReset() {
+                    try {
+                      if ('caches' in window) {
+                        caches.keys().then(function (keys) {
+                          return Promise.all(keys.map(function (k) { return caches.delete(k); }));
+                        }).finally(function () {
+                          try { localStorage.clear(); } catch (e) {}
+                          window.location.reload();
+                        });
+                      } else {
+                        try { localStorage.clear(); } catch (e) {}
+                        window.location.reload();
+                      }
+                    } catch (e) {
+                      window.location.reload();
+                    }
+                  }
                   function ensureDebug() {
-                    if (debugEl || !isStandalone()) return;
+                    // Now shows in EVERY mode (not just standalone) so a
+                    // plain Safari tab visit can confirm, with zero Home
+                    // Screen re-adding, whether the latest deploy is even
+                    // reaching this device at all. Small and semi-transparent
+                    // so it stays out of the way; tap the label to
+                    // hide/show, tap "RELOAD" to force-clear every cache and
+                    // reload right now.
+                    if (debugEl) return;
                     debugEl = document.createElement('div');
-                    debugEl.setAttribute('style', 'position:fixed;top:8px;right:8px;z-index:99999;background:rgba(255,0,0,.88);color:#fff;font:10px/1.4 monospace;padding:6px 8px;border-radius:6px;white-space:pre;');
-                    debugEl.addEventListener('click', function () {
+                    debugEl.setAttribute('style', 'position:fixed;bottom:8px;left:8px;z-index:99999;background:rgba(200,0,0,.82);color:#fff;font:10px/1.4 monospace;padding:6px 8px;border-radius:6px;white-space:pre;max-width:240px;');
+                    var label = document.createElement('div');
+                    label.addEventListener('click', function () {
                       debugHidden = !debugHidden;
-                      debugEl.style.display = debugHidden ? 'none' : 'block';
+                      label.style.display = debugHidden ? 'none' : 'block';
                     });
+                    var reloadBtn = document.createElement('div');
+                    reloadBtn.textContent = '[ RELOAD & CLEAR CACHE ]';
+                    reloadBtn.setAttribute('style', 'margin-top:4px;padding:3px;background:#fff;color:#c00;text-align:center;border-radius:3px;font-weight:bold;');
+                    reloadBtn.addEventListener('click', function (e) {
+                      e.stopPropagation();
+                      hardReset();
+                    });
+                    debugEl.appendChild(label);
+                    debugEl.appendChild(reloadBtn);
+                    debugEl._label = label;
                     document.body.appendChild(debugEl);
                   }
 
@@ -396,46 +439,55 @@ export default async function RootLayout({
                   // property + calc()), so it cannot be silently defeated by
                   // a stylesheet cascade/specificity issue either.
                   function applyForcedPosition() {
-                    if (!isStandalone()) return;
+                    var nav = document.querySelector('.mobile-nav');
+                    var miniWrap = document.querySelector('.mini-player-outer-wrapper');
+                    var standalone = isStandalone();
+                    var navTop = null, navHeight = null, envBottom = null, vvh = null, vvt = null, realBottom = null;
                     try {
-                      var vvh = window.visualViewport ? window.visualViewport.height : window.innerHeight;
-                      var vvt = window.visualViewport ? window.visualViewport.offsetTop : 0;
-                      var realBottom = vvt + vvh; // true screen bottom, measured from the top:0 origin
-                      var cs = getComputedStyle(document.documentElement);
-                      var envBottom = parseFloat(cs.getPropertyValue('--__probe-safe-bottom')) || 0;
-                      var floorInset = Math.max(envBottom, 20); // guard against env() genuinely resolving to 0
-                      var navHeight = 72 + floorInset;
-                      var navTop = realBottom - navHeight;
+                      if (standalone) {
+                        vvh = window.visualViewport ? window.visualViewport.height : window.innerHeight;
+                        vvt = window.visualViewport ? window.visualViewport.offsetTop : 0;
+                        realBottom = vvt + vvh; // true screen bottom, measured from the top:0 origin
+                        var cs = getComputedStyle(document.documentElement);
+                        envBottom = parseFloat(cs.getPropertyValue('--__probe-safe-bottom')) || 0;
+                        var floorInset = Math.max(envBottom, 20); // guard against env() genuinely resolving to 0
+                        navHeight = 72 + floorInset;
+                        navTop = realBottom - navHeight;
 
-                      var nav = document.querySelector('.mobile-nav');
-                      if (nav) {
-                        nav.style.setProperty('position', 'fixed', 'important');
-                        nav.style.setProperty('top', navTop + 'px', 'important');
-                        nav.style.setProperty('bottom', 'auto', 'important');
-                        nav.style.setProperty('height', navHeight + 'px', 'important');
-                        nav.style.setProperty('padding', '6px 12px ' + (10 + floorInset) + 'px', 'important');
-                      }
+                        if (nav) {
+                          nav.style.setProperty('position', 'fixed', 'important');
+                          nav.style.setProperty('top', navTop + 'px', 'important');
+                          nav.style.setProperty('bottom', 'auto', 'important');
+                          nav.style.setProperty('height', navHeight + 'px', 'important');
+                          nav.style.setProperty('padding', '6px 12px ' + (10 + floorInset) + 'px', 'important');
+                        }
 
-                      var miniWrap = document.querySelector('.mini-player-outer-wrapper');
-                      if (miniWrap) {
-                        var miniHeight = 64; // matches .mini-player's own CSS height
-                        var miniGap = 10;
-                        var miniTop = navTop - miniGap - miniHeight;
-                        miniWrap.style.setProperty('position', 'fixed', 'important');
-                        miniWrap.style.setProperty('top', miniTop + 'px', 'important');
-                        miniWrap.style.setProperty('bottom', 'auto', 'important');
-                      }
-
-                      if (debugEl && !debugHidden) {
-                        debugEl.textContent =
-                          'vvpH: ' + vvh + ' vvpT: ' + vvt + '\\n' +
-                          'realBottom: ' + realBottom + '\\n' +
-                          'env-bottom: ' + envBottom + '\\n' +
-                          'navTop: ' + navTop + ' navH: ' + navHeight + '\\n' +
-                          'navFound: ' + !!nav + ' miniFound: ' + !!miniWrap + '\\n' +
-                          '(tap to hide)';
+                        if (miniWrap) {
+                          var miniHeight = 64; // matches .mini-player's own CSS height
+                          var miniGap = 10;
+                          var miniTop = navTop - miniGap - miniHeight;
+                          miniWrap.style.setProperty('position', 'fixed', 'important');
+                          miniWrap.style.setProperty('top', miniTop + 'px', 'important');
+                          miniWrap.style.setProperty('bottom', 'auto', 'important');
+                        }
                       }
                     } catch (e) {}
+
+                    // Report status regardless of standalone/found state —
+                    // this is the whole point: we need to see "false" and
+                    // "not found" just as clearly as success.
+                    if (debugEl && debugEl._label && !debugHidden) {
+                      debugEl._label.textContent =
+                        'BUILD: ' + BUILD_MARKER + '\\n' +
+                        'standalone: ' + standalone + '\\n' +
+                        'navFound: ' + !!nav + ' miniFound: ' + !!miniWrap + '\\n' +
+                        (standalone
+                          ? ('vvpH: ' + vvh + ' vvpT: ' + vvt + '\\n' +
+                             'env-bottom: ' + envBottom + '\\n' +
+                             'navTop: ' + navTop + ' navH: ' + navHeight)
+                          : '(not standalone — no position forced)') + '\\n' +
+                        '(tap label to hide)';
+                    }
                   }
 
                   function measure() {

@@ -265,8 +265,8 @@ button {
 /* PWA Standalone Mode (Only when saved to Home Screen) */
 @media (display-mode: standalone) {
   .mobile-nav {
-    height: 64px !important;
-    padding: 6px 12px 6px !important;
+    height: 54px !important;
+    padding: 4px 12px 6px !important;
     background: rgba(10, 10, 10, 0.98);
     bottom: 0 !important;
   }
@@ -283,14 +283,14 @@ button {
   }
 
   .main-content {
-    padding-bottom: 150px !important;
+    padding-bottom: 135px !important;
   }
 }
 
 html.pwa-standalone .mobile-nav,
 body.pwa-standalone .mobile-nav {
-  height: 64px !important;
-  padding: 6px 12px 6px !important;
+  height: 54px !important;
+  padding: 4px 12px 6px !important;
   background: rgba(10, 10, 10, 0.98);
   bottom: 0 !important;
 }
@@ -309,7 +309,7 @@ body.pwa-standalone .mobile-nav::after {
 
 html.pwa-standalone .main-content,
 body.pwa-standalone .main-content {
-  padding-bottom: 150px !important;
+  padding-bottom: 135px !important;
 }
 
 .mobile-nav-item {

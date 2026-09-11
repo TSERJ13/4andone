@@ -399,19 +399,12 @@ export const AudioProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         audioCtxRef.current.resume().catch(() => {});
       }
 
-      // Start heartbeat on first interaction
-      if (heartbeatRef.current && heartbeatRef.current.paused) {
-        heartbeatRef.current.play().catch(() => { });
-        // Set to loop and never stop for session persistence
-        heartbeatRef.current.loop = true;
-      }
-
       // Remove listeners once unlocked
       document.removeEventListener('touchstart', unlockAudio);
       document.removeEventListener('mousedown', unlockAudio);
     };
 
-    // PWA Resume Support
+    // PWA Resume Support & Lockscreen Hardware Sync
     const handleVisibilityChange = () => {
       if (document.visibilityState === 'visible') {
         // iOS suspends the AudioContext in the background — resume it or the
@@ -419,9 +412,17 @@ export const AudioProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         if (audioCtxRef.current && audioCtxRef.current.state === 'suspended') {
           audioCtxRef.current.resume().catch(() => {});
         }
-        // App backgrounding/foregrounding can pause heartbeat on some iOS versions
-        if (heartbeatRef.current && heartbeatRef.current.paused && isPlayingRef.current) {
-          heartbeatRef.current.play().catch(() => {});
+
+        // Synchronize React state with actual hardware audio playback state
+        if (nativePlayerRef.current && !isPauseCountdownRef.current) {
+          const isHardwarePlaying = !nativePlayerRef.current.paused && !nativePlayerRef.current.ended;
+          if (isPlayingRef.current !== isHardwarePlaying) {
+            setIsPlaying(isHardwarePlaying);
+            isPlayingRef.current = isHardwarePlaying;
+            if ('mediaSession' in navigator) {
+              navigator.mediaSession.playbackState = isHardwarePlaying ? 'playing' : 'paused';
+            }
+          }
         }
 
         // PAUSE COUNTDOWN CATCH-UP: setInterval is frozen while the screen is off,
@@ -992,9 +993,9 @@ export const AudioProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         }
         playPromiseRef.current = audio.play();
         
-        // Start heartbeat for iOS backgrounding
-        if (heartbeatRef.current) {
-            heartbeatRef.current.play().catch(() => {});
+        // Ensure heartbeat is paused when regular audio is playing
+        if (heartbeatRef.current && !heartbeatRef.current.paused) {
+          heartbeatRef.current.pause();
         }
 
         playPromiseRef.current.catch(e => {
@@ -1028,12 +1029,20 @@ export const AudioProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         navigator.mediaSession.setActionHandler('pause', () => { pauseAudio(); });
         navigator.mediaSession.setActionHandler('previoustrack', () => { playPrevious(); });
         navigator.mediaSession.setActionHandler('nexttrack', () => { playNext(); });
+        navigator.mediaSession.setActionHandler('seekbackward', (details) => {
+          const offset = details?.seekOffset || 10;
+          seekRelative(-offset);
+        });
+        navigator.mediaSession.setActionHandler('seekforward', (details) => {
+          const offset = details?.seekOffset || 10;
+          seekRelative(offset);
+        });
         
         // Seek handlers
         navigator.mediaSession.setActionHandler('seekto', (details) => {
-            if (details.seekTime !== undefined) {
-               seek(details.seekTime);
-            }
+          if (details?.seekTime !== undefined) {
+            seek(details.seekTime);
+          }
         });
       }
 
@@ -1218,25 +1227,32 @@ export const AudioProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   }, [isPlaying, isPauseCountdown, isLoading, duration, isFinalMode, title]);
 
   const playAudio = React.useCallback(async () => {
-    if (!nativePlayerRef.current) return;
+    const audio = nativePlayerRef.current;
+    if (!audio) return;
     try {
-      if (nativePlayerRef.current.ended || (duration > 0 && nativePlayerRef.current.currentTime >= duration)) {
-        nativePlayerRef.current.currentTime = 0;
+      if (audioCtxRef.current && audioCtxRef.current.state === 'suspended') {
+        try { await audioCtxRef.current.resume(); } catch {}
       }
-      playPromiseRef.current = nativePlayerRef.current.play();
+      if (heartbeatRef.current && !heartbeatRef.current.paused) {
+        heartbeatRef.current.pause();
+      }
+      if (audio.ended || (duration > 0 && audio.currentTime >= duration)) {
+        audio.currentTime = 0;
+      }
+      playPromiseRef.current = audio.play();
       await playPromiseRef.current;
       setIsPlaying(true);
       isPlayingRef.current = true;
 
       if ('mediaSession' in navigator) {
         navigator.mediaSession.playbackState = 'playing';
-        const trackDur = nativePlayerRef.current.duration || duration || 0;
+        const trackDur = audio.duration || duration || 0;
         if ((navigator.mediaSession as any).setPositionState && trackDur > 0) {
           try {
             navigator.mediaSession.setPositionState({
               duration: trackDur,
-              playbackRate: nativePlayerRef.current.playbackRate || 1.0,
-              position: Math.min(nativePlayerRef.current.currentTime, trackDur)
+              playbackRate: audio.playbackRate || 1.0,
+              position: Math.min(audio.currentTime, trackDur)
             });
           } catch {}
         }
@@ -1258,24 +1274,27 @@ export const AudioProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   const pauseAudio = React.useCallback(() => {
     if (nativePlayerRef.current) {
       nativePlayerRef.current.pause();
-      if (wakeLockRef.current) {
-        wakeLockRef.current.release().then(() => { wakeLockRef.current = null; }).catch(() => {});
-      }
-      setIsPlaying(false);
-      isPlayingRef.current = false;
+    }
+    if (heartbeatRef.current && !heartbeatRef.current.paused) {
+      heartbeatRef.current.pause();
+    }
+    if (wakeLockRef.current) {
+      wakeLockRef.current.release().then(() => { wakeLockRef.current = null; }).catch(() => {});
+    }
+    setIsPlaying(false);
+    isPlayingRef.current = false;
 
-      if ('mediaSession' in navigator) {
-        navigator.mediaSession.playbackState = 'paused';
-        const trackDur = nativePlayerRef.current.duration || duration || 0;
-        if ((navigator.mediaSession as any).setPositionState && trackDur > 0) {
-          try {
-            navigator.mediaSession.setPositionState({
-              duration: trackDur,
-              playbackRate: nativePlayerRef.current.playbackRate || 1.0,
-              position: Math.min(nativePlayerRef.current.currentTime, trackDur)
-            });
-          } catch {}
-        }
+    if ('mediaSession' in navigator) {
+      navigator.mediaSession.playbackState = 'paused';
+      const trackDur = nativePlayerRef.current?.duration || duration || 0;
+      if ((navigator.mediaSession as any).setPositionState && trackDur > 0 && nativePlayerRef.current) {
+        try {
+          navigator.mediaSession.setPositionState({
+            duration: trackDur,
+            playbackRate: nativePlayerRef.current.playbackRate || 1.0,
+            position: Math.min(nativePlayerRef.current.currentTime, trackDur)
+          });
+        } catch {}
       }
     }
   }, [duration]);
@@ -1336,11 +1355,13 @@ export const AudioProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   }, [duration]);
 
   const seekRelative = React.useCallback((seconds: number) => {
-    if (nativePlayerRef.current && isLoaded) {
-      const newTime = Math.max(0, Math.min(currentTimeRef.current + seconds, duration));
-      seek(newTime);
-    }
-  }, [isLoaded, duration, seek]);
+    const audio = nativePlayerRef.current;
+    if (!audio) return;
+    const trackDur = audio.duration || duration || 0;
+    const cur = audio.currentTime || currentTimeRef.current || 0;
+    const target = Math.max(0, trackDur > 0 ? Math.min(cur + seconds, trackDur) : cur + seconds);
+    seek(target);
+  }, [duration, seek]);
 
   const setVolume = React.useCallback((v: number) => {
     setVolumeState(v);

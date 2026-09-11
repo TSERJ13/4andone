@@ -134,17 +134,14 @@ export default function LibraryPage() {
           </div>
 
           {folders.map((folder) => (
-            <Link 
+            <div 
               key={folder.id} 
-              href={`/library/${folder.id}`} 
+              onClick={() => router.push(`/library/${folder.id}`)} 
               className="collection-card glass"
+              style={{ cursor: 'pointer' }}
             >
-              <div className="card-visual" style={{ 
-                background: `linear-gradient(135deg, ${folder.color}, transparent)`,
-                opacity: 0.1 
-              }} />
-              <div className="card-icon" style={{ color: folder.color }}>
-                <Disc size={24} />
+              <div className="card-icon" style={{ color: folder.color || '#a855f7' }}>
+                <Disc size={26} />
               </div>
               <div className="card-info">
                 <h3>{folder.name}</h3>
@@ -154,7 +151,7 @@ export default function LibraryPage() {
                   !t.tags?.some(tag => tag.toLowerCase() === 'closed' || tag === 'დახურული')
                 ).length} Tracks</p>
               </div>
-            </Link>
+            </div>
           ))}
         </div>
       </section>
@@ -195,14 +192,16 @@ export default function LibraryPage() {
                   <Disc size={18} />
                 </div>
                 <div className="track-info-col">
-                  <div className="flex items-center gap-1.5">
-                    <Marquee 
-                      text={track.title} 
-                      className="track-name" 
-                      isActive={isPlaying && (playingTitle === track.title || playingTitle === track.id)}
-                    />
+                  <div className="track-title-row">
+                    <div className="track-title-marquee-wrapper">
+                      <Marquee 
+                        text={track.title} 
+                        className="track-name" 
+                        isActive={isPlaying && (playingTitle === track.title || playingTitle === track.id)}
+                      />
+                    </div>
                     {downloadedIds.includes(track.id) && (
-                      <span title="Stored on device (ინტერნეტის გარეშე)" style={{ color: '#22c55e', flexShrink: 0, display: 'inline-flex' }}>
+                      <span className="track-downloaded-badge" title="Stored on device (ინტერნეტის გარეშე)">
                         <CheckCircle2 size={13} />
                       </span>
                     )}
@@ -395,7 +394,24 @@ export default function LibraryPage() {
         .tracks-list { display: flex; flex-direction: column; gap: 8px; }
 
         .track-icon-col { display: flex; align-items: center; justify-content: flex-start; }
-        .track-info-col { min-width: 0; overflow: hidden; }
+        .track-info-col { min-width: 0; overflow: hidden; display: flex; flex-direction: column; justify-content: center; }
+        .track-title-row {
+          display: inline-flex;
+          align-items: center;
+          gap: 6px;
+          max-width: 100%;
+        }
+        .track-title-marquee-wrapper {
+          min-width: 0;
+          max-width: fit-content;
+          flex-shrink: 1;
+        }
+        .track-downloaded-badge {
+          color: #22c55e;
+          display: inline-flex;
+          align-items: center;
+          flex-shrink: 0;
+        }
         .track-name { font-weight: 600; font-size: 14.25px; }
         .track-artist { font-size: 12px; opacity: 0.5; margin-top: 2px; }
         

@@ -262,52 +262,41 @@ button {
   }
 }
 
-/* PWA Standalone Mode (Only when saved to Home Screen) */
+/* PWA Standalone Mode (Only when saved to Home Screen)
+   ---------------------------------------------------------------
+   iOS gives the home-indicator inset via env(safe-area-inset-bottom).
+   Instead of shrinking the bar to a fixed 62px and painting a separate
+   ::after rectangle to fake the extra space underneath (which produced
+   a visible seam: the real bar has backdrop-filter/blur + border-top,
+   the ::after filler did not, so it read as "nav floating above a dead
+   gap"), we keep the bar's CONTENT area identical to the Safari version
+   (56px tall: 72 - 6 - 10) and simply GROW the bar's own box by the
+   safe-area inset. The bar's background/blur/border then extend in one
+   continuous surface all the way to the true bottom edge, exactly like
+   a native iOS tab bar, on every device (devices with no home indicator
+   get env()=0 and render pixel-identical to before). */
 @media (display-mode: standalone) {
   .mobile-nav {
-    height: 62px !important;
-    padding: 4px 12px 7px !important;
+    height: calc(72px + env(safe-area-inset-bottom, 0px)) !important;
+    padding: 6px 12px calc(10px + env(safe-area-inset-bottom, 0px)) !important;
     background: rgba(10, 10, 10, 0.98);
-  }
-
-  .mobile-nav::after {
-    content: "";
-    position: absolute;
-    top: 100%;
-    left: 0;
-    right: 0;
-    height: 120px;
-    background: rgba(10, 10, 10, 0.98);
-    pointer-events: none;
   }
 
   .main-content {
-    padding-bottom: 155px !important;
+    padding-bottom: calc(172px + env(safe-area-inset-bottom, 0px)) !important;
   }
 }
 
 html.pwa-standalone .mobile-nav,
 body.pwa-standalone .mobile-nav {
-  height: 62px !important;
-  padding: 4px 12px 7px !important;
+  height: calc(72px + env(safe-area-inset-bottom, 0px)) !important;
+  padding: 6px 12px calc(10px + env(safe-area-inset-bottom, 0px)) !important;
   background: rgba(10, 10, 10, 0.98);
-}
-
-html.pwa-standalone .mobile-nav::after,
-body.pwa-standalone .mobile-nav::after {
-  content: "";
-  position: absolute;
-  top: 100%;
-  left: 0;
-  right: 0;
-  height: 120px;
-  background: rgba(10, 10, 10, 0.98);
-  pointer-events: none;
 }
 
 html.pwa-standalone .main-content,
 body.pwa-standalone .main-content {
-  padding-bottom: 155px !important;
+  padding-bottom: calc(172px + env(safe-area-inset-bottom, 0px)) !important;
 }
 
 .mobile-nav-item {

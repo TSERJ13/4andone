@@ -155,13 +155,13 @@ const MobileMiniPlayer = ({ onExpand }: { onExpand: () => void }) => {
 
         @media (display-mode: standalone) {
           .mini-player-outer-wrapper {
-            bottom: 58px !important;
+            bottom: 74px !important;
           }
         }
 
         :global(html.pwa-standalone) .mini-player-outer-wrapper,
         :global(body.pwa-standalone) .mini-player-outer-wrapper {
-          bottom: 58px !important;
+          bottom: 74px !important;
         }
 
         .mini-player-wrapper {

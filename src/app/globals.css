@@ -202,8 +202,8 @@ button {
     flex: 1;
     width: 100%;
     padding: 24px 16px;
-    /* Space for mini player (64px) + gap (12px) + nav (62px) + home indicator + extra */
-    padding-bottom: calc(62px + env(safe-area-inset-bottom, 0px) + 64px + 24px);
+    /* Space for mini player (64px) + gap (12px) + nav (76px) + home indicator + extra */
+    padding-bottom: calc(76px + env(safe-area-inset-bottom, 0px) + 64px + 24px);
     border-radius: 0;
   }
 
@@ -243,7 +243,7 @@ button {
   bottom: env(safe-area-inset-bottom, 0px);
   left: 0;
   right: 0;
-  height: 62px;
+  height: 76px;
   z-index: 1000;
   grid-template-columns: repeat(4, 1fr);
   align-items: stretch;

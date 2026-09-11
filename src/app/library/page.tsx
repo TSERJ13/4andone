@@ -33,7 +33,6 @@ export default function LibraryPage() {
   const { isAuthenticated, setIsAuthModalOpen } = useAuth();
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
   const [downloadedIds, setDownloadedIds] = useState<string[]>([]);
-  const [viewMode, setViewMode] = useState<'all' | 'downloaded'>('all');
 
   React.useEffect(() => {
     setDownloadedIds(getDownloadedTrackIds());
@@ -95,24 +94,15 @@ export default function LibraryPage() {
           </div>
 
           <div 
-            onClick={() => setViewMode(viewMode === 'downloaded' ? 'all' : 'downloaded')}
+            onClick={() => router.push('/library/downloaded')}
             className="collection-card glass"
-            style={{ 
-              cursor: 'pointer',
-              borderColor: viewMode === 'downloaded' ? '#22c55e' : undefined,
-              boxShadow: viewMode === 'downloaded' ? '0 0 20px rgba(34, 197, 94, 0.25)' : undefined
-            }}
+            style={{ cursor: 'pointer' }}
           >
             <div className="card-icon" style={{ color: '#22c55e' }}>
               <ArrowDownToLine size={26} />
             </div>
             <div className="card-info">
-              <div className="flex items-center gap-2">
-                <h3>Downloaded</h3>
-                {viewMode === 'downloaded' && (
-                  <span className="text-[10px] uppercase font-black px-1.5 py-0.5 rounded bg-[#22c55e]/20 text-[#22c55e]">Active</span>
-                )}
-              </div>
+              <h3>Downloaded</h3>
               <p className="meta text-secondary">
                 {downloadedIds.length} On Device
               </p>
@@ -158,24 +148,20 @@ export default function LibraryPage() {
 
       <section className="library-section">
         <div className="section-header">
-          {viewMode === 'downloaded' ? <ArrowDownToLine size={18} color="#22c55e" /> : <TrendingUp size={18} className="text-secondary" />}
-          <h2>{viewMode === 'downloaded' ? `Downloaded On This Device (${downloadedIds.length})` : 'Recent Practice'}</h2>
+          <TrendingUp size={18} className="text-secondary" />
+          <h2>Recent Practice</h2>
         </div>
         <div className="tracks-list">
           {(() => {
-            const list = viewMode === 'downloaded'
-              ? tracks.filter(t => downloadedIds.includes(t.id))
-              : tracks.filter(t => 
-                  t.style?.toLowerCase() !== 'fitness' && 
-                  !t.tags?.some(tag => tag.toLowerCase() === 'closed' || tag === 'დახურული')
-                ).slice(0, 10);
+            const list = tracks.filter(t => 
+              t.style?.toLowerCase() !== 'fitness' && 
+              !t.tags?.some(tag => tag.toLowerCase() === 'closed' || tag === 'დახურული')
+            ).slice(0, 10);
 
             if (list.length === 0) {
               return (
                 <div className="empty-state p-8 text-center text-secondary">
-                  {viewMode === 'downloaded'
-                    ? 'No downloaded tracks on this device yet. Click the download button (⬇️) on any track to save it offline.'
-                    : 'No practice tracks available.'}
+                  No practice tracks available.
                 </div>
               );
             }

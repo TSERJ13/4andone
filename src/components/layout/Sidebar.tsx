@@ -9,6 +9,7 @@ import {
   Library,
   PlusSquare,
   Heart,
+  ArrowDownToLine,
   Music2,
   Zap,
   Info
@@ -71,9 +72,13 @@ const Sidebar = () => {
 
       <nav className="nav-group" style={{ marginTop: '32px' }}>
         <p className="group-label">Library Highlights</p>
-        <Link href="/library/favorites" className="nav-item">
+        <Link href="/library/favorites" className={`nav-item ${pathname === '/library/favorites' ? 'active' : ''}`}>
           <Heart size={24} className="text-secondary" />
           <span>Liked Songs</span>
+        </Link>
+        <Link href="/library/downloaded" className={`nav-item ${pathname === '/library/downloaded' ? 'active' : ''}`}>
+          <ArrowDownToLine size={24} className="text-secondary" />
+          <span>Downloaded</span>
         </Link>
         <button className="nav-item no-bg" onClick={handleCreatePlaylist} style={{ background: 'none', border: 'none', width: '100%', textAlign: 'left', padding: '12px' }}>
           <PlusSquare size={24} className="text-secondary" />

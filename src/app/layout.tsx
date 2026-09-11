@@ -360,15 +360,6 @@ export default async function RootLayout({
                 // correct, so this can never make a correctly-positioned device
                 // worse than it already is.
                 (function () {
-                  // TEMPORARY diagnostic, remove once the standalone nav gap
-                  // is confirmed fixed. Shows automatically whenever the app
-                  // is running in standalone (Home Screen) mode — NOT gated
-                  // behind a ?navdebug=1 query param, because iOS launches
-                  // the Home Screen icon at the manifest's fixed start_url
-                  // ("/") and never preserves a query string from however you
-                  // got there, so a query-param gate can never actually be
-                  // triggered from the installed app. Tap the badge to
-                  // hide/show it.
                   var debugEl = null;
                   var debugHidden = false;
                   function isStandalone() {
@@ -386,37 +377,92 @@ export default async function RootLayout({
                     });
                     document.body.appendChild(debugEl);
                   }
-                  function measure() {
+
+                  // DECISIVE FIX: stop trusting "position:fixed; bottom:0" at
+                  // all in standalone mode. Every previous attempt (CSS
+                  // env()/height/padding math, the --ios-bottom-gap
+                  // compensation) assumed bottom:0's reference point is
+                  // trustworthy and just needed the right offset added to
+                  // it — but if bottom:0 itself is unreliable on this
+                  // device/iOS build, no CSS value written relative to it
+                  // can ever land correctly, no matter how many times it's
+                  // adjusted. TOP positioning does not have this history of
+                  // problems on iOS. So: measure the real visible screen
+                  // height directly (window.visualViewport), and position
+                  // the nav with "top: measuredHeight - barHeight" instead
+                  // of "bottom: 0" — anchored from the edge that's actually
+                  // reliable. Applied as forced inline !important styles
+                  // directly on the DOM nodes (not via a CSS custom
+                  // property + calc()), so it cannot be silently defeated by
+                  // a stylesheet cascade/specificity issue either.
+                  function applyForcedPosition() {
+                    if (!isStandalone()) return;
                     try {
-                      var ih = window.innerHeight;
-                      var vvh = window.visualViewport ? window.visualViewport.height : ih;
+                      var vvh = window.visualViewport ? window.visualViewport.height : window.innerHeight;
                       var vvt = window.visualViewport ? window.visualViewport.offsetTop : 0;
-                      var gap = ih - (vvh + vvt);
-                      if (!(gap > 0)) gap = 0;
-                      if (gap > 200) gap = 0; // guard against on-screen-keyboard resizes
-                      document.documentElement.style.setProperty('--ios-bottom-gap', gap + 'px');
-                      document.documentElement.style.setProperty('--real-vh', vvh + 'px');
-                      if (isStandalone()) {
-                        ensureDebug();
-                        if (debugEl && !debugHidden) {
-                          var cs = getComputedStyle(document.documentElement);
-                          debugEl.textContent =
-                            'innerH: ' + ih + '\\n' +
-                            'vvpH: ' + vvh + '\\n' +
-                            'gap: ' + gap + '\\n' +
-                            'env-bottom: ' + (cs.getPropertyValue('--__probe-safe-bottom') || 'n/a') + '\\n' +
-                            'standalone: ' + isStandalone() + '\\n' +
-                            '(tap to hide)';
-                        }
+                      var realBottom = vvt + vvh; // true screen bottom, measured from the top:0 origin
+                      var cs = getComputedStyle(document.documentElement);
+                      var envBottom = parseFloat(cs.getPropertyValue('--__probe-safe-bottom')) || 0;
+                      var floorInset = Math.max(envBottom, 20); // guard against env() genuinely resolving to 0
+                      var navHeight = 72 + floorInset;
+                      var navTop = realBottom - navHeight;
+
+                      var nav = document.querySelector('.mobile-nav');
+                      if (nav) {
+                        nav.style.setProperty('position', 'fixed', 'important');
+                        nav.style.setProperty('top', navTop + 'px', 'important');
+                        nav.style.setProperty('bottom', 'auto', 'important');
+                        nav.style.setProperty('height', navHeight + 'px', 'important');
+                        nav.style.setProperty('padding', '6px 12px ' + (10 + floorInset) + 'px', 'important');
+                      }
+
+                      var miniWrap = document.querySelector('.mini-player-outer-wrapper');
+                      if (miniWrap) {
+                        var miniHeight = 64; // matches .mini-player's own CSS height
+                        var miniGap = 10;
+                        var miniTop = navTop - miniGap - miniHeight;
+                        miniWrap.style.setProperty('position', 'fixed', 'important');
+                        miniWrap.style.setProperty('top', miniTop + 'px', 'important');
+                        miniWrap.style.setProperty('bottom', 'auto', 'important');
+                      }
+
+                      if (debugEl && !debugHidden) {
+                        debugEl.textContent =
+                          'vvpH: ' + vvh + ' vvpT: ' + vvt + '\\n' +
+                          'realBottom: ' + realBottom + '\\n' +
+                          'env-bottom: ' + envBottom + '\\n' +
+                          'navTop: ' + navTop + ' navH: ' + navHeight + '\\n' +
+                          'navFound: ' + !!nav + ' miniFound: ' + !!miniWrap + '\\n' +
+                          '(tap to hide)';
                       }
                     } catch (e) {}
                   }
+
+                  function measure() {
+                    ensureDebug();
+                    applyForcedPosition();
+                  }
+
                   measure();
-                  // Standalone-class detection above can race this script on
-                  // first paint; re-check shortly after load in case the
-                  // class gets added a tick later.
+                  // .mobile-nav / .mini-player-outer-wrapper are rendered by
+                  // React client-side, so they don't exist yet when this
+                  // <head> script first runs. Retry on a short schedule
+                  // until they show up, and watch for later re-renders too.
+                  setTimeout(measure, 100);
                   setTimeout(measure, 300);
+                  setTimeout(measure, 800);
                   setTimeout(measure, 1500);
+                  setTimeout(measure, 3000);
+                  if ('MutationObserver' in window) {
+                    var mo = new MutationObserver(measure);
+                    if (document.body) {
+                      mo.observe(document.body, { childList: true, subtree: true });
+                    } else {
+                      document.addEventListener('DOMContentLoaded', function () {
+                        mo.observe(document.body, { childList: true, subtree: true });
+                      });
+                    }
+                  }
                   window.addEventListener('resize', measure);
                   window.addEventListener('orientationchange', measure);
                   if (window.visualViewport) {

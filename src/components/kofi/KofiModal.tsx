@@ -279,14 +279,15 @@ export const KofiModal: React.FC = () => {
         @media (max-width: 640px) {
           .kofi-modal-overlay {
             padding: 8px 6px;
+            padding-bottom: 0;
             align-items: flex-end;
           }
           .kofi-modal-content {
-            height: 95vh;
-            height: 95dvh;
-            max-height: 95dvh;
-            border-radius: 24px 24px 18px 18px;
-            margin-bottom: env(safe-area-inset-bottom, 0);
+            height: calc(95dvh - env(safe-area-inset-top, 0px));
+            max-height: calc(95dvh - env(safe-area-inset-top, 0px));
+            border-radius: 24px 24px 0 0;
+            margin-bottom: 0;
+            padding-bottom: env(safe-area-inset-bottom, 0px);
           }
           .kofi-modal-header {
             padding: 12px 14px;

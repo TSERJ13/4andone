@@ -278,6 +278,12 @@ button {
   .main-content {
     padding-bottom: 200px !important;
   }
+
+  /* Ensure body background covers the home indicator area so no black shows through */
+  body {
+    padding-bottom: env(safe-area-inset-bottom, 0px);
+    background-color: #000000;
+  }
 }
 
 html.pwa-standalone .mobile-nav,

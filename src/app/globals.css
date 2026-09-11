@@ -202,7 +202,7 @@ button {
     flex: 1;
     width: 100%;
     padding: 24px 16px;
-    padding-bottom: 160px;
+    padding-bottom: 175px;
     border-radius: 0;
   }
 
@@ -240,7 +240,7 @@ button {
   bottom: 0;
   left: 0;
   right: 0;
-  height: 66px;
+  height: 82px;
   z-index: 1000;
   grid-template-columns: repeat(4, 1fr);
   align-items: stretch;
@@ -250,7 +250,7 @@ button {
   border-top: 1px solid rgba(255, 255, 255, 0.1);
   border-radius: 0;
   box-shadow: 0 -4px 30px rgba(0, 0, 0, 0.5);
-  padding: 4px 12px 10px;
+  padding: 6px 12px 20px;
 }
 
 @media (max-width: 1024px) {
@@ -264,12 +264,12 @@ button {
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  gap: 3px;
+  gap: 4px;
   color: rgba(255, 255, 255, 0.4);
   transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
   text-decoration: none;
   position: relative;
-  border-radius: 12px;
+  border-radius: 14px;
   z-index: 1;
 }
 
@@ -277,7 +277,7 @@ button {
 .mobile-nav-item::before {
   content: "";
   position: absolute;
-  inset: 1px 6px;
+  inset: 2px 6px;
   background: rgba(255, 255, 255, 0.05);
   border-radius: 12px;
   opacity: 0;
@@ -295,8 +295,8 @@ button {
 
 /* Icon Container - Fixed size for alignment */
 .mobile-nav-item svg {
-  width: 20px;
-  height: 20px;
+  width: 22px;
+  height: 22px;
   transition: all 0.2s ease;
 }
 

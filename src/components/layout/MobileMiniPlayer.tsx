@@ -146,11 +146,21 @@ const MobileMiniPlayer = ({ onExpand }: { onExpand: () => void }) => {
       <style jsx>{`
         .mini-player-outer-wrapper {
           position: fixed;
-          bottom: calc(58px + env(safe-area-inset-bottom, 16px) + 10px);
+          bottom: 82px;
           left: 12px;
           right: 12px;
           z-index: 9990;
           pointer-events: none;
+        }
+
+        @media (display-mode: standalone) {
+          .mini-player-outer-wrapper {
+            bottom: calc(56px + env(safe-area-inset-bottom, 20px) + 10px);
+          }
+        }
+
+        :global(body.pwa-standalone) .mini-player-outer-wrapper {
+          bottom: calc(56px + env(safe-area-inset-bottom, 20px) + 10px);
         }
 
         .mini-player-wrapper {

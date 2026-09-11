@@ -352,17 +352,43 @@ export default async function RootLayout({
                 // cannot see, so a plain "position:fixed; bottom:0" bar still
                 // lands short of the true screen edge no matter how tall it is.
                 // --ios-bottom-gap exposes that measured shortfall so CSS can
-                // shift fixed bottom bars down to compensate. Defaults to 0px
-                // (no-op) whenever visualViewport is unsupported or the gap is
-                // 0, so this can never make a correctly-positioned device worse.
+                // shift fixed bottom bars down to compensate. --real-vh exposes
+                // the actually-visible height so anything sized off 100dvh (the
+                // Ko-fi modal) can be capped to what's really on screen instead
+                // of overflowing past it. Both default to safe no-ops (0px /
+                // 100dvh) whenever visualViewport is unsupported or already
+                // correct, so this can never make a correctly-positioned device
+                // worse than it already is.
                 (function () {
+                  var debugEl = null;
+                  function ensureDebug() {
+                    if (debugEl || !/[?&]navdebug=1/.test(location.search)) return;
+                    debugEl = document.createElement('div');
+                    debugEl.setAttribute('style', 'position:fixed;top:8px;right:8px;z-index:99999;background:rgba(255,0,0,.85);color:#fff;font:10px/1.4 monospace;padding:6px 8px;border-radius:6px;pointer-events:none;white-space:pre;');
+                    document.body.appendChild(debugEl);
+                  }
                   function measure() {
                     try {
-                      if (!window.visualViewport) return;
-                      var gap = window.innerHeight - (window.visualViewport.height + window.visualViewport.offsetTop);
+                      var ih = window.innerHeight;
+                      var vvh = window.visualViewport ? window.visualViewport.height : ih;
+                      var vvt = window.visualViewport ? window.visualViewport.offsetTop : 0;
+                      var gap = ih - (vvh + vvt);
                       if (!(gap > 0)) gap = 0;
                       if (gap > 200) gap = 0; // guard against on-screen-keyboard resizes
                       document.documentElement.style.setProperty('--ios-bottom-gap', gap + 'px');
+                      document.documentElement.style.setProperty('--real-vh', vvh + 'px');
+                      if (/[?&]navdebug=1/.test(location.search)) {
+                        ensureDebug();
+                        if (debugEl) {
+                          var cs = getComputedStyle(document.documentElement);
+                          debugEl.textContent =
+                            'innerH: ' + ih + '\\n' +
+                            'vvpH: ' + vvh + '\\n' +
+                            'gap: ' + gap + '\\n' +
+                            'env-bottom: ' + (cs.getPropertyValue('--__probe-safe-bottom') || 'n/a') + '\\n' +
+                            'standalone: ' + document.documentElement.classList.contains('pwa-standalone');
+                        }
+                      }
                     } catch (e) {}
                   }
                   measure();

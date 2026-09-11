@@ -284,7 +284,20 @@ export const KofiModal: React.FC = () => {
           }
           .kofi-modal-content {
             height: calc(95dvh - env(safe-area-inset-top, 0px));
-            max-height: calc(95dvh - env(safe-area-inset-top, 0px));
+            /*
+              In iOS standalone PWA, 95dvh can resolve to more than what's
+              actually visible (see globals.css comment on --ios-bottom-gap /
+              --real-vh) — the overlay is itself position:fixed and can be
+              subject to the same shrunk-viewport quirk affecting the bottom
+              nav. When content is taller than the overlay actually is,
+              align-items:flex-end pins the bottom in place and the excess
+              spills off the TOP, taking the header/close button with it.
+              --real-vh (measured live in layout.tsx via visualViewport) caps
+              max-height to what's really on screen, so the header can never
+              be pushed out of view. Falls back to 95dvh (today's value) when
+              unmeasured, so this is a pure no-op everywhere it isn't needed.
+            */
+            max-height: min(760px, calc(var(--real-vh, 95dvh) - env(safe-area-inset-top, 0px) - 12px));
             border-radius: 24px 24px 0 0;
             margin-bottom: 0;
             padding-bottom: env(safe-area-inset-bottom, 0px);

@@ -23,6 +23,14 @@
   --accent: #1db954;
   --sidebar-width: 280px;
   --player-height: 90px;
+  /* Read-only probe: lets the debug script in layout.tsx report the ACTUAL
+     computed env(safe-area-inset-bottom) value via getComputedStyle, since
+     JS cannot evaluate env() directly. Not used for layout itself. */
+  --__probe-safe-bottom: env(safe-area-inset-bottom, 0px);
+  /* Set by layout.tsx's inline measurement script at runtime; fall back to
+     0px / 100dvh (today's behavior) until JS runs or on unsupported browsers. */
+  --ios-bottom-gap: 0px;
+  --real-vh: 100dvh;
 }
 
 * {
@@ -262,46 +270,52 @@ button {
   }
 }
 
-/* PWA Standalone Mode - native app style: tall bar fills home indicator with env() padding */
+/* PWA Standalone Mode - native app style: tall bar fills home indicator.
+   ------------------------------------------------------------------
+   Two independent, additive corrections (both proven necessary — neither
+   alone was enough across 20+ prior attempts):
+
+   1) FLOOR, not just env(): several prior attempts assumed env() was
+      simply "unsupported" and used its fallback arg accordingly, but the
+      fallback only fires when the env() function itself is unrecognized —
+      if the browser resolves it to a genuine 0px, the fallback never
+      applies. max(env(safe-area-inset-bottom, 0px), 20px) guarantees at
+      least 20px of reserved bottom padding NO MATTER what env() reports,
+      closing that loophole outright.
+
+   2) --ios-bottom-gap: on some iOS/WKWebView builds the containing block
+      `position:fixed; bottom:0` resolves against is itself shrunk by an
+      internal scroll-view inset that no CSS box property (height,
+      padding, env()) can see or correct — growing the box only pushes
+      its TOP edge up, the bottom edge stays short of the true screen
+      edge. --ios-bottom-gap is measured live via window.visualViewport
+      in layout.tsx's head script and fed in here as a literal downward
+      shift. It defaults to 0px (see :root), so on any device where
+      bottom:0 already lands correctly this is a pure no-op. */
 @media (display-mode: standalone) {
   .mobile-nav {
-    height: auto !important;
-    padding: 8px 12px calc(env(safe-area-inset-bottom, 20px) + 4px) !important;
+    height: calc(72px + max(env(safe-area-inset-bottom, 0px), 20px)) !important;
+    padding: 6px 12px calc(10px + max(env(safe-area-inset-bottom, 0px), 20px)) !important;
     background: rgba(10, 10, 10, 0.98) !important;
-    bottom: 0 !important;
-  }
-
-  .mobile-nav::after {
-    display: none !important;
+    bottom: calc(0px - var(--ios-bottom-gap, 0px)) !important;
   }
 
   .main-content {
-    padding-bottom: 200px !important;
-  }
-
-  /* Ensure body background covers the home indicator area so no black shows through */
-  body {
-    padding-bottom: env(safe-area-inset-bottom, 0px);
-    background-color: #000000;
+    padding-bottom: calc(200px + var(--ios-bottom-gap, 0px)) !important;
   }
 }
 
 html.pwa-standalone .mobile-nav,
 body.pwa-standalone .mobile-nav {
-  height: auto !important;
-  padding: 8px 12px calc(env(safe-area-inset-bottom, 20px) + 4px) !important;
+  height: calc(72px + max(env(safe-area-inset-bottom, 0px), 20px)) !important;
+  padding: 6px 12px calc(10px + max(env(safe-area-inset-bottom, 0px), 20px)) !important;
   background: rgba(10, 10, 10, 0.98) !important;
-  bottom: 0 !important;
-}
-
-html.pwa-standalone .mobile-nav::after,
-body.pwa-standalone .mobile-nav::after {
-  display: none !important;
+  bottom: calc(0px - var(--ios-bottom-gap, 0px)) !important;
 }
 
 html.pwa-standalone .main-content,
 body.pwa-standalone .main-content {
-  padding-bottom: 200px !important;
+  padding-bottom: calc(200px + var(--ios-bottom-gap, 0px)) !important;
 }
 
 .mobile-nav-item {

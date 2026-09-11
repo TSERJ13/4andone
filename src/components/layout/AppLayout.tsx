@@ -44,19 +44,37 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
     }
 
     if (typeof window !== 'undefined' && 'caches' in window) {
-      const CURRENT_VERSION = '4andone-cache-v18';
-      const lastVersion = localStorage.getItem('4andone_pwa_version');
+      const CURRENT_VERSION = '4andone-cache-v19';
+      let lastVersion: string | null = null;
+      try {
+        lastVersion = localStorage.getItem('4andone_pwa_version');
+      } catch (e) {
+        // localStorage inaccessible (private mode / storage disabled) — treat
+        // as "already current" rather than looping forever on every load.
+        lastVersion = CURRENT_VERSION;
+      }
       if (lastVersion !== CURRENT_VERSION) {
-        caches.keys().then((keys) => {
-          return Promise.all(
-            keys.map((key) => {
-              return caches.delete(key);
-            })
-          );
-        }).then(() => {
+        // Record the new version BEFORE attempting the reload. This is the
+        // circuit breaker: once the flag is written, next load's
+        // lastVersion check short-circuits regardless of whether
+        // cache-clearing itself succeeded, so a caches-API failure can
+        // never turn into a reload loop.
+        let flagPersisted = true;
+        try {
           localStorage.setItem('4andone_pwa_version', CURRENT_VERSION);
-          window.location.reload();
-        });
+        } catch (e) {
+          flagPersisted = false;
+        }
+        if (flagPersisted) {
+          caches.keys()
+            .then((keys) => Promise.all(keys.map((key) => caches.delete(key))))
+            .catch(() => {})
+            .then(() => {
+              window.location.reload();
+            });
+        }
+        // If the flag couldn't be persisted, skip the reload entirely
+        // rather than risk repeating it on every subsequent load.
       }
     }
   }, []);

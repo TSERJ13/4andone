@@ -40,3 +40,8 @@ yarn-error.log*
 *.tsbuildinfo
 next-env.d.ts
 .env*.local
+
+# next-pwa / workbox: regenerated fresh on every `next build`, committing
+# them just adds noisy diffs and can look "stale" when browsing the repo
+public/sw.js
+public/workbox-*.js

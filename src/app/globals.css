@@ -262,64 +262,40 @@ button {
   }
 }
 
-/* PWA Standalone Mode - fills home indicator safe area naturally, no extra space */
+/* PWA Standalone Mode - native app style: tall bar fills home indicator with env() padding */
 @media (display-mode: standalone) {
   .mobile-nav {
     height: auto !important;
-    min-height: 64px !important;
-    padding: 6px 12px calc(6px + env(safe-area-inset-bottom, 20px)) !important;
+    padding: 8px 12px calc(env(safe-area-inset-bottom, 20px) + 4px) !important;
     background: rgba(10, 10, 10, 0.98) !important;
     bottom: 0 !important;
   }
 
-  .mobile-nav-item {
-    gap: 4px !important;
-  }
-
-  .mobile-nav-item::before {
-    inset: 2px 4px 4px 4px !important;
-    height: auto !important;
-  }
-
   .mobile-nav::after {
     display: none !important;
-    content: none !important;
   }
 
   .main-content {
-    padding-bottom: calc(80px + env(safe-area-inset-bottom, 20px)) !important;
+    padding-bottom: 200px !important;
   }
 }
 
 html.pwa-standalone .mobile-nav,
 body.pwa-standalone .mobile-nav {
   height: auto !important;
-  min-height: 64px !important;
-  padding: 6px 12px calc(6px + env(safe-area-inset-bottom, 20px)) !important;
+  padding: 8px 12px calc(env(safe-area-inset-bottom, 20px) + 4px) !important;
   background: rgba(10, 10, 10, 0.98) !important;
   bottom: 0 !important;
-}
-
-html.pwa-standalone .mobile-nav-item,
-body.pwa-standalone .mobile-nav-item {
-  gap: 4px !important;
-}
-
-html.pwa-standalone .mobile-nav-item::before,
-body.pwa-standalone .mobile-nav-item::before {
-  inset: 2px 4px 4px 4px !important;
-  height: auto !important;
 }
 
 html.pwa-standalone .mobile-nav::after,
 body.pwa-standalone .mobile-nav::after {
   display: none !important;
-  content: none !important;
 }
 
 html.pwa-standalone .main-content,
 body.pwa-standalone .main-content {
-  padding-bottom: calc(80px + env(safe-area-inset-bottom, 20px)) !important;
+  padding-bottom: 200px !important;
 }
 
 .mobile-nav-item {

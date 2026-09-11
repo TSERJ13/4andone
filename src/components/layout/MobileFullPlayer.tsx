@@ -259,22 +259,16 @@ const MobileFullPlayer = ({ isOpen, onClose }: MobileFullPlayerProps) => {
 
         <div className="mfp-track-meta">
           <div className="mfp-meta-top">
-            <button
-              className={`mfp-meta-btn mfp-final-toggle ${isFinalMode ? 'active-final' : ''}`}
-              onClick={toggleFinalMode}
-              disabled={!!activeMode}
-              title="Final Mode"
-            >
-              <Timer size={28} />
-            </button>
-
             <div className="mfp-text-center">
               <div className="mfp-title-wrapper">
                 <Marquee text={title || ''} speed={30} isActive={isPlaying} className="mfp-title-marquee" />
               </div>
               <p className="mfp-artist truncate">{artist}</p>
             </div>
+          </div>
 
+          <div className="mfp-actions-row">
+            {/* 1. Heart (Favorite) */}
             <button
               className={`mfp-meta-btn mfp-favorite ${tracks.find(t => t.title === title)?.isFavorite ? 'active' : ''}`}
               onClick={() => {
@@ -284,41 +278,36 @@ const MobileFullPlayer = ({ isOpen, onClose }: MobileFullPlayerProps) => {
                 }, 'favorite tracks');
               }}
               title="Favorite"
+              aria-label="Favorite"
             >
-              <Heart size={28} fill={tracks.find(t => t.title === title)?.isFavorite ? "currentColor" : "none"} />
+              <Heart size={28} fill={tracks.find(t => t.title === title)?.isFavorite ? "#ef4444" : "none"} />
             </button>
 
-            {/* Speed Button for Landscape */}
-            <button className="mfp-landscape-speed-btn" onClick={handleToggleSpeed}>
-              <Gauge size={32} />
-            </button>
-          </div>
-
-          <div className="mfp-sub-actions-row">
-            {/* Left: Offline Download */}
-            <div className="mfp-sub-action-btn">
-              <OfflineDownloadButton track={currentTrack} iconSize={18} />
-            </div>
-
-            {/* Center: Speed Tag */}
+            {/* 2. Plus (Add to Playlist) */}
             <button
-              className={`mfp-speed-tag ${bpm !== 100 ? 'active' : ''}`}
-              onClick={handleToggleSpeed}
-            >
-              <Gauge size={14} />
-              <span>{bpm}% BPM</span>
-            </button>
-
-            {/* Right: Add to playlist (+) */}
-            <button
-              className="mfp-sub-action-btn"
+              className="mfp-meta-btn"
               onClick={() => {
                 checkAuthAndExecute(() => setIsAddToPlaylistOpen(true), 'manage playlists');
               }}
               title="Add to Playlist"
               aria-label="Add to Playlist"
             >
-              <Plus size={20} />
+              <Plus size={28} />
+            </button>
+
+            {/* 3. Offline Download */}
+            <div className="mfp-meta-btn" title="Offline Download">
+              <OfflineDownloadButton track={currentTrack} iconSize={28} />
+            </div>
+
+            {/* 4. BPM Changer (Speed) */}
+            <button
+              className={`mfp-meta-btn ${bpm !== 100 ? 'active-speed' : ''}`}
+              onClick={handleToggleSpeed}
+              title="BPM Speed"
+              aria-label="BPM Speed"
+            >
+              <Gauge size={28} />
             </button>
           </div>
         </div>
@@ -485,36 +474,43 @@ const MobileFullPlayer = ({ isOpen, onClose }: MobileFullPlayerProps) => {
           font-weight: inherit;
         }
 
-        .mfp-sub-actions-row {
+        .mfp-actions-row {
           display: flex !important;
           flex-direction: row !important;
           align-items: center !important;
-          justify-content: space-between !important;
+          justify-content: center !important;
+          gap: 28px !important;
           width: 100% !important;
-          padding: 0 16px !important;
-          margin-top: 8px !important;
+          margin-top: 10px !important;
           box-sizing: border-box !important;
         }
 
-        .mfp-sub-action-btn {
-          width: 38px !important;
-          height: 38px !important;
-          border-radius: 50% !important;
-          background: rgba(255, 255, 255, 0.05) !important;
-          border: 1px solid rgba(255, 255, 255, 0.08) !important;
+        .mfp-meta-btn {
+          background: none !important;
+          border: none !important;
+          color: rgba(255, 255, 255, 0.65) !important;
+          cursor: pointer !important;
           display: flex !important;
           align-items: center !important;
           justify-content: center !important;
-          color: rgba(255, 255, 255, 0.75) !important;
-          transition: all 0.2s !important;
-          cursor: pointer !important;
-          flex-shrink: 0 !important;
+          padding: 8px !important;
+          border-radius: 50% !important;
+          transition: all 0.2s ease !important;
+          -webkit-tap-highlight-color: transparent;
         }
 
-        .mfp-sub-action-btn:hover {
-          background: rgba(255, 255, 255, 0.1) !important;
+        .mfp-meta-btn:hover,
+        .mfp-meta-btn:active {
           color: white !important;
-          transform: scale(1.08) !important;
+          transform: scale(1.15) !important;
+        }
+
+        .mfp-meta-btn.mfp-favorite.active {
+          color: #ef4444 !important;
+        }
+
+        .mfp-meta-btn.active-speed {
+          color: var(--accent) !important;
         }
 
         .disc-final-overlay-red {

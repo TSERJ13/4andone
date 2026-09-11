@@ -367,7 +367,7 @@ export default async function RootLayout({
                   // executing on the device — i.e. the device is running
                   // something cached from before this change, regardless of
                   // what's live on GitHub/Vercel.
-                  var BUILD_MARKER = 'v6-always-on';
+                  var BUILD_MARKER = 'v7-body-null-fix';
                   var debugEl = null;
                   var debugHidden = false;
                   function isStandalone() {
@@ -400,6 +400,19 @@ export default async function RootLayout({
                     // so it stays out of the way; tap the label to
                     // hide/show, tap "RELOAD" to force-clear every cache and
                     // reload right now.
+                    //
+                    // ROOT-CAUSE FIX: this script runs in <head>, synchronously
+                    // during HTML parsing — document.body does not exist yet on
+                    // the very first call. appendChild on a null body used to
+                    // throw here, and because that throw happened INSIDE the
+                    // very first synchronous measure() call (before the
+                    // setTimeout/MutationObserver/listener registrations below
+                    // it even ran), it silently killed the entire script forever
+                    // on every load: no retries were ever scheduled, so nothing
+                    // ever ran again no matter what the code said. Guard against
+                    // a missing body instead of throwing — measure() is retried
+                    // on its own schedule, so this simply waits for the next tick.
+                    if (!document.body) return;
                     if (debugEl) return;
                     debugEl = document.createElement('div');
                     debugEl.setAttribute('style', 'position:fixed;bottom:8px;left:8px;z-index:99999;background:rgba(200,0,0,.82);color:#fff;font:10px/1.4 monospace;padding:6px 8px;border-radius:6px;white-space:pre;max-width:240px;');
@@ -491,8 +504,14 @@ export default async function RootLayout({
                   }
 
                   function measure() {
-                    ensureDebug();
-                    applyForcedPosition();
+                    // Each half wrapped independently: if either one throws
+                    // for any reason, the other still runs AND — critically —
+                    // execution still falls through to the setTimeout/
+                    // MutationObserver/listener registrations that follow this
+                    // function's first synchronous call below. Previously an
+                    // uncaught throw here aborted all of that permanently.
+                    try { ensureDebug(); } catch (e) {}
+                    try { applyForcedPosition(); } catch (e) {}
                   }
 
                   measure();

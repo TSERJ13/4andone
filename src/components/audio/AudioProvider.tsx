@@ -276,11 +276,18 @@ export const AudioProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     }
   }, [sessionTracks, isFinalMode, isFitness, fitnessTargetTime, duration, title]);
 
-  // Tab synchronization for audio control
+  // Tab synchronization for audio control.
+  // A unique per-tab ID prevents a tab from pausing itself when it receives
+  // its own broadcast (the original bug: tab posted 'play', then its own
+  // onmessage handler fired and immediately called nativePlayerRef.pause()).
+  const tabIdRef = useRef<string>(`tab_${Math.random().toString(36).slice(2)}`);
+
   useEffect(() => {
     const channel = new BroadcastChannel('audio_control');
     channel.onmessage = (event) => {
-      if (event.data === 'play' && isPlaying) {
+      // Ignore messages sent by ourselves
+      if (event.data?.sender === tabIdRef.current) return;
+      if (event.data?.type === 'play' && isPlaying) {
         if (nativePlayerRef.current) nativePlayerRef.current.pause();
         setIsPlaying(false);
       }
@@ -290,7 +297,7 @@ export const AudioProvider: React.FC<{ children: React.ReactNode }> = ({ childre
 
   const notifyOtherTabs = () => {
     const channel = new BroadcastChannel('audio_control');
-    channel.postMessage('play');
+    channel.postMessage({ type: 'play', sender: tabIdRef.current });
     channel.close();
   };
 
@@ -394,6 +401,13 @@ export const AudioProvider: React.FC<{ children: React.ReactNode }> = ({ childre
 
     // Global "Unlock" for mobile audio + Safari Optimizations
     const unlockAudio = async () => {
+      // iOS 15+: Declare this page as a dedicated audio playback app.
+      // Without this, Safari treats the audio session as 'ambient' and the OS
+      // may auto-pause the tab when the screen locks or another audio source starts.
+      if ('audioSession' in navigator) {
+        try { (navigator as any).audioSession.type = 'playback'; } catch {}
+      }
+
       // Resume the Final-Mode audio context if it exists (iOS suspends it).
       if (audioCtxRef.current && audioCtxRef.current.state === 'suspended') {
         audioCtxRef.current.resume().catch(() => {});
@@ -1230,6 +1244,12 @@ export const AudioProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     const audio = nativePlayerRef.current;
     if (!audio) return;
     try {
+      // iOS 15+: declare this page as a dedicated playback app so the OS
+      // treats it like a music player and does NOT auto-pause on lock-screen.
+      if ('audioSession' in navigator) {
+        try { (navigator as any).audioSession.type = 'playback'; } catch {}
+      }
+
       if (audioCtxRef.current && audioCtxRef.current.state === 'suspended') {
         try { await audioCtxRef.current.resume(); } catch {}
       }
@@ -1239,13 +1259,23 @@ export const AudioProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       if (audio.ended || (duration > 0 && audio.currentTime >= duration)) {
         audio.currentTime = 0;
       }
-      playPromiseRef.current = audio.play();
-      await playPromiseRef.current;
+
+      // CRITICAL FIX: set playbackState = 'playing' SYNCHRONOUSLY — before
+      // awaiting the play promise. iOS/Android OS expects the mediaSession state
+      // to be confirmed synchronously inside the action handler. If we update it
+      // only after await, the OS treats the command as rejected and immediately
+      // sends a 'pause' action back, causing the lockscreen auto-pause.
+      if ('mediaSession' in navigator) {
+        navigator.mediaSession.playbackState = 'playing';
+      }
       setIsPlaying(true);
       isPlayingRef.current = true;
 
+      playPromiseRef.current = audio.play();
+      await playPromiseRef.current;
+
       if ('mediaSession' in navigator) {
-        navigator.mediaSession.playbackState = 'playing';
+        navigator.mediaSession.playbackState = 'playing'; // confirm again after resolved
         const trackDur = audio.duration || duration || 0;
         if ((navigator.mediaSession as any).setPositionState && trackDur > 0) {
           try {
@@ -1265,6 +1295,12 @@ export const AudioProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       }
       notifyOtherTabs();
     } catch (err) {
+      // If play() was rejected (e.g. browser policy), roll back the optimistic state
+      setIsPlaying(false);
+      isPlayingRef.current = false;
+      if ('mediaSession' in navigator) {
+        navigator.mediaSession.playbackState = 'paused';
+      }
       console.warn('[AUDIO-ENGINE] playAudio failed:', err);
     } finally {
       playPromiseRef.current = null;

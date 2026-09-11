@@ -33,6 +33,38 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
     if (isPWA) {
       document.body.classList.add('pwa-standalone');
     }
+
+    // Force service worker update and purge stale cached styles from previous builds
+    if (typeof window !== 'undefined' && 'serviceWorker' in navigator) {
+      navigator.serviceWorker.getRegistrations().then((registrations) => {
+        for (const reg of registrations) {
+          reg.update();
+        }
+      });
+    }
+
+    if (typeof window !== 'undefined' && 'caches' in window) {
+      const CURRENT_VERSION = '4andone-cache-v4';
+      const lastVersion = localStorage.getItem('4andone_pwa_version');
+      if (lastVersion !== CURRENT_VERSION) {
+        caches.keys().then((keys) => {
+          return Promise.all(
+            keys.map((key) => {
+              if (
+                key.includes('static-style-assets') ||
+                key.includes('start-url') ||
+                key.includes('others') ||
+                key.includes('next-data')
+              ) {
+                return caches.delete(key);
+              }
+            })
+          );
+        }).then(() => {
+          localStorage.setItem('4andone_pwa_version', CURRENT_VERSION);
+        });
+      }
+    }
   }, []);
 
   useEffect(() => {

@@ -202,7 +202,7 @@ button {
     flex: 1;
     width: 100%;
     padding: 24px 16px;
-    padding-bottom: 168px;
+    padding-bottom: 175px;
     border-radius: 0;
   }
 
@@ -240,8 +240,8 @@ button {
   bottom: 0;
   left: 0;
   right: 0;
-  /* Grounded to bottom:0 with 74px height so dark background fills all space below */
-  height: 74px;
+  /* Grounded to bottom: 0 with 80px height so dark background fills all space below */
+  height: 80px;
   z-index: 1000;
   grid-template-columns: repeat(4, 1fr);
   align-items: stretch;
@@ -251,8 +251,8 @@ button {
   border-top: 1px solid rgba(255, 255, 255, 0.1);
   border-radius: 0;
   box-shadow: 0 -4px 30px rgba(0, 0, 0, 0.5);
-  /* 17px padding lifts the buttons comfortably while dark background fills the chin to bottom */
-  padding: 5px 12px 17px;
+  /* 23px padding lifts the buttons comfortably above the home indicator while dark background fills the chin */
+  padding: 5px 12px 23px;
 }
 
 @media (max-width: 1024px) {

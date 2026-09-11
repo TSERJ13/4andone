@@ -181,12 +181,13 @@ button {
   .app-container {
     display: flex;
     flex-direction: column;
+    /* Exactly 100vh — no extra height that would cause overflow/jump */
     height: 100vh;
-    /* On iPhones with notch/Dynamic Island, push content below the safe zone */
-    height: calc(100vh + env(safe-area-inset-top));
-    padding-top: env(safe-area-inset-top);
+    /* Push content below iPhone notch / Dynamic Island */
+    padding-top: env(safe-area-inset-top, 0px);
     width: 100vw;
     overflow-x: hidden;
+    overflow-y: hidden;
     gap: 0;
     padding-left: 0;
     padding-right: 0;

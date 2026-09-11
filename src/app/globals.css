@@ -202,7 +202,7 @@ button {
     flex: 1;
     width: 100%;
     padding: 24px 16px;
-    padding-bottom: 160px;
+    padding-bottom: 168px;
     border-radius: 0;
   }
 
@@ -240,19 +240,19 @@ button {
   bottom: 0;
   left: 0;
   right: 0;
-  /* Fixed 68px height: stable across all states, no dynamic safe-area jumps */
-  height: 68px;
+  /* Grounded to bottom:0 with 74px height so dark background fills all space below */
+  height: 74px;
   z-index: 1000;
   grid-template-columns: repeat(4, 1fr);
   align-items: stretch;
-  background: rgba(10, 10, 10, 0.95);
+  background: rgba(10, 10, 10, 0.96);
   backdrop-filter: blur(25px);
   -webkit-backdrop-filter: blur(25px);
   border-top: 1px solid rgba(255, 255, 255, 0.1);
   border-radius: 0;
   box-shadow: 0 -4px 30px rgba(0, 0, 0, 0.5);
-  /* Sits near bottom with 13px padding, safely above the home indicator without touching bezel */
-  padding: 4px 12px 13px;
+  /* 17px padding lifts the buttons comfortably while dark background fills the chin to bottom */
+  padding: 5px 12px 17px;
 }
 
 @media (max-width: 1024px) {

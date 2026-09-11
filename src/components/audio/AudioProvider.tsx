@@ -408,6 +408,15 @@ export const AudioProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         try { (navigator as any).audioSession.type = 'playback'; } catch {}
       }
 
+      // CRITICAL: Start the heartbeat (silent looping WAV) on first user gesture.
+      // The heartbeat keeps the iOS audio session alive while the main audio is
+      // paused. Without it, iOS releases the session after ~30s and the next
+      // lockscreen Play produces silence (audio "plays" but no output).
+      // Must be started inside a user-gesture handler — that's why it's here.
+      if (heartbeatRef.current && heartbeatRef.current.paused) {
+        heartbeatRef.current.play().catch(() => {});
+      }
+
       // Resume the Final-Mode audio context if it exists (iOS suspends it).
       if (audioCtxRef.current && audioCtxRef.current.state === 'suspended') {
         audioCtxRef.current.resume().catch(() => {});
@@ -1253,9 +1262,14 @@ export const AudioProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       if (audioCtxRef.current && audioCtxRef.current.state === 'suspended') {
         try { await audioCtxRef.current.resume(); } catch {}
       }
-      if (heartbeatRef.current && !heartbeatRef.current.paused) {
-        heartbeatRef.current.pause();
+
+      // If the heartbeat (session-keeper) is paused, restart it briefly so iOS
+      // re-opens the audio session before we try to play the main audio.
+      // Without this, calling audio.play() into a released session produces silence.
+      if (heartbeatRef.current && heartbeatRef.current.paused) {
+        try { await heartbeatRef.current.play(); } catch {}
       }
+
       if (audio.ended || (duration > 0 && audio.currentTime >= duration)) {
         audio.currentTime = 0;
       }
@@ -1273,6 +1287,12 @@ export const AudioProvider: React.FC<{ children: React.ReactNode }> = ({ childre
 
       playPromiseRef.current = audio.play();
       await playPromiseRef.current;
+
+      // Main audio is now running — pause the heartbeat so it doesn't
+      // waste CPU/battery. The main element now holds the iOS audio session.
+      if (heartbeatRef.current && !heartbeatRef.current.paused) {
+        heartbeatRef.current.pause();
+      }
 
       if ('mediaSession' in navigator) {
         navigator.mediaSession.playbackState = 'playing'; // confirm again after resolved
@@ -1311,9 +1331,10 @@ export const AudioProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     if (nativePlayerRef.current) {
       nativePlayerRef.current.pause();
     }
-    if (heartbeatRef.current && !heartbeatRef.current.paused) {
-      heartbeatRef.current.pause();
-    }
+    // NOTE: heartbeat is intentionally NOT paused here. The silent looping WAV
+    // must keep running while the main audio is paused so that iOS does not
+    // release the audio session. If both are paused, the OS drops the session
+    // and the next lockscreen Play produces silence.
     if (wakeLockRef.current) {
       wakeLockRef.current.release().then(() => { wakeLockRef.current = null; }).catch(() => {});
     }

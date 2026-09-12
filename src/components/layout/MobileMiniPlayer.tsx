@@ -159,13 +159,15 @@ const MobileMiniPlayer = ({ onExpand }: { onExpand: () => void }) => {
            floating a fixed 10px above the nav's top edge regardless of device. */
         @media (display-mode: standalone) {
           .mini-player-outer-wrapper {
-            bottom: calc(72px + max(env(safe-area-inset-bottom, 0px), 20px) + 10px - var(--ios-bottom-gap, 0px)) !important;
+            bottom: calc(56px + env(safe-area-inset-bottom, 20px) + 10px) !important;
+            top: auto !important;
           }
         }
 
         :global(html.pwa-standalone) .mini-player-outer-wrapper,
         :global(body.pwa-standalone) .mini-player-outer-wrapper {
-          bottom: calc(72px + max(env(safe-area-inset-bottom, 0px), 20px) + 10px - var(--ios-bottom-gap, 0px)) !important;
+          bottom: calc(56px + env(safe-area-inset-bottom, 20px) + 10px) !important;
+          top: auto !important;
         }
 
         .mini-player-wrapper {

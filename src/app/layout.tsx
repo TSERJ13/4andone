@@ -250,7 +250,7 @@ export const metadata: Metadata = {
     description: "Free powerful web music player for Dancesport and Ballroom dancers. Listen to Cha Cha Cha, Samba, Rumba, Paso Doble, Jive, Slow Waltz, Tango, Viennese Waltz, Slow Foxtrot, and Quickstep music with BPM tempo control.",
     images: ["https://4and.one/icon.png"],
   },
-  manifest: "/manifest.json?v=3",
+  manifest: "/manifest.json?v=4",
   icons: {
     icon: [
       { url: "/favicon.ico" },
@@ -278,9 +278,6 @@ export const metadata: Metadata = {
     google: "hmYQzKJ5eZK-N6rFBBDmqMyRCh3UtPeC8kjDeZyg-l4",
   },
   other: {
-    "mobile-web-app-capable": "yes",
-    "apple-mobile-web-app-capable": "yes",
-    "apple-mobile-web-app-status-bar-style": "black-translucent",
     "google-site-verification": "hmYQzKJ5eZK-N6rFBBDmqMyRCh3UtPeC8kjDeZyg-l4"
   }
 };

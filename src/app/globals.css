@@ -235,90 +235,30 @@ button {
   -webkit-text-fill-color: transparent;
 }
 
-/* Mobile Navigation Styles - Browser Mode Default (Safari & Chrome) */
+/* Mobile Navigation Styles */
 .mobile-nav {
   display: none; /* Hide by default for Web/Desktop */
   position: fixed;
   bottom: 0;
   left: 0;
   right: 0;
-  height: 72px;
+  height: calc(64px + env(safe-area-inset-bottom, 24px));
   z-index: 1000;
   grid-template-columns: repeat(4, 1fr);
   align-items: stretch;
-  background: rgba(10, 10, 10, 0.96);
+  background: rgba(10, 10, 10, 0.98);
   backdrop-filter: blur(25px);
   -webkit-backdrop-filter: blur(25px);
   border-top: 1px solid rgba(255, 255, 255, 0.1);
   border-radius: 0;
   box-shadow: 0 -4px 30px rgba(0, 0, 0, 0.5);
-  padding: 6px 12px 10px;
+  padding: 6px 12px calc(8px + env(safe-area-inset-bottom, 24px));
 }
 
 @media (max-width: 1024px) {
   .mobile-nav {
     display: grid; /* Only visible on Mobile viewports */
   }
-}
-
-/* PWA Standalone Mode - native app style: tall bar fills home indicator.
-   ------------------------------------------------------------------
-   Two independent, additive corrections (both proven necessary — neither
-   alone was enough across 20+ prior attempts):
-
-   1) FLOOR, not just env(): several prior attempts assumed env() was
-      simply "unsupported" and used its fallback arg accordingly, but the
-      fallback only fires when the env() function itself is unrecognized —
-      if the browser resolves it to a genuine 0px, the fallback never
-      applies. max(env(safe-area-inset-bottom, 0px), 20px) guarantees at
-      least 20px of reserved bottom padding NO MATTER what env() reports,
-      closing that loophole outright.
-
-   2) --ios-bottom-gap: on some iOS/WKWebView builds the containing block
-      `position:fixed; bottom:0` resolves against is itself shrunk by an
-      internal scroll-view inset that no CSS box property (height,
-      padding, env()) can see or correct — growing the box only pushes
-      its TOP edge up, the bottom edge stays short of the true screen
-      edge. --ios-bottom-gap is measured live via window.visualViewport
-      in layout.tsx's head script and fed in here as a literal downward
-      shift. It defaults to 0px (see :root), so on any device where
-      bottom:0 already lands correctly this is a pure no-op. */
-@media (display-mode: standalone) {
-  .mobile-nav {
-    position: fixed !important;
-    bottom: -55px !important;
-    bottom: calc(0px - max(env(safe-area-inset-bottom, 34px), 50px)) !important;
-    left: 0 !important;
-    right: 0 !important;
-    height: calc(72px + max(env(safe-area-inset-bottom, 34px), 50px)) !important;
-    padding: 6px 12px calc(10px + max(env(safe-area-inset-bottom, 34px), 50px)) !important;
-    background: rgba(10, 10, 10, 0.98) !important;
-    top: auto !important;
-    transform: none !important;
-  }
-
-  .main-content {
-    padding-bottom: 200px !important;
-  }
-}
-
-html.pwa-standalone .mobile-nav,
-body.pwa-standalone .mobile-nav {
-  position: fixed !important;
-  bottom: -55px !important;
-  bottom: calc(0px - max(env(safe-area-inset-bottom, 34px), 50px)) !important;
-  left: 0 !important;
-  right: 0 !important;
-  height: calc(72px + max(env(safe-area-inset-bottom, 34px), 50px)) !important;
-  padding: 6px 12px calc(10px + max(env(safe-area-inset-bottom, 34px), 50px)) !important;
-  background: rgba(10, 10, 10, 0.98) !important;
-  top: auto !important;
-  transform: none !important;
-}
-
-html.pwa-standalone .main-content,
-body.pwa-standalone .main-content {
-  padding-bottom: 200px !important;
 }
 
 .mobile-nav-item {

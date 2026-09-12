@@ -146,28 +146,11 @@ const MobileMiniPlayer = ({ onExpand }: { onExpand: () => void }) => {
       <style jsx>{`
         .mini-player-outer-wrapper {
           position: fixed;
-          bottom: 82px;
+          bottom: calc(64px + env(safe-area-inset-bottom, 24px) + 10px);
           left: 12px;
           right: 12px;
           z-index: 9990;
           pointer-events: none;
-        }
-
-        /* Must track .mobile-nav's own formula exactly (globals.css): the
-           nav's total box height is 72px + max(env(safe-area-inset-bottom),20px),
-           plus the same --ios-bottom-gap correction so the mini player keeps
-           floating a fixed 10px above the nav's top edge regardless of device. */
-        @media (display-mode: standalone) {
-          .mini-player-outer-wrapper {
-            bottom: 82px !important;
-            top: auto !important;
-          }
-        }
-
-        :global(html.pwa-standalone) .mini-player-outer-wrapper,
-        :global(body.pwa-standalone) .mini-player-outer-wrapper {
-          bottom: 82px !important;
-          top: auto !important;
         }
 
         .mini-player-wrapper {

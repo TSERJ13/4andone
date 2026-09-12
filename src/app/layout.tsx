@@ -262,7 +262,6 @@ export const metadata: Metadata = {
     capable: true,
     statusBarStyle: "black-translucent",
     title: "4and.one Music",
-    startupImage: "/icon.png",
   },
   robots: {
     index: true,

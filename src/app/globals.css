@@ -289,21 +289,11 @@ button {
     bottom: 0 !important;
     left: 0 !important;
     right: 0 !important;
-    height: 72px !important;
-    padding: 6px 12px 10px !important;
+    height: 125px !important;
+    padding: 8px 12px 55px !important;
     background: rgba(10, 10, 10, 0.98) !important;
+    transform: translateY(50px) !important;
     top: auto !important;
-  }
-
-  .mobile-nav::after {
-    content: "";
-    position: absolute;
-    top: 100%;
-    left: 0;
-    right: 0;
-    height: 120px;
-    background: rgba(10, 10, 10, 0.98);
-    pointer-events: none;
   }
 
   .main-content {
@@ -317,22 +307,11 @@ body.pwa-standalone .mobile-nav {
   bottom: 0 !important;
   left: 0 !important;
   right: 0 !important;
-  height: 72px !important;
-  padding: 6px 12px 10px !important;
+  height: 125px !important;
+  padding: 8px 12px 55px !important;
   background: rgba(10, 10, 10, 0.98) !important;
+  transform: translateY(50px) !important;
   top: auto !important;
-}
-
-html.pwa-standalone .mobile-nav::after,
-body.pwa-standalone .mobile-nav::after {
-  content: "";
-  position: absolute;
-  top: 100%;
-  left: 0;
-  right: 0;
-  height: 120px;
-  background: rgba(10, 10, 10, 0.98);
-  pointer-events: none;
 }
 
 html.pwa-standalone .main-content,

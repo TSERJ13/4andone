@@ -44,7 +44,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
     }
 
     if (typeof window !== 'undefined' && 'caches' in window) {
-      const CURRENT_VERSION = '4andone-cache-v29';
+      const CURRENT_VERSION = '4andone-cache-v30';
       let lastVersion: string | null = null;
       try {
         lastVersion = localStorage.getItem('4andone_pwa_version');

@@ -262,6 +262,7 @@ export const metadata: Metadata = {
     capable: true,
     statusBarStyle: "black-translucent",
     title: "4and.one Music",
+    startupImage: "/icon.png",
   },
   robots: {
     index: true,
@@ -278,6 +279,9 @@ export const metadata: Metadata = {
     google: "hmYQzKJ5eZK-N6rFBBDmqMyRCh3UtPeC8kjDeZyg-l4",
   },
   other: {
+    "mobile-web-app-capable": "yes",
+    "apple-mobile-web-app-capable": "yes",
+    "apple-mobile-web-app-status-bar-style": "black-translucent",
     "google-site-verification": "hmYQzKJ5eZK-N6rFBBDmqMyRCh3UtPeC8kjDeZyg-l4"
   }
 };
@@ -288,7 +292,6 @@ export const viewport: Viewport = {
   initialScale: 1,
   maximumScale: 1,
   userScalable: false,
-  viewportFit: "cover",
 };
 
 import { StudioProvider } from "@/components/admin/StudioProvider";
@@ -333,43 +336,6 @@ export default async function RootLayout({
         <script
           type="application/ld+json"
           dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLdSchema) }}
-        />
-        <script
-          dangerouslySetInnerHTML={{
-            __html: `
-              try {
-                if (window.navigator.standalone === true || window.matchMedia('(display-mode: standalone)').matches) {
-                  document.documentElement.classList.add('pwa-standalone');
-                }
-                // NOTE: the --ios-bottom-gap visualViewport measurement used to
-                // live here too. Moved to AppLayout.tsx's useEffect instead —
-                // two separate rounds (the debug-badge DOM-node injection, and
-                // this measurement silently reading visualViewport before it
-                // had settled) both showed that a <head> script running
-                // synchronously during HTML parsing is the wrong place for
-                // anything beyond this single classList.add: it runs before
-                // <body> exists, before layout/paint, and before
-                // visualViewport has a real value, and a thrown error here can
-                // silently abort the rest of this script. A React effect in a
-                // mounted client component runs strictly after hydration and
-                // first paint, which is both safe and measures real numbers.
-                if ('caches' in window) {
-                  caches.keys().then(function(names) {
-                    names.forEach(function(name) {
-                      if (name.indexOf('static-style-assets') !== -1 || name.indexOf('workbox-precache') !== -1) {
-                        caches.delete(name);
-                      }
-                    });
-                  });
-                }
-                if ('serviceWorker' in navigator) {
-                  navigator.serviceWorker.getRegistrations().then(function(regs) {
-                    regs.forEach(function(reg) { reg.update(); });
-                  });
-                }
-              } catch (e) {}
-            `,
-          }}
         />
       </head>
       <body className={inter.className} suppressHydrationWarning>

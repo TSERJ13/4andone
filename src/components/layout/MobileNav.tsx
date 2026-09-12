@@ -13,10 +13,10 @@ const MobileNav = ({ onExpand }: { onExpand: () => void }) => {
   if (isAdmin) return null;
 
   const navItems = [
-    { icon: <Home size={24} />, label: 'Home', href: '/' },
-    { icon: <Search size={24} />, label: 'Search', href: '/search' },
-    { icon: <Zap size={24} />, label: 'Finals', href: '/library/finals' },
-    { icon: <Library size={24} />, label: 'Library', href: '/library' },
+    { icon: <Home size={20} />, label: 'Home', href: '/' },
+    { icon: <Search size={20} />, label: 'Search', href: '/search' },
+    { icon: <Zap size={20} />, label: 'Finals', href: '/library/finals' },
+    { icon: <Library size={20} />, label: 'Library', href: '/library' },
   ];
 
   return (

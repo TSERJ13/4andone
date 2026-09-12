@@ -260,12 +260,12 @@ button {
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  gap: 6px; /* Optimized gap */
+  gap: 4px; /* Refined compact gap */
   color: rgba(255, 255, 255, 0.4);
   transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
   text-decoration: none;
   position: relative;
-  border-radius: 16px;
+  border-radius: 14px;
   z-index: 1;
 }
 
@@ -273,16 +273,16 @@ button {
 .mobile-nav-item::before {
   content: "";
   position: absolute;
-  inset: 4px;
+  inset: 6px 10px;
   background: rgba(255, 255, 255, 0.05);
-  border-radius: 14px;
+  border-radius: 12px;
   opacity: 0;
   transition: all 0.3s ease;
   z-index: -1;
 }
 
 .mobile-nav-item span {
-  font-size: 11px;
+  font-size: 10px;
   font-weight: 700;
   text-transform: uppercase;
   letter-spacing: 0.5px;
@@ -290,8 +290,8 @@ button {
 
 /* Icon Container - Fixed size for alignment */
 .mobile-nav-item svg {
-  width: 22px;
-  height: 22px;
+  width: 20px;
+  height: 20px;
   transition: all 0.2s ease;
 }
 

@@ -294,30 +294,30 @@ button {
       bottom:0 already lands correctly this is a pure no-op. */
 @media (display-mode: standalone) {
   .mobile-nav {
-    height: calc(56px + env(safe-area-inset-bottom, 20px)) !important;
-    padding: 6px 12px env(safe-area-inset-bottom, 20px) !important;
+    bottom: calc(-1 * env(safe-area-inset-bottom, 34px)) !important;
+    height: calc(72px + env(safe-area-inset-bottom, 34px)) !important;
+    padding: 6px 12px calc(10px + env(safe-area-inset-bottom, 34px)) !important;
     background: rgba(10, 10, 10, 0.98) !important;
-    bottom: 0 !important;
     top: auto !important;
   }
 
   .main-content {
-    padding-bottom: calc(56px + env(safe-area-inset-bottom, 20px) + 90px) !important;
+    padding-bottom: 200px !important;
   }
 }
 
 html.pwa-standalone .mobile-nav,
 body.pwa-standalone .mobile-nav {
-  height: calc(56px + env(safe-area-inset-bottom, 20px)) !important;
-  padding: 6px 12px env(safe-area-inset-bottom, 20px) !important;
+  bottom: calc(-1 * env(safe-area-inset-bottom, 34px)) !important;
+  height: calc(72px + env(safe-area-inset-bottom, 34px)) !important;
+  padding: 6px 12px calc(10px + env(safe-area-inset-bottom, 34px)) !important;
   background: rgba(10, 10, 10, 0.98) !important;
-  bottom: 0 !important;
   top: auto !important;
 }
 
 html.pwa-standalone .main-content,
 body.pwa-standalone .main-content {
-  padding-bottom: calc(56px + env(safe-area-inset-bottom, 20px) + 90px) !important;
+  padding-bottom: 200px !important;
 }
 
 .mobile-nav-item {

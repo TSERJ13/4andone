@@ -23,14 +23,6 @@
   --accent: #1db954;
   --sidebar-width: 280px;
   --player-height: 90px;
-  /* Read-only probe: lets the debug script in layout.tsx report the ACTUAL
-     computed env(safe-area-inset-bottom) value via getComputedStyle, since
-     JS cannot evaluate env() directly. Not used for layout itself. */
-  --__probe-safe-bottom: env(safe-area-inset-bottom, 0px);
-  /* Set by layout.tsx's inline measurement script at runtime; fall back to
-     0px / 100dvh (today's behavior) until JS runs or on unsupported browsers. */
-  --ios-bottom-gap: 0px;
-  --real-vh: 100dvh;
 }
 
 * {
@@ -42,7 +34,6 @@
 html,
 body {
   height: 100%;
-  height: 100dvh;
   background-color: #000000;
   color: var(--text);
   font-family: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
@@ -194,7 +185,7 @@ button {
     display: flex;
     flex-direction: column;
     height: 100vh;
-    height: 100dvh;
+    height: 100%;
     /* Top safe area: push content below notch / Dynamic Island */
     padding-top: env(safe-area-inset-top, 0px);
     width: 100vw;
@@ -294,11 +285,25 @@ button {
       bottom:0 already lands correctly this is a pure no-op. */
 @media (display-mode: standalone) {
   .mobile-nav {
-    bottom: calc(-1 * env(safe-area-inset-bottom, 34px)) !important;
-    height: calc(72px + env(safe-area-inset-bottom, 34px)) !important;
-    padding: 6px 12px calc(10px + env(safe-area-inset-bottom, 34px)) !important;
+    position: fixed !important;
+    bottom: 0 !important;
+    left: 0 !important;
+    right: 0 !important;
+    height: 72px !important;
+    padding: 6px 12px 10px !important;
     background: rgba(10, 10, 10, 0.98) !important;
     top: auto !important;
+  }
+
+  .mobile-nav::after {
+    content: "";
+    position: absolute;
+    top: 100%;
+    left: 0;
+    right: 0;
+    height: 120px;
+    background: rgba(10, 10, 10, 0.98);
+    pointer-events: none;
   }
 
   .main-content {
@@ -308,11 +313,26 @@ button {
 
 html.pwa-standalone .mobile-nav,
 body.pwa-standalone .mobile-nav {
-  bottom: calc(-1 * env(safe-area-inset-bottom, 34px)) !important;
-  height: calc(72px + env(safe-area-inset-bottom, 34px)) !important;
-  padding: 6px 12px calc(10px + env(safe-area-inset-bottom, 34px)) !important;
+  position: fixed !important;
+  bottom: 0 !important;
+  left: 0 !important;
+  right: 0 !important;
+  height: 72px !important;
+  padding: 6px 12px 10px !important;
   background: rgba(10, 10, 10, 0.98) !important;
   top: auto !important;
+}
+
+html.pwa-standalone .mobile-nav::after,
+body.pwa-standalone .mobile-nav::after {
+  content: "";
+  position: absolute;
+  top: 100%;
+  left: 0;
+  right: 0;
+  height: 120px;
+  background: rgba(10, 10, 10, 0.98);
+  pointer-events: none;
 }
 
 html.pwa-standalone .main-content,

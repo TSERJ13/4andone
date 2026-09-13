@@ -176,20 +176,30 @@ export const TopSocialButtons: React.FC<TopSocialButtonsProps> = ({ className = 
         }
 
         @media (max-width: 440px) {
-          .pill-text {
-            display: none;
+          .top-social-buttons-cluster {
+            gap: 4px;
           }
           .social-pill-btn {
-            padding: 0 10px;
-            width: 34px;
-            justify-content: center;
-          }
-          :global(.kofi-pill-btn .kofi-text) {
-            display: none;
+            padding: 0 8px;
+            height: 30px;
+            font-size: 11px;
+            gap: 4px;
           }
           :global(.kofi-pill-btn) {
             padding: 0 10px !important;
-            width: 34px;
+            height: 30px !important;
+            font-size: 11px !important;
+            gap: 5px !important;
+          }
+          /* On very narrow screens, keep full label for Kofi, icon-only or shortened for links */
+          .social-pill-btn.tg-pill .pill-text,
+          .social-pill-btn.yt-pill .pill-text {
+            display: none;
+          }
+          .social-pill-btn.tg-pill,
+          .social-pill-btn.yt-pill {
+            padding: 0;
+            width: 30px;
             justify-content: center;
           }
         }

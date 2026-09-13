@@ -105,7 +105,7 @@ export const ContactModal: React.FC = () => {
             </div>
             <div className="contact-title-box">
               <h3>Contact 4and.one</h3>
-              <p>Direct Message to 4andonestudio@gmail.com</p>
+              <p>Send a note to the team</p>
             </div>
           </div>
           <button
@@ -207,9 +207,7 @@ export const ContactModal: React.FC = () => {
               )}
 
               <div className="contact-footer">
-                <div className="direct-email-hint">
-                  To: <a href="mailto:4andonestudio@gmail.com">4andonestudio@gmail.com</a>
-                </div>
+                <div />
                 <button
                   type="submit"
                   disabled={isSubmitting || !message.trim() || !email.trim()}
@@ -569,15 +567,36 @@ export const ContactModal: React.FC = () => {
         @media (max-width: 640px) {
           .contact-modal-overlay {
             padding: 8px 6px;
+            padding-top: max(env(safe-area-inset-top, 0px), 16px);
+            padding-bottom: 0;
             align-items: flex-end;
           }
           .contact-modal-content {
+            max-height: calc(100dvh - env(safe-area-inset-top, 0px) - 24px);
             border-radius: 24px 24px 0 0;
+            margin-bottom: 0;
             padding-bottom: max(env(safe-area-inset-bottom, 0px), 16px);
+            overflow-y: auto;
+            -webkit-overflow-scrolling: touch;
+          }
+          .contact-modal-header {
+            padding: 12px 14px;
+          }
+          .contact-modal-body {
+            padding: 16px 16px;
           }
           .form-row {
             flex-direction: column;
             gap: 12px;
+          }
+        }
+
+        @media (max-height: 700px) {
+          .contact-modal-overlay {
+            padding: 4px;
+          }
+          .contact-modal-content {
+            border-radius: 16px;
           }
         }
       `}</style>

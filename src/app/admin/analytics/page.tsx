@@ -3,7 +3,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import {
   BarChart3, TrendingUp, Users, Music, Folder, Flag, Calendar,
-  RefreshCw, Globe, Clock, Radio, Share2, Eye, ExternalLink, Wifi, Coffee, MessageSquare
+  RefreshCw, Globe, Clock, Radio, Share2, Eye, ExternalLink, Wifi, Coffee, MessageSquare, Mail
 } from 'lucide-react';
 import { useStudio } from '@/components/admin/StudioProvider';
 import { supabase } from '@/utils/supabase';
@@ -211,6 +211,27 @@ export default function AdminAnalytics() {
   const [contactMessages, setContactMessages] = useState<ContactMessageRecord[]>([]);
   const [loading, setLoading] = useState(true);
   const [tracksLoading, setTracksLoading] = useState(false);
+  const [isSendingReport, setIsSendingReport] = useState(false);
+  const [reportFeedback, setReportFeedback] = useState<string | null>(null);
+
+  const handleSendReport = async () => {
+    setIsSendingReport(true);
+    setReportFeedback(null);
+    try {
+      const res = await fetch('/api/cron/daily-report', { method: 'POST' });
+      const data = await res.json();
+      if (data.success) {
+        setReportFeedback(`Report dispatched to 4andonestudio@gmail.com! (Provider: ${data.mailer?.provider || 'ok'})`);
+      } else {
+        setReportFeedback(`Failed: ${data.error || 'Unknown error'}`);
+      }
+    } catch (err: any) {
+      setReportFeedback(`Error: ${err.message}`);
+    } finally {
+      setIsSendingReport(false);
+      setTimeout(() => setReportFeedback(null), 6000);
+    }
+  };
 
   const tracksRef = React.useRef(tracks);
   React.useEffect(() => { tracksRef.current = tracks; }, [tracks]);
@@ -542,10 +563,25 @@ export default function AdminAnalytics() {
         <div>
           <h2>Platform Insights</h2>
           <p className="text-muted">Live visitor stats, audience & library data.</p>
+          {reportFeedback && (
+            <div style={{ fontSize: '12.5px', color: '#1db954', marginTop: '4px', fontWeight: 700 }}>
+              ✓ {reportFeedback}
+            </div>
+          )}
         </div>
-        <button className="btn-refresh glass" onClick={fetch_}>
-          <RefreshCw size={15} className={loading ? 'spin' : ''} /> Refresh
-        </button>
+        <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+          <button 
+            className="btn-refresh glass" 
+            onClick={handleSendReport} 
+            disabled={isSendingReport}
+            title="Dispatch daily/monthly analytics report to 4andonestudio@gmail.com now"
+          >
+            <Mail size={15} /> {isSendingReport ? 'Sending...' : 'Email Report'}
+          </button>
+          <button className="btn-refresh glass" onClick={fetch_}>
+            <RefreshCw size={15} className={loading ? 'spin' : ''} /> Refresh
+          </button>
+        </div>
       </div>
 
       {/* Online Now Panel — collapsible */}

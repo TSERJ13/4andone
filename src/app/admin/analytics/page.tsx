@@ -3,7 +3,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import {
   BarChart3, TrendingUp, Users, Music, Folder, Flag, Calendar,
-  RefreshCw, Globe, Clock, Radio, Share2, Eye, ExternalLink, Wifi
+  RefreshCw, Globe, Clock, Radio, Share2, Eye, ExternalLink, Wifi, Coffee
 } from 'lucide-react';
 import { useStudio } from '@/components/admin/StudioProvider';
 import { supabase } from '@/utils/supabase';
@@ -12,6 +12,14 @@ type Period = 'day' | 'week' | 'month' | 'year';
 
 interface VisitBucket { label: string; count: number; }
 interface CountryStat { country_code: string; country_name: string; count: number; }
+interface KofiClickRecord {
+  id: string;
+  created_at: string;
+  source: string;
+  country_code: string;
+  user_ref: string | null;
+  session_id: string | null;
+}
 interface TelegramUser {
   telegram_id: number;
   first_name: string;
@@ -190,6 +198,8 @@ export default function AdminAnalytics() {
   const [styleStats, setStyleStats] = useState<{ style: string; count: number }[]>([]);
   const [referrerStats, setReferrerStats] = useState<ReferrerStat[]>([]);
   const [liveUsers, setLiveUsers] = useState<{ session_id: string; name: string | null; is_telegram: boolean }[]>([]);
+  const [kofiClicks, setKofiClicks] = useState<KofiClickRecord[]>([]);
+  const [kofiPeriod, setKofiPeriod] = useState<'today' | '7d' | '30d' | 'all'>('all');
   const [loading, setLoading] = useState(true);
   const [tracksLoading, setTracksLoading] = useState(false);
 
@@ -215,7 +225,7 @@ export default function AdminAnalytics() {
 
       const [
         metricsRes, countryRes, recentRes, tgData,
-        topTracksRes, styleRes, referrerRes,
+        topTracksRes, styleRes, referrerRes, kofiRes,
       ] = await Promise.all([
         supabase.rpc('get_platform_metrics', {
           today_start: todayStart.toISOString(),
@@ -236,6 +246,7 @@ export default function AdminAnalytics() {
         Promise.resolve(supabase.rpc('get_referrer_stats', {
           start_time: monthStart.toISOString(),
         })).catch(() => ({ data: null })),
+        supabase.from('track_plays').select('id, created_at, style, bpm, user_ref, session_id').eq('event_type', 'kofi_click').order('created_at', { ascending: false }),
       ]);
 
       // --- Client-side traffic chart (avoids UTC timezone issues) ---
@@ -343,6 +354,18 @@ export default function AdminAnalytics() {
       }
 
       setTgUsers((tgData.data || []) as TelegramUser[]);
+
+      // --- Buy Me Coffee Clicks ---
+      if (kofiRes?.data) {
+        setKofiClicks(kofiRes.data.map((r: { id: string; created_at: string; style: string | null; bpm: string | null; user_ref: string | null; session_id: string | null }) => ({
+          id: r.id,
+          created_at: r.created_at,
+          source: r.style || 'pill',
+          country_code: r.bpm || '',
+          user_ref: r.user_ref,
+          session_id: r.session_id,
+        })));
+      }
     } catch (e) {
       console.error('Analytics error:', e);
     } finally {
@@ -458,6 +481,25 @@ export default function AdminAnalytics() {
   const maxReferrer = Math.max(...referrerStats.map(r => r.visit_count), 1);
   const maxStyle = Math.max(...styleStats.map(s => s.count), 1);
 
+  // Buy Me Coffee Tracking Computations
+  const now = new Date();
+  const todayStart = new Date(now); todayStart.setHours(0, 0, 0, 0);
+  const weekStart = new Date(now); weekStart.setDate(now.getDate() - 6); weekStart.setHours(0, 0, 0, 0);
+  const monthStart = new Date(now); monthStart.setDate(1); monthStart.setHours(0, 0, 0, 0);
+
+  const totalKofiClicks = kofiClicks.length;
+  const kofiToday = kofiClicks.filter(c => new Date(c.created_at) >= todayStart).length;
+  const kofiWeek = kofiClicks.filter(c => new Date(c.created_at) >= weekStart).length;
+  const kofiMonth = kofiClicks.filter(c => new Date(c.created_at) >= monthStart).length;
+  const uniqueKofiClickers = new Set(kofiClicks.map(c => c.user_ref || c.session_id).filter(Boolean)).size;
+
+  const filteredKofi = kofiClicks.filter(c => {
+    if (kofiPeriod === 'today') return new Date(c.created_at) >= todayStart;
+    if (kofiPeriod === '7d') return new Date(c.created_at) >= weekStart;
+    if (kofiPeriod === '30d') return new Date(c.created_at) >= monthStart;
+    return true;
+  });
+
   return (
     <div className="admin-analytics animate-in">
 
@@ -522,6 +564,7 @@ export default function AdminAnalytics() {
           { label: 'This Year', value: totals.year, sub: `${uniqueTotals.year} unique`, icon: <BarChart3 size={16}/> },
           { label: 'Avg Session', value: fmtDuration(avgDuration), icon: <Clock size={16}/>, isStr: true },
           { label: 'TG Users', value: tgUsers.length, icon: <Users size={16}/> },
+          { label: 'Coffee Clicks', value: totalKofiClicks, sub: `${uniqueKofiClickers} unique · ${kofiToday} today`, icon: <Coffee size={16} style={{ color: '#f59e0b' }}/> },
         ] as { label: string; value: string | number; sub?: string; icon: React.ReactNode; isStr?: boolean }[]).map(item => (
           <div key={item.label} className="sum-card glass">
             <div className="sum-icon">{item.icon}</div>
@@ -562,6 +605,128 @@ export default function AdminAnalytics() {
             </div>
           </div>
         )}
+      </div>
+
+      {/* Buy Me Coffee Tracking Section */}
+      <div className="coffee-card glass" id="coffee-tracking">
+        <div className="coffee-head">
+          <div className="coffee-title-row">
+            <div className="coffee-icon-pill">
+              <Coffee size={20} />
+            </div>
+            <div>
+              <div className="coffee-title-badges">
+                <h3>Buy Me Coffee Tracking</h3>
+                <span className="coffee-count-pill">{totalKofiClicks} clicks</span>
+              </div>
+              <p className="coffee-subtitle">Visitor interactions with the Buy Me Coffee support button</p>
+            </div>
+          </div>
+
+          <div className="period-tabs">
+            {(['today', '7d', '30d', 'all'] as const).map(p => (
+              <button
+                key={p}
+                className={`ptab ${kofiPeriod === p ? 'active' : ''}`}
+                onClick={() => setKofiPeriod(p)}
+              >
+                {p === 'today' ? 'Today' : p === '7d' ? '7 Days' : p === '30d' ? '30 Days' : 'All Time'}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        {/* 4 Metrics Strip */}
+        <div className="coffee-metrics-strip">
+          <div className="coffee-stat-box">
+            <span className="c-stat-label">Clicks ({kofiPeriod === 'today' ? 'Today' : kofiPeriod === '7d' ? '7D' : kofiPeriod === '30d' ? '30D' : 'All'})</span>
+            <span className="c-stat-val text-amber">{filteredKofi.length}</span>
+            <span className="c-stat-sub">{totalKofiClicks} all-time</span>
+          </div>
+          <div className="coffee-stat-box">
+            <span className="c-stat-label">Unique Supporters</span>
+            <span className="c-stat-val">{uniqueKofiClickers}</span>
+            <span className="c-stat-sub">Distinct devices / users</span>
+          </div>
+          <div className="coffee-stat-box">
+            <span className="c-stat-label">Today&apos;s Activity</span>
+            <span className="c-stat-val">{kofiToday}</span>
+            <span className="c-stat-sub">{kofiWeek} this week</span>
+          </div>
+          <div className="coffee-stat-box">
+            <span className="c-stat-label">Click Rate</span>
+            <span className="c-stat-val">
+              {uniqueTotals.month > 0 ? ((uniqueKofiClickers / uniqueTotals.month) * 100).toFixed(1) + '%' : '—'}
+            </span>
+            <span className="c-stat-sub">of 30-day visitors</span>
+          </div>
+        </div>
+
+        {/* Click Log Table / Feed */}
+        <div className="coffee-log-section">
+          <div className="coffee-log-header">
+            <h4>Recent Click Log</h4>
+            <span className="coffee-log-count">{filteredKofi.length} events</span>
+          </div>
+
+          {loading ? (
+            <div className="panel-empty">Loading coffee clicks...</div>
+          ) : filteredKofi.length === 0 ? (
+            <div className="coffee-empty">
+              <Coffee size={28} className="coffee-empty-icon" />
+              <span>No clicks recorded {kofiPeriod !== 'all' ? 'for this period' : 'yet'}.</span>
+              <span className="coffee-empty-sub">Clicks will appear here live when users tap Buy Me Coffee.</span>
+            </div>
+          ) : (
+            <div className="coffee-list">
+              {filteredKofi.slice(0, 15).map(c => {
+                const tgUser = tgUsers.find(u => u.telegram_id.toString() === c.user_ref);
+                const isTelegram = !!tgUser;
+                const sourceBadge = c.source === 'modal_external'
+                  ? { label: 'External Tab', color: '#f59e0b', bg: 'rgba(245,158,11,0.12)' }
+                  : c.source === 'sidebar'
+                  ? { label: 'Sidebar', color: '#3b82f6', bg: 'rgba(59,130,246,0.12)' }
+                  : { label: 'Header Pill', color: '#1db954', bg: 'rgba(29,185,84,0.12)' };
+
+                return (
+                  <div key={c.id} className="coffee-row">
+                    <div className="coffee-row-left">
+                      <div className="coffee-row-avatar" style={{ background: isTelegram ? '#1db954' : 'rgba(245,158,11,0.2)', color: isTelegram ? '#000' : '#f59e0b' }}>
+                        {isTelegram ? (tgUser!.first_name?.charAt(0) || 'T') : '☕'}
+                      </div>
+                      <div className="coffee-row-info">
+                        <div className="coffee-row-name">
+                          {isTelegram ? (
+                            <>
+                              <span>{tgUser!.first_name}{tgUser!.last_name ? ' ' + tgUser!.last_name : ''}</span>
+                              {tgUser!.username && <span className="act-handle">@{tgUser!.username}</span>}
+                            </>
+                          ) : (
+                            <span className="act-anon">Web Visitor</span>
+                          )}
+                        </div>
+                        <div className="coffee-row-meta">
+                          <span>{getFlag(c.country_code)}</span>
+                          <span>{c.country_code || 'Global'}</span>
+                          <span className="act-dot">·</span>
+                          <span>{timeAgo(c.created_at)}</span>
+                          <span className="act-dot">·</span>
+                          <span className="text-zinc-500">{new Date(c.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="coffee-row-right">
+                      <span className="coffee-tag" style={{ color: sourceBadge.color, background: sourceBadge.bg }}>
+                        {sourceBadge.label}
+                      </span>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </div>
       </div>
 
       {/* Recent Visitor Activity + Telegram Users */}
@@ -890,12 +1055,50 @@ export default function AdminAnalytics() {
         .live-empty { font-size:12px; color:#71717a; font-style:italic; }
 
         /* Summary */
-        .summary-strip { display:grid; grid-template-columns:repeat(6,1fr); gap:12px; }
+        .summary-strip { display:grid; grid-template-columns:repeat(7,1fr); gap:12px; }
         .sum-card { padding:16px; border-radius:16px; display:flex; flex-direction:column; gap:6px; border:1px solid rgba(255,255,255,0.05); }
         .sum-icon { width:28px; height:28px; display:flex; align-items:center; justify-content:center; color:#1db954; }
         .sum-val { font-size:24px; font-weight:900; letter-spacing:-1px; line-height:1; }
         .sum-label { font-size:10px; font-weight:800; color:#52525b; text-transform:uppercase; letter-spacing:0.5px; }
         .sum-sub { font-size:11px; font-weight:700; color:#1db954; margin-top:2px; }
+
+        /* Buy Me Coffee Tracking Card */
+        .coffee-card { padding:24px 28px; border-radius:24px; border:1px solid rgba(245,158,11,0.22); background:linear-gradient(135deg, rgba(245,158,11,0.04), rgba(24,24,27,0.7)); }
+        .coffee-head { display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:14px; margin-bottom:22px; }
+        .coffee-title-row { display:flex; align-items:center; gap:14px; }
+        .coffee-icon-pill { width:42px; height:42px; border-radius:12px; background:rgba(245,158,11,0.15); border:1px solid rgba(245,158,11,0.3); display:flex; align-items:center; justify-content:center; color:#f59e0b; flex-shrink:0; }
+        .coffee-title-badges { display:flex; align-items:center; gap:10px; flex-wrap:wrap; }
+        .coffee-title-badges h3 { font-size:17px; font-weight:800; color:#fff; margin:0; }
+        .coffee-count-pill { font-size:11px; font-weight:800; padding:2px 9px; border-radius:20px; background:rgba(245,158,11,0.15); color:#f59e0b; border:1px solid rgba(245,158,11,0.3); }
+        .coffee-subtitle { font-size:12px; color:#71717a; margin-top:2px; }
+        
+        .coffee-metrics-strip { display:grid; grid-template-columns:repeat(4,1fr); gap:12px; margin-bottom:22px; }
+        .coffee-stat-box { padding:14px 16px; border-radius:16px; background:rgba(255,255,255,0.03); border:1px solid rgba(255,255,255,0.06); display:flex; flex-direction:column; gap:4px; }
+        .c-stat-label { font-size:10px; font-weight:800; color:#71717a; text-transform:uppercase; letter-spacing:0.5px; }
+        .c-stat-val { font-size:24px; font-weight:900; letter-spacing:-1px; line-height:1.1; color:#fff; }
+        .text-amber { color:#f59e0b !important; }
+        .c-stat-sub { font-size:11px; font-weight:600; color:#a1a1aa; }
+
+        .coffee-log-section { border-top:1px solid rgba(255,255,255,0.06); padding-top:18px; }
+        .coffee-log-header { display:flex; align-items:center; justify-content:space-between; margin-bottom:12px; }
+        .coffee-log-header h4 { font-size:13px; font-weight:800; color:#d4d4d8; text-transform:uppercase; letter-spacing:0.5px; }
+        .coffee-log-count { font-size:11px; color:#71717a; font-weight:600; }
+        
+        .coffee-list { display:flex; flex-direction:column; max-height:340px; overflow-y:auto; gap:4px; }
+        .coffee-list::-webkit-scrollbar { width:5px; }
+        .coffee-list::-webkit-scrollbar-thumb { background:rgba(255,255,255,0.12); border-radius:3px; }
+        .coffee-row { display:flex; align-items:center; justify-content:space-between; padding:9px 12px; border-radius:12px; background:rgba(255,255,255,0.02); transition:background 0.15s; }
+        .coffee-row:hover { background:rgba(255,255,255,0.05); }
+        .coffee-row-left { display:flex; align-items:center; gap:10px; }
+        .coffee-row-avatar { width:32px; height:32px; border-radius:50%; display:flex; align-items:center; justify-content:center; font-weight:800; font-size:13px; flex-shrink:0; }
+        .coffee-row-info { display:flex; flex-direction:column; gap:1px; }
+        .coffee-row-name { font-size:13px; font-weight:700; color:#f4f4f5; display:flex; align-items:center; gap:6px; }
+        .coffee-row-meta { font-size:11px; color:#71717a; display:flex; align-items:center; gap:5px; }
+        .coffee-tag { font-size:10px; font-weight:800; padding:3px 9px; border-radius:20px; text-transform:uppercase; letter-spacing:0.3px; }
+
+        .coffee-empty { display:flex; flex-direction:column; align-items:center; justify-content:center; gap:6px; padding:32px 16px; color:#71717a; text-align:center; }
+        .coffee-empty-icon { color:#52525b; }
+        .coffee-empty-sub { font-size:11px; color:#52525b; }
 
         /* Chart */
         .chart-card { padding:28px; border-radius:24px; }
@@ -1006,12 +1209,19 @@ export default function AdminAnalytics() {
         .animate-in { animation:animIn 0.4s cubic-bezier(0.4,0,0.2,1); }
         @keyframes animIn { from{opacity:0;transform:translateY(8px)} to{opacity:1;transform:translateY(0)} }
 
-        @media (max-width:1200px) { .summary-strip { grid-template-columns:repeat(3,1fr); } }
-        @media (max-width:900px) { .two-col { grid-template-columns:1fr; } .lib-row { grid-template-columns:1fr 1fr; } }
+        @media (max-width:1200px) { .summary-strip { grid-template-columns:repeat(4,1fr); } }
+        @media (max-width:900px) {
+          .summary-strip { grid-template-columns:repeat(3,1fr); }
+          .two-col { grid-template-columns:1fr; }
+          .lib-row { grid-template-columns:1fr 1fr; }
+          .coffee-metrics-strip { grid-template-columns:repeat(2,1fr); }
+        }
         @media (max-width:640px) {
           .summary-strip { grid-template-columns:repeat(2,1fr); gap:8px; }
           .sum-val { font-size:20px; }
           .chart-card { padding:16px; }
+          .coffee-card { padding:16px; }
+          .coffee-metrics-strip { grid-template-columns:repeat(2,1fr); gap:8px; }
           .bars-row { height:160px; }
           .lib-row { grid-template-columns:1fr; }
           .country-left { min-width:110px; }

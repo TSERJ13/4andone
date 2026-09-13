@@ -3,6 +3,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { X, ExternalLink, Loader2 } from 'lucide-react';
 import { LiveCoffeeIcon } from './LiveCoffeeIcon';
+import { trackKofiClick } from '@/utils/tracking';
 
 export const KofiModal: React.FC = () => {
   const [isOpen, setIsOpen] = useState(false);
@@ -74,6 +75,7 @@ export const KofiModal: React.FC = () => {
               rel="noopener noreferrer"
               className="kofi-action-btn"
               title="Open in new tab"
+              onClick={() => trackKofiClick('modal_external')}
             >
               <ExternalLink size={16} />
             </a>

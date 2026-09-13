@@ -10,7 +10,8 @@ import {
   Eye,
   TrendingUp,
   Clock,
-  UserCheck
+  UserCheck,
+  Coffee
 } from 'lucide-react';
 import BulkUpload from "../../../components/admin/BulkUpload";
 import { useAudio } from '@/components/audio/AudioProvider';
@@ -27,22 +28,28 @@ export default function AdminDashboard() {
   const [totalPlays, setTotalPlays] = useState<number>(0);
   const [totalListeningSeconds, setTotalListeningSeconds] = useState<number>(0);
   const [avgSecondsPerPerson, setAvgSecondsPerPerson] = useState<number>(0);
+  const [coffeeClicks, setCoffeeClicks] = useState<number>(0);
 
   useEffect(() => {
     async function fetchStats() {
       try {
-        const [peopleRes, returningRes, playsRes] = await Promise.all([
+        const [peopleRes, returningRes, playsRes, coffeeRes] = await Promise.all([
           // Total People (Unique telegram users or unique session IDs if anon)
           supabase.from('telegram_users').select('telegram_id', { count: 'exact', head: true }),
           // Returning Users (visit_count > 1)
           supabase.from('telegram_users').select('telegram_id', { count: 'exact', head: true }).gt('visit_count', 1),
-          // Total Plays & Summed Duration
-          supabase.from('track_plays').select('duration_seconds')
+          // Total Plays & Summed Duration (excluding button click events)
+          supabase.from('track_plays').select('duration_seconds').neq('event_type', 'kofi_click'),
+          // Buy Me Coffee Clicks
+          supabase.from('track_plays').select('id', { count: 'exact', head: true }).eq('event_type', 'kofi_click'),
         ]);
 
         const peopleCount = peopleRes.count || 0;
         setTotalPeople(peopleCount);
         setReturningUsers(returningRes.count || 0);
+        if (coffeeRes.count !== null && coffeeRes.count !== undefined) {
+          setCoffeeClicks(coffeeRes.count);
+        }
         
         if (playsRes.data) {
           setTotalPlays(playsRes.data.length);
@@ -75,6 +82,7 @@ export default function AdminDashboard() {
     { label: 'Total Plays', value: totalPlays.toString(), icon: <PlayCircle size={14} />, color: '#f59e0b' },
     { label: 'Total Listening', value: formatHours(totalListeningSeconds), icon: <Clock size={14} />, color: '#ec4899' },
     { label: 'Avg / Person', value: formatHours(avgSecondsPerPerson), icon: <TrendingUp size={14} />, color: '#8b5cf6' },
+    { label: 'Coffee Clicks', value: coffeeClicks.toString(), icon: <Coffee size={14} />, color: '#f59e0b' },
     { label: 'Tracks Library', value: tracks.length.toString(), icon: <Music size={14} />, color: '#06b6d4' },
   ];
 

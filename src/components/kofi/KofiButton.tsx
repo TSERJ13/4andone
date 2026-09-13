@@ -2,6 +2,7 @@
 
 import React from 'react';
 import { LiveCoffeeIcon } from './LiveCoffeeIcon';
+import { trackKofiClick } from '@/utils/tracking';
 
 interface KofiButtonProps {
   variant?: 'pill' | 'sidebar' | 'compact';
@@ -17,6 +18,9 @@ export const KofiButton: React.FC<KofiButtonProps> = ({
   const handleClick = (e: React.MouseEvent) => {
     e.preventDefault();
     e.stopPropagation();
+
+    // Track button click in analytics
+    trackKofiClick(variant);
 
     // Open the official Ko-fi payment iframe modal directly on the same page
     window.dispatchEvent(new CustomEvent('open-kofi-modal'));

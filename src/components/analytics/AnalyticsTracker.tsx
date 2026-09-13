@@ -45,6 +45,10 @@ export default function AnalyticsTracker() {
             const data = await res.json();
             countryCode = data.country_code || "Unknown";
             countryName = data.country_name || "Unknown";
+            if (typeof window !== "undefined") {
+              sessionStorage.setItem("4andone_country_code", countryCode);
+              sessionStorage.setItem("4andone_country_name", countryName);
+            }
           }
         } catch (e) {
           console.warn("[ANALYTICS] Geo-IP failed:", e);

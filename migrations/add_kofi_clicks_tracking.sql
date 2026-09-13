@@ -1,0 +1,18 @@
+-- ========================================================
+-- Buy Me Coffee Click Tracking
+-- ========================================================
+-- Events are recorded into public.track_plays with:
+--   track_id: 'kofi_button'
+--   event_type: 'kofi_click'
+--   style: 'pill' | 'sidebar' | 'modal_external'
+--   bpm: country_code (e.g. 'GE', 'US', 'DE')
+--   session_id: 4andone_session_id
+--   user_ref: telegram_id (if authenticated)
+--   duration_seconds: 0
+--
+-- This schema works out of the box with existing public.track_plays table
+-- and existing Row Level Security policies.
+--
+-- Index optimization for filtering coffee clicks:
+-CREATE INDEX IF NOT EXISTS idx_track_plays_kofi ON public.track_plays(event_type) WHERE event_type = 'kofi_click';
+-EOF

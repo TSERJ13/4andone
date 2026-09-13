@@ -118,7 +118,7 @@ export const TopSocialMenu: React.FC<TopSocialMenuProps> = ({ className = '' }) 
         aria-expanded={isOpen}
       >
         <span className={`trigger-icon-wrapper ${isOpen ? 'rotated' : ''}`}>
-          {isOpen ? <X size={17} color="#1db954" /> : <LiveShareIcon size={18} color="#1db954" />}
+          {isOpen ? <X size={16} strokeWidth={1.6} color="#1db954" /> : <LiveShareIcon size={16} color="#1db954" />}
         </span>
       </button>
 
@@ -191,7 +191,7 @@ export const TopSocialMenu: React.FC<TopSocialMenuProps> = ({ className = '' }) 
           justify-content: center;
           transition: transform 0.2s ease;
           color: #1db954;
-          filter: drop-shadow(0 0 4px rgba(29, 185, 84, 0.5));
+          filter: drop-shadow(0 0 3px rgba(29, 185, 84, 0.35));
         }
 
         .trigger-icon-wrapper.rotated {

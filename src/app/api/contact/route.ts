@@ -21,33 +21,63 @@ export async function POST(request: NextRequest) {
 
     // 1. Send email notification to 4andonestudio@gmail.com
     const emailHtml = `
-      <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; max-width: 600px; margin: 0 auto; background: #0d0d0d; color: #ffffff; padding: 24px; border-radius: 12px; border: 1px solid rgba(255,255,255,0.1);">
-        <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 20px; border-bottom: 1px solid rgba(255,255,255,0.1); padding-bottom: 14px;">
-          <h2 style="margin: 0; font-size: 20px; font-weight: 800; color: #1db954;">New Message 4and.one</h2>
-        </div>
-        
-        <table style="width: 100%; border-collapse: collapse; margin-bottom: 20px;">
-          <tr>
-            <td style="padding: 8px 0; color: rgba(255,255,255,0.6); font-size: 13px; width: 100px;">Topic:</td>
-            <td style="padding: 8px 0; font-weight: 700; font-size: 14px; color: #ffffff;"><span style="background: rgba(99, 102, 241, 0.2); color: #818cf8; padding: 4px 10px; border-radius: 9999px;">${safeTopic}</span></td>
-          </tr>
-          <tr>
-            <td style="padding: 8px 0; color: rgba(255,255,255,0.6); font-size: 13px;">Sender:</td>
-            <td style="padding: 8px 0; font-weight: 600; font-size: 14px; color: #ffffff;">${safeName}</td>
-          </tr>
-          <tr>
-            <td style="padding: 8px 0; color: rgba(255,255,255,0.6); font-size: 13px;">Email:</td>
-            <td style="padding: 8px 0; font-size: 14px; color: #1db954;"><a href="mailto:${safeEmail}" style="color: #1db954; text-decoration: none;">${safeEmail}</a></td>
-          </tr>
-          <tr>
-            <td style="padding: 8px 0; color: rgba(255,255,255,0.6); font-size: 13px;">Date:</td>
-            <td style="padding: 8px 0; font-size: 13px; color: rgba(255,255,255,0.7);">${new Date().toLocaleString()}</td>
-          </tr>
-        </table>
+      <div style="margin: 0; padding: 32px 16px; background-color: #070709; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;">
+        <div style="max-width: 560px; margin: 0 auto; background: #111115; border: 1px solid rgba(255,255,255,0.08); border-radius: 20px; padding: 28px; box-shadow: 0 20px 60px rgba(0,0,0,0.8);">
+          
+          <!-- Brand Header -->
+          <div style="border-bottom: 1px solid rgba(255,255,255,0.08); padding-bottom: 18px; margin-bottom: 22px;">
+            <table style="width: 100%; border-collapse: collapse;">
+              <tr>
+                <td style="vertical-align: middle;">
+                  <div style="font-size: 20px; font-weight: 900; color: #ffffff; letter-spacing: -0.5px;">
+                    <span style="color: #1db954;">4</span>and.one
+                  </div>
+                  <div style="font-size: 12px; color: rgba(255,255,255,0.5); margin-top: 2px;">Direct Visitor Message</div>
+                </td>
+                <td style="text-align: right; vertical-align: middle;">
+                  <span style="background: rgba(29,185,84,0.15); border: 1px solid rgba(29,185,84,0.35); color: #1db954; font-size: 11.5px; font-weight: 800; padding: 5px 12px; border-radius: 9999px; text-transform: uppercase; letter-spacing: 0.5px;">
+                    ${safeTopic}
+                  </span>
+                </td>
+              </tr>
+            </table>
+          </div>
 
-        <div style="background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1); border-radius: 8px; padding: 16px; margin-top: 10px;">
-          <p style="margin: 0 0 6px 0; font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px; color: rgba(255,255,255,0.5);">Message Content:</p>
-          <p style="margin: 0; font-size: 14px; line-height: 1.6; color: #ffffff; white-space: pre-wrap;">${safeMessage}</p>
+          <!-- Sender Details Card -->
+          <div style="background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.06); border-radius: 12px; padding: 16px; margin-bottom: 20px;">
+            <table style="width: 100%; border-collapse: collapse;">
+              <tr>
+                <td style="padding: 6px 0; color: rgba(255,255,255,0.5); font-size: 12.5px; width: 80px;">From:</td>
+                <td style="padding: 6px 0; color: #ffffff; font-weight: 700; font-size: 13.5px;">${safeName}</td>
+              </tr>
+              <tr>
+                <td style="padding: 6px 0; color: rgba(255,255,255,0.5); font-size: 12.5px;">Email:</td>
+                <td style="padding: 6px 0;"><a href="mailto:${safeEmail}" style="color: #1db954; font-weight: 700; font-size: 13.5px; text-decoration: none;">${safeEmail}</a></td>
+              </tr>
+              <tr>
+                <td style="padding: 6px 0; color: rgba(255,255,255,0.5); font-size: 12.5px;">Topic:</td>
+                <td style="padding: 6px 0; color: #ffffff; font-size: 13px;">${safeTopic}</td>
+              </tr>
+              <tr>
+                <td style="padding: 6px 0; color: rgba(255,255,255,0.5); font-size: 12.5px;">Date:</td>
+                <td style="padding: 6px 0; color: rgba(255,255,255,0.65); font-size: 12.5px;">${new Date().toLocaleString()}</td>
+              </tr>
+            </table>
+          </div>
+
+          <!-- Message Bubble -->
+          <div style="background: rgba(255,255,255,0.04); border-left: 3px solid #1db954; border-radius: 0 12px 12px 0; padding: 18px 20px; margin-bottom: 24px;">
+            <div style="font-size: 11px; font-weight: 800; color: rgba(255,255,255,0.4); text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 8px;">Message Content</div>
+            <div style="font-size: 14.5px; line-height: 1.6; color: #ffffff; white-space: pre-wrap;">${safeMessage}</div>
+          </div>
+
+          <!-- Quick Action -->
+          <div style="text-align: center; margin-top: 24px; padding-top: 18px; border-top: 1px solid rgba(255,255,255,0.08);">
+            <a href="mailto:${safeEmail}?subject=Re: [4and.one] ${safeTopic}" style="display: inline-block; background: #1db954; color: #000000; font-weight: 800; font-size: 13px; padding: 12px 28px; border-radius: 9999px; text-decoration: none; box-shadow: 0 4px 18px rgba(29,185,84,0.3);">
+              Reply Directly to ${safeName}
+            </a>
+          </div>
+
         </div>
       </div>
     `;

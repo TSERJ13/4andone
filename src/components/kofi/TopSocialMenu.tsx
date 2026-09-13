@@ -1,7 +1,8 @@
 "use client";
 
 import React, { useState, useRef, useEffect } from 'react';
-import { Mail, Send, Share2, X } from 'lucide-react';
+import { Mail, Send, X } from 'lucide-react';
+import { LiveShareIcon } from './LiveShareIcon';
 
 interface TopSocialMenuProps {
   className?: string;
@@ -117,7 +118,7 @@ export const TopSocialMenu: React.FC<TopSocialMenuProps> = ({ className = '' }) 
         aria-expanded={isOpen}
       >
         <span className={`trigger-icon-wrapper ${isOpen ? 'rotated' : ''}`}>
-          {isOpen ? <X size={17} /> : <Share2 size={16} />}
+          {isOpen ? <X size={17} color="#1db954" /> : <LiveShareIcon size={18} color="#1db954" />}
         </span>
       </button>
 
@@ -149,7 +150,7 @@ export const TopSocialMenu: React.FC<TopSocialMenuProps> = ({ className = '' }) 
           }
         }
 
-        /* Trigger Button */
+        /* Trigger Button - Matching Buy Me Coffee green styling */
         .social-trigger-btn {
           display: inline-flex;
           align-items: center;
@@ -157,11 +158,11 @@ export const TopSocialMenu: React.FC<TopSocialMenuProps> = ({ className = '' }) 
           width: 36px;
           height: 36px;
           border-radius: 9999px;
-          background: rgba(255, 255, 255, 0.06);
+          background: rgba(255, 255, 255, 0.05);
           backdrop-filter: blur(12px);
           -webkit-backdrop-filter: blur(12px);
-          border: 1px solid rgba(255, 255, 255, 0.16);
-          color: rgba(255, 255, 255, 0.85);
+          border: 1px solid rgba(29, 185, 84, 0.35);
+          color: #1db954;
           cursor: pointer;
           transition: background 0.2s ease, border-color 0.2s ease, box-shadow 0.2s ease, transform 0.2s cubic-bezier(0.16, 1, 0.3, 1);
           box-shadow: 0 2px 8px rgba(0, 0, 0, 0.4);
@@ -170,18 +171,18 @@ export const TopSocialMenu: React.FC<TopSocialMenuProps> = ({ className = '' }) 
         }
 
         .social-trigger-btn:hover {
-          background: rgba(255, 255, 255, 0.14);
-          border-color: rgba(255, 255, 255, 0.35);
-          color: #ffffff;
+          background: rgba(29, 185, 84, 0.14);
+          border-color: #1db954;
+          color: #1db954;
           transform: scale(1.05);
-          box-shadow: 0 0 16px rgba(255, 255, 255, 0.16), 0 2px 8px rgba(0, 0, 0, 0.5);
+          box-shadow: 0 0 18px rgba(29, 185, 84, 0.35), 0 2px 8px rgba(0, 0, 0, 0.5);
         }
 
         .social-trigger-btn.active {
-          background: rgba(255, 255, 255, 0.16);
-          border-color: rgba(255, 255, 255, 0.45);
-          color: #ffffff;
-          box-shadow: 0 0 16px rgba(255, 255, 255, 0.2);
+          background: rgba(29, 185, 84, 0.18);
+          border-color: #1db954;
+          color: #1db954;
+          box-shadow: 0 0 18px rgba(29, 185, 84, 0.4), 0 2px 8px rgba(0, 0, 0, 0.5);
         }
 
         .trigger-icon-wrapper {
@@ -189,6 +190,8 @@ export const TopSocialMenu: React.FC<TopSocialMenuProps> = ({ className = '' }) 
           align-items: center;
           justify-content: center;
           transition: transform 0.2s ease;
+          color: #1db954;
+          filter: drop-shadow(0 0 4px rgba(29, 185, 84, 0.5));
         }
 
         .trigger-icon-wrapper.rotated {

@@ -150,13 +150,16 @@ export const TopSocialMenu: React.FC<TopSocialMenuProps> = ({ className = '' }) 
           }
         }
 
-        /* Trigger Button - Matching Buy Me Coffee green styling */
+        /* Trigger Button - Matching Buy Me Coffee green styling & height */
         .social-trigger-btn {
           display: inline-flex;
           align-items: center;
           justify-content: center;
           width: 36px;
           height: 36px;
+          min-width: 36px;
+          min-height: 36px;
+          box-sizing: border-box;
           border-radius: 9999px;
           background: rgba(255, 255, 255, 0.05);
           backdrop-filter: blur(12px);
@@ -281,7 +284,7 @@ export const TopSocialMenu: React.FC<TopSocialMenuProps> = ({ className = '' }) 
           white-space: nowrap;
         }
 
-        /* Responsive breakpoints */
+        /* Responsive breakpoints - perfectly matching Buy Me Coffee 36px height */
         @media (max-width: 640px) {
           .top-social-menu-container {
             gap: 6px;
@@ -290,23 +293,23 @@ export const TopSocialMenu: React.FC<TopSocialMenuProps> = ({ className = '' }) 
             gap: 6px;
           }
           .social-trigger-btn {
-            width: 34px;
-            height: 34px;
+            width: 36px;
+            height: 36px;
           }
           .social-pill-btn {
-            height: 34px;
-            padding: 0 11px;
+            height: 36px;
+            padding: 0 12px;
             font-size: 11.5px;
             gap: 6px;
           }
           .social-pill-btn.msg-pill {
-            width: 34px;
+            width: 36px;
             padding: 0;
           }
         }
 
         @media (max-width: 520px) {
-          /* Hide text labels on narrow screens to prevent crowding */
+          /* Hide text labels on narrow screens to prevent crowding while maintaining exact 36px circle */
           .social-pill-btn.tg-pill .pill-text,
           .social-pill-btn.yt-pill .pill-text {
             display: none;
@@ -314,15 +317,17 @@ export const TopSocialMenu: React.FC<TopSocialMenuProps> = ({ className = '' }) 
           .social-pill-btn.tg-pill,
           .social-pill-btn.yt-pill {
             padding: 0;
-            width: 32px;
+            width: 36px;
+            height: 36px;
             justify-content: center;
           }
           .social-pill-btn.msg-pill {
-            width: 32px;
+            width: 36px;
+            height: 36px;
           }
           .social-trigger-btn {
-            width: 32px;
-            height: 32px;
+            width: 36px;
+            height: 36px;
           }
         }
 
@@ -332,16 +337,17 @@ export const TopSocialMenu: React.FC<TopSocialMenuProps> = ({ className = '' }) 
             gap: 4px;
           }
           .social-trigger-btn {
-            width: 30px;
-            height: 30px;
+            width: 36px;
+            height: 36px;
           }
           .social-pill-btn {
-            height: 30px;
+            height: 36px;
           }
           .social-pill-btn.tg-pill,
           .social-pill-btn.yt-pill,
           .social-pill-btn.msg-pill {
-            width: 30px;
+            width: 36px;
+            height: 36px;
           }
         }
       `}</style>

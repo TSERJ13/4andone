@@ -66,7 +66,7 @@ export const TopSocialMenu: React.FC<TopSocialMenuProps> = ({ className = '' }) 
             aria-label="Telegram"
           >
             <span className="pill-icon-wrapper tg-icon">
-              <Send size={15} />
+              <Send size={14} />
             </span>
             <span className="pill-text">Telegram</span>
           </a>
@@ -82,8 +82,8 @@ export const TopSocialMenu: React.FC<TopSocialMenuProps> = ({ className = '' }) 
           >
             <span className="pill-icon-wrapper yt-icon">
               <svg
-                width="16"
-                height="16"
+                width="15"
+                height="15"
                 viewBox="0 0 24 24"
                 fill="currentColor"
               >
@@ -102,7 +102,7 @@ export const TopSocialMenu: React.FC<TopSocialMenuProps> = ({ className = '' }) 
             aria-label="Contact Us"
           >
             <span className="pill-icon-wrapper msg-icon">
-              <Mail size={15} />
+              <Mail size={14} />
             </span>
           </button>
         </div>
@@ -201,20 +201,20 @@ export const TopSocialMenu: React.FC<TopSocialMenuProps> = ({ className = '' }) 
           transform: rotate(90deg);
         }
 
-        /* Common pill style */
+        /* Common pill style for expanded items - smaller & compact like before */
         .social-pill-btn {
           display: inline-flex;
           align-items: center;
-          gap: 8px;
-          height: 36px;
-          padding: 0 14px;
+          gap: 6px;
+          height: 32px;
+          padding: 0 10px;
           border-radius: 9999px;
           background: rgba(255, 255, 255, 0.05);
           backdrop-filter: blur(12px);
           -webkit-backdrop-filter: blur(12px);
           color: #ffffff;
           font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
-          font-size: 12.5px;
+          font-size: 11.5px;
           font-weight: 700;
           letter-spacing: -0.2px;
           cursor: pointer;
@@ -224,6 +224,7 @@ export const TopSocialMenu: React.FC<TopSocialMenuProps> = ({ className = '' }) 
           text-decoration: none;
           white-space: nowrap;
           flex-shrink: 0;
+          box-sizing: border-box;
         }
 
         /* Telegram Pill */
@@ -259,7 +260,8 @@ export const TopSocialMenu: React.FC<TopSocialMenuProps> = ({ className = '' }) 
         /* Message Pill */
         .msg-pill {
           border: 1px solid rgba(99, 102, 241, 0.35);
-          width: 36px;
+          width: 32px;
+          height: 32px;
           padding: 0;
           justify-content: center;
         }
@@ -284,32 +286,33 @@ export const TopSocialMenu: React.FC<TopSocialMenuProps> = ({ className = '' }) 
           white-space: nowrap;
         }
 
-        /* Responsive breakpoints - perfectly matching Buy Me Coffee 36px height */
+        /* Responsive breakpoints - trigger matches Buy Me Coffee 36px, expanded items are smaller like before */
         @media (max-width: 640px) {
           .top-social-menu-container {
             gap: 6px;
           }
           .social-expanded-tray {
-            gap: 6px;
+            gap: 5px;
           }
           .social-trigger-btn {
             width: 36px;
             height: 36px;
           }
           .social-pill-btn {
-            height: 36px;
-            padding: 0 12px;
-            font-size: 11.5px;
-            gap: 6px;
+            height: 30px;
+            padding: 0 8px;
+            font-size: 11px;
+            gap: 4px;
           }
           .social-pill-btn.msg-pill {
-            width: 36px;
+            width: 30px;
+            height: 30px;
             padding: 0;
           }
         }
 
         @media (max-width: 520px) {
-          /* Hide text labels on narrow screens to prevent crowding while maintaining exact 36px circle */
+          /* Compact 30px icon-only items on mobile like before */
           .social-pill-btn.tg-pill .pill-text,
           .social-pill-btn.yt-pill .pill-text {
             display: none;
@@ -317,13 +320,13 @@ export const TopSocialMenu: React.FC<TopSocialMenuProps> = ({ className = '' }) 
           .social-pill-btn.tg-pill,
           .social-pill-btn.yt-pill {
             padding: 0;
-            width: 36px;
-            height: 36px;
+            width: 30px;
+            height: 30px;
             justify-content: center;
           }
           .social-pill-btn.msg-pill {
-            width: 36px;
-            height: 36px;
+            width: 30px;
+            height: 30px;
           }
           .social-trigger-btn {
             width: 36px;
@@ -341,13 +344,13 @@ export const TopSocialMenu: React.FC<TopSocialMenuProps> = ({ className = '' }) 
             height: 36px;
           }
           .social-pill-btn {
-            height: 36px;
+            height: 30px;
           }
           .social-pill-btn.tg-pill,
           .social-pill-btn.yt-pill,
           .social-pill-btn.msg-pill {
-            width: 36px;
-            height: 36px;
+            width: 30px;
+            height: 30px;
           }
         }
       `}</style>

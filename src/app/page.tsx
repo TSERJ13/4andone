@@ -12,7 +12,7 @@ import { getMPMFromBPM } from '@/utils/audio';
 import ConfirmModal from '@/components/admin/ConfirmModal';
 import { useState, useEffect } from 'react';
 import { UserBadge } from '@/components/auth/UserBadge';
-import { KofiButton } from '@/components/kofi/KofiButton';
+import { TopSocialButtons } from '@/components/kofi/TopSocialButtons';
 import { useRouter } from 'next/navigation';
 import { Marquee } from '@/components/layout/Marquee';
 
@@ -259,9 +259,9 @@ export default function Home() {
           </p>
         </div>
 
-        {/* Top Header Row with Buy Me Coffee & Profile */}
+        {/* Top Header Row with Buy Me Coffee, Telegram, YouTube, Contact & Profile */}
         <div className="home-top-header">
-          <KofiButton />
+          <TopSocialButtons />
           <UserBadge />
         </div>
 

@@ -3,7 +3,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import {
   BarChart3, TrendingUp, Users, Music, Folder, Flag, Calendar,
-  RefreshCw, Globe, Clock, Radio, Share2, Eye, ExternalLink, Wifi, Coffee
+  RefreshCw, Globe, Clock, Radio, Share2, Eye, ExternalLink, Wifi, Coffee, MessageSquare
 } from 'lucide-react';
 import { useStudio } from '@/components/admin/StudioProvider';
 import { supabase } from '@/utils/supabase';
@@ -20,6 +20,13 @@ interface KofiClickRecord {
   country_code: string;
   user_ref: string | null;
   session_id: string | null;
+}
+interface ContactMessageRecord {
+  id: string;
+  created_at: string;
+  topic_and_message: string;
+  email: string;
+  name: string | null;
 }
 interface TelegramUser {
   telegram_id: number;
@@ -201,6 +208,7 @@ export default function AdminAnalytics() {
   const [liveUsers, setLiveUsers] = useState<{ session_id: string; name: string | null; is_telegram: boolean }[]>([]);
   const [kofiClicks, setKofiClicks] = useState<KofiClickRecord[]>([]);
   const [kofiPeriod, setKofiPeriod] = useState<'today' | '7d' | '30d' | 'all'>('all');
+  const [contactMessages, setContactMessages] = useState<ContactMessageRecord[]>([]);
   const [loading, setLoading] = useState(true);
   const [tracksLoading, setTracksLoading] = useState(false);
 
@@ -226,7 +234,7 @@ export default function AdminAnalytics() {
 
       const [
         metricsRes, countryRes, recentRes, tgData,
-        topTracksRes, styleRes, referrerRes, kofiRes,
+        topTracksRes, styleRes, referrerRes, kofiRes, contactRes,
       ] = await Promise.all([
         supabase.rpc('get_platform_metrics', {
           today_start: todayStart.toISOString(),
@@ -248,6 +256,7 @@ export default function AdminAnalytics() {
           start_time: monthStart.toISOString(),
         })).catch(() => ({ data: null })),
         supabase.from('track_plays').select('id, created_at, style, bpm, user_ref, session_id, duration_seconds').eq('event_type', 'kofi_click').order('created_at', { ascending: false }),
+        supabase.from('track_plays').select('id, created_at, style, bpm, user_ref, session_id').eq('event_type', 'contact_message').order('created_at', { ascending: false }),
       ]);
 
       // --- Client-side traffic chart (avoids UTC timezone issues) ---
@@ -377,6 +386,17 @@ export default function AdminAnalytics() {
             session_id: r.session_id,
           };
         }));
+      }
+
+      // --- Contact Messages ---
+      if (contactRes?.data) {
+        setContactMessages(contactRes.data.map((r: { id: string; created_at: string; style: string | null; bpm: string | null; user_ref: string | null; session_id: string | null }) => ({
+          id: r.id,
+          created_at: r.created_at,
+          topic_and_message: r.style || '',
+          email: r.bpm || r.session_id || 'Unknown',
+          name: r.user_ref,
+        })));
       }
     } catch (e) {
       console.error('Analytics error:', e);
@@ -579,6 +599,7 @@ export default function AdminAnalytics() {
           { label: 'Avg Session', value: fmtDuration(avgDuration), icon: <Clock size={16}/>, isStr: true },
           { label: 'TG Users', value: tgUsers.length, icon: <Users size={16}/> },
           { label: 'Coffee Clicks', value: totalKofiClicks, sub: `${uniqueKofiClickers} unique · ${kofiToday} today`, icon: <Coffee size={16} style={{ color: '#f59e0b' }}/> },
+          { label: 'Messages', value: contactMessages.length, sub: '4andonestudio', icon: <MessageSquare size={16} style={{ color: '#818cf8' }}/> },
         ] as { label: string; value: string | number; sub?: string; icon: React.ReactNode; isStr?: boolean }[]).map(item => (
           <div key={item.label} className="sum-card glass">
             <div className="sum-icon">{item.icon}</div>
@@ -752,6 +773,80 @@ export default function AdminAnalytics() {
                   </div>
                 );
               })}
+            </div>
+          )}
+        </div>
+      </div>
+
+      {/* Contact Messages Section */}
+      <div className="coffee-card glass" id="contact-messages" style={{ marginTop: '24px' }}>
+        <div className="coffee-head">
+          <div className="coffee-title-row">
+            <div className="coffee-icon-pill" style={{ background: 'rgba(99,102,241,0.15)', borderColor: 'rgba(99,102,241,0.3)', color: '#818cf8' }}>
+              <MessageSquare size={20} />
+            </div>
+            <div>
+              <div className="coffee-title-badges">
+                <h3>Direct Messages to 4andonestudio@gmail.com</h3>
+                <span className="coffee-count-pill" style={{ color: '#818cf8', background: 'rgba(99,102,241,0.15)', borderColor: 'rgba(99,102,241,0.3)' }}>
+                  {contactMessages.length} messages
+                </span>
+              </div>
+              <p className="coffee-subtitle">Inquiries from Feedback, Support, and Advertising</p>
+            </div>
+          </div>
+        </div>
+
+        <div className="coffee-log-section" style={{ borderTop: 'none', paddingTop: 0 }}>
+          {loading ? (
+            <div className="panel-empty">Loading messages...</div>
+          ) : contactMessages.length === 0 ? (
+            <div className="coffee-empty">
+              <MessageSquare size={28} className="coffee-empty-icon" />
+              <span>No messages sent yet.</span>
+              <span className="coffee-empty-sub">When visitors submit Feedback, Support, or Advertising inquiries, they will appear here and in your inbox.</span>
+            </div>
+          ) : (
+            <div className="coffee-list">
+              {contactMessages.map(msg => (
+                <div key={msg.id} className="coffee-row">
+                  <div className="coffee-row-left">
+                    <div
+                      className="coffee-row-avatar"
+                      style={{
+                        background: 'rgba(99,102,241,0.18)',
+                        color: '#818cf8'
+                      }}
+                    >
+                      ✉️
+                    </div>
+                    <div className="coffee-row-info">
+                      <div className="coffee-supporter-identity">
+                        <span className="supporter-full-name">{msg.name || 'Anonymous Visitor'}</span>
+                        <span className="tg-uid-badge">{msg.email}</span>
+                      </div>
+                      <div className="coffee-row-meta" style={{ marginTop: '2px', color: '#e4e4e7', fontSize: '12px' }}>
+                        <span>{msg.topic_and_message}</span>
+                      </div>
+                      <div className="coffee-row-meta" style={{ marginTop: '2px' }}>
+                        <span>{timeAgo(msg.created_at)}</span>
+                        <span className="act-dot">·</span>
+                        <span className="text-zinc-500">{new Date(msg.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
+                      </div>
+                    </div>
+                  </div>
+                  <div className="coffee-row-right">
+                    <a
+                      href={`mailto:${msg.email}`}
+                      className="coffee-tag"
+                      style={{ color: '#818cf8', background: 'rgba(99,102,241,0.15)', textDecoration: 'none' }}
+                      title="Reply via Email"
+                    >
+                      Reply
+                    </a>
+                  </div>
+                </div>
+              ))}
             </div>
           )}
         </div>

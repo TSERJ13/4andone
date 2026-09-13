@@ -10,6 +10,7 @@ import { useAudio } from '@/components/audio/AudioProvider';
 import { useVisitTracker } from '@/hooks/useVisitTracker';
 import { AuthModal } from '@/components/auth/AuthModal';
 import { KofiModal } from '@/components/kofi/KofiModal';
+import { ContactModal } from '@/components/modals/ContactModal';
 import MobileFullPlayer from './MobileFullPlayer';
 import DesktopFullPlayer from './DesktopFullPlayer';
 import OfflineBanner from './OfflineBanner';
@@ -150,6 +151,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
       />
 
       <KofiModal />
+      <ContactModal />
       
       <MobileFullPlayer 
         isOpen={isFullPlayerOpen}

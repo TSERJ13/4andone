@@ -12,7 +12,8 @@ import { getMPMFromBPM } from '@/utils/audio';
 import ConfirmModal from '@/components/admin/ConfirmModal';
 import { useState, useEffect } from 'react';
 import { UserBadge } from '@/components/auth/UserBadge';
-import { TopSocialButtons } from '@/components/kofi/TopSocialButtons';
+import { KofiButton } from '@/components/kofi/KofiButton';
+import { TopSocialMenu } from '@/components/kofi/TopSocialMenu';
 import { useRouter } from 'next/navigation';
 import { Marquee } from '@/components/layout/Marquee';
 
@@ -259,10 +260,13 @@ export default function Home() {
           </p>
         </div>
 
-        {/* Top Header Row with Buy Me Coffee, Telegram, YouTube, Contact & Profile */}
+        {/* Top Header Row: Buy Me Coffee on left, Social Menu + Login on right */}
         <div className="home-top-header">
-          <TopSocialButtons />
-          <UserBadge />
+          <KofiButton />
+          <div className="header-right-group">
+            <TopSocialMenu />
+            <UserBadge />
+          </div>
         </div>
 
         {/* 10-Second Auto-Rotating Hero Carousel Banner */}
@@ -581,6 +585,14 @@ export default function Home() {
           padding: 0 4px;
           position: relative;
           z-index: 20;
+        }
+
+        .header-right-group {
+          display: flex;
+          align-items: center;
+          gap: 10px;
+          position: relative;
+          z-index: 100;
         }
 
         .carousel-nav-btn {

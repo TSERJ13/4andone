@@ -1,0 +1,349 @@
+"use client";
+
+import React, { useState, useRef, useEffect } from 'react';
+import { Mail, Send, Share2, X } from 'lucide-react';
+
+interface TopSocialMenuProps {
+  className?: string;
+}
+
+export const TopSocialMenu: React.FC<TopSocialMenuProps> = ({ className = '' }) => {
+  const [isOpen, setIsOpen] = useState(false);
+  const menuRef = useRef<HTMLDivElement>(null);
+
+  // Close when clicking outside or pressing Escape
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (menuRef.current && !menuRef.current.contains(event.target as Node)) {
+        setIsOpen(false);
+      }
+    };
+
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') {
+        setIsOpen(false);
+      }
+    };
+
+    if (isOpen) {
+      document.addEventListener('mousedown', handleClickOutside);
+      document.addEventListener('keydown', handleKeyDown);
+    }
+
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+      document.removeEventListener('keydown', handleKeyDown);
+    };
+  }, [isOpen]);
+
+  const handleContactClick = (e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    window.dispatchEvent(new CustomEvent('open-contact-modal'));
+    setIsOpen(false);
+  };
+
+  const toggleMenu = () => {
+    setIsOpen((prev) => !prev);
+  };
+
+  return (
+    <div 
+      className={`top-social-menu-container ${isOpen ? 'is-open' : ''} ${className}`} 
+      ref={menuRef}
+    >
+      {/* Sliding expanded social actions (revealed to the left of the trigger) */}
+      {isOpen && (
+        <div className="social-expanded-tray" role="region" aria-label="Social links and contact options">
+          {/* 1. Telegram Link Button */}
+          <a
+            href="https://t.me/fourandonemusic"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="social-pill-btn tg-pill"
+            title="Join 4and.one Telegram Community"
+            aria-label="Telegram"
+          >
+            <span className="pill-icon-wrapper tg-icon">
+              <Send size={15} />
+            </span>
+            <span className="pill-text">Telegram</span>
+          </a>
+
+          {/* 2. YouTube Link Button */}
+          <a
+            href="https://www.youtube.com/@4andone"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="social-pill-btn yt-pill"
+            title="4and.one YouTube Channel"
+            aria-label="YouTube"
+          >
+            <span className="pill-icon-wrapper yt-icon">
+              <svg
+                width="16"
+                height="16"
+                viewBox="0 0 24 24"
+                fill="currentColor"
+              >
+                <path d="M23.498 6.186a3.016 3.016 0 0 0-2.122-2.136C19.505 3.545 12 3.545 12 3.545s-7.505 0-9.377.505A3.017 3.017 0 0 0 .502 6.186C0 8.07 0 12 0 12s0 3.93.502 5.814a3.016 3.016 0 0 0 2.122 2.136c1.871.505 9.376.505 9.376.505s7.505 0 9.377-.505a3.015 3.015 0 0 0 2.122-2.136C24 15.93 24 12 24 12s0-3.93-.502-5.814zM9.545 15.568V8.432L15.818 12l-6.273 3.568z"/>
+              </svg>
+            </span>
+            <span className="pill-text">YouTube</span>
+          </a>
+
+          {/* 3. Contact Message Button */}
+          <button
+            type="button"
+            onClick={handleContactClick}
+            className="social-pill-btn msg-pill"
+            title="Send a Message to 4and.one"
+            aria-label="Contact Us"
+          >
+            <span className="pill-icon-wrapper msg-icon">
+              <Mail size={15} />
+            </span>
+          </button>
+        </div>
+      )}
+
+      {/* Trigger Toggle Button */}
+      <button
+        type="button"
+        onClick={toggleMenu}
+        className={`social-trigger-btn ${isOpen ? 'active' : ''}`}
+        title={isOpen ? "Close social menu" : "Telegram, YouTube & Contact"}
+        aria-label={isOpen ? "Close social menu" : "Telegram, YouTube & Contact"}
+        aria-expanded={isOpen}
+      >
+        <span className={`trigger-icon-wrapper ${isOpen ? 'rotated' : ''}`}>
+          {isOpen ? <X size={17} /> : <Share2 size={16} />}
+        </span>
+      </button>
+
+      <style jsx>{`
+        .top-social-menu-container {
+          display: inline-flex;
+          align-items: center;
+          position: relative;
+          gap: 8px;
+        }
+
+        /* Tray of items expanding to the left */
+        .social-expanded-tray {
+          display: flex;
+          align-items: center;
+          gap: 8px;
+          animation: slideOutLeft 0.22s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+          transform-origin: right center;
+        }
+
+        @keyframes slideOutLeft {
+          from {
+            opacity: 0;
+            transform: translateX(14px) scale(0.94);
+          }
+          to {
+            opacity: 1;
+            transform: translateX(0) scale(1);
+          }
+        }
+
+        /* Trigger Button */
+        .social-trigger-btn {
+          display: inline-flex;
+          align-items: center;
+          justify-content: center;
+          width: 36px;
+          height: 36px;
+          border-radius: 9999px;
+          background: rgba(255, 255, 255, 0.06);
+          backdrop-filter: blur(12px);
+          -webkit-backdrop-filter: blur(12px);
+          border: 1px solid rgba(255, 255, 255, 0.16);
+          color: rgba(255, 255, 255, 0.85);
+          cursor: pointer;
+          transition: background 0.2s ease, border-color 0.2s ease, box-shadow 0.2s ease, transform 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+          box-shadow: 0 2px 8px rgba(0, 0, 0, 0.4);
+          user-select: none;
+          flex-shrink: 0;
+        }
+
+        .social-trigger-btn:hover {
+          background: rgba(255, 255, 255, 0.14);
+          border-color: rgba(255, 255, 255, 0.35);
+          color: #ffffff;
+          transform: scale(1.05);
+          box-shadow: 0 0 16px rgba(255, 255, 255, 0.16), 0 2px 8px rgba(0, 0, 0, 0.5);
+        }
+
+        .social-trigger-btn.active {
+          background: rgba(255, 255, 255, 0.16);
+          border-color: rgba(255, 255, 255, 0.45);
+          color: #ffffff;
+          box-shadow: 0 0 16px rgba(255, 255, 255, 0.2);
+        }
+
+        .trigger-icon-wrapper {
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          transition: transform 0.2s ease;
+        }
+
+        .trigger-icon-wrapper.rotated {
+          transform: rotate(90deg);
+        }
+
+        /* Common pill style */
+        .social-pill-btn {
+          display: inline-flex;
+          align-items: center;
+          gap: 8px;
+          height: 36px;
+          padding: 0 14px;
+          border-radius: 9999px;
+          background: rgba(255, 255, 255, 0.05);
+          backdrop-filter: blur(12px);
+          -webkit-backdrop-filter: blur(12px);
+          color: #ffffff;
+          font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+          font-size: 12.5px;
+          font-weight: 700;
+          letter-spacing: -0.2px;
+          cursor: pointer;
+          transition: background 0.2s ease, border-color 0.2s ease, box-shadow 0.2s ease, transform 0.2s ease;
+          box-shadow: 0 2px 8px rgba(0, 0, 0, 0.4);
+          user-select: none;
+          text-decoration: none;
+          white-space: nowrap;
+          flex-shrink: 0;
+        }
+
+        /* Telegram Pill */
+        .tg-pill {
+          border: 1px solid rgba(0, 136, 204, 0.35);
+        }
+        .tg-pill:hover {
+          background: rgba(0, 136, 204, 0.16);
+          border-color: #0088cc;
+          box-shadow: 0 0 18px rgba(0, 136, 204, 0.4), 0 2px 8px rgba(0, 0, 0, 0.5);
+          transform: translateY(-1px);
+        }
+        .tg-icon {
+          color: #29b6f6;
+          filter: drop-shadow(0 0 4px rgba(0, 136, 204, 0.6));
+        }
+
+        /* YouTube Pill */
+        .yt-pill {
+          border: 1px solid rgba(255, 0, 0, 0.35);
+        }
+        .yt-pill:hover {
+          background: rgba(255, 0, 0, 0.16);
+          border-color: #ff0000;
+          box-shadow: 0 0 18px rgba(255, 0, 0, 0.4), 0 2px 8px rgba(0, 0, 0, 0.5);
+          transform: translateY(-1px);
+        }
+        .yt-icon {
+          color: #ff3333;
+          filter: drop-shadow(0 0 4px rgba(255, 0, 0, 0.6));
+        }
+
+        /* Message Pill */
+        .msg-pill {
+          border: 1px solid rgba(99, 102, 241, 0.35);
+          width: 36px;
+          padding: 0;
+          justify-content: center;
+        }
+        .msg-pill:hover {
+          background: rgba(99, 102, 241, 0.16);
+          border-color: #6366f1;
+          box-shadow: 0 0 18px rgba(99, 102, 241, 0.4), 0 2px 8px rgba(0, 0, 0, 0.5);
+          transform: translateY(-1px);
+        }
+        .msg-icon {
+          color: #818cf8;
+          filter: drop-shadow(0 0 4px rgba(99, 102, 241, 0.6));
+        }
+
+        .pill-icon-wrapper {
+          display: flex;
+          align-items: center;
+          justify-content: center;
+        }
+
+        .pill-text {
+          white-space: nowrap;
+        }
+
+        /* Responsive breakpoints */
+        @media (max-width: 640px) {
+          .top-social-menu-container {
+            gap: 6px;
+          }
+          .social-expanded-tray {
+            gap: 6px;
+          }
+          .social-trigger-btn {
+            width: 34px;
+            height: 34px;
+          }
+          .social-pill-btn {
+            height: 34px;
+            padding: 0 11px;
+            font-size: 11.5px;
+            gap: 6px;
+          }
+          .social-pill-btn.msg-pill {
+            width: 34px;
+            padding: 0;
+          }
+        }
+
+        @media (max-width: 520px) {
+          /* Hide text labels on narrow screens to prevent crowding */
+          .social-pill-btn.tg-pill .pill-text,
+          .social-pill-btn.yt-pill .pill-text {
+            display: none;
+          }
+          .social-pill-btn.tg-pill,
+          .social-pill-btn.yt-pill {
+            padding: 0;
+            width: 32px;
+            justify-content: center;
+          }
+          .social-pill-btn.msg-pill {
+            width: 32px;
+          }
+          .social-trigger-btn {
+            width: 32px;
+            height: 32px;
+          }
+        }
+
+        @media (max-width: 400px) {
+          .top-social-menu-container,
+          .social-expanded-tray {
+            gap: 4px;
+          }
+          .social-trigger-btn {
+            width: 30px;
+            height: 30px;
+          }
+          .social-pill-btn {
+            height: 30px;
+          }
+          .social-pill-btn.tg-pill,
+          .social-pill-btn.yt-pill,
+          .social-pill-btn.msg-pill {
+            width: 30px;
+          }
+        }
+      `}</style>
+    </div>
+  );
+};
+
+export default TopSocialMenu;

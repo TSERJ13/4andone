@@ -4,6 +4,8 @@ import React from 'react';
 import { Mail, Send } from 'lucide-react';
 import { KofiButton } from './KofiButton';
 
+export { TopSocialMenu } from './TopSocialMenu';
+
 interface TopSocialButtonsProps {
   className?: string;
 }

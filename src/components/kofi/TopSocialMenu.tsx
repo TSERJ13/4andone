@@ -104,6 +104,7 @@ export const TopSocialMenu: React.FC<TopSocialMenuProps> = ({ className = '' }) 
             <span className="pill-icon-wrapper msg-icon">
               <Mail size={14} />
             </span>
+            <span className="pill-text">Message</span>
           </button>
         </div>
       )}
@@ -260,10 +261,6 @@ export const TopSocialMenu: React.FC<TopSocialMenuProps> = ({ className = '' }) 
         /* Message Pill */
         .msg-pill {
           border: 1px solid rgba(99, 102, 241, 0.35);
-          width: 32px;
-          height: 32px;
-          padding: 0;
-          justify-content: center;
         }
         .msg-pill:hover {
           background: rgba(99, 102, 241, 0.16);
@@ -286,71 +283,64 @@ export const TopSocialMenu: React.FC<TopSocialMenuProps> = ({ className = '' }) 
           white-space: nowrap;
         }
 
-        /* Responsive breakpoints - trigger matches Buy Me Coffee 36px, expanded items are smaller like before */
-        @media (max-width: 640px) {
+        /* Mobile (<= 768px): All buttons are icon-only without text labels */
+        @media (max-width: 768px) {
           .top-social-menu-container {
             gap: 6px;
           }
           .social-expanded-tray {
-            gap: 5px;
+            gap: 6px;
           }
-          .social-trigger-btn {
-            width: 36px;
-            height: 36px;
+          .pill-text {
+            display: none !important;
           }
           .social-pill-btn {
-            height: 30px;
-            padding: 0 8px;
-            font-size: 11px;
-            gap: 4px;
-          }
-          .social-pill-btn.msg-pill {
-            width: 30px;
-            height: 30px;
-            padding: 0;
-          }
-        }
-
-        @media (max-width: 520px) {
-          /* Compact 30px icon-only items on mobile like before */
-          .social-pill-btn.tg-pill .pill-text,
-          .social-pill-btn.yt-pill .pill-text {
-            display: none;
+            width: 32px;
+            height: 32px;
+            min-width: 32px;
+            padding: 0 !important;
+            justify-content: center;
+            gap: 0;
           }
           .social-pill-btn.tg-pill,
-          .social-pill-btn.yt-pill {
-            padding: 0;
-            width: 30px;
-            height: 30px;
-            justify-content: center;
-          }
+          .social-pill-btn.yt-pill,
           .social-pill-btn.msg-pill {
-            width: 30px;
-            height: 30px;
+            width: 32px;
+            height: 32px;
+            min-width: 32px;
+            padding: 0 !important;
+            justify-content: center;
           }
           .social-trigger-btn {
             width: 36px;
             height: 36px;
+            min-width: 36px;
           }
         }
 
-        @media (max-width: 400px) {
-          .top-social-menu-container,
+        @media (max-width: 480px) {
+          .top-social-menu-container {
+            gap: 4px;
+          }
           .social-expanded-tray {
             gap: 4px;
           }
-          .social-trigger-btn {
-            width: 36px;
-            height: 36px;
-          }
           .social-pill-btn {
+            width: 30px;
             height: 30px;
+            min-width: 30px;
           }
           .social-pill-btn.tg-pill,
           .social-pill-btn.yt-pill,
           .social-pill-btn.msg-pill {
             width: 30px;
             height: 30px;
+            min-width: 30px;
+          }
+          .social-trigger-btn {
+            width: 36px;
+            height: 36px;
+            min-width: 36px;
           }
         }
       `}</style>

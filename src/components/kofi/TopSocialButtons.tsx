@@ -70,6 +70,7 @@ export const TopSocialButtons: React.FC<TopSocialButtonsProps> = ({ className = 
         <span className="pill-icon-wrapper msg-icon">
           <Mail size={15} />
         </span>
+        <span className="pill-text">Message</span>
       </button>
 
       <style jsx>{`
@@ -136,9 +137,6 @@ export const TopSocialButtons: React.FC<TopSocialButtonsProps> = ({ className = 
         /* Message Pill Styling */
         .msg-pill {
           border: 1px solid rgba(99, 102, 241, 0.35);
-          width: 36px;
-          padding: 0;
-          justify-content: center;
         }
         .msg-pill:hover {
           background: rgba(99, 102, 241, 0.15);
@@ -161,19 +159,28 @@ export const TopSocialButtons: React.FC<TopSocialButtonsProps> = ({ className = 
           white-space: nowrap;
         }
 
-        @media (max-width: 640px) {
+        @media (max-width: 768px) {
           .top-social-buttons-cluster {
             gap: 6px;
           }
+          .social-pill-btn .pill-text {
+            display: none !important;
+          }
           .social-pill-btn {
             height: 32px;
-            padding: 0 10px;
-            font-size: 11.5px;
-            gap: 6px;
+            width: 32px;
+            min-width: 32px;
+            padding: 0 !important;
+            justify-content: center;
+            gap: 0;
           }
+          .social-pill-btn.tg-pill,
+          .social-pill-btn.yt-pill,
           .social-pill-btn.msg-pill {
             width: 32px;
-            padding: 0;
+            height: 32px;
+            min-width: 32px;
+            padding: 0 !important;
             justify-content: center;
           }
           :global(.kofi-pill-btn) {
@@ -189,32 +196,22 @@ export const TopSocialButtons: React.FC<TopSocialButtonsProps> = ({ className = 
             gap: 4px;
           }
           .social-pill-btn {
-            padding: 0 8px;
             height: 30px;
-            font-size: 11px;
-            gap: 4px;
+            width: 30px;
+            min-width: 30px;
           }
+          .social-pill-btn.tg-pill,
+          .social-pill-btn.yt-pill,
           .social-pill-btn.msg-pill {
             width: 30px;
-            padding: 0;
-            justify-content: center;
+            height: 30px;
+            min-width: 30px;
           }
           :global(.kofi-pill-btn) {
-            padding: 0 10px !important;
+            padding: 0 8px !important;
             height: 30px !important;
             font-size: 11px !important;
             gap: 5px !important;
-          }
-          /* On very narrow screens, keep full label for Kofi, icon-only for links */
-          .social-pill-btn.tg-pill .pill-text,
-          .social-pill-btn.yt-pill .pill-text {
-            display: none;
-          }
-          .social-pill-btn.tg-pill,
-          .social-pill-btn.yt-pill {
-            padding: 0;
-            width: 30px;
-            justify-content: center;
           }
         }
       `}</style>

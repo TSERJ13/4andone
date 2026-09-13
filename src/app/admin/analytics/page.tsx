@@ -500,10 +500,8 @@ export default function AdminAnalytics() {
   const monthStart = new Date(now); monthStart.setDate(1); monthStart.setHours(0, 0, 0, 0);
 
   const totalKofiClicks = kofiClicks.length;
-  const totalKofiAmount = kofiClicks.reduce((sum, c) => sum + (c.amount || 0), 0);
   const kofiTodayClicks = kofiClicks.filter(c => new Date(c.created_at) >= todayStart);
   const kofiToday = kofiTodayClicks.length;
-  const kofiTodayAmount = kofiTodayClicks.reduce((sum, c) => sum + (c.amount || 0), 0);
   const kofiWeek = kofiClicks.filter(c => new Date(c.created_at) >= weekStart).length;
   const kofiMonth = kofiClicks.filter(c => new Date(c.created_at) >= monthStart).length;
   const uniqueKofiClickers = new Set(kofiClicks.map(c => c.user_ref || c.session_id).filter(Boolean)).size;
@@ -514,8 +512,7 @@ export default function AdminAnalytics() {
     if (kofiPeriod === '30d') return new Date(c.created_at) >= monthStart;
     return true;
   });
-  const filteredKofiAmount = filteredKofi.reduce((sum, c) => sum + (c.amount || 0), 0);
-  const avgKofiAmount = totalKofiClicks > 0 ? (totalKofiAmount / totalKofiClicks).toFixed(1) : '0';
+  const filteredUniqueClickers = new Set(filteredKofi.map(c => c.user_ref || c.session_id).filter(Boolean)).size;
 
   return (
     <div className="admin-analytics animate-in">
@@ -581,7 +578,7 @@ export default function AdminAnalytics() {
           { label: 'This Year', value: totals.year, sub: `${uniqueTotals.year} unique`, icon: <BarChart3 size={16}/> },
           { label: 'Avg Session', value: fmtDuration(avgDuration), icon: <Clock size={16}/>, isStr: true },
           { label: 'TG Users', value: tgUsers.length, icon: <Users size={16}/> },
-          { label: 'Coffee Clicks', value: totalKofiClicks > 0 ? `${totalKofiClicks} ($${totalKofiAmount})` : 0, sub: `${uniqueKofiClickers} unique · $${kofiTodayAmount} today`, icon: <Coffee size={16} style={{ color: '#f59e0b' }}/>, isStr: true },
+          { label: 'Coffee Clicks', value: totalKofiClicks, sub: `${uniqueKofiClickers} unique · ${kofiToday} today`, icon: <Coffee size={16} style={{ color: '#f59e0b' }}/> },
         ] as { label: string; value: string | number; sub?: string; icon: React.ReactNode; isStr?: boolean }[]).map(item => (
           <div key={item.label} className="sum-card glass">
             <div className="sum-icon">{item.icon}</div>
@@ -635,9 +632,9 @@ export default function AdminAnalytics() {
               <div className="coffee-title-badges">
                 <h3>Buy Me Coffee Tracking</h3>
                 <span className="coffee-count-pill">{totalKofiClicks} clicks</span>
-                <span className="coffee-amount-pill">${totalKofiAmount} USD selected</span>
+                <span className="coffee-count-pill" style={{ color: '#1db954', background: 'rgba(29,185,84,0.15)', borderColor: 'rgba(29,185,84,0.3)' }}>{uniqueKofiClickers} unique supporters</span>
               </div>
-              <p className="coffee-subtitle">Visitor identity and chosen support amounts logged in real time</p>
+              <p className="coffee-subtitle">Visitor interactions and supporter identification in real time</p>
             </div>
           </div>
 
@@ -662,27 +659,29 @@ export default function AdminAnalytics() {
             <span className="c-stat-sub">{totalKofiClicks} all-time</span>
           </div>
           <div className="coffee-stat-box">
-            <span className="c-stat-label">Selected Volume ($)</span>
-            <span className="c-stat-val text-amber">${filteredKofiAmount}</span>
-            <span className="c-stat-sub">${totalKofiAmount} all-time volume</span>
+            <span className="c-stat-label">Unique Supporters ({kofiPeriod === 'today' ? 'Today' : kofiPeriod === '7d' ? '7D' : kofiPeriod === '30d' ? '30D' : 'All'})</span>
+            <span className="c-stat-val text-primary">{filteredUniqueClickers}</span>
+            <span className="c-stat-sub">{uniqueKofiClickers} all-time unique</span>
           </div>
           <div className="coffee-stat-box">
-            <span className="c-stat-label">Avg Amount / Click</span>
-            <span className="c-stat-val">${avgKofiAmount}</span>
-            <span className="c-stat-sub">per supporter</span>
+            <span className="c-stat-label">Today&apos;s Activity</span>
+            <span className="c-stat-val">{kofiToday}</span>
+            <span className="c-stat-sub">{kofiWeek} this week</span>
           </div>
           <div className="coffee-stat-box">
-            <span className="c-stat-label">Unique Supporters</span>
-            <span className="c-stat-val">{uniqueKofiClickers}</span>
-            <span className="c-stat-sub">${kofiTodayAmount} today ({kofiToday} clicks)</span>
+            <span className="c-stat-label">Supporter Rate</span>
+            <span className="c-stat-val">
+              {uniqueTotals.month > 0 ? ((uniqueKofiClickers / uniqueTotals.month) * 100).toFixed(1) + '%' : '—'}
+            </span>
+            <span className="c-stat-sub">of 30-day visitors</span>
           </div>
         </div>
 
         {/* Click Log Table / Feed */}
         <div className="coffee-log-section">
           <div className="coffee-log-header">
-            <h4>Supporter &amp; Amount Log</h4>
-            <span className="coffee-log-count">{filteredKofi.length} events · ${filteredKofiAmount} volume</span>
+            <h4>Recent Supporter Log</h4>
+            <span className="coffee-log-count">{filteredKofi.length} events · {filteredUniqueClickers} unique</span>
           </div>
 
           {loading ? (
@@ -691,16 +690,14 @@ export default function AdminAnalytics() {
             <div className="coffee-empty">
               <Coffee size={28} className="coffee-empty-icon" />
               <span>No clicks recorded {kofiPeriod !== 'all' ? 'for this period' : 'yet'}.</span>
-              <span className="coffee-empty-sub">Supporters and selected donation amounts will appear here live.</span>
+              <span className="coffee-empty-sub">Supporters and device details will appear here live when users tap Buy Me Coffee.</span>
             </div>
           ) : (
             <div className="coffee-list">
               {filteredKofi.slice(0, 25).map(c => {
                 const tgUser = tgUsers.find(u => u.telegram_id.toString() === c.user_ref);
                 const isTelegram = !!tgUser;
-                const sourceBadge = c.source === 'modal_amount'
-                  ? { label: `Selected $${c.amount}`, color: '#fbbf24', bg: 'rgba(245,158,11,0.18)' }
-                  : c.source === 'modal_external'
+                const sourceBadge = c.source === 'modal_external'
                   ? { label: 'External Tab', color: '#f59e0b', bg: 'rgba(245,158,11,0.12)' }
                   : c.source === 'sidebar'
                   ? { label: 'Sidebar Button', color: '#3b82f6', bg: 'rgba(59,130,246,0.12)' }
@@ -748,11 +745,6 @@ export default function AdminAnalytics() {
                     </div>
 
                     <div className="coffee-row-right">
-                      <div className="coffee-amount-pill-badge">
-                        <span className="coffee-dollar-sign">$</span>
-                        <span className="coffee-amount-num">{c.amount}</span>
-                        <span className="coffee-currency-sub">USD</span>
-                      </div>
                       <span className="coffee-tag" style={{ color: sourceBadge.color, background: sourceBadge.bg }}>
                         {sourceBadge.label}
                       </span>

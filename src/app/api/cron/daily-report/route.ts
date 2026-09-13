@@ -29,10 +29,10 @@ async function handleReportTrigger(request: NextRequest) {
     // 1. Generate analytics report
     const report = await generateAnalyticsReport();
 
-    // 2. Determine subject
+    // 2. Determine subject - exact user format
     const subject = report.isMonthEnd
-      ? `4and.one Analytics: Monthly Summary & Daily Report (${report.dateStr})`
-      : `4and.one Analytics: Daily Report (${report.dateStr})`;
+      ? 'Monthly Statistic 4and.one'
+      : 'Daily Statistic 4and.one';
 
     // 3. Dispatch email
     const topTracksSummary = report.daily.topTracks

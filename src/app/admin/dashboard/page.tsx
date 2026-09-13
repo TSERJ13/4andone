@@ -29,6 +29,7 @@ export default function AdminDashboard() {
   const [totalListeningSeconds, setTotalListeningSeconds] = useState<number>(0);
   const [avgSecondsPerPerson, setAvgSecondsPerPerson] = useState<number>(0);
   const [coffeeClicks, setCoffeeClicks] = useState<number>(0);
+  const [coffeeAmount, setCoffeeAmount] = useState<number>(0);
 
   useEffect(() => {
     async function fetchStats() {
@@ -40,15 +41,24 @@ export default function AdminDashboard() {
           supabase.from('telegram_users').select('telegram_id', { count: 'exact', head: true }).gt('visit_count', 1),
           // Total Plays & Summed Duration (excluding button click events)
           supabase.from('track_plays').select('duration_seconds').neq('event_type', 'kofi_click'),
-          // Buy Me Coffee Clicks
-          supabase.from('track_plays').select('id', { count: 'exact', head: true }).eq('event_type', 'kofi_click'),
+          // Buy Me Coffee Clicks and Amounts
+          supabase.from('track_plays').select('id, duration_seconds, style').eq('event_type', 'kofi_click'),
         ]);
 
         const peopleCount = peopleRes.count || 0;
         setTotalPeople(peopleCount);
         setReturningUsers(returningRes.count || 0);
-        if (coffeeRes.count !== null && coffeeRes.count !== undefined) {
-          setCoffeeClicks(coffeeRes.count);
+        if (coffeeRes.data) {
+          setCoffeeClicks(coffeeRes.data.length);
+          const totalVol = coffeeRes.data.reduce((acc, row) => {
+            let amt = (row.duration_seconds && row.duration_seconds > 0) ? row.duration_seconds : 0;
+            if (!amt && row.style && row.style.includes(':')) {
+              const p = parseInt(row.style.split(':')[1], 10);
+              if (!isNaN(p) && p > 0) amt = p;
+            }
+            return acc + (amt > 0 ? amt : 3);
+          }, 0);
+          setCoffeeAmount(totalVol);
         }
         
         if (playsRes.data) {
@@ -82,7 +92,7 @@ export default function AdminDashboard() {
     { label: 'Total Plays', value: totalPlays.toString(), icon: <PlayCircle size={14} />, color: '#f59e0b' },
     { label: 'Total Listening', value: formatHours(totalListeningSeconds), icon: <Clock size={14} />, color: '#ec4899' },
     { label: 'Avg / Person', value: formatHours(avgSecondsPerPerson), icon: <TrendingUp size={14} />, color: '#8b5cf6' },
-    { label: 'Coffee Clicks', value: coffeeClicks.toString(), icon: <Coffee size={14} />, color: '#f59e0b' },
+    { label: 'Coffee Clicks', value: coffeeClicks > 0 ? `$${coffeeAmount} (${coffeeClicks})` : '0', icon: <Coffee size={14} />, color: '#f59e0b' },
     { label: 'Tracks Library', value: tracks.length.toString(), icon: <Music size={14} />, color: '#06b6d4' },
   ];
 

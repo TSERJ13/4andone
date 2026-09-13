@@ -16,6 +16,7 @@ interface KofiClickRecord {
   id: string;
   created_at: string;
   source: string;
+  amount: number;
   country_code: string;
   user_ref: string | null;
   session_id: string | null;
@@ -246,7 +247,7 @@ export default function AdminAnalytics() {
         Promise.resolve(supabase.rpc('get_referrer_stats', {
           start_time: monthStart.toISOString(),
         })).catch(() => ({ data: null })),
-        supabase.from('track_plays').select('id, created_at, style, bpm, user_ref, session_id').eq('event_type', 'kofi_click').order('created_at', { ascending: false }),
+        supabase.from('track_plays').select('id, created_at, style, bpm, user_ref, session_id, duration_seconds').eq('event_type', 'kofi_click').order('created_at', { ascending: false }),
       ]);
 
       // --- Client-side traffic chart (avoids UTC timezone issues) ---
@@ -357,14 +358,25 @@ export default function AdminAnalytics() {
 
       // --- Buy Me Coffee Clicks ---
       if (kofiRes?.data) {
-        setKofiClicks(kofiRes.data.map((r: { id: string; created_at: string; style: string | null; bpm: string | null; user_ref: string | null; session_id: string | null }) => ({
-          id: r.id,
-          created_at: r.created_at,
-          source: r.style || 'pill',
-          country_code: r.bpm || '',
-          user_ref: r.user_ref,
-          session_id: r.session_id,
-        })));
+        setKofiClicks(kofiRes.data.map((r: { id: string; created_at: string; style: string | null; bpm: string | null; user_ref: string | null; session_id: string | null; duration_seconds?: number | null }) => {
+          let amt = (r.duration_seconds && r.duration_seconds > 0) ? r.duration_seconds : 0;
+          let cleanSource = r.style || 'pill';
+          if (r.style && r.style.includes(':')) {
+            const parts = r.style.split(':');
+            cleanSource = parts[0];
+            const parsed = parseInt(parts[1], 10);
+            if (!amt && !isNaN(parsed) && parsed > 0) amt = parsed;
+          }
+          return {
+            id: r.id,
+            created_at: r.created_at,
+            source: cleanSource,
+            amount: amt > 0 ? amt : 3,
+            country_code: r.bpm || '',
+            user_ref: r.user_ref,
+            session_id: r.session_id,
+          };
+        }));
       }
     } catch (e) {
       console.error('Analytics error:', e);
@@ -488,7 +500,10 @@ export default function AdminAnalytics() {
   const monthStart = new Date(now); monthStart.setDate(1); monthStart.setHours(0, 0, 0, 0);
 
   const totalKofiClicks = kofiClicks.length;
-  const kofiToday = kofiClicks.filter(c => new Date(c.created_at) >= todayStart).length;
+  const totalKofiAmount = kofiClicks.reduce((sum, c) => sum + (c.amount || 0), 0);
+  const kofiTodayClicks = kofiClicks.filter(c => new Date(c.created_at) >= todayStart);
+  const kofiToday = kofiTodayClicks.length;
+  const kofiTodayAmount = kofiTodayClicks.reduce((sum, c) => sum + (c.amount || 0), 0);
   const kofiWeek = kofiClicks.filter(c => new Date(c.created_at) >= weekStart).length;
   const kofiMonth = kofiClicks.filter(c => new Date(c.created_at) >= monthStart).length;
   const uniqueKofiClickers = new Set(kofiClicks.map(c => c.user_ref || c.session_id).filter(Boolean)).size;
@@ -499,6 +514,8 @@ export default function AdminAnalytics() {
     if (kofiPeriod === '30d') return new Date(c.created_at) >= monthStart;
     return true;
   });
+  const filteredKofiAmount = filteredKofi.reduce((sum, c) => sum + (c.amount || 0), 0);
+  const avgKofiAmount = totalKofiClicks > 0 ? (totalKofiAmount / totalKofiClicks).toFixed(1) : '0';
 
   return (
     <div className="admin-analytics animate-in">
@@ -564,7 +581,7 @@ export default function AdminAnalytics() {
           { label: 'This Year', value: totals.year, sub: `${uniqueTotals.year} unique`, icon: <BarChart3 size={16}/> },
           { label: 'Avg Session', value: fmtDuration(avgDuration), icon: <Clock size={16}/>, isStr: true },
           { label: 'TG Users', value: tgUsers.length, icon: <Users size={16}/> },
-          { label: 'Coffee Clicks', value: totalKofiClicks, sub: `${uniqueKofiClickers} unique · ${kofiToday} today`, icon: <Coffee size={16} style={{ color: '#f59e0b' }}/> },
+          { label: 'Coffee Clicks', value: totalKofiClicks > 0 ? `${totalKofiClicks} ($${totalKofiAmount})` : 0, sub: `${uniqueKofiClickers} unique · $${kofiTodayAmount} today`, icon: <Coffee size={16} style={{ color: '#f59e0b' }}/>, isStr: true },
         ] as { label: string; value: string | number; sub?: string; icon: React.ReactNode; isStr?: boolean }[]).map(item => (
           <div key={item.label} className="sum-card glass">
             <div className="sum-icon">{item.icon}</div>
@@ -618,8 +635,9 @@ export default function AdminAnalytics() {
               <div className="coffee-title-badges">
                 <h3>Buy Me Coffee Tracking</h3>
                 <span className="coffee-count-pill">{totalKofiClicks} clicks</span>
+                <span className="coffee-amount-pill">${totalKofiAmount} USD selected</span>
               </div>
-              <p className="coffee-subtitle">Visitor interactions with the Buy Me Coffee support button</p>
+              <p className="coffee-subtitle">Visitor identity and chosen support amounts logged in real time</p>
             </div>
           </div>
 
@@ -644,29 +662,27 @@ export default function AdminAnalytics() {
             <span className="c-stat-sub">{totalKofiClicks} all-time</span>
           </div>
           <div className="coffee-stat-box">
+            <span className="c-stat-label">Selected Volume ($)</span>
+            <span className="c-stat-val text-amber">${filteredKofiAmount}</span>
+            <span className="c-stat-sub">${totalKofiAmount} all-time volume</span>
+          </div>
+          <div className="coffee-stat-box">
+            <span className="c-stat-label">Avg Amount / Click</span>
+            <span className="c-stat-val">${avgKofiAmount}</span>
+            <span className="c-stat-sub">per supporter</span>
+          </div>
+          <div className="coffee-stat-box">
             <span className="c-stat-label">Unique Supporters</span>
             <span className="c-stat-val">{uniqueKofiClickers}</span>
-            <span className="c-stat-sub">Distinct devices / users</span>
-          </div>
-          <div className="coffee-stat-box">
-            <span className="c-stat-label">Today&apos;s Activity</span>
-            <span className="c-stat-val">{kofiToday}</span>
-            <span className="c-stat-sub">{kofiWeek} this week</span>
-          </div>
-          <div className="coffee-stat-box">
-            <span className="c-stat-label">Click Rate</span>
-            <span className="c-stat-val">
-              {uniqueTotals.month > 0 ? ((uniqueKofiClickers / uniqueTotals.month) * 100).toFixed(1) + '%' : '—'}
-            </span>
-            <span className="c-stat-sub">of 30-day visitors</span>
+            <span className="c-stat-sub">${kofiTodayAmount} today ({kofiToday} clicks)</span>
           </div>
         </div>
 
         {/* Click Log Table / Feed */}
         <div className="coffee-log-section">
           <div className="coffee-log-header">
-            <h4>Recent Click Log</h4>
-            <span className="coffee-log-count">{filteredKofi.length} events</span>
+            <h4>Supporter &amp; Amount Log</h4>
+            <span className="coffee-log-count">{filteredKofi.length} events · ${filteredKofiAmount} volume</span>
           </div>
 
           {loading ? (
@@ -675,48 +691,68 @@ export default function AdminAnalytics() {
             <div className="coffee-empty">
               <Coffee size={28} className="coffee-empty-icon" />
               <span>No clicks recorded {kofiPeriod !== 'all' ? 'for this period' : 'yet'}.</span>
-              <span className="coffee-empty-sub">Clicks will appear here live when users tap Buy Me Coffee.</span>
+              <span className="coffee-empty-sub">Supporters and selected donation amounts will appear here live.</span>
             </div>
           ) : (
             <div className="coffee-list">
-              {filteredKofi.slice(0, 15).map(c => {
+              {filteredKofi.slice(0, 25).map(c => {
                 const tgUser = tgUsers.find(u => u.telegram_id.toString() === c.user_ref);
                 const isTelegram = !!tgUser;
-                const sourceBadge = c.source === 'modal_external'
+                const sourceBadge = c.source === 'modal_amount'
+                  ? { label: `Selected $${c.amount}`, color: '#fbbf24', bg: 'rgba(245,158,11,0.18)' }
+                  : c.source === 'modal_external'
                   ? { label: 'External Tab', color: '#f59e0b', bg: 'rgba(245,158,11,0.12)' }
                   : c.source === 'sidebar'
-                  ? { label: 'Sidebar', color: '#3b82f6', bg: 'rgba(59,130,246,0.12)' }
+                  ? { label: 'Sidebar Button', color: '#3b82f6', bg: 'rgba(59,130,246,0.12)' }
                   : { label: 'Header Pill', color: '#1db954', bg: 'rgba(29,185,84,0.12)' };
 
                 return (
                   <div key={c.id} className="coffee-row">
                     <div className="coffee-row-left">
-                      <div className="coffee-row-avatar" style={{ background: isTelegram ? '#1db954' : 'rgba(245,158,11,0.2)', color: isTelegram ? '#000' : '#f59e0b' }}>
-                        {isTelegram ? (tgUser!.first_name?.charAt(0) || 'T') : '☕'}
+                      <div 
+                        className="coffee-row-avatar" 
+                        style={{ 
+                          background: isTelegram ? '#1db954' : 'rgba(59,130,246,0.18)', 
+                          color: isTelegram ? '#000' : '#60a5fa' 
+                        }}
+                      >
+                        {isTelegram ? (tgUser!.first_name?.charAt(0) || 'T') : '🌐'}
                       </div>
                       <div className="coffee-row-info">
                         <div className="coffee-row-name">
                           {isTelegram ? (
-                            <>
-                              <span>{tgUser!.first_name}{tgUser!.last_name ? ' ' + tgUser!.last_name : ''}</span>
+                            <div className="coffee-supporter-identity">
+                              <span className="supporter-full-name">{tgUser!.first_name}{tgUser!.last_name ? ' ' + tgUser!.last_name : ''}</span>
                               {tgUser!.username && <span className="act-handle">@{tgUser!.username}</span>}
-                            </>
+                              <span className="tg-uid-badge">ID: {tgUser!.telegram_id}</span>
+                              <span className="supporter-platform-badge tg">✈️ Telegram</span>
+                              {tgUser!.visit_count > 1 && <span className="act-visits">({tgUser!.visit_count}x visits)</span>}
+                            </div>
                           ) : (
-                            <span className="act-anon">Web Visitor</span>
+                            <div className="coffee-supporter-identity">
+                              <span className="supporter-full-name">Visitor #{c.session_id ? c.session_id.slice(0, 8) : 'Web'}</span>
+                              <span className="supporter-platform-badge web">🌐 Web Visitor</span>
+                              {c.session_id && <span className="session-sub-tag">sess: {c.session_id.slice(0, 8)}</span>}
+                            </div>
                           )}
                         </div>
                         <div className="coffee-row-meta">
-                          <span>{getFlag(c.country_code)}</span>
-                          <span>{c.country_code || 'Global'}</span>
+                          <span className="act-flag">{getFlag(c.country_code)}</span>
+                          <span className="font-semibold text-zinc-300">{c.country_code || 'Global'}</span>
                           <span className="act-dot">·</span>
                           <span>{timeAgo(c.created_at)}</span>
                           <span className="act-dot">·</span>
-                          <span className="text-zinc-500">{new Date(c.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
+                          <span className="text-zinc-500">{new Date(c.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' })}</span>
                         </div>
                       </div>
                     </div>
 
                     <div className="coffee-row-right">
+                      <div className="coffee-amount-pill-badge">
+                        <span className="coffee-dollar-sign">$</span>
+                        <span className="coffee-amount-num">{c.amount}</span>
+                        <span className="coffee-currency-sub">USD</span>
+                      </div>
                       <span className="coffee-tag" style={{ color: sourceBadge.color, background: sourceBadge.bg }}>
                         {sourceBadge.label}
                       </span>
@@ -1067,9 +1103,10 @@ export default function AdminAnalytics() {
         .coffee-head { display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:14px; margin-bottom:22px; }
         .coffee-title-row { display:flex; align-items:center; gap:14px; }
         .coffee-icon-pill { width:42px; height:42px; border-radius:12px; background:rgba(245,158,11,0.15); border:1px solid rgba(245,158,11,0.3); display:flex; align-items:center; justify-content:center; color:#f59e0b; flex-shrink:0; }
-        .coffee-title-badges { display:flex; align-items:center; gap:10px; flex-wrap:wrap; }
+        .coffee-title-badges { display:flex; align-items:center; gap:8px; flex-wrap:wrap; }
         .coffee-title-badges h3 { font-size:17px; font-weight:800; color:#fff; margin:0; }
         .coffee-count-pill { font-size:11px; font-weight:800; padding:2px 9px; border-radius:20px; background:rgba(245,158,11,0.15); color:#f59e0b; border:1px solid rgba(245,158,11,0.3); }
+        .coffee-amount-pill { font-size:11px; font-weight:800; padding:2px 10px; border-radius:20px; background:rgba(234,179,8,0.15); color:#facc15; border:1px solid rgba(234,179,8,0.35); }
         .coffee-subtitle { font-size:12px; color:#71717a; margin-top:2px; }
         
         .coffee-metrics-strip { display:grid; grid-template-columns:repeat(4,1fr); gap:12px; margin-bottom:22px; }
@@ -1082,19 +1119,31 @@ export default function AdminAnalytics() {
         .coffee-log-section { border-top:1px solid rgba(255,255,255,0.06); padding-top:18px; }
         .coffee-log-header { display:flex; align-items:center; justify-content:space-between; margin-bottom:12px; }
         .coffee-log-header h4 { font-size:13px; font-weight:800; color:#d4d4d8; text-transform:uppercase; letter-spacing:0.5px; }
-        .coffee-log-count { font-size:11px; color:#71717a; font-weight:600; }
+        .coffee-log-count { font-size:11px; color:#a1a1aa; font-weight:700; }
         
-        .coffee-list { display:flex; flex-direction:column; max-height:340px; overflow-y:auto; gap:4px; }
+        .coffee-list { display:flex; flex-direction:column; max-height:380px; overflow-y:auto; gap:6px; }
         .coffee-list::-webkit-scrollbar { width:5px; }
         .coffee-list::-webkit-scrollbar-thumb { background:rgba(255,255,255,0.12); border-radius:3px; }
-        .coffee-row { display:flex; align-items:center; justify-content:space-between; padding:9px 12px; border-radius:12px; background:rgba(255,255,255,0.02); transition:background 0.15s; }
-        .coffee-row:hover { background:rgba(255,255,255,0.05); }
-        .coffee-row-left { display:flex; align-items:center; gap:10px; }
-        .coffee-row-avatar { width:32px; height:32px; border-radius:50%; display:flex; align-items:center; justify-content:center; font-weight:800; font-size:13px; flex-shrink:0; }
-        .coffee-row-info { display:flex; flex-direction:column; gap:1px; }
-        .coffee-row-name { font-size:13px; font-weight:700; color:#f4f4f5; display:flex; align-items:center; gap:6px; }
-        .coffee-row-meta { font-size:11px; color:#71717a; display:flex; align-items:center; gap:5px; }
-        .coffee-tag { font-size:10px; font-weight:800; padding:3px 9px; border-radius:20px; text-transform:uppercase; letter-spacing:0.3px; }
+        .coffee-row { display:flex; align-items:center; justify-content:space-between; padding:10px 14px; border-radius:14px; background:rgba(255,255,255,0.02); border:1px solid rgba(255,255,255,0.03); transition:all 0.15s ease; gap:12px; }
+        .coffee-row:hover { background:rgba(255,255,255,0.05); border-color:rgba(255,255,255,0.08); }
+        .coffee-row-left { display:flex; align-items:center; gap:12px; min-width:0; flex:1; }
+        .coffee-row-avatar { width:34px; height:34px; border-radius:50%; display:flex; align-items:center; justify-content:center; font-weight:900; font-size:14px; flex-shrink:0; }
+        .coffee-row-info { display:flex; flex-direction:column; gap:2px; min-width:0; }
+        .coffee-supporter-identity { display:flex; align-items:center; gap:6px; flex-wrap:wrap; }
+        .supporter-full-name { font-size:13.5px; font-weight:700; color:#f4f4f5; }
+        .tg-uid-badge { font-size:10px; font-weight:600; color:#71717a; background:rgba(255,255,255,0.05); padding:1px 6px; border-radius:6px; }
+        .supporter-platform-badge { font-size:10px; font-weight:800; padding:2px 7px; border-radius:20px; }
+        .supporter-platform-badge.tg { background:rgba(29,185,84,0.12); color:#1db954; }
+        .supporter-platform-badge.web { background:rgba(59,130,246,0.12); color:#60a5fa; }
+        .session-sub-tag { font-size:10px; color:#52525b; font-family:monospace; }
+        .coffee-row-meta { font-size:11px; color:#71717a; display:flex; align-items:center; gap:5px; flex-wrap:wrap; }
+        
+        .coffee-row-right { display:flex; align-items:center; gap:8px; flex-shrink:0; }
+        .coffee-amount-pill-badge { display:inline-flex; align-items:baseline; gap:2px; padding:3px 10px; border-radius:999px; background:linear-gradient(135deg, rgba(245,158,11,0.22), rgba(217,119,6,0.26)); border:1px solid rgba(245,158,11,0.45); color:#fef08a; box-shadow:0 2px 8px rgba(245,158,11,0.15); }
+        .coffee-dollar-sign { font-size:11px; font-weight:700; color:#fbbf24; }
+        .coffee-amount-num { font-size:14px; font-weight:900; color:#ffffff; line-height:1; }
+        .coffee-currency-sub { font-size:9.5px; font-weight:700; color:#fef08a; text-transform:uppercase; margin-left:1px; }
+        .coffee-tag { font-size:10px; font-weight:800; padding:3px 9px; border-radius:20px; text-transform:uppercase; letter-spacing:0.3px; white-space:nowrap; }
 
         .coffee-empty { display:flex; flex-direction:column; align-items:center; justify-content:center; gap:6px; padding:32px 16px; color:#71717a; text-align:center; }
         .coffee-empty-icon { color:#52525b; }

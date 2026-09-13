@@ -288,7 +288,7 @@ const SearchPage = () => {
           color: white; letter-spacing: -1px; margin-bottom: 4px;
         }
         
-        .track-count { font-size: 13px; opacity: 0.7; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px; }
+        .track-count { font-size: 10.4px; opacity: 0.7; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px; }
         
         .fav-action { opacity: 0.4; transition: all 0.2s; }
         .fav-action:hover, .fav-action.active-heart { opacity: 1; transform: scale(1.1); }

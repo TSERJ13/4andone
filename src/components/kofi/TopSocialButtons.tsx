@@ -68,7 +68,6 @@ export const TopSocialButtons: React.FC<TopSocialButtonsProps> = ({ className = 
         <span className="pill-icon-wrapper msg-icon">
           <Mail size={15} />
         </span>
-        <span className="pill-text">Message</span>
       </button>
 
       <style jsx>{`
@@ -135,6 +134,9 @@ export const TopSocialButtons: React.FC<TopSocialButtonsProps> = ({ className = 
         /* Message Pill Styling */
         .msg-pill {
           border: 1px solid rgba(99, 102, 241, 0.35);
+          width: 36px;
+          padding: 0;
+          justify-content: center;
         }
         .msg-pill:hover {
           background: rgba(99, 102, 241, 0.15);
@@ -167,6 +169,11 @@ export const TopSocialButtons: React.FC<TopSocialButtonsProps> = ({ className = 
             font-size: 11.5px;
             gap: 6px;
           }
+          .social-pill-btn.msg-pill {
+            width: 32px;
+            padding: 0;
+            justify-content: center;
+          }
           :global(.kofi-pill-btn) {
             height: 32px !important;
             padding: 0 10px !important;
@@ -185,13 +192,18 @@ export const TopSocialButtons: React.FC<TopSocialButtonsProps> = ({ className = 
             font-size: 11px;
             gap: 4px;
           }
+          .social-pill-btn.msg-pill {
+            width: 30px;
+            padding: 0;
+            justify-content: center;
+          }
           :global(.kofi-pill-btn) {
             padding: 0 10px !important;
             height: 30px !important;
             font-size: 11px !important;
             gap: 5px !important;
           }
-          /* On very narrow screens, keep full label for Kofi, icon-only or shortened for links */
+          /* On very narrow screens, keep full label for Kofi, icon-only for links */
           .social-pill-btn.tg-pill .pill-text,
           .social-pill-btn.yt-pill .pill-text {
             display: none;

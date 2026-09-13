@@ -147,16 +147,6 @@ export default function Home() {
     return styles.filter(s => s.program === 'Standard' && s.title.toLowerCase() !== 'fitness');
   }, [styles]);
 
-  const latinTotalTracks = React.useMemo(() => {
-    const styleNames = new Set(latinStyles.map(s => normalizeStyle(s.title)));
-    return tracks.filter(t => styleNames.has(normalizeStyle(t.style))).length;
-  }, [tracks, latinStyles, normalizeStyle]);
-
-  const standardTotalTracks = React.useMemo(() => {
-    const styleNames = new Set(standardStyles.map(s => normalizeStyle(s.title)));
-    return tracks.filter(t => styleNames.has(normalizeStyle(t.style))).length;
-  }, [tracks, standardStyles, normalizeStyle]);
-
   const checkAuthAndExecute = (action: () => void, actionName: string) => {
     if (!isAuthenticated) {
       setInfoModal({
@@ -402,7 +392,6 @@ export default function Home() {
           <div className="section-header-flex">
             <div className="section-title-group">
               <span className="program-badge latin">International Latin</span>
-              <span className="program-count-pill">{latinTotalTracks} Tracks</span>
             </div>
           </div>
           <div className="styles-grid">
@@ -441,7 +430,6 @@ export default function Home() {
           <div className="section-header-flex">
             <div className="section-title-group">
               <span className="program-badge standard">International Standard</span>
-              <span className="program-count-pill">{standardTotalTracks} Tracks</span>
             </div>
           </div>
           <div className="styles-grid">
@@ -913,16 +901,6 @@ export default function Home() {
 
         .program-badge.latin { color: #f7971e; border: 1px solid rgba(247, 151, 30, 0.3); }
         .program-badge.standard { color: #2193b0; border: 1px solid rgba(33, 147, 176, 0.3); }
-        .program-count-pill {
-          font-size: 11.5px;
-          font-weight: 700;
-          color: #a1a1aa;
-          background: rgba(255, 255, 255, 0.04);
-          border: 1px solid rgba(255, 255, 255, 0.08);
-          padding: 4px 12px;
-          border-radius: 999px;
-          letter-spacing: 0.3px;
-        }
 
         .styles-grid {
           display: grid;

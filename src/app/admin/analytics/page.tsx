@@ -59,6 +59,14 @@ interface TopTrack {
   total_duration: number;
 }
 interface ReferrerStat { source_label: string; visit_count: number; }
+interface LiveUser {
+  session_id: string;
+  name: string | null;
+  is_telegram: boolean;
+  country_code?: string;
+  country_name?: string;
+  online_at?: string;
+}
 
 function getDateRange(period: Period) {
   const now = new Date();
@@ -205,7 +213,10 @@ export default function AdminAnalytics() {
   const [topTracks, setTopTracks] = useState<TopTrack[]>([]);
   const [styleStats, setStyleStats] = useState<{ style: string; count: number }[]>([]);
   const [referrerStats, setReferrerStats] = useState<ReferrerStat[]>([]);
-  const [liveUsers, setLiveUsers] = useState<{ session_id: string; name: string | null; is_telegram: boolean }[]>([]);
+  const [liveUsers, setLiveUsers] = useState<LiveUser[]>([]);
+  const [todayVisits, setTodayVisits] = useState<RecentActivity[]>([]);
+  const [weekVisits, setWeekVisits] = useState<RecentActivity[]>([]);
+  const [activeVisitorTab, setActiveVisitorTab] = useState<'online' | 'today' | 'week' | 'supporters'>('online');
   const [kofiClicks, setKofiClicks] = useState<KofiClickRecord[]>([]);
   const [kofiPeriod, setKofiPeriod] = useState<'today' | '7d' | '30d' | 'all'>('all');
   const [contactMessages, setContactMessages] = useState<ContactMessageRecord[]>([]);
@@ -233,6 +244,27 @@ export default function AdminAnalytics() {
     }
   };
 
+  const getLiveUserCountry = useCallback((u: LiveUser): { code: string; name: string } => {
+    if (u.country_code && u.country_code !== 'Unknown') {
+      return { code: u.country_code, name: u.country_name || u.country_code };
+    }
+    const matchToday = todayVisits.find(v => v.session_id === u.session_id && v.country_code && v.country_code !== 'Unknown');
+    if (matchToday) {
+      return { code: matchToday.country_code, name: matchToday.country_name || matchToday.country_code };
+    }
+    const matchRecent = recentActivity.find(r => r.session_id === u.session_id && r.country_code && r.country_code !== 'Unknown');
+    if (matchRecent) {
+      return { code: matchRecent.country_code, name: matchRecent.country_name || matchRecent.country_code };
+    }
+    if (u.name) {
+      const matchTg = tgUsers.find(t => t.first_name === u.name || ('@' + t.username) === u.name);
+      if (matchTg?.country_code) {
+        return { code: matchTg.country_code, name: matchTg.country_name || matchTg.country_code };
+      }
+    }
+    return { code: 'Unknown', name: 'Unknown' };
+  }, [todayVisits, recentActivity, tgUsers]);
+
   const tracksRef = React.useRef(tracks);
   React.useEffect(() => { tracksRef.current = tracks; }, [tracks]);
 
@@ -256,6 +288,7 @@ export default function AdminAnalytics() {
       const [
         metricsRes, countryRes, recentRes, tgData,
         topTracksRes, styleRes, referrerRes, kofiRes, contactRes,
+        todayVisitsRes, weekVisitsRes,
       ] = await Promise.all([
         supabase.rpc('get_platform_metrics', {
           today_start: todayStart.toISOString(),
@@ -278,7 +311,12 @@ export default function AdminAnalytics() {
         })).catch(() => ({ data: null })),
         supabase.from('track_plays').select('id, created_at, style, bpm, user_ref, session_id, duration_seconds').eq('event_type', 'kofi_click').order('created_at', { ascending: false }),
         supabase.from('track_plays').select('id, created_at, style, bpm, user_ref, session_id').eq('event_type', 'contact_message').order('created_at', { ascending: false }),
+        supabase.from('page_visits').select('id, created_at, session_id, user_ref, duration_seconds, country_code, country_name, referrer').gte('created_at', todayStart.toISOString()).order('created_at', { ascending: false }).limit(60),
+        supabase.from('page_visits').select('id, created_at, session_id, user_ref, duration_seconds, country_code, country_name, referrer').gte('created_at', weekStart.toISOString()).order('created_at', { ascending: false }).limit(60),
       ]);
+
+      if (todayVisitsRes?.data) setTodayVisits(todayVisitsRes.data as RecentActivity[]);
+      if (weekVisitsRes?.data) setWeekVisits(weekVisitsRes.data as RecentActivity[]);
 
       // --- Client-side traffic chart (avoids UTC timezone issues) ---
       const { data: rawVisits } = await supabase
@@ -492,16 +530,23 @@ export default function AdminAnalytics() {
     const syncLive = () => {
       if (!channel || !mounted) return;
       try {
-        type PresenceEntry = { session_id?: string; name?: string | null; is_telegram?: boolean };
+        type PresenceEntry = { session_id?: string; name?: string | null; is_telegram?: boolean; country_code?: string; country_name?: string; online_at?: string };
         const state = channel.presenceState() as Record<string, PresenceEntry[]>;
         const seen = new Set<string>();
-        const users: { session_id: string; name: string | null; is_telegram: boolean }[] = [];
+        const users: LiveUser[] = [];
         Object.values(state).forEach(entries => {
           entries.forEach((e: PresenceEntry) => {
             if (!e?.session_id || e.session_id.startsWith('admin-')) return;
             if (seen.has(e.session_id)) return;
             seen.add(e.session_id);
-            users.push({ session_id: e.session_id, name: e.name ?? null, is_telegram: !!e.is_telegram });
+            users.push({
+              session_id: e.session_id,
+              name: e.name ?? null,
+              is_telegram: !!e.is_telegram,
+              country_code: e.country_code || 'Unknown',
+              country_name: e.country_name || 'Unknown',
+              online_at: e.online_at || new Date().toISOString(),
+            });
           });
         });
         setLiveUsers(users);
@@ -594,11 +639,18 @@ export default function AdminAnalytics() {
             {' '}{liveUsers.length === 1 ? 'person' : 'people'}
           </span>
           <div className="online-now-pills">
-            {liveUsers.filter(u => u.is_telegram && u.name).slice(0, 4).map(u => (
-              <span key={u.session_id} className="mini-chip tg">{u.name}</span>
-            ))}
+            {liveUsers.filter(u => u.is_telegram && u.name).slice(0, 4).map(u => {
+              const geo = getLiveUserCountry(u);
+              return (
+                <span key={u.session_id} className="mini-chip tg">
+                  {getFlag(geo.code)} {u.name}
+                </span>
+              );
+            })}
             {liveUsers.filter(u => !u.is_telegram).length > 0 && (
-              <span className="mini-chip anon">{liveUsers.filter(u => !u.is_telegram).length} anon</span>
+              <span className="mini-chip anon">
+                {liveUsers.filter(u => !u.is_telegram).length} anon
+              </span>
             )}
           </div>
           <span className="online-chevron">{onlineExpanded ? '▲' : '▼'}</span>
@@ -608,18 +660,26 @@ export default function AdminAnalytics() {
             {liveUsers.length === 0 ? (
               <span className="online-now-empty">No one online right now</span>
             ) : (
-              liveUsers.map(u => (
-                <div key={u.session_id} className={`online-user-chip ${u.is_telegram ? 'tg' : 'anon'}`}>
-                  <div className="online-user-avatar">
-                    {u.name ? u.name.charAt(0).toUpperCase() : '?'}
+              liveUsers.map(u => {
+                const geo = getLiveUserCountry(u);
+                return (
+                  <div key={u.session_id} className={`online-user-chip ${u.is_telegram ? 'tg' : 'anon'}`}>
+                    <div className="online-user-avatar">
+                      {geo.code !== 'Unknown' ? getFlag(geo.code) : (u.is_telegram ? (u.name?.charAt(0) || 'T') : '🌐')}
+                    </div>
+                    <div className="online-user-info">
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '5px' }}>
+                        <span className="online-user-name">{u.name || 'Anonymous'}</span>
+                        {geo.code !== 'Unknown' && (
+                          <span className="online-country-badge">{getFlag(geo.code)} {geo.code}</span>
+                        )}
+                      </div>
+                      <span className="online-user-type">{u.is_telegram ? '✈️ Telegram' : '🌐 Web'}</span>
+                    </div>
+                    <span className="online-pulse" />
                   </div>
-                  <div className="online-user-info">
-                    <span className="online-user-name">{u.name || 'Anonymous'}</span>
-                    <span className="online-user-type">{u.is_telegram ? '✈️ Telegram' : '🌐 Web'}</span>
-                  </div>
-                  <span className="online-pulse" />
-                </div>
-              ))
+                );
+              })
             )}
           </div>
         )}
@@ -734,82 +794,323 @@ export default function AdminAnalytics() {
           </div>
         </div>
 
-        {/* Click Log Table / Feed */}
+        {/* Visitor & Supporter Activity Hub with Tabs */}
         <div className="coffee-log-section">
-          <div className="coffee-log-header">
-            <h4>Recent Supporter Log</h4>
-            <span className="coffee-log-count">{filteredKofi.length} events · {filteredUniqueClickers} unique</span>
+          <div className="visitor-log-header">
+            <div className="visitor-log-title-group">
+              <h4>Live Visitors & Supporter Log</h4>
+              <span className="coffee-log-count">
+                {activeVisitorTab === 'online' && `${liveUsers.length} active visitors on site`}
+                {activeVisitorTab === 'today' && `${todayVisits.length} visits logged today`}
+                {activeVisitorTab === 'week' && `${weekVisits.length} visits logged this week`}
+                {activeVisitorTab === 'supporters' && `${filteredKofi.length} events · ${filteredUniqueClickers} unique supporters`}
+              </span>
+            </div>
+
+            <div className="visitor-tabs-group">
+              <button
+                type="button"
+                className={`vtab ${activeVisitorTab === 'online' ? 'active online' : ''}`}
+                onClick={() => setActiveVisitorTab('online')}
+              >
+                <span className="tab-live-dot" />
+                <span>Online Now ({liveUsers.length})</span>
+              </button>
+              <button
+                type="button"
+                className={`vtab ${activeVisitorTab === 'today' ? 'active' : ''}`}
+                onClick={() => setActiveVisitorTab('today')}
+              >
+                <span>Today ({todayVisits.length})</span>
+              </button>
+              <button
+                type="button"
+                className={`vtab ${activeVisitorTab === 'week' ? 'active' : ''}`}
+                onClick={() => setActiveVisitorTab('week')}
+              >
+                <span>This Week ({weekVisits.length})</span>
+              </button>
+              <button
+                type="button"
+                className={`vtab ${activeVisitorTab === 'supporters' ? 'active supporters' : ''}`}
+                onClick={() => setActiveVisitorTab('supporters')}
+              >
+                <Coffee size={13} />
+                <span>Recent Supporter Log ({filteredKofi.length})</span>
+              </button>
+            </div>
           </div>
 
-          {loading ? (
-            <div className="panel-empty">Loading coffee clicks...</div>
-          ) : filteredKofi.length === 0 ? (
-            <div className="coffee-empty">
-              <Coffee size={28} className="coffee-empty-icon" />
-              <span>No clicks recorded {kofiPeriod !== 'all' ? 'for this period' : 'yet'}.</span>
-              <span className="coffee-empty-sub">Supporters and device details will appear here live when users tap Buy Me Coffee.</span>
-            </div>
-          ) : (
-            <div className="coffee-list">
-              {filteredKofi.slice(0, 25).map(c => {
-                const tgUser = tgUsers.find(u => u.telegram_id.toString() === c.user_ref);
-                const isTelegram = !!tgUser;
-                const sourceBadge = c.source === 'modal_external'
-                  ? { label: 'External Tab', color: '#f59e0b', bg: 'rgba(245,158,11,0.12)' }
-                  : c.source === 'sidebar'
-                  ? { label: 'Sidebar Button', color: '#3b82f6', bg: 'rgba(59,130,246,0.12)' }
-                  : { label: 'Header Pill', color: '#1db954', bg: 'rgba(29,185,84,0.12)' };
+          {/* TAB 1: ONLINE NOW */}
+          {activeVisitorTab === 'online' && (
+            liveUsers.length === 0 ? (
+              <div className="coffee-empty">
+                <Wifi size={28} className="coffee-empty-icon" />
+                <span>No visitors currently online.</span>
+                <span className="coffee-empty-sub">When users open 4and.one, they will appear here live in real-time with their country flag and status.</span>
+              </div>
+            ) : (
+              <div className="coffee-list">
+                {liveUsers.map((u) => {
+                  const geo = getLiveUserCountry(u);
+                  const matchedVisit = todayVisits.find(v => v.session_id === u.session_id) || recentActivity.find(r => r.session_id === u.session_id);
+                  const tgUser = tgUsers.find(tu => tu.telegram_id.toString() === u.session_id || tu.first_name === u.name);
 
-                return (
-                  <div key={c.id} className="coffee-row">
-                    <div className="coffee-row-left">
-                      <div 
-                        className="coffee-row-avatar" 
-                        style={{ 
-                          background: isTelegram ? '#1db954' : 'rgba(59,130,246,0.18)', 
-                          color: isTelegram ? '#000' : '#60a5fa' 
-                        }}
-                      >
-                        {isTelegram ? (tgUser!.first_name?.charAt(0) || 'T') : '🌐'}
-                      </div>
-                      <div className="coffee-row-info">
-                        <div className="coffee-row-name">
-                          {isTelegram ? (
-                            <div className="coffee-supporter-identity">
-                              <span className="supporter-full-name">{tgUser!.first_name}{tgUser!.last_name ? ' ' + tgUser!.last_name : ''}</span>
-                              {tgUser!.username && <span className="act-handle">@{tgUser!.username}</span>}
-                              <span className="tg-uid-badge">ID: {tgUser!.telegram_id}</span>
-                              <span className="supporter-platform-badge tg">✈️ Telegram</span>
-                              {tgUser!.visit_count > 1 && <span className="act-visits">({tgUser!.visit_count}x visits)</span>}
-                            </div>
-                          ) : (
-                            <div className="coffee-supporter-identity">
-                              <span className="supporter-full-name">Visitor #{c.session_id ? c.session_id.slice(0, 8) : 'Web'}</span>
-                              <span className="supporter-platform-badge web">🌐 Web Visitor</span>
-                              {c.session_id && <span className="session-sub-tag">sess: {c.session_id.slice(0, 8)}</span>}
-                            </div>
-                          )}
+                  return (
+                    <div key={u.session_id} className="coffee-row is-online-row">
+                      <div className="coffee-row-left">
+                        <div className="coffee-row-avatar online-avatar">
+                          {getFlag(geo.code)}
                         </div>
-                        <div className="coffee-row-meta">
-                          <span className="act-flag">{getFlag(c.country_code)}</span>
-                          <span className="font-semibold text-zinc-300">{c.country_code || 'Global'}</span>
-                          <span className="act-dot">·</span>
-                          <span>{timeAgo(c.created_at)}</span>
-                          <span className="act-dot">·</span>
-                          <span className="text-zinc-500">{new Date(c.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' })}</span>
+                        <div className="coffee-row-info">
+                          <div className="coffee-row-name">
+                            <div className="coffee-supporter-identity">
+                              <span className="supporter-full-name">
+                                {u.name || `Anonymous Visitor #${u.session_id.slice(0, 6)}`}
+                              </span>
+                              {tgUser?.username && <span className="act-handle">@{tgUser.username}</span>}
+                              <span className={`supporter-platform-badge ${u.is_telegram ? 'tg' : 'web'}`}>
+                                {u.is_telegram ? '✈️ Telegram' : '🌐 Web Visitor'}
+                              </span>
+                              <span className="session-sub-tag">sess: {u.session_id.slice(0, 8)}</span>
+                            </div>
+                          </div>
+                          <div className="coffee-row-meta">
+                            <span className="act-flag">{getFlag(geo.code)}</span>
+                            <span className="font-semibold text-zinc-300">{geo.name || geo.code} {geo.code !== 'Unknown' ? `(${geo.code})` : ''}</span>
+                            <span className="act-dot">·</span>
+                            <span className="badge-online">● Active Now</span>
+                            {matchedVisit?.duration_seconds && matchedVisit.duration_seconds > 0 ? (
+                              <>
+                                <span className="act-dot">·</span>
+                                <span>⏱ {fmtDuration(matchedVisit.duration_seconds)} on site</span>
+                              </>
+                            ) : null}
+                          </div>
                         </div>
                       </div>
-                    </div>
 
-                    <div className="coffee-row-right">
-                      <span className="coffee-tag" style={{ color: sourceBadge.color, background: sourceBadge.bg }}>
-                        {sourceBadge.label}
-                      </span>
+                      <div className="coffee-row-right">
+                        <span className="live-status-pill">
+                          <span className="live-status-dot" />
+                          ONLINE
+                        </span>
+                      </div>
                     </div>
-                  </div>
-                );
-              })}
-            </div>
+                  );
+                })}
+              </div>
+            )
+          )}
+
+          {/* TAB 2: TODAY'S VISITS */}
+          {activeVisitorTab === 'today' && (
+            loading ? (
+              <div className="panel-empty">Loading today's visitors...</div>
+            ) : todayVisits.length === 0 ? (
+              <div className="coffee-empty">
+                <Calendar size={28} className="coffee-empty-icon" />
+                <span>No visits logged today yet.</span>
+              </div>
+            ) : (
+              <div className="coffee-list">
+                {todayVisits.map((v) => {
+                  const isOnline = liveUsers.some(lu => lu.session_id === v.session_id);
+                  const tgUser = tgUsers.find(tu => tu.telegram_id.toString() === v.user_ref);
+                  const isTelegram = !!tgUser;
+                  const refLabel = getReferrerLabel(v.referrer);
+
+                  return (
+                    <div key={v.id} className={`coffee-row ${isOnline ? 'is-online-row' : ''}`}>
+                      <div className="coffee-row-left">
+                        <div className="coffee-row-avatar">
+                          {getFlag(v.country_code)}
+                        </div>
+                        <div className="coffee-row-info">
+                          <div className="coffee-row-name">
+                            <div className="coffee-supporter-identity">
+                              <span className="supporter-full-name">
+                                {isTelegram
+                                  ? `${tgUser!.first_name}${tgUser!.last_name ? ' ' + tgUser!.last_name : ''}`
+                                  : `Visitor #${v.session_id ? v.session_id.slice(0, 8) : 'Web'}`}
+                              </span>
+                              {tgUser?.username && <span className="act-handle">@{tgUser.username}</span>}
+                              <span className={`supporter-platform-badge ${isTelegram ? 'tg' : 'web'}`}>
+                                {isTelegram ? '✈️ Telegram' : '🌐 Web Visitor'}
+                              </span>
+                              {isOnline && <span className="badge-online">● Online Now</span>}
+                            </div>
+                          </div>
+                          <div className="coffee-row-meta">
+                            <span className="act-flag">{getFlag(v.country_code)}</span>
+                            <span className="font-semibold text-zinc-300">{v.country_name || v.country_code || 'Unknown'} {v.country_code ? `(${v.country_code})` : ''}</span>
+                            <span className="act-dot">·</span>
+                            <span>{timeAgo(v.created_at)}</span>
+                            <span className="act-dot">·</span>
+                            <span className="text-zinc-500">{new Date(v.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
+                            {v.duration_seconds > 0 && (
+                              <>
+                                <span className="act-dot">·</span>
+                                <span className="text-zinc-400">⏱ {fmtDuration(v.duration_seconds)}</span>
+                              </>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+
+                      <div className="coffee-row-right">
+                        <span className="coffee-tag" style={{ background: 'rgba(255,255,255,0.05)', color: '#a1a1aa' }}>
+                          {refLabel}
+                        </span>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            )
+          )}
+
+          {/* TAB 3: THIS WEEK'S VISITS */}
+          {activeVisitorTab === 'week' && (
+            loading ? (
+              <div className="panel-empty">Loading this week's visitors...</div>
+            ) : weekVisits.length === 0 ? (
+              <div className="coffee-empty">
+                <TrendingUp size={28} className="coffee-empty-icon" />
+                <span>No visits logged this week yet.</span>
+              </div>
+            ) : (
+              <div className="coffee-list">
+                {weekVisits.map((v) => {
+                  const isOnline = liveUsers.some(lu => lu.session_id === v.session_id);
+                  const tgUser = tgUsers.find(tu => tu.telegram_id.toString() === v.user_ref);
+                  const isTelegram = !!tgUser;
+                  const refLabel = getReferrerLabel(v.referrer);
+
+                  return (
+                    <div key={v.id} className={`coffee-row ${isOnline ? 'is-online-row' : ''}`}>
+                      <div className="coffee-row-left">
+                        <div className="coffee-row-avatar">
+                          {getFlag(v.country_code)}
+                        </div>
+                        <div className="coffee-row-info">
+                          <div className="coffee-row-name">
+                            <div className="coffee-supporter-identity">
+                              <span className="supporter-full-name">
+                                {isTelegram
+                                  ? `${tgUser!.first_name}${tgUser!.last_name ? ' ' + tgUser!.last_name : ''}`
+                                  : `Visitor #${v.session_id ? v.session_id.slice(0, 8) : 'Web'}`}
+                              </span>
+                              {tgUser?.username && <span className="act-handle">@{tgUser.username}</span>}
+                              <span className={`supporter-platform-badge ${isTelegram ? 'tg' : 'web'}`}>
+                                {isTelegram ? '✈️ Telegram' : '🌐 Web Visitor'}
+                              </span>
+                              {isOnline && <span className="badge-online">● Online Now</span>}
+                            </div>
+                          </div>
+                          <div className="coffee-row-meta">
+                            <span className="act-flag">{getFlag(v.country_code)}</span>
+                            <span className="font-semibold text-zinc-300">{v.country_name || v.country_code || 'Unknown'} {v.country_code ? `(${v.country_code})` : ''}</span>
+                            <span className="act-dot">·</span>
+                            <span>{timeAgo(v.created_at)}</span>
+                            <span className="act-dot">·</span>
+                            <span className="text-zinc-500">
+                              {new Date(v.created_at).toLocaleDateString([], { weekday: 'short', month: 'short', day: 'numeric' })} {new Date(v.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                            </span>
+                            {v.duration_seconds > 0 && (
+                              <>
+                                <span className="act-dot">·</span>
+                                <span className="text-zinc-400">⏱ {fmtDuration(v.duration_seconds)}</span>
+                              </>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+
+                      <div className="coffee-row-right">
+                        <span className="coffee-tag" style={{ background: 'rgba(255,255,255,0.05)', color: '#a1a1aa' }}>
+                          {refLabel}
+                        </span>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            )
+          )}
+
+          {/* TAB 4: RECENT SUPPORTER LOG (COFFEE CLICKS) */}
+          {activeVisitorTab === 'supporters' && (
+            loading ? (
+              <div className="panel-empty">Loading coffee clicks...</div>
+            ) : filteredKofi.length === 0 ? (
+              <div className="coffee-empty">
+                <Coffee size={28} className="coffee-empty-icon" />
+                <span>No clicks recorded {kofiPeriod !== 'all' ? 'for this period' : 'yet'}.</span>
+                <span className="coffee-empty-sub">Supporters and device details will appear here live when users tap Buy Me Coffee.</span>
+              </div>
+            ) : (
+              <div className="coffee-list">
+                {filteredKofi.slice(0, 30).map(c => {
+                  const tgUser = tgUsers.find(u => u.telegram_id.toString() === c.user_ref);
+                  const isTelegram = !!tgUser;
+                  const sourceBadge = c.source === 'modal_external'
+                    ? { label: 'External Tab', color: '#f59e0b', bg: 'rgba(245,158,11,0.12)' }
+                    : c.source === 'sidebar'
+                    ? { label: 'Sidebar Button', color: '#3b82f6', bg: 'rgba(59,130,246,0.12)' }
+                    : { label: 'Header Pill', color: '#1db954', bg: 'rgba(29,185,84,0.12)' };
+
+                  return (
+                    <div key={c.id} className="coffee-row">
+                      <div className="coffee-row-left">
+                        <div 
+                          className="coffee-row-avatar" 
+                          style={{ 
+                            background: isTelegram ? '#1db954' : 'rgba(59,130,246,0.18)', 
+                            color: isTelegram ? '#000' : '#60a5fa' 
+                          }}
+                        >
+                          {isTelegram ? (tgUser!.first_name?.charAt(0) || 'T') : '🌐'}
+                        </div>
+                        <div className="coffee-row-info">
+                          <div className="coffee-row-name">
+                            {isTelegram ? (
+                              <div className="coffee-supporter-identity">
+                                <span className="supporter-full-name">{tgUser!.first_name}{tgUser!.last_name ? ' ' + tgUser!.last_name : ''}</span>
+                                {tgUser!.username && <span className="act-handle">@{tgUser!.username}</span>}
+                                <span className="tg-uid-badge">ID: {tgUser!.telegram_id}</span>
+                                <span className="supporter-platform-badge tg">✈️ Telegram</span>
+                                {tgUser!.visit_count > 1 && <span className="act-visits">({tgUser!.visit_count}x visits)</span>}
+                              </div>
+                            ) : (
+                              <div className="coffee-supporter-identity">
+                                <span className="supporter-full-name">Visitor #{c.session_id ? c.session_id.slice(0, 8) : 'Web'}</span>
+                                <span className="supporter-platform-badge web">🌐 Web Visitor</span>
+                                {c.session_id && <span className="session-sub-tag">sess: {c.session_id.slice(0, 8)}</span>}
+                              </div>
+                            )}
+                          </div>
+                          <div className="coffee-row-meta">
+                            <span className="act-flag">{getFlag(c.country_code)}</span>
+                            <span className="font-semibold text-zinc-300">{c.country_code || 'Global'}</span>
+                            <span className="act-dot">·</span>
+                            <span>{timeAgo(c.created_at)}</span>
+                            <span className="act-dot">·</span>
+                            <span className="text-zinc-500">{new Date(c.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' })}</span>
+                          </div>
+                        </div>
+                      </div>
+
+                      <div className="coffee-row-right">
+                        <span className="coffee-tag" style={{ color: sourceBadge.color, background: sourceBadge.bg }}>
+                          {sourceBadge.label}
+                        </span>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            )
           )}
         </div>
       </div>
@@ -1240,6 +1541,21 @@ export default function AdminAnalytics() {
         .c-stat-sub { font-size:11px; font-weight:600; color:#a1a1aa; }
 
         .coffee-log-section { border-top:1px solid rgba(255,255,255,0.06); padding-top:18px; }
+        .visitor-log-header { display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:12px; margin-bottom:16px; }
+        .visitor-log-title-group { display:flex; flex-direction:column; gap:2px; }
+        .visitor-log-title-group h4 { font-size:14px; font-weight:800; color:#fff; margin:0; text-transform:uppercase; letter-spacing:0.5px; }
+        .visitor-tabs-group { display:flex; gap:6px; background:rgba(255,255,255,0.04); padding:4px; border-radius:12px; border:1px solid rgba(255,255,255,0.08); flex-wrap:wrap; }
+        .vtab { display:flex; align-items:center; gap:6px; padding:7px 14px; border-radius:8px; font-size:12px; font-weight:700; color:#a1a1aa; background:transparent; border:none; cursor:pointer; transition:all 0.2s ease; }
+        .vtab:hover { color:#fff; background:rgba(255,255,255,0.06); }
+        .vtab.active { color:#000; background:#1db954; box-shadow:0 2px 10px rgba(29,185,84,0.3); }
+        .vtab.active.supporters { background:#f59e0b; color:#000; box-shadow:0 2px 10px rgba(245,158,11,0.3); }
+        .tab-live-dot { width:7px; height:7px; border-radius:50%; background:#1db954; animation:livePulse 2s infinite; }
+        .vtab.active.online .tab-live-dot { background:#000; }
+        .is-online-row { background:rgba(29,185,84,0.06) !important; border:1px solid rgba(29,185,84,0.2) !important; }
+        .online-avatar { background:rgba(29,185,84,0.18) !important; border:1px solid rgba(29,185,84,0.3); }
+        .live-status-pill { display:flex; align-items:center; gap:6px; padding:4px 10px; border-radius:20px; font-size:10px; font-weight:900; color:#1db954; background:rgba(29,185,84,0.15); border:1px solid rgba(29,185,84,0.3); letter-spacing:0.5px; }
+        .live-status-dot { width:6px; height:6px; border-radius:50%; background:#1db954; animation:livePulse 2s infinite; }
+        .online-country-badge { font-size:10px; font-weight:800; color:#1db954; background:rgba(29,185,84,0.12); padding:1px 6px; border-radius:10px; border:1px solid rgba(29,185,84,0.25); }
         .coffee-log-header { display:flex; align-items:center; justify-content:space-between; margin-bottom:12px; }
         .coffee-log-header h4 { font-size:13px; font-weight:800; color:#d4d4d8; text-transform:uppercase; letter-spacing:0.5px; }
         .coffee-log-count { font-size:11px; color:#a1a1aa; font-weight:700; }

@@ -33,48 +33,112 @@ export default function AnalyticsTracker() {
     }
     sessionIdRef.current = sessionId;
 
+    let presenceChannel: ReturnType<typeof supabase.channel> | null = null;
+    let displayName: string | null = null;
+    let isTg = false;
+
+    const tg = (window as Window & { Telegram?: { WebApp?: { initDataUnsafe?: { user?: TelegramWebAppUser } } } }).Telegram?.WebApp?.initDataUnsafe?.user;
+    if (tg) {
+      isTg = true;
+      displayName = [tg.first_name, tg.last_name].filter(Boolean).join(' ') || (tg.username ? '@' + tg.username : 'Telegram user');
+    }
+
+    let countryCode = "Unknown";
+    let countryName = "Unknown";
+    if (typeof window !== "undefined") {
+      countryCode = sessionStorage.getItem("4andone_country_code") || "Unknown";
+      countryName = sessionStorage.getItem("4andone_country_name") || "Unknown";
+    }
+
+    const sendPresence = (code: string, name: string) => {
+      if (!presenceChannel) return;
+      try {
+        presenceChannel.track({
+          session_id: sessionId,
+          name: displayName,
+          is_telegram: isTg,
+          country_code: code,
+          country_name: name,
+          online_at: new Date().toISOString(),
+        });
+      } catch (e) {
+        console.warn("[ANALYTICS] presence track error:", e);
+      }
+    };
+
+    // Initialize Presence
+    try {
+      presenceChannel = supabase.channel('4andone-live', {
+        config: { presence: { key: sessionId } },
+      });
+
+      presenceChannel.subscribe((status) => {
+        if (status === 'SUBSCRIBED') {
+          sendPresence(countryCode, countryName);
+        }
+      });
+    } catch (e) {
+      console.warn('[ANALYTICS] presence init failed:', e);
+    }
+
     const logVisit = async () => {
       try {
-        // 2. Fetch Geo-IP (Country)
-        let countryCode = "Unknown";
-        let countryName = "Unknown";
-        
-        try {
-          const res = await fetch("https://ipapi.co/json/");
-          if (res.ok) {
-            const data = await res.json();
-            countryCode = data.country_code || "Unknown";
-            countryName = data.country_name || "Unknown";
-            if (typeof window !== "undefined") {
-              sessionStorage.setItem("4andone_country_code", countryCode);
-              sessionStorage.setItem("4andone_country_name", countryName);
+        // 2. Fetch Geo-IP (Country) if not already known
+        if (countryCode === "Unknown") {
+          try {
+            const geoRes = await fetch("/api/geo");
+            if (geoRes.ok) {
+              const geoData = await geoRes.json();
+              if (geoData.country_code && geoData.country_code !== "Unknown") {
+                countryCode = geoData.country_code;
+                countryName = geoData.country_name || geoData.country_code;
+              }
+            }
+          } catch (e) {
+            // Internal geo failed, proceed to external fallback
+          }
+
+          if (countryCode === "Unknown") {
+            try {
+              const res = await fetch("https://ipapi.co/json/");
+              if (res.ok) {
+                const data = await res.json();
+                countryCode = data.country_code || "Unknown";
+                countryName = data.country_name || "Unknown";
+              }
+            } catch (e) {
+              console.warn("[ANALYTICS] Geo-IP external fallback failed:", e);
             }
           }
-        } catch (e) {
-          console.warn("[ANALYTICS] Geo-IP failed:", e);
+
+          if (typeof window !== "undefined") {
+            sessionStorage.setItem("4andone_country_code", countryCode);
+            sessionStorage.setItem("4andone_country_name", countryName);
+          }
+
+          // Re-send presence with now-resolved country
+          sendPresence(countryCode, countryName);
         }
 
         // 3. Telegram WebApp Integration
         let userRef = null;
-        const tg = (window as Window & { Telegram?: { WebApp?: { initDataUnsafe?: { user?: TelegramWebAppUser } } } }).Telegram?.WebApp;
-        if (tg?.initDataUnsafe?.user) {
-          const user = tg.initDataUnsafe.user;
-          userRef = user.id.toString();
+        if (tg) {
+          userRef = tg.id.toString();
 
           // Sync Telegram User
           await supabase.from("telegram_users").upsert({
-            telegram_id: user.id,
-            first_name: user.first_name,
-            last_name: user.last_name || null,
-            username: user.username || null,
-            photo_url: user.photo_url || null,
+            telegram_id: tg.id,
+            first_name: tg.first_name,
+            last_name: tg.last_name || null,
+            username: tg.username || null,
+            photo_url: tg.photo_url || null,
             country_code: countryCode,
             country_name: countryName,
             last_seen: new Date().toISOString(),
           }, { onConflict: "telegram_id" });
 
           // Increment visit count via helper function
-          await supabase.rpc("increment_user_visit", { uid: user.id });
+          await supabase.rpc("increment_user_visit", { uid: tg.id });
         }
 
         // 4. Initial Page Visit Entry
@@ -111,34 +175,6 @@ export default function AnalyticsTracker() {
     };
 
     logVisit();
-
-    // LIVE PRESENCE: join a realtime presence channel so the admin dashboard can
-    // count who is currently online. Presence auto-clears when the tab closes —
-    // no database table or cron cleanup needed.
-    let presenceChannel: ReturnType<typeof supabase.channel> | null = null;
-    try {
-      const tg = (window as Window & { Telegram?: { WebApp?: { initDataUnsafe?: { user?: TelegramWebAppUser } } } }).Telegram?.WebApp?.initDataUnsafe?.user;
-      const displayName = tg
-        ? [tg.first_name, tg.last_name].filter(Boolean).join(' ') || (tg.username ? '@' + tg.username : 'Telegram user')
-        : null;
-
-      presenceChannel = supabase.channel('4andone-live', {
-        config: { presence: { key: sessionId } },
-      });
-
-      presenceChannel.subscribe((status) => {
-        if (status === 'SUBSCRIBED') {
-          presenceChannel?.track({
-            session_id: sessionId,
-            name: displayName,            // null = anonymous web visitor
-            is_telegram: !!tg,
-            online_at: new Date().toISOString(),
-          });
-        }
-      });
-    } catch (e) {
-      console.warn('[ANALYTICS] presence init failed:', e);
-    }
 
     return () => {
       if (updateIntervalRef.current) clearInterval(updateIntervalRef.current);

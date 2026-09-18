@@ -231,6 +231,9 @@ const AddTrackModal = ({ isOpen, onClose, onAdd, initialData }: AddTrackModalPro
       if (formData.album === 'Dance Star Band' && !finalTags.includes('Dance Star Band')) {
         finalTags.push('Dance Star Band');
       }
+      if (formData.album === "Rose's Band" && !finalTags.includes("Rose's Band")) {
+        finalTags.push("Rose's Band");
+      }
 
       await onAdd({
         ...formData,
@@ -335,7 +338,7 @@ const AddTrackModal = ({ isOpen, onClose, onAdd, initialData }: AddTrackModalPro
                     onClick={() => setFormData(p => ({
                       ...p,
                       album: '',
-                      tags: p.tags.filter((t: string) => t !== 'GOC 2026' && t !== 'GOC Latin' && t !== 'GOC Standard')
+                      tags: p.tags.filter((t: string) => t !== 'GOC 2026' && t !== 'GOC Latin' && t !== 'GOC Standard' && t !== 'Dance Star Band' && t !== "Rose's Band" && t !== 'Roses Band')
                     }))}
                   >
                     <span>Standard Library</span>
@@ -356,6 +359,25 @@ const AddTrackModal = ({ isOpen, onClose, onAdd, initialData }: AddTrackModalPro
                     }}
                   >
                     <span>🏆 GOC 2026</span>
+                  </button>
+
+                  <button
+                    type="button"
+                    className={`goc-mode-chip rosesband-main ${formData.album === "Rose's Band" ? 'active-rosesband' : ''}`}
+                    style={{
+                      borderColor: formData.album === "Rose's Band" ? '#22c55e' : undefined,
+                      color: formData.album === "Rose's Band" ? '#22c55e' : undefined,
+                      backgroundColor: formData.album === "Rose's Band" ? 'rgba(34, 197, 94, 0.15)' : undefined,
+                    }}
+                    onClick={() => {
+                      setFormData(p => {
+                        const newTags = [...p.tags];
+                        if (!newTags.includes("Rose's Band")) newTags.push("Rose's Band");
+                        return { ...p, album: "Rose's Band", tags: newTags };
+                      });
+                    }}
+                  >
+                    <span>🌹 Rose&apos;s Band</span>
                   </button>
 
                   <button

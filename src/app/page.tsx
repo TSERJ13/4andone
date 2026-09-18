@@ -46,7 +46,7 @@ export default function Home() {
 
   const [visibleTrackCount, setVisibleTrackCount] = useState(25);
 
-  // 10-Second Hero Carousel State (0 = Dance Star Band, 1 = GOC 2026)
+  // 10-Second Hero Carousel State (0 = Rose's Band, 1 = Dance Star Band, 2 = GOC 2026)
   const [currentSlide, setCurrentSlide] = useState(0);
   const [isCarouselPaused, setIsCarouselPaused] = useState(false);
 
@@ -68,9 +68,9 @@ export default function Home() {
     const distance = touchStartX.current - touchEndX.current;
     const minSwipeDistance = 35;
     if (distance > minSwipeDistance) {
-      setCurrentSlide(prev => (prev === 0 ? 1 : 0));
+      setCurrentSlide(prev => (prev + 1) % 3);
     } else if (distance < -minSwipeDistance) {
-      setCurrentSlide(prev => (prev === 0 ? 1 : 0));
+      setCurrentSlide(prev => (prev === 0 ? 2 : prev - 1));
     }
     touchStartX.current = null;
     touchEndX.current = null;
@@ -98,7 +98,7 @@ export default function Home() {
   useEffect(() => {
     if (isCarouselPaused) return;
     const timer = setInterval(() => {
-      setCurrentSlide(prev => (prev === 0 ? 1 : 0));
+      setCurrentSlide(prev => (prev + 1) % 3);
     }, 10000);
     return () => clearInterval(timer);
   }, [isCarouselPaused]);
@@ -122,10 +122,19 @@ export default function Home() {
   const isSpecialAlbumTrack = React.useCallback((t: any) => {
     if (!t) return false;
     const albumLower = (t.album || '').toLowerCase();
-    if (albumLower === 'goc 2026' || albumLower === 'dance star band') return true;
+    if (albumLower === 'goc 2026' || albumLower === 'dance star band' || albumLower === "rose's band" || albumLower === 'roses band') return true;
     if (t.tags?.some((tag: string) => {
       const tg = tag.toLowerCase();
-      return tg === 'goc 2026' || tg === 'goc' || tg === 'dance star band' || tg === 'dance star' || tg === 'dancestar';
+      return (
+        tg === 'goc 2026' ||
+        tg === 'goc' ||
+        tg === 'dance star band' ||
+        tg === 'dance star' ||
+        tg === 'dancestar' ||
+        tg === "rose's band" ||
+        tg === 'roses band' ||
+        tg === 'rosesband'
+      );
     })) return true;
     return false;
   }, []);
@@ -271,7 +280,7 @@ export default function Home() {
 
         {/* 10-Second Auto-Rotating Hero Carousel Banner */}
         <div 
-          className={`hero-carousel-wrapper ${currentSlide === 0 ? 'slide-dancestar' : 'slide-goc'}`}
+          className={`hero-carousel-wrapper ${currentSlide === 0 ? 'slide-rosesband' : currentSlide === 1 ? 'slide-dancestar' : 'slide-goc'}`}
           onMouseEnter={() => { setIsCarouselPaused(true); resetArrowsTimer(); }}
           onMouseLeave={() => { setIsCarouselPaused(false); setAreArrowsVisible(false); }}
           onMouseMove={resetArrowsTimer}
@@ -282,14 +291,14 @@ export default function Home() {
           {/* Navigation Controls: Smart Auto-Hiding Arrows */}
           <button 
             className={`carousel-nav-btn prev glass ${areArrowsVisible ? 'visible' : ''}`}
-            onClick={() => { resetArrowsTimer(); setCurrentSlide(prev => (prev === 0 ? 1 : 0)); }}
+            onClick={() => { resetArrowsTimer(); setCurrentSlide(prev => (prev === 0 ? 2 : prev - 1)); }}
             aria-label="Previous Banner"
           >
             <ChevronLeft size={16} className="nav-arrow-icon" />
           </button>
           <button 
             className={`carousel-nav-btn next glass ${areArrowsVisible ? 'visible' : ''}`}
-            onClick={() => { resetArrowsTimer(); setCurrentSlide(prev => (prev === 0 ? 1 : 0)); }}
+            onClick={() => { resetArrowsTimer(); setCurrentSlide(prev => (prev + 1) % 3); }}
             aria-label="Next Banner"
           >
             <ChevronRight size={16} className="nav-arrow-icon" />
@@ -299,10 +308,52 @@ export default function Home() {
           <div 
             className="carousel-track"
             style={{
-              transform: `translateX(-${currentSlide * 50}%)`
+              transform: `translateX(-${currentSlide * (100 / 3)}%)`
             }}
           >
-            {/* SLIDE 0: DANCE STAR BAND (LIVE SOUNDS) - STARTS FIRST */}
+            {/* SLIDE 0: ROSE'S BAND (LIVE SOUNDS) - STARTS FIRST */}
+            <header 
+              className="hero-section glass rosesband-hero-section"
+              style={{
+                background: 'linear-gradient(135deg, rgba(34, 197, 94, 0.18) 0%, rgba(20, 20, 20, 0.7) 100%)',
+                borderColor: 'rgba(34, 197, 94, 0.3)'
+              }}
+            >
+              <div className="hero-content-wrapper">
+                <div className="hero-content">
+                  <span className="goc-badge" style={{ background: 'linear-gradient(90deg, #22c55e, #10b981)', boxShadow: '0 4px 15px rgba(34, 197, 94, 0.3)' }}>
+                    LIVE SOUNDS COLLECTION
+                  </span>
+                  <h2 className="hero-title text-gradient" style={{ background: 'linear-gradient(90deg, #ffffff, #22c55e, #4ade80)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }}>
+                    ROSE&apos;S BAND<br />LIVE SOUNDS
+                  </h2>
+                  <p className="hero-desc">
+                    Exclusive Live Dance Band Sounds. Isolated collection with dedicated Latin &amp; Standard Final Mode practice.
+                  </p>
+                  <div className="hero-actions desktop-actions">
+                    <button className="btn-primary" style={{ background: 'linear-gradient(90deg, #22c55e, #10b981)', color: 'white', border: 'none', boxShadow: '0 4px 15px rgba(34, 197, 94, 0.4)' }} onClick={() => router.push('/album/roses-band')}>
+                      Open Live Album
+                    </button>
+                    <button className="btn-outline glass" onClick={() => router.push('/album/roses-band')}>
+                      Final Mode
+                    </button>
+                  </div>
+                </div>
+                <div className="goc-hero-card-preview" style={{ borderColor: 'rgba(34, 197, 94, 0.3)' }} onClick={() => router.push('/album/roses-band')}>
+                  <img src="/rosesband.jpg" alt="Rose's Band Live Sounds" className="goc-hero-img" />
+                </div>
+              </div>
+              <div className="hero-actions mobile-actions">
+                <button className="btn-primary" style={{ background: 'linear-gradient(90deg, #22c55e, #10b981)', color: 'white', border: 'none' }} onClick={() => router.push('/album/roses-band')}>
+                  Open Live Album
+                </button>
+                <button className="btn-outline glass" onClick={() => router.push('/album/roses-band')}>
+                  Final Mode
+                </button>
+              </div>
+            </header>
+
+            {/* SLIDE 1: DANCE STAR BAND (LIVE SOUNDS) */}
             <header 
               className="hero-section glass dancestar-hero-section"
               style={{
@@ -380,13 +431,18 @@ export default function Home() {
           {/* Dot Indicators */}
           <div className="carousel-dots-container">
             <button 
-              className={`carousel-dot ${currentSlide === 0 ? 'active dancestar' : ''}`}
+              className={`carousel-dot ${currentSlide === 0 ? 'active rosesband' : ''}`}
               onClick={() => setCurrentSlide(0)}
+              title="Rose's Band"
+            />
+            <button 
+              className={`carousel-dot ${currentSlide === 1 ? 'active dancestar' : ''}`}
+              onClick={() => setCurrentSlide(1)}
               title="Dance Star Band"
             />
             <button 
-              className={`carousel-dot ${currentSlide === 1 ? 'active goc' : ''}`}
-              onClick={() => setCurrentSlide(1)}
+              className={`carousel-dot ${currentSlide === 2 ? 'active goc' : ''}`}
+              onClick={() => setCurrentSlide(2)}
               title="GOC Final 2026"
             />
           </div>
@@ -658,6 +714,14 @@ export default function Home() {
           transition: all 0.3s ease;
         }
 
+        .carousel-dot.active.rosesband {
+          width: 32px;
+          border-radius: 12px;
+          background: linear-gradient(90deg, #22c55e, #10b981);
+          border-color: #22c55e;
+          box-shadow: 0 0 12px rgba(34, 197, 94, 0.6);
+        }
+
         .carousel-dot.active.dancestar {
           width: 32px;
           border-radius: 12px;
@@ -693,6 +757,11 @@ export default function Home() {
           transition: border-color 0.6s ease, box-shadow 0.6s ease;
         }
 
+        .hero-carousel-wrapper.slide-rosesband {
+          border-color: rgba(34, 197, 94, 0.45);
+          box-shadow: 0 12px 35px -5px rgba(34, 197, 94, 0.25);
+        }
+
         .hero-carousel-wrapper.slide-dancestar {
           border-color: rgba(217, 70, 239, 0.45);
           box-shadow: 0 12px 35px -5px rgba(217, 70, 239, 0.25);
@@ -705,12 +774,12 @@ export default function Home() {
 
         .carousel-track {
           display: flex;
-          width: 200%;
+          width: 300%;
           transition: transform 0.6s cubic-bezier(0.25, 1, 0.5, 1);
         }
 
         .hero-section {
-          width: 50%;
+          width: 33.333333%;
           flex-shrink: 0;
           box-sizing: border-box;
           padding: 44px 40px 40px 40px;

@@ -21,7 +21,7 @@ export default function BorisMyagkovBigBandPage() {
   const { isAuthenticated, setIsAuthModalOpen } = useAuth();
   const downloadedIds = useDownloadedTracks();
 
-  const [activeTab, setActiveTab] = useState<'Latin' | 'Standard'>('Standard');
+  const [activeTab, setActiveTab] = useState<'Latin' | 'Standard'>('Latin');
   const [showPasoSettingsModal, setShowPasoSettingsModal] = useState(false);
   const [pasoTheme, setPasoTheme] = useState<'2-theme' | '3-theme'>((() => {
     if (typeof window !== 'undefined') {
@@ -154,16 +154,8 @@ export default function BorisMyagkovBigBandPage() {
           </div>
         </header>
 
-        {/* Main Tabs: International Standard & Latin */}
+        {/* Main Tabs: International Latin (Left) & Standard (Right) */}
         <div className="discipline-tabs-container">
-          <button 
-            className={`tab-btn standard ${activeTab === 'Standard' ? 'active' : ''}`}
-            onClick={() => setActiveTab('Standard')}
-          >
-            <Activity size={20} />
-            <span>International Standard</span>
-            <span className="tab-count">{standardTracks.length}</span>
-          </button>
           <button 
             className={`tab-btn latin ${activeTab === 'Latin' ? 'active' : ''}`}
             onClick={() => setActiveTab('Latin')}
@@ -171,6 +163,14 @@ export default function BorisMyagkovBigBandPage() {
             <Zap size={20} />
             <span>International Latin</span>
             <span className="tab-count">{latinTracks.length}</span>
+          </button>
+          <button 
+            className={`tab-btn standard ${activeTab === 'Standard' ? 'active' : ''}`}
+            onClick={() => setActiveTab('Standard')}
+          >
+            <Activity size={20} />
+            <span>International Standard</span>
+            <span className="tab-count">{standardTracks.length}</span>
           </button>
         </div>
 

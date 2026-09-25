@@ -203,3 +203,20 @@ export function getBPMFromMPM(mpm: number, styleName: string): number {
   if (!style) return 0;
   return Math.round(mpm * style.timeSignature);
 }
+
+export function canonicalStyle(styleName?: string): string {
+  if (!styleName) return '';
+  const s = styleName.toLowerCase().replace(/[\s\-_]+/g, '');
+  if (s === 'waltz' || s === 'slowwaltz' || s === 'englishwaltz' || s === 'sw') return 'slowwaltz';
+  if (s === 'tango' || s === 'tg') return 'tango';
+  if (s === 'viennesewaltz' || s === 'viennese' || s === 'vw' || s === 'vinesewaltz') return 'viennesewaltz';
+  if (s === 'slowfoxtrot' || s === 'foxtrot' || s === 'slowfox' || s === 'fox' || s === 'sf') return 'slowfoxtrot';
+  if (s === 'quickstep' || s === 'qs') return 'quickstep';
+  if (s === 'samba' || s === 'sa') return 'samba';
+  if (s === 'chachacha' || s === 'chacha' || s === 'cha' || s === 'cc') return 'chachacha';
+  if (s === 'rumba' || s === 'rhumba' || s === 'ru') return 'rumba';
+  if (s === 'pasodoble' || s === 'paso' || s === 'pd') return 'pasodoble';
+  if (s === 'jive' || s === 'ji') return 'jive';
+  if (s === 'fitness') return 'fitness';
+  return s;
+}

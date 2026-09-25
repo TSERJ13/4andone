@@ -234,6 +234,9 @@ const AddTrackModal = ({ isOpen, onClose, onAdd, initialData }: AddTrackModalPro
       if (formData.album === "Rose's Band" && !finalTags.includes("Rose's Band")) {
         finalTags.push("Rose's Band");
       }
+      if (formData.album === 'Boris Myagkov Big Band' && !finalTags.includes('Boris Myagkov Big Band')) {
+        finalTags.push('Boris Myagkov Big Band');
+      }
 
       await onAdd({
         ...formData,
@@ -338,7 +341,7 @@ const AddTrackModal = ({ isOpen, onClose, onAdd, initialData }: AddTrackModalPro
                     onClick={() => setFormData(p => ({
                       ...p,
                       album: '',
-                      tags: p.tags.filter((t: string) => t !== 'GOC 2026' && t !== 'GOC Latin' && t !== 'GOC Standard' && t !== 'Dance Star Band' && t !== "Rose's Band" && t !== 'Roses Band')
+                      tags: p.tags.filter((t: string) => t !== 'GOC 2026' && t !== 'GOC Latin' && t !== 'GOC Standard' && t !== 'Dance Star Band' && t !== "Rose's Band" && t !== 'Roses Band' && t !== 'Boris Myagkov Big Band')
                     }))}
                   >
                     <span>Standard Library</span>
@@ -397,6 +400,30 @@ const AddTrackModal = ({ isOpen, onClose, onAdd, initialData }: AddTrackModalPro
                     }}
                   >
                     <span>🎷 Dance Star Band</span>
+                  </button>
+
+                  <button
+                    type="button"
+                    className={`goc-mode-chip borismyagkov-main ${formData.album === 'Boris Myagkov Big Band' ? 'active-borismyagkov' : ''}`}
+                    style={{
+                      borderColor: formData.album === 'Boris Myagkov Big Band' ? '#f59e0b' : undefined,
+                      color: formData.album === 'Boris Myagkov Big Band' ? '#f59e0b' : undefined,
+                      backgroundColor: formData.album === 'Boris Myagkov Big Band' ? 'rgba(245, 158, 11, 0.15)' : undefined,
+                    }}
+                    onClick={() => {
+                      setFormData(p => {
+                        const newTags = [...p.tags];
+                        if (!newTags.includes('Boris Myagkov Big Band')) newTags.push('Boris Myagkov Big Band');
+                        return { 
+                          ...p, 
+                          album: 'Boris Myagkov Big Band', 
+                          artist: p.artist ? p.artist : 'Boris Myagkov Big Band',
+                          tags: newTags 
+                        };
+                      });
+                    }}
+                  >
+                    <span>🎺 Boris Myagkov</span>
                   </button>
                 </div>
 

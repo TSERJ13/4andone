@@ -9,7 +9,7 @@ import { useAuth } from '@/context/AuthContext';
 import { useDownloadedTracks } from '@/hooks/useDownloadedTracks';
 import ConfirmModal from '@/components/admin/ConfirmModal';
 import { formatDuration } from '@/utils/format';
-import { getMPMFromBPM } from '@/utils/audio';
+import { getMPMFromBPM, canonicalStyle } from '@/utils/audio';
 import { Marquee } from '@/components/layout/Marquee';
 
 const StylePage = () => {
@@ -30,20 +30,21 @@ const StylePage = () => {
     action();
   };
 
-  const styleName = (slug as string).charAt(0).toUpperCase() + (slug as string).slice(1).replace('-', ' ');
+  const canonSlug = canonicalStyle(slug as string);
 
   // Find style color if it exists
-  const activeStyle = styles.find(s => s.title.toLowerCase().replace(/\s+/g, '-') === slug);
+  const activeStyle = styles.find(s => canonicalStyle(s.title) === canonSlug);
   const styleColor = activeStyle?.color || 'var(--primary)';
+  const styleName = activeStyle?.title || ((slug as string).charAt(0).toUpperCase() + (slug as string).slice(1).replace(/-/g, ' '));
 
   // Filter real tracks by style and optionally by tag
   const filteredTracks = tracks.filter(t => {
-    const matchesStyle = t.style.toLowerCase().replace(/\s+/g, '-') === slug;
+    const matchesStyle = canonicalStyle(t.style) === canonSlug;
     const matchesTag = activeTag ? t.tags?.includes(activeTag) : true;
     return matchesStyle && matchesTag;
   });
 
-  const allTracksInStyle = tracks.filter(t => t.style.toLowerCase().replace(/\s+/g, '-') === slug);
+  const allTracksInStyle = tracks.filter(t => canonicalStyle(t.style) === canonSlug);
 
   return (
     <div className="style-page">

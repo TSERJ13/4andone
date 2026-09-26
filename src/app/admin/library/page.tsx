@@ -17,6 +17,8 @@ import {
   List as ListIcon,
   Folder as FolderIcon,
   ChevronRight,
+  ChevronUp,
+  ChevronDown,
   GripVertical,
   Tag as TagIcon,
   X as XIcon,
@@ -32,11 +34,17 @@ import { getMPMFromBPM } from '@/utils/audio';
 
 const AdminLibrary = () => {
   const { togglePlay, isPlaying, title: playingTitle, loadTrack } = useAudio();
-  const { tracks, folders, styles, tags, removeTrack, updateTrack, addTrack, assignToFolder, finalTracks, addToFinal, removeFromFinal, reorderGlobalTracks } = useStudio();
+  const { 
+    tracks, folders, styles, tags, 
+    removeTrack, updateTrack, addTrack, assignToFolder, 
+    finalTracks, addToFinal, removeFromFinal, 
+    reorderGlobalTracks, reorderTracks, moveTrack 
+  } = useStudio();
   const [searchQuery, setSearchQuery] = useState('');
   const [activeFilter, setActiveFilter] = useState('All');
   const [activeFolderId, setActiveFolderId] = useState('All');
   const [activeTag, setActiveTag] = useState('All');
+  const [activeAlbum, setActiveAlbum] = useState('All');
   const [viewMode, setViewMode] = useState<'list' | 'album'>('list');
   const [selectedTrack, setSelectedTrack] = useState<Track | null>(null);
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
@@ -134,12 +142,15 @@ const AdminLibrary = () => {
     e.preventDefault();
   };
 
-  const handleDrop = (e: React.DragEvent, dropIndex: number) => {
+  const handleDrop = async (e: React.DragEvent, dropIndex: number) => {
     const dragIndex = parseInt(e.dataTransfer.getData('draggedIndex'));
-    if (dragIndex !== dropIndex) {
-      // We find the actual tracks from the filtered list to reorder in the global state
-      // This is a simplified version; in a production app we'd use IDs.
-      reorderGlobalTracks(dragIndex, dropIndex);
+    if (dragIndex !== dropIndex && !isNaN(dragIndex)) {
+      const draggedTrack = filteredTracks[dragIndex];
+      const targetTrack = filteredTracks[dropIndex];
+      if (draggedTrack && targetTrack) {
+        await reorderTracks(draggedTrack.id, targetTrack.id, filteredTracks);
+        showToast(`Saved position for "${draggedTrack.title}"`);
+      }
     }
   };
 
@@ -154,7 +165,35 @@ const AdminLibrary = () => {
     const matchesFilter = activeFilter === 'All' || track.style === activeFilter;
     const matchesFolder = activeFolderId === 'All' || track.folderId === activeFolderId;
     const matchesTag = activeTag === 'All' || (track.tags && track.tags.includes(activeTag));
-    return matchesSearch && matchesFilter && matchesFolder && matchesTag;
+    const matchesAlbum = activeAlbum === 'All' || (() => {
+      const alb = activeAlbum.toLowerCase();
+      if (alb === 'standard library') {
+        const isStdTag = track.tags?.some((t: string) => t.toLowerCase() === 'standard library' || t.toLowerCase() === 'standard-library');
+        const hasNoBand = !track.album && !track.tags?.some((t: string) => {
+          const lt = t.toLowerCase();
+          return lt.includes('boris') || lt.includes('rose') || lt.includes('dance star') || lt.includes('goc');
+        });
+        return isStdTag || hasNoBand;
+      }
+      if (alb.includes('boris')) {
+        return (track.album || '').toLowerCase().includes('boris') || track.tags?.some((t: string) => t.toLowerCase().includes('boris'));
+      }
+      if (alb.includes('rose')) {
+        return (track.album || '').toLowerCase().includes('rose') || track.tags?.some((t: string) => t.toLowerCase().includes('rose'));
+      }
+      if (alb.includes('dance star') || alb.includes('dancestar')) {
+        return (track.album || '').toLowerCase().includes('dance star') || track.tags?.some((t: string) => {
+          const lt = t.toLowerCase();
+          return lt.includes('dance star') || lt.includes('dancestar');
+        });
+      }
+      if (alb.includes('goc')) {
+        return (track.album || '').toLowerCase().includes('goc') || track.tags?.some((t: string) => t.toLowerCase().includes('goc'));
+      }
+      return (track.album || '').toLowerCase().includes(alb);
+    })();
+
+    return matchesSearch && matchesFilter && matchesFolder && matchesTag && matchesAlbum;
   });
 
   const albums = Array.from(new Set(filteredTracks.map(t => t.album || 'Unknown Album')))
@@ -211,6 +250,53 @@ const AdminLibrary = () => {
         </div>
 
       <div className="library-filters-bar">
+        <div className="filter-group">
+          <label>Album</label>
+          <div className="filter-scroll">
+            <button 
+              className={`filter-btn glass ${activeAlbum === 'All' ? 'active' : ''}`}
+              onClick={() => setActiveAlbum('All')}
+            >
+              All Albums
+            </button>
+            <button 
+              className={`filter-btn glass ${activeAlbum === 'GOC 2026' ? 'active' : ''}`}
+              style={activeAlbum === 'GOC 2026' ? { borderColor: '#ff416c', color: '#ff416c', background: 'rgba(255, 65, 108, 0.15)' } : undefined}
+              onClick={() => setActiveAlbum('GOC 2026')}
+            >
+              🏆 GOC 2026
+            </button>
+            <button 
+              className={`filter-btn glass ${activeAlbum === "Rose's Band" ? 'active' : ''}`}
+              style={activeAlbum === "Rose's Band" ? { borderColor: '#22c55e', color: '#22c55e', background: 'rgba(34, 197, 94, 0.15)' } : undefined}
+              onClick={() => setActiveAlbum("Rose's Band")}
+            >
+              🌹 Rose&apos;s Band
+            </button>
+            <button 
+              className={`filter-btn glass ${activeAlbum === 'Dance Star Band' ? 'active' : ''}`}
+              style={activeAlbum === 'Dance Star Band' ? { borderColor: '#d946ef', color: '#d946ef', background: 'rgba(217, 70, 239, 0.15)' } : undefined}
+              onClick={() => setActiveAlbum('Dance Star Band')}
+            >
+              🎷 Dance Star Band
+            </button>
+            <button 
+              className={`filter-btn glass ${activeAlbum === 'Boris Myagkov Big Band' ? 'active' : ''}`}
+              style={activeAlbum === 'Boris Myagkov Big Band' ? { borderColor: '#f59e0b', color: '#f59e0b', background: 'rgba(245, 158, 11, 0.15)' } : undefined}
+              onClick={() => setActiveAlbum('Boris Myagkov Big Band')}
+            >
+              🎺 Boris Myagkov
+            </button>
+            <button 
+              className={`filter-btn glass ${activeAlbum === 'Standard Library' ? 'active' : ''}`}
+              style={activeAlbum === 'Standard Library' ? { borderColor: '#3b82f6', color: '#3b82f6', background: 'rgba(59, 130, 246, 0.15)' } : undefined}
+              onClick={() => setActiveAlbum('Standard Library')}
+            >
+              🎵 Standard Library
+            </button>
+          </div>
+        </div>
+
         <div className="filter-group">
           <label>Style</label>
           <div className="filter-scroll">
@@ -347,7 +433,41 @@ const AdminLibrary = () => {
                             : <Square size={16} className="sel-off" />}
                         </button>
                         <span className="row-idx">{i + 1}</span>
-                        <GripVertical size={16} className="drag-handle-icon" />
+                        <div title="Drag to reorder" style={{ display: 'flex', alignItems: 'center' }}>
+                          <GripVertical size={16} className="drag-handle-icon" />
+                        </div>
+                        <div className="quick-move-btns">
+                          <button
+                            type="button"
+                            className="btn-move-arrow up"
+                            title="Move Up"
+                            disabled={i === 0}
+                            onClick={async (e) => {
+                              e.stopPropagation();
+                              if (i > 0) {
+                                await moveTrack(track.id, 'up', filteredTracks);
+                                showToast(`Moved up: "${track.title}"`);
+                              }
+                            }}
+                          >
+                            <ChevronUp size={12} />
+                          </button>
+                          <button
+                            type="button"
+                            className="btn-move-arrow down"
+                            title="Move Down"
+                            disabled={i === filteredTracks.length - 1}
+                            onClick={async (e) => {
+                              e.stopPropagation();
+                              if (i < filteredTracks.length - 1) {
+                                await moveTrack(track.id, 'down', filteredTracks);
+                                showToast(`Moved down: "${track.title}"`);
+                              }
+                            }}
+                          >
+                            <ChevronDown size={12} />
+                          </button>
+                        </div>
                         <button className="row-play-btn" onClick={() => handlePlayToggle(track)}>
                           {isThisPlaying ? <Pause size={18} fill="currentColor" /> : <Play size={18} fill="currentColor" />}
                         </button>
@@ -590,12 +710,17 @@ const AdminLibrary = () => {
         .admin-table th { background: rgba(255,255,255,0.02); padding: 12px 24px; font-size: 11px; text-transform: uppercase; color: #71717a; border-bottom: 1px solid rgba(255,255,255,0.05); letter-spacing: 0.5px; }
         .admin-table td { padding: 10px 24px; border-bottom: 1px solid rgba(255,255,255,0.02); }
         
-        .col-play { width: 90px; }
-        .play-cell { display: flex; align-items: center; gap: 10px; }
+        .col-play { width: 145px; }
+        .play-cell { display: flex; align-items: center; gap: 8px; }
         .row-idx { font-size: 11px; font-weight: 800; color: #555; min-width: 20px; }
-        .drag-handle-icon { color: #555; opacity: 0.3; cursor: grab; transition: opacity 0.2s; }
-        .drag-handle-icon:hover { opacity: 0.8; }
+        .drag-handle-icon { color: #555; opacity: 0.4; cursor: grab; transition: opacity 0.2s; }
+        .drag-handle-icon:hover { opacity: 1; color: #1db954; }
         .drag-handle-icon:active { cursor: grabbing; }
+
+        .quick-move-btns { display: flex; flex-direction: column; gap: 2px; }
+        .btn-move-arrow { background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.08); border-radius: 4px; color: #a1a1aa; width: 18px; height: 16px; display: flex; align-items: center; justify-content: center; cursor: pointer; transition: all 0.15s; padding: 0; }
+        .btn-move-arrow:hover:not(:disabled) { background: #1db954; color: black; border-color: #1db954; }
+        .btn-move-arrow:disabled { opacity: 0.15; cursor: not-allowed; }
 
         .row-play-btn { color: #1db954; width: 36px; height: 36px; display: flex; align-items: center; justify-content: center; border-radius: 10px; transition: all 0.2s; }
         .row-play-btn:hover { background: rgba(29, 185, 84, 0.1); transform: scale(1.05); }

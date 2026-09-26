@@ -93,7 +93,9 @@ interface StudioContextType {
   setFinalTracks: (tracks: Track[]) => void;
   
   // Advanced Reordering
-  reorderGlobalTracks: (startIndex: number, endIndex: number) => Promise<void>;
+  reorderGlobalTracks: (startIndex: number, endIndex: number, visibleList?: Track[]) => Promise<void>;
+  reorderTracks: (draggedTrackId: string, dropTrackId: string, visibleList?: Track[]) => Promise<void>;
+  moveTrack: (trackId: string, direction: 'up' | 'down', visibleList?: Track[]) => Promise<void>;
   addTrackToFinalFolder: (trackId: string, finalFolderId: string, force?: boolean) => Promise<{ success: boolean; duplicate?: string }>;
   getTracksForFinalFolder: (finalFolderId: string) => Track[];
   
@@ -140,7 +142,12 @@ export const StudioProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     setIsLoading(true);
     try {
       // 1. Fetch Global Tracks
-      const { data: tracksData } = await supabase.from('tracks').select('*').order('created_at', { ascending: false });
+      const { data: tracksData } = await supabase
+        .from('tracks')
+        .select('*')
+        .order('global_order', { ascending: true })
+        .order('created_at', { ascending: false })
+        .limit(10000);
       
       // 2. Fetch User Specific Collections
       let foldersData: Folder[] = [];
@@ -232,15 +239,17 @@ export const StudioProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       }
 
       if (tracksData) {
-        setTracks(tracksData.map(t => ({
+        const mapped = tracksData.map(t => ({
           ...t,
           audioUrl: t.audio_url,
           artworkUrl: t.artwork_url,
           folderId: t.folder_id,
-          globalOrder: t.global_order || 0,
+          globalOrder: typeof t.global_order === 'number' ? t.global_order : (Number(t.global_order) || 0),
           duration: t.duration || 0,
           isFavorite: userLikes.includes(t.id)
-        })));
+        }));
+        mapped.sort((a, b) => (a.globalOrder ?? 0) - (b.globalOrder ?? 0));
+        setTracks(mapped);
       }
 
       // Fetch Folders, Styles, Tags
@@ -278,15 +287,16 @@ export const StudioProvider: React.FC<{ children: React.ReactNode }> = ({ childr
                 const saved = localStorage.getItem('4andone_liked_tracks');
                 if (saved) isLiked = JSON.parse(saved).includes(nt.id);
               } catch (e) {}
-              return [{ 
+              const newTrackItem = { 
                 ...nt, 
                 audioUrl: nt.audio_url, 
-                artworkUrl: nt.artwork_url,
-                folderId: nt.folder_id,
-                duration: nt.duration || 0,
-                isFavorite: isLiked,
-                globalOrder: nt.global_order || 0
-              }, ...prev];
+                artworkUrl: nt.artwork_url, 
+                folderId: nt.folder_id, 
+                duration: nt.duration || 0, 
+                isFavorite: isLiked, 
+                globalOrder: typeof nt.global_order === 'number' ? nt.global_order : (Number(nt.global_order) || 0)
+              };
+              return [...prev, newTrackItem].sort((a, b) => (a.globalOrder ?? 0) - (b.globalOrder ?? 0));
             });
           } else if (payload.eventType === 'UPDATE') {
             const ut = payload.new as any;
@@ -299,9 +309,9 @@ export const StudioProvider: React.FC<{ children: React.ReactNode }> = ({ childr
                 folderId: ut.folder_id, 
                 isFavorite: t.isFavorite, // Keep the user's local like status
                 duration: ut.duration || 0,
-                globalOrder: ut.global_order || 0
+                globalOrder: typeof ut.global_order === 'number' ? ut.global_order : (Number(ut.global_order) || 0)
               };
-            }));
+            }).sort((a, b) => (a.globalOrder ?? 0) - (b.globalOrder ?? 0)));
           } else if (payload.eventType === 'DELETE') {
             setTracks(prev => prev.filter(t => t.id !== payload.old.id));
           }
@@ -313,6 +323,12 @@ export const StudioProvider: React.FC<{ children: React.ReactNode }> = ({ childr
   }, [isAuthenticated, user]);
 
   const addTrack = async (trackData: Partial<Track>) => {
+    let initialOrder = trackData.globalOrder;
+    if (initialOrder === undefined) {
+      const minO = tracks.length > 0 ? Math.min(...tracks.map(t => t.globalOrder ?? 10)) : 10;
+      initialOrder = minO > 0 ? minO - 10 : 0;
+    }
+
     const { data, error } = await supabase
       .from('tracks')
       .insert([{
@@ -326,7 +342,7 @@ export const StudioProvider: React.FC<{ children: React.ReactNode }> = ({ childr
         folder_id: trackData.folderId,
         tags: trackData.tags || [],
         duration: trackData.duration || 0,
-        global_order: trackData.globalOrder || 0,
+        global_order: initialOrder,
         date: trackData.date || new Date().toISOString().split('T')[0]
       }])
       .select();
@@ -695,17 +711,109 @@ export const StudioProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     return ids.map(id => tracks.find(t => t.id === id)).filter(Boolean) as Track[];
   };
 
-  const reorderGlobalTracks = async (startIndex: number, endIndex: number) => {
-    const result = Array.from(tracks);
-    const [removed] = result.splice(startIndex, 1);
-    result.splice(endIndex, 0, removed);
-    
-    setTracks(result);
+  const reorderTracks = async (draggedTrackId: string, dropTrackId: string, visibleList?: Track[]) => {
+    const list = visibleList && visibleList.length > 0 ? visibleList : tracks;
+    const dragIdx = list.findIndex(t => t.id === draggedTrackId);
+    const dropIdx = list.findIndex(t => t.id === dropTrackId);
+    if (dragIdx === -1 || dropIdx === -1 || dragIdx === dropIdx) return;
 
-    // Persist sorting logic (using fractional indexing or simple re-map)
-    // For now, let's just update the global_order column for the moved item locally
-    // in a real app we'd broadcast this or update all orders.
-    // Simplifying: we'll just update the affected items.
+    const reorderedList = Array.from(list);
+    const [movedTrack] = reorderedList.splice(dragIdx, 1);
+    reorderedList.splice(dropIdx, 0, movedTrack);
+
+    const prevInScoped = dropIdx > 0 ? reorderedList[dropIdx - 1] : null;
+    const nextInScoped = dropIdx < reorderedList.length - 1 ? reorderedList[dropIdx + 1] : null;
+
+    let newOrder: number;
+    let bulkUpdates: { id: string; global_order: number }[] | null = null;
+
+    if (!prevInScoped && nextInScoped) {
+      const globalNextIdx = tracks.findIndex(t => t.id === nextInScoped.id);
+      const globalPrev = globalNextIdx > 0 ? tracks[globalNextIdx - 1] : null;
+      if (globalPrev && globalPrev.id !== movedTrack.id) {
+        const pO = globalPrev.globalOrder ?? 10;
+        const nO = nextInScoped.globalOrder ?? 20;
+        newOrder = nO > pO ? (pO + nO) / 2 : nO - 5;
+      } else {
+        newOrder = (nextInScoped.globalOrder ?? 10) - 10;
+      }
+    } else if (prevInScoped && !nextInScoped) {
+      const globalPrevIdx = tracks.findIndex(t => t.id === prevInScoped.id);
+      const globalNext = globalPrevIdx < tracks.length - 1 ? tracks[globalPrevIdx + 1] : null;
+      if (globalNext && globalNext.id !== movedTrack.id) {
+        const pO = prevInScoped.globalOrder ?? 10;
+        const nO = globalNext.globalOrder ?? 20;
+        newOrder = nO > pO ? (pO + nO) / 2 : pO + 5;
+      } else {
+        newOrder = (prevInScoped.globalOrder ?? 10) + 10;
+      }
+    } else if (prevInScoped && nextInScoped) {
+      const pO = prevInScoped.globalOrder ?? 10;
+      const nO = nextInScoped.globalOrder ?? 20;
+      if (nO > pO) {
+        newOrder = (pO + nO) / 2;
+      } else {
+        const base = Math.max(10, pO);
+        bulkUpdates = reorderedList.map((t, i) => ({
+          id: t.id,
+          global_order: base + (i * 10)
+        }));
+        newOrder = base + (dropIdx * 10);
+      }
+    } else {
+      newOrder = movedTrack.globalOrder ?? 10;
+    }
+
+    // 1. Optimistic update in React state
+    setTracks(prev => {
+      const updated = prev.map(t => {
+        if (bulkUpdates) {
+          const bu = bulkUpdates.find(b => b.id === t.id);
+          if (bu) return { ...t, globalOrder: bu.global_order };
+        } else if (t.id === movedTrack.id) {
+          return { ...t, globalOrder: newOrder };
+        }
+        return t;
+      });
+      return updated.sort((a, b) => (a.globalOrder ?? 0) - (b.globalOrder ?? 0));
+    });
+
+    // 2. Persist to Supabase
+    try {
+      if (bulkUpdates) {
+        await Promise.all(
+          bulkUpdates.map(u => 
+            supabase.from('tracks').update({ global_order: u.global_order }).eq('id', u.id)
+          )
+        );
+      } else {
+        const { error } = await supabase
+          .from('tracks')
+          .update({ global_order: newOrder })
+          .eq('id', movedTrack.id);
+        if (error) {
+          console.error('[STUDIO-ERROR] Failed to save track global_order:', error);
+        }
+      }
+    } catch (err) {
+      console.error('[STUDIO-ERROR] Error persisting track order:', err);
+    }
+  };
+
+  const moveTrack = async (trackId: string, direction: 'up' | 'down', visibleList?: Track[]) => {
+    const list = visibleList && visibleList.length > 0 ? visibleList : tracks;
+    const idx = list.findIndex(t => t.id === trackId);
+    if (idx === -1) return;
+    const targetIdx = direction === 'up' ? idx - 1 : idx + 1;
+    if (targetIdx < 0 || targetIdx >= list.length) return;
+    await reorderTracks(trackId, list[targetIdx].id, list);
+  };
+
+  const reorderGlobalTracks = async (startIndex: number, endIndex: number, visibleList?: Track[]) => {
+    const list = visibleList && visibleList.length > 0 ? visibleList : tracks;
+    if (startIndex >= 0 && startIndex < list.length && endIndex >= 0 && endIndex < list.length) {
+      await reorderTracks(list[startIndex].id, list[endIndex].id, list);
+    }
   };
 
   const stats = {
@@ -725,7 +833,7 @@ export const StudioProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       addTag, updateTag, removeTag,
       finalTracks, finalFolders, addFinalFolder, removeFinalFolder,
       addToFinal, removeFromFinal, reorderFinalTracks, setFinalTracks,
-      reorderGlobalTracks, addTrackToFinalFolder, getTracksForFinalFolder,
+      reorderGlobalTracks, reorderTracks, moveTrack, addTrackToFinalFolder, getTracksForFinalFolder,
       stats,
       isLoading,
       refreshData: fetchData

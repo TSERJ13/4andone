@@ -15,7 +15,7 @@ import { Marquee } from '@/components/layout/Marquee';
 const PlaylistPage = () => {
   const { id } = useParams();
   const router = useRouter();
-  const { tracks, folders, folderTracksMap, styles, reorderGlobalTracks, finalTracks, addToFinal, removeFromFinal, toggleFavorite, removeFolder, removeTrackFromFolder } = useStudio();
+  const { tracks, folders, folderTracksMap, styles, reorderGlobalTracks, reorderTracks, finalTracks, addToFinal, removeFromFinal, toggleFavorite, removeFolder, removeTrackFromFolder } = useStudio();
   const { isPlaying, title: playingTitle, loadTrack } = useAudio();
   const { isAuthenticated, setIsAuthModalOpen } = useAuth();
   const downloadedIds = useDownloadedTracks();
@@ -51,10 +51,14 @@ const PlaylistPage = () => {
     e.preventDefault();
   };
 
-  const handleDrop = (e: React.DragEvent, dropIndex: number) => {
+  const handleDrop = async (e: React.DragEvent, dropIndex: number) => {
     const dragIndex = parseInt(e.dataTransfer.getData('draggedIndex'));
-    if (dragIndex !== dropIndex) {
-      reorderGlobalTracks(dragIndex, dropIndex);
+    if (dragIndex !== dropIndex && !isNaN(dragIndex)) {
+      const draggedTrack = playlistTracks[dragIndex];
+      const targetTrack = playlistTracks[dropIndex];
+      if (draggedTrack && targetTrack) {
+        await reorderTracks(draggedTrack.id, targetTrack.id, playlistTracks);
+      }
     }
   };
 

@@ -2,7 +2,7 @@
 
 import React, { useState, useMemo } from 'react';
 import Link from 'next/link';
-import { Play, Disc, Flame, Music2, Heart, Zap, Activity, Settings, Radio, CheckCircle2 } from 'lucide-react';
+import { Play, Disc, Flame, Music2, Heart, Zap, Activity, Settings, Radio, CheckCircle2, ArrowUpDown, ChevronUp, ChevronDown } from 'lucide-react';
 import { useAudio } from '@/components/audio/AudioProvider';
 import { useStudio, Track } from '@/components/admin/StudioProvider';
 import { useAuth } from '@/context/AuthContext';
@@ -17,11 +17,12 @@ const STANDARD_STYLES = ['Slow Waltz', 'Tango', 'Viennese Waltz', 'Slow Foxtrot'
 
 export default function RosesBandPage() {
   const { loadTrack, isPlaying, title: playingTitle, setActiveMode, setSessionTracks } = useAudio();
-  const { tracks, styles, toggleFavorite, isLoading } = useStudio();
+  const { tracks, styles, toggleFavorite, isLoading, moveTrack, reorderTracks } = useStudio();
   const { isAuthenticated, setIsAuthModalOpen } = useAuth();
   const downloadedIds = useDownloadedTracks();
 
   const [activeTab, setActiveTab] = useState<'Latin' | 'Standard'>('Latin');
+  const [isReorderMode, setIsReorderMode] = useState(false);
   const [showPasoSettingsModal, setShowPasoSettingsModal] = useState(false);
   const [pasoTheme, setPasoTheme] = useState<'2-theme' | '3-theme'>(() => {
     if (typeof window !== 'undefined') {
@@ -194,6 +195,18 @@ Please upload Rose's Band tracks in the admin panel with album "Rose's Band".`);
                 </span>
               </button>
             )}
+
+            <button
+              className={`goc-settings-btn glass ${isReorderMode ? 'active-reorder-btn' : ''}`}
+              onClick={() => setIsReorderMode(!isReorderMode)}
+              title="Change Track Positions"
+              style={isReorderMode ? { borderColor: '#22c55e', color: '#22c55e', background: 'rgba(34, 197, 94, 0.2)' } : undefined}
+            >
+              <ArrowUpDown size={18} />
+              <span className="paso-theme-label rosesband-paso-label">
+                {isReorderMode ? 'Done' : 'Reorder / დალაგება'}
+              </span>
+            </button>
           </div>
         </div>
 
@@ -218,7 +231,7 @@ Please upload Rose's Band tracks in the admin panel with album "Rose's Band".`);
 
                 {styleTracks.length > 0 ? (
                   <div className="tracks-list">
-                    {styleTracks.map((track) => {
+                    {styleTracks.map((track, trackIdx) => {
                       const displayTitle = track.title || 'Untitled Track';
                       const displayArtist = track.artist || "Rose's Band";
                       const trackStyleName = track.style || styleName;
@@ -231,9 +244,40 @@ Please upload Rose's Band tracks in the admin panel with album "Rose's Band".`);
                           className={`track-row ${isPlaying && (playingTitle === track.title || playingTitle === track.id) ? 'is-active' : ''}`}
                           onClick={() => handlePlaySingle(track)}
                         >
-                          <div className="track-icon-col">
-                            <Disc size={18} />
-                          </div>
+                          {isReorderMode ? (
+                            <div className="album-reorder-arrows" onClick={(e) => e.stopPropagation()}>
+                              <button
+                                type="button"
+                                className="album-move-arrow-btn up"
+                                disabled={trackIdx === 0}
+                                title="Move Track Up"
+                                onClick={async () => {
+                                  if (trackIdx > 0) {
+                                    await moveTrack(track.id, 'up', styleTracks);
+                                  }
+                                }}
+                              >
+                                <ChevronUp size={13} />
+                              </button>
+                              <button
+                                type="button"
+                                className="album-move-arrow-btn down"
+                                disabled={trackIdx === styleTracks.length - 1}
+                                title="Move Track Down"
+                                onClick={async () => {
+                                  if (trackIdx < styleTracks.length - 1) {
+                                    await moveTrack(track.id, 'down', styleTracks);
+                                  }
+                                }}
+                              >
+                                <ChevronDown size={13} />
+                              </button>
+                            </div>
+                          ) : (
+                            <div className="track-icon-col">
+                              <Disc size={18} />
+                            </div>
+                          )}
                           <div className="track-info-col">
                             <div className="track-title-row">
                               <div className="track-title-marquee-wrapper">
@@ -776,12 +820,37 @@ Please upload Rose's Band tracks in the admin panel with album "Rose's Band".`);
           font-size: 0.9rem;
         }
 
-        .playing-bars {
+        .album-reorder-arrows {
           display: flex;
-          align-items: flex-end;
-          gap: 3px;
-          width: 20px;
-          height: 20px;
+          flex-direction: column;
+          gap: 2px;
+          margin-right: 10px;
+        }
+
+        .album-move-arrow-btn {
+          background: rgba(255, 255, 255, 0.08);
+          border: 1px solid rgba(255, 255, 255, 0.15);
+          border-radius: 4px;
+          color: #fff;
+          width: 22px;
+          height: 18px;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          cursor: pointer;
+          transition: all 0.15s;
+          padding: 0;
+        }
+
+        .album-move-arrow-btn:hover:not(:disabled) {
+          background: #22c55e;
+          color: #000;
+          border-color: #22c55e;
+        }
+
+        .album-move-arrow-btn:disabled {
+          opacity: 0.15;
+          cursor: not-allowed;
         }
 
         @media (max-width: 768px) {

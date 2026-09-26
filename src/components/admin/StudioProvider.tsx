@@ -725,41 +725,31 @@ export const StudioProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     const nextInScoped = dropIdx < reorderedList.length - 1 ? reorderedList[dropIdx + 1] : null;
 
     let newOrder: number;
-    let bulkUpdates: { id: string; global_order: number }[] | null = null;
 
     if (!prevInScoped && nextInScoped) {
+      const nO = nextInScoped.globalOrder ?? 10;
       const globalNextIdx = tracks.findIndex(t => t.id === nextInScoped.id);
       const globalPrev = globalNextIdx > 0 ? tracks[globalNextIdx - 1] : null;
       if (globalPrev && globalPrev.id !== movedTrack.id) {
-        const pO = globalPrev.globalOrder ?? 10;
-        const nO = nextInScoped.globalOrder ?? 20;
-        newOrder = nO > pO ? (pO + nO) / 2 : nO - 5;
+        const pO = globalPrev.globalOrder ?? (nO - 10);
+        newOrder = nO > pO ? (pO + nO) / 2 : nO - 1;
       } else {
-        newOrder = (nextInScoped.globalOrder ?? 10) - 10;
+        newOrder = nO - 10;
       }
     } else if (prevInScoped && !nextInScoped) {
+      const pO = prevInScoped.globalOrder ?? 10;
       const globalPrevIdx = tracks.findIndex(t => t.id === prevInScoped.id);
       const globalNext = globalPrevIdx < tracks.length - 1 ? tracks[globalPrevIdx + 1] : null;
       if (globalNext && globalNext.id !== movedTrack.id) {
-        const pO = prevInScoped.globalOrder ?? 10;
-        const nO = globalNext.globalOrder ?? 20;
-        newOrder = nO > pO ? (pO + nO) / 2 : pO + 5;
+        const nO = globalNext.globalOrder ?? (pO + 10);
+        newOrder = nO > pO ? (pO + nO) / 2 : pO + 1;
       } else {
-        newOrder = (prevInScoped.globalOrder ?? 10) + 10;
+        newOrder = pO + 10;
       }
     } else if (prevInScoped && nextInScoped) {
       const pO = prevInScoped.globalOrder ?? 10;
       const nO = nextInScoped.globalOrder ?? 20;
-      if (nO > pO) {
-        newOrder = (pO + nO) / 2;
-      } else {
-        const base = Math.max(10, pO);
-        bulkUpdates = reorderedList.map((t, i) => ({
-          id: t.id,
-          global_order: base + (i * 10)
-        }));
-        newOrder = base + (dropIdx * 10);
-      }
+      newOrder = nO > pO ? (pO + nO) / 2 : pO + 0.5;
     } else {
       newOrder = movedTrack.globalOrder ?? 10;
     }
@@ -767,10 +757,7 @@ export const StudioProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     // 1. Optimistic update in React state
     setTracks(prev => {
       const updated = prev.map(t => {
-        if (bulkUpdates) {
-          const bu = bulkUpdates.find(b => b.id === t.id);
-          if (bu) return { ...t, globalOrder: bu.global_order };
-        } else if (t.id === movedTrack.id) {
+        if (t.id === movedTrack.id) {
           return { ...t, globalOrder: newOrder };
         }
         return t;
@@ -780,20 +767,12 @@ export const StudioProvider: React.FC<{ children: React.ReactNode }> = ({ childr
 
     // 2. Persist to Supabase
     try {
-      if (bulkUpdates) {
-        await Promise.all(
-          bulkUpdates.map(u => 
-            supabase.from('tracks').update({ global_order: u.global_order }).eq('id', u.id)
-          )
-        );
-      } else {
-        const { error } = await supabase
-          .from('tracks')
-          .update({ global_order: newOrder })
-          .eq('id', movedTrack.id);
-        if (error) {
-          console.error('[STUDIO-ERROR] Failed to save track global_order:', error);
-        }
+      const { error } = await supabase
+        .from('tracks')
+        .update({ global_order: newOrder })
+        .eq('id', movedTrack.id);
+      if (error) {
+        console.error('[STUDIO-ERROR] Failed to save track global_order:', error);
       }
     } catch (err) {
       console.error('[STUDIO-ERROR] Error persisting track order:', err);

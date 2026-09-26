@@ -2,7 +2,7 @@
 
 import React, { useState, useMemo } from 'react';
 import Link from 'next/link';
-import { Play, Disc, Flame, Music2, Heart, Zap, Activity, Settings, CheckCircle2, ArrowUpDown, ChevronUp, ChevronDown } from 'lucide-react';
+import { Play, Disc, Flame, Music2, Heart, Zap, Activity, Settings, CheckCircle2 } from 'lucide-react';
 import { useAudio } from '@/components/audio/AudioProvider';
 import { useStudio, Track } from '@/components/admin/StudioProvider';
 import { useAuth } from '@/context/AuthContext';
@@ -17,12 +17,11 @@ const STANDARD_STYLES = ['Slow Waltz', 'Tango', 'Viennese Waltz', 'Slow Foxtrot'
 
 export default function BorisMyagkovBigBandPage() {
   const { loadTrack, isPlaying, title: playingTitle, setActiveMode, setSessionTracks } = useAudio();
-  const { tracks, styles, toggleFavorite, moveTrack, reorderTracks } = useStudio();
+  const { tracks, styles, toggleFavorite } = useStudio();
   const { isAuthenticated, setIsAuthModalOpen } = useAuth();
   const downloadedIds = useDownloadedTracks();
 
   const [activeTab, setActiveTab] = useState<'Latin' | 'Standard'>('Latin');
-  const [isReorderMode, setIsReorderMode] = useState(false);
   const [showPasoSettingsModal, setShowPasoSettingsModal] = useState(false);
   const [pasoTheme, setPasoTheme] = useState<'2-theme' | '3-theme'>((() => {
     if (typeof window !== 'undefined') {
@@ -207,17 +206,6 @@ export default function BorisMyagkovBigBandPage() {
               </button>
             )}
 
-            <button
-              className={`goc-settings-btn glass ${isReorderMode ? 'active-reorder-btn' : ''}`}
-              onClick={() => setIsReorderMode(!isReorderMode)}
-              title="Change Track Positions"
-              style={isReorderMode ? { borderColor: '#f59e0b', color: '#f59e0b', background: 'rgba(245, 158, 11, 0.2)' } : undefined}
-            >
-              <ArrowUpDown size={18} />
-              <span className="paso-theme-label boris-paso-label">
-                {isReorderMode ? 'Done' : 'Reorder / დალაგება'}
-              </span>
-            </button>
           </div>
         </div>
 
@@ -242,7 +230,7 @@ export default function BorisMyagkovBigBandPage() {
 
                 {styleTracks.length > 0 ? (
                   <div className="tracks-list">
-                    {styleTracks.map((track, trackIdx) => {
+                    {styleTracks.map((track, i) => {
                       const displayTitle = track.title || 'Untitled Track';
                       const displayArtist = track.artist || 'Boris Myagkov Big Band';
                       const trackStyleName = track.style || styleName;
@@ -255,40 +243,9 @@ export default function BorisMyagkovBigBandPage() {
                           className={`track-row ${isPlaying && (playingTitle === track.title || playingTitle === track.id) ? 'is-active' : ''}`}
                           onClick={() => handlePlaySingle(track)}
                         >
-                          {isReorderMode ? (
-                            <div className="album-reorder-arrows" onClick={(e) => e.stopPropagation()}>
-                              <button
-                                type="button"
-                                className="album-move-arrow-btn up"
-                                disabled={trackIdx === 0}
-                                title="Move Track Up"
-                                onClick={async () => {
-                                  if (trackIdx > 0) {
-                                    await moveTrack(track.id, 'up', styleTracks);
-                                  }
-                                }}
-                              >
-                                <ChevronUp size={13} />
-                              </button>
-                              <button
-                                type="button"
-                                className="album-move-arrow-btn down"
-                                disabled={trackIdx === styleTracks.length - 1}
-                                title="Move Track Down"
-                                onClick={async () => {
-                                  if (trackIdx < styleTracks.length - 1) {
-                                    await moveTrack(track.id, 'down', styleTracks);
-                                  }
-                                }}
-                              >
-                                <ChevronDown size={13} />
-                              </button>
-                            </div>
-                          ) : (
-                            <div className="track-icon-col">
-                              <Disc size={18} />
-                            </div>
-                          )}
+                          <div className="track-icon-col">
+                            <Disc size={18} />
+                          </div>
                           <div className="track-info-col">
                             <div className="track-title-row">
                               <div className="track-title-marquee-wrapper">
@@ -832,39 +789,6 @@ export default function BorisMyagkovBigBandPage() {
           background: rgba(255, 255, 255, 0.01);
           color: var(--text-secondary);
           font-size: 0.9rem;
-        }
-
-        .album-reorder-arrows {
-          display: flex;
-          flex-direction: column;
-          gap: 2px;
-          margin-right: 10px;
-        }
-
-        .album-move-arrow-btn {
-          background: rgba(255, 255, 255, 0.08);
-          border: 1px solid rgba(255, 255, 255, 0.15);
-          border-radius: 4px;
-          color: #fff;
-          width: 22px;
-          height: 18px;
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          cursor: pointer;
-          transition: all 0.15s;
-          padding: 0;
-        }
-
-        .album-move-arrow-btn:hover:not(:disabled) {
-          background: #f59e0b;
-          color: #000;
-          border-color: #f59e0b;
-        }
-
-        .album-move-arrow-btn:disabled {
-          opacity: 0.15;
-          cursor: not-allowed;
         }
 
         @media (max-width: 768px) {

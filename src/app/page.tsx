@@ -122,6 +122,13 @@ export default function Home() {
   const isSpecialAlbumTrack = React.useCallback((t: any) => {
     if (!t) return false;
 
+    // If explicitly marked as Standard Library, it is part of general library & newArrivals!
+    const isStandardLib = t.tags?.some((tag: string) => {
+      const tg = tag.toLowerCase().trim();
+      return tg === 'standard library' || tg === 'standard-library';
+    });
+    if (isStandardLib) return false;
+
     // Check if track belongs to Boris Myagkov
     const isBoris = (t.album || '').toLowerCase().includes('boris myagkov') ||
       (t.artist || '').toLowerCase().includes('boris myagkov') ||

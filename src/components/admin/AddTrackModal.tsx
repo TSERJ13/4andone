@@ -48,6 +48,61 @@ const AddTrackModal = ({ isOpen, onClose, onAdd, initialData }: AddTrackModalPro
   const [mpm, setMpmState] = useState<string>('');
   const [validationError, setValidationError] = useState<string | null>(null);
 
+  const getInitialDestinations = (data?: any) => {
+    if (!data) {
+      return {
+        standard: true,
+        goc: false,
+        roses: false,
+        dancestar: false,
+        boris: false
+      };
+    }
+    const tagsLower = (data.tags || []).map((t: string) => t.toLowerCase());
+    const albumLower = (data.album || '').toLowerCase();
+
+    const goc = albumLower === 'goc 2026' || tagsLower.includes('goc 2026') || tagsLower.includes('goc');
+    const roses = albumLower === "rose's band" || albumLower === 'roses band' || tagsLower.includes("rose's band") || tagsLower.includes('roses band');
+    const dancestar = albumLower === 'dance star band' || tagsLower.includes('dance star band') || tagsLower.includes('dance star') || tagsLower.includes('dancestar');
+    const boris = albumLower.includes('boris myagkov') || tagsLower.some((t: string) => t.includes('boris myagkov'));
+    
+    const hasStandardTag = tagsLower.includes('standard library') || tagsLower.includes('standard-library') || tagsLower.includes('standard');
+    const hasNoAlbum = !goc && !roses && !dancestar && !boris;
+    const standard = hasStandardTag || hasNoAlbum;
+
+    return { standard, goc, roses, dancestar, boris };
+  };
+
+  const [destinations, setDestinations] = useState(() => getInitialDestinations(initialData));
+  const [gocDiscipline, setGocDiscipline] = useState<'Latin' | 'Standard'>(() => {
+    return initialData?.tags?.includes('GOC Standard') ? 'Standard' : 'Latin';
+  });
+
+  const toggleDestination = (key: 'standard' | 'goc' | 'roses' | 'dancestar' | 'boris') => {
+    setDestinations(prev => {
+      const nextVal = !prev[key];
+      const updated = { ...prev, [key]: nextVal };
+
+      // Ensure at least one destination remains active
+      if (!updated.standard && !updated.goc && !updated.roses && !updated.dancestar && !updated.boris) {
+        updated.standard = true;
+      }
+
+      // Auto-suggest artist if empty
+      if (key === 'boris' && nextVal && (!formData.artist || formData.artist === 'Unknown')) {
+        setFormData(p => ({ ...p, artist: 'Boris Myagkov Big Band' }));
+      }
+      if (key === 'roses' && nextVal && (!formData.artist || formData.artist === 'Unknown')) {
+        setFormData(p => ({ ...p, artist: "Rose's Band" }));
+      }
+      if (key === 'dancestar' && nextVal && (!formData.artist || formData.artist === 'Unknown')) {
+        setFormData(p => ({ ...p, artist: 'Dance Star Band' }));
+      }
+
+      return updated;
+    });
+  };
+
   const fileInputRef = useRef<HTMLInputElement>(null);
   const coverInputRef = useRef<HTMLInputElement>(null);
 
@@ -57,6 +112,14 @@ const AddTrackModal = ({ isOpen, onClose, onAdd, initialData }: AddTrackModalPro
       style: styles.length > 0 ? styles[0].title : 'Samba',
       tags: [], bpm: '', artworkUrl: '', isClosed: false
     });
+    setDestinations({
+      standard: true,
+      goc: false,
+      roses: false,
+      dancestar: false,
+      boris: false
+    });
+    setGocDiscipline('Latin');
     setSelectedFile(null); setCoverFile(null); setCoverPreview(null); setMpmState('');
     setPasoTheme(''); setPasoVersion('');
     if (fileInputRef.current) fileInputRef.current.value = '';
@@ -78,6 +141,8 @@ const AddTrackModal = ({ isOpen, onClose, onAdd, initialData }: AddTrackModalPro
         artworkUrl: initialData.artworkUrl || '',
         isClosed: initialData.tags?.some((t: string) => t.toLowerCase() === 'closed' || t === 'დახურული') || false
       });
+      setDestinations(getInitialDestinations(initialData));
+      setGocDiscipline(initialData.tags?.includes('GOC Standard') ? 'Standard' : 'Latin');
       setCoverPreview(initialData.artworkUrl || null);
       if (initialData.bpm) setMpmState(getMPMFromBPM(Number(initialData.bpm), initialData.style).toString());
       setPasoTheme(initialData.tags?.includes('paso-2-theme') ? '2-theme' : initialData.tags?.includes('paso-3-theme') ? '3-theme' : '');
@@ -220,28 +285,52 @@ const AddTrackModal = ({ isOpen, onClose, onAdd, initialData }: AddTrackModalPro
         artworkUrl = publicUrl;
       }
 
-      let finalTags = [...formData.tags].filter(t => !t.startsWith('paso-'));
+      let finalTags = [...formData.tags].filter(t => 
+        !t.startsWith('paso-') &&
+        t !== 'GOC 2026' && t !== 'GOC Latin' && t !== 'GOC Standard' &&
+        t !== "Rose's Band" && t !== 'Roses Band' &&
+        t !== 'Dance Star Band' &&
+        t !== 'Boris Myagkov Big Band' &&
+        t !== 'Standard Library'
+      );
+
       if (formData.style === 'Paso Doble') {
         if (pasoTheme) finalTags.push(`paso-${pasoTheme}`);
         if (pasoVersion) finalTags.push(`paso-${pasoVersion}`);
       }
-      if (formData.album === 'GOC 2026' && !finalTags.includes('GOC 2026')) {
+
+      if (destinations.standard) {
+        finalTags.push('Standard Library');
+      }
+      if (destinations.goc) {
         finalTags.push('GOC 2026');
+        if (gocDiscipline === 'Standard') {
+          finalTags.push('GOC Standard');
+        } else {
+          finalTags.push('GOC Latin');
+        }
       }
-      if (formData.album === 'Dance Star Band' && !finalTags.includes('Dance Star Band')) {
-        finalTags.push('Dance Star Band');
-      }
-      if (formData.album === "Rose's Band" && !finalTags.includes("Rose's Band")) {
+      if (destinations.roses) {
         finalTags.push("Rose's Band");
       }
-      if (formData.album === 'Boris Myagkov Big Band' && !finalTags.includes('Boris Myagkov Big Band')) {
+      if (destinations.dancestar) {
+        finalTags.push('Dance Star Band');
+      }
+      if (destinations.boris) {
         finalTags.push('Boris Myagkov Big Band');
       }
+
+      let finalAlbum: string | undefined = undefined;
+      if (destinations.boris) finalAlbum = 'Boris Myagkov Big Band';
+      else if (destinations.roses) finalAlbum = "Rose's Band";
+      else if (destinations.dancestar) finalAlbum = 'Dance Star Band';
+      else if (destinations.goc) finalAlbum = 'GOC 2026';
+      else finalAlbum = undefined;
 
       await onAdd({
         ...formData,
         tags: finalTags,
-        album: formData.album || undefined,
+        album: finalAlbum,
         audioUrl,
         artworkUrl,
         duration,
@@ -333,130 +422,92 @@ const AddTrackModal = ({ isOpen, onClose, onAdd, initialData }: AddTrackModalPro
 
             <div className="secondary-fields-box">
               <div className="form-group full" style={{ marginBottom: '16px' }}>
-                <label style={{ color: '#ff416c', fontWeight: 900 }}>Collection Destination</label>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
+                  <label style={{ color: '#ff416c', fontWeight: 900, margin: 0 }}>Collection Destination</label>
+                  <span style={{ fontSize: '11px', color: '#a1a1aa' }}>Multi-select enabled (ერთდროულად რამდენიმეს არჩევა)</span>
+                </div>
                 <div className="goc-mode-selector">
                   <button
                     type="button"
-                    className={`goc-mode-chip ${!formData.album ? 'active' : ''}`}
-                    onClick={() => setFormData(p => ({
-                      ...p,
-                      album: '',
-                      tags: p.tags.filter((t: string) => t !== 'GOC 2026' && t !== 'GOC Latin' && t !== 'GOC Standard' && t !== 'Dance Star Band' && t !== "Rose's Band" && t !== 'Roses Band' && t !== 'Boris Myagkov Big Band')
-                    }))}
+                    className={`goc-mode-chip standard-main ${destinations.standard ? 'active' : ''}`}
+                    style={{
+                      borderColor: destinations.standard ? '#38bdf8' : undefined,
+                      color: destinations.standard ? '#38bdf8' : undefined,
+                      backgroundColor: destinations.standard ? 'rgba(56, 189, 248, 0.15)' : undefined,
+                      boxShadow: destinations.standard ? '0 0 15px rgba(56, 189, 248, 0.25)' : undefined,
+                    }}
+                    onClick={() => toggleDestination('standard')}
                   >
                     <span>Standard Library</span>
                   </button>
 
                   <button
                     type="button"
-                    className={`goc-mode-chip goc-main ${formData.album === 'GOC 2026' ? 'active' : ''}`}
-                    onClick={() => {
-                      setFormData(p => {
-                        const newTags = [...p.tags];
-                        if (!newTags.includes('GOC 2026')) newTags.push('GOC 2026');
-                        if (!newTags.includes('GOC Latin') && !newTags.includes('GOC Standard')) {
-                          newTags.push('GOC Latin');
-                        }
-                        return { ...p, album: 'GOC 2026', tags: newTags };
-                      });
-                    }}
+                    className={`goc-mode-chip goc-main ${destinations.goc ? 'active' : ''}`}
+                    onClick={() => toggleDestination('goc')}
                   >
                     <span>🏆 GOC 2026</span>
                   </button>
 
                   <button
                     type="button"
-                    className={`goc-mode-chip rosesband-main ${formData.album === "Rose's Band" ? 'active-rosesband' : ''}`}
+                    className={`goc-mode-chip rosesband-main ${destinations.roses ? 'active-rosesband' : ''}`}
                     style={{
-                      borderColor: formData.album === "Rose's Band" ? '#22c55e' : undefined,
-                      color: formData.album === "Rose's Band" ? '#22c55e' : undefined,
-                      backgroundColor: formData.album === "Rose's Band" ? 'rgba(34, 197, 94, 0.15)' : undefined,
+                      borderColor: destinations.roses ? '#22c55e' : undefined,
+                      color: destinations.roses ? '#22c55e' : undefined,
+                      backgroundColor: destinations.roses ? 'rgba(34, 197, 94, 0.15)' : undefined,
+                      boxShadow: destinations.roses ? '0 0 15px rgba(34, 197, 94, 0.25)' : undefined,
                     }}
-                    onClick={() => {
-                      setFormData(p => {
-                        const newTags = [...p.tags];
-                        if (!newTags.includes("Rose's Band")) newTags.push("Rose's Band");
-                        return { ...p, album: "Rose's Band", tags: newTags };
-                      });
-                    }}
+                    onClick={() => toggleDestination('roses')}
                   >
                     <span>🌹 Rose&apos;s Band</span>
                   </button>
 
                   <button
                     type="button"
-                    className={`goc-mode-chip dancestar-main ${formData.album === 'Dance Star Band' ? 'active-dancestar' : ''}`}
+                    className={`goc-mode-chip dancestar-main ${destinations.dancestar ? 'active-dancestar' : ''}`}
                     style={{
-                      borderColor: formData.album === 'Dance Star Band' ? '#d946ef' : undefined,
-                      color: formData.album === 'Dance Star Band' ? '#d946ef' : undefined,
-                      backgroundColor: formData.album === 'Dance Star Band' ? 'rgba(217, 70, 239, 0.15)' : undefined,
+                      borderColor: destinations.dancestar ? '#d946ef' : undefined,
+                      color: destinations.dancestar ? '#d946ef' : undefined,
+                      backgroundColor: destinations.dancestar ? 'rgba(217, 70, 239, 0.15)' : undefined,
+                      boxShadow: destinations.dancestar ? '0 0 15px rgba(217, 70, 239, 0.25)' : undefined,
                     }}
-                    onClick={() => {
-                      setFormData(p => {
-                        const newTags = [...p.tags];
-                        if (!newTags.includes('Dance Star Band')) newTags.push('Dance Star Band');
-                        return { ...p, album: 'Dance Star Band', tags: newTags };
-                      });
-                    }}
+                    onClick={() => toggleDestination('dancestar')}
                   >
                     <span>🎷 Dance Star Band</span>
                   </button>
 
                   <button
                     type="button"
-                    className={`goc-mode-chip borismyagkov-main ${formData.album === 'Boris Myagkov Big Band' ? 'active-borismyagkov' : ''}`}
+                    className={`goc-mode-chip borismyagkov-main ${destinations.boris ? 'active-borismyagkov' : ''}`}
                     style={{
-                      borderColor: formData.album === 'Boris Myagkov Big Band' ? '#f59e0b' : undefined,
-                      color: formData.album === 'Boris Myagkov Big Band' ? '#f59e0b' : undefined,
-                      backgroundColor: formData.album === 'Boris Myagkov Big Band' ? 'rgba(245, 158, 11, 0.15)' : undefined,
+                      borderColor: destinations.boris ? '#f59e0b' : undefined,
+                      color: destinations.boris ? '#f59e0b' : undefined,
+                      backgroundColor: destinations.boris ? 'rgba(245, 158, 11, 0.15)' : undefined,
+                      boxShadow: destinations.boris ? '0 0 15px rgba(245, 158, 11, 0.25)' : undefined,
                     }}
-                    onClick={() => {
-                      setFormData(p => {
-                        const newTags = [...p.tags];
-                        if (!newTags.includes('Boris Myagkov Big Band')) newTags.push('Boris Myagkov Big Band');
-                        return { 
-                          ...p, 
-                          album: 'Boris Myagkov Big Band', 
-                          artist: p.artist ? p.artist : 'Boris Myagkov Big Band',
-                          tags: newTags 
-                        };
-                      });
-                    }}
+                    onClick={() => toggleDestination('boris')}
                   >
                     <span>🎺 Boris Myagkov</span>
                   </button>
                 </div>
 
-                {formData.album === 'GOC 2026' && (
+                {destinations.goc && (
                   <div className="goc-sub-selector animate-in" style={{ marginTop: '10px' }}>
                     <span className="sub-label">Select Discipline:</span>
                     <div className="sub-chips-row">
                       <button
                         type="button"
-                        className={`goc-sub-chip latin ${formData.tags.includes('GOC Latin') ? 'active' : ''}`}
-                        onClick={() => {
-                          setFormData(p => {
-                            const newTags = p.tags.filter((t: string) => t !== 'GOC Standard');
-                            if (!newTags.includes('GOC 2026')) newTags.push('GOC 2026');
-                            if (!newTags.includes('GOC Latin')) newTags.push('GOC Latin');
-                            return { ...p, tags: newTags };
-                          });
-                        }}
+                        className={`goc-sub-chip latin ${gocDiscipline === 'Latin' ? 'active' : ''}`}
+                        onClick={() => setGocDiscipline('Latin')}
                       >
                         🔥 International Latin
                       </button>
 
                       <button
                         type="button"
-                        className={`goc-sub-chip standard ${formData.tags.includes('GOC Standard') ? 'active' : ''}`}
-                        onClick={() => {
-                          setFormData(p => {
-                            const newTags = p.tags.filter((t: string) => t !== 'GOC Latin');
-                            if (!newTags.includes('GOC 2026')) newTags.push('GOC 2026');
-                            if (!newTags.includes('GOC Standard')) newTags.push('GOC Standard');
-                            return { ...p, tags: newTags };
-                          });
-                        }}
+                        className={`goc-sub-chip standard ${gocDiscipline === 'Standard' ? 'active' : ''}`}
+                        onClick={() => setGocDiscipline('Standard')}
                       >
                         ⚡ International Standard
                       </button>

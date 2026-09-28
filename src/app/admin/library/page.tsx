@@ -134,23 +134,27 @@ const AdminLibrary = () => {
     }
   };
 
-  const handleDragStart = (e: React.DragEvent, index: number) => {
-    e.dataTransfer.setData('draggedIndex', index.toString());
+  const [draggedTrackId, setDraggedTrackId] = useState<string | null>(null);
+
+  const handleDragStart = (e: React.DragEvent, trackId: string) => {
+    setDraggedTrackId(trackId);
+    e.dataTransfer.setData('text/plain', trackId);
+    e.dataTransfer.effectAllowed = 'move';
   };
 
   const handleDragOver = (e: React.DragEvent) => {
     e.preventDefault();
+    e.dataTransfer.dropEffect = 'move';
   };
 
-  const handleDrop = async (e: React.DragEvent, dropIndex: number) => {
-    const dragIndex = parseInt(e.dataTransfer.getData('draggedIndex'));
-    if (dragIndex !== dropIndex && !isNaN(dragIndex)) {
-      const draggedTrack = filteredTracks[dragIndex];
-      const targetTrack = filteredTracks[dropIndex];
-      if (draggedTrack && targetTrack) {
-        await reorderTracks(draggedTrack.id, targetTrack.id, filteredTracks);
-        showToast(`Saved position for "${draggedTrack.title}"`);
-      }
+  const handleDrop = async (e: React.DragEvent, targetTrackId: string) => {
+    e.preventDefault();
+    const sourceId = e.dataTransfer.getData('text/plain') || draggedTrackId;
+    setDraggedTrackId(null);
+    if (sourceId && sourceId !== targetTrackId) {
+      const draggedTrack = tracks.find(t => t.id === sourceId);
+      await reorderTracks(sourceId, targetTrackId, filteredTracks);
+      showToast(`Saved position for "${draggedTrack?.title || 'track'}"`);
     }
   };
 
@@ -171,9 +175,17 @@ const AdminLibrary = () => {
         const isStdTag = track.tags?.some((t: string) => t.toLowerCase() === 'standard library' || t.toLowerCase() === 'standard-library');
         const hasNoBand = !track.album && !track.tags?.some((t: string) => {
           const lt = t.toLowerCase();
-          return lt.includes('boris') || lt.includes('rose') || lt.includes('dance star') || lt.includes('goc');
+          return lt.includes('boris') || lt.includes('rose') || lt.includes('dance star') || lt.includes('goc') || lt.includes('musheev') || lt.includes('7 winds') || lt.includes('seven winds');
         });
         return isStdTag || hasNoBand;
+      }
+      if (alb.includes('musheev') || alb.includes('7 winds') || alb.includes('seven winds')) {
+        return (track.album || '').toLowerCase().includes('musheev') || 
+               (track.artist || '').toLowerCase().includes('musheev') || 
+               track.tags?.some((t: string) => {
+                 const lt = t.toLowerCase();
+                 return lt.includes('musheev') || lt.includes('7 winds') || lt.includes('seven winds');
+               });
       }
       if (alb.includes('boris')) {
         return (track.album || '').toLowerCase().includes('boris') || track.tags?.some((t: string) => t.toLowerCase().includes('boris'));
@@ -286,6 +298,13 @@ const AdminLibrary = () => {
               onClick={() => setActiveAlbum('Boris Myagkov Big Band')}
             >
               🎺 Boris Myagkov
+            </button>
+            <button 
+              className={`filter-btn glass ${activeAlbum === 'Georgie Musheev & 7 Winds' ? 'active' : ''}`}
+              style={activeAlbum === 'Georgie Musheev & 7 Winds' ? { borderColor: '#e11d48', color: '#e11d48', background: 'rgba(225, 29, 72, 0.15)' } : undefined}
+              onClick={() => setActiveAlbum('Georgie Musheev & 7 Winds')}
+            >
+              🎤 Georgie Musheev
             </button>
             <button 
               className={`filter-btn glass ${activeAlbum === 'Standard Library' ? 'active' : ''}`}
@@ -415,11 +434,12 @@ const AdminLibrary = () => {
                 return (
                   <tr 
                     key={track.id} 
-                    className={`admin-track-row ${isThisPlaying ? 'is-playing-row' : ''}`}
+                    className={`admin-track-row ${isThisPlaying ? 'is-playing-row' : ''} ${draggedTrackId === track.id ? 'is-dragging' : ''}`}
                     draggable
-                    onDragStart={(e) => handleDragStart(e, i)}
+                    onDragStart={(e) => handleDragStart(e, track.id)}
+                    onDragEnd={() => setDraggedTrackId(null)}
                     onDragOver={handleDragOver}
-                    onDrop={(e) => handleDrop(e, i)}
+                    onDrop={(e) => handleDrop(e, track.id)}
                   >
                     <td className="col-play">
                       <div className="play-cell">

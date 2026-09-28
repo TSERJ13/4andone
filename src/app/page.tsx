@@ -46,7 +46,7 @@ export default function Home() {
 
   const [visibleTrackCount, setVisibleTrackCount] = useState(25);
 
-  // 10-Second Hero Carousel State (0 = Boris Myagkov Big Band, 1 = Rose's Band, 2 = Dance Star Band, 3 = GOC 2026)
+  // 10-Second Hero Carousel State (0 = Boris Myagkov Big Band, 1 = Georgie Musheev & 7 Winds, 2 = Rose's Band, 3 = Dance Star Band, 4 = GOC 2026)
   const [currentSlide, setCurrentSlide] = useState(0);
   const [isCarouselPaused, setIsCarouselPaused] = useState(false);
 
@@ -68,9 +68,9 @@ export default function Home() {
     const distance = touchStartX.current - touchEndX.current;
     const minSwipeDistance = 35;
     if (distance > minSwipeDistance) {
-      setCurrentSlide(prev => (prev + 1) % 4);
+      setCurrentSlide(prev => (prev + 1) % 5);
     } else if (distance < -minSwipeDistance) {
-      setCurrentSlide(prev => (prev === 0 ? 3 : prev - 1));
+      setCurrentSlide(prev => (prev === 0 ? 4 : prev - 1));
     }
     touchStartX.current = null;
     touchEndX.current = null;
@@ -98,7 +98,7 @@ export default function Home() {
   useEffect(() => {
     if (isCarouselPaused) return;
     const timer = setInterval(() => {
-      setCurrentSlide(prev => (prev + 1) % 4);
+      setCurrentSlide(prev => (prev + 1) % 5);
     }, 10000);
     return () => clearInterval(timer);
   }, [isCarouselPaused]);
@@ -152,6 +152,26 @@ export default function Home() {
         return false; // Included in newArrivals
       }
       return true; // Boris standard tracks remain in the album and are excluded from newArrivals
+    }
+
+    // Check if track belongs to Georgie Musheev & 7 Winds
+    const isMusheev = (t.album || '').toLowerCase().includes('musheev') ||
+      (t.album || '').toLowerCase().includes('7 winds') ||
+      (t.artist || '').toLowerCase().includes('musheev') ||
+      (t.artist || '').toLowerCase().includes('7 winds') ||
+      t.tags?.some((tag: string) => {
+        const tg = tag.toLowerCase();
+        return tg.includes('musheev') || tg.includes('7 winds') || tg.includes('seven winds');
+      });
+
+    // Georgie Musheev Latin tracks appear in New Arrivals!
+    if (isMusheev && !isGoc) {
+      const LATIN_CANONICAL = ['samba', 'chachacha', 'rumba', 'pasodoble', 'jive'];
+      const trackCanon = canonicalStyle(t.style);
+      if (LATIN_CANONICAL.includes(trackCanon)) {
+        return false; // Included in newArrivals
+      }
+      return true;
     }
 
     const albumLower = (t.album || '').toLowerCase();
@@ -322,7 +342,7 @@ export default function Home() {
 
         {/* 10-Second Auto-Rotating Hero Carousel Banner */}
         <div 
-          className={`hero-carousel-wrapper ${currentSlide === 0 ? 'slide-borismyagkov' : currentSlide === 1 ? 'slide-rosesband' : currentSlide === 2 ? 'slide-dancestar' : 'slide-goc'}`}
+          className={`hero-carousel-wrapper ${currentSlide === 0 ? 'slide-borismyagkov' : currentSlide === 1 ? 'slide-musheev' : currentSlide === 2 ? 'slide-rosesband' : currentSlide === 3 ? 'slide-dancestar' : 'slide-goc'}`}
           onMouseEnter={() => { setIsCarouselPaused(true); resetArrowsTimer(); }}
           onMouseLeave={() => { setIsCarouselPaused(false); setAreArrowsVisible(false); }}
           onMouseMove={resetArrowsTimer}
@@ -333,14 +353,14 @@ export default function Home() {
           {/* Navigation Controls: Smart Auto-Hiding Arrows */}
           <button 
             className={`carousel-nav-btn prev glass ${areArrowsVisible ? 'visible' : ''}`}
-            onClick={() => { resetArrowsTimer(); setCurrentSlide(prev => (prev === 0 ? 3 : prev - 1)); }}
+            onClick={() => { resetArrowsTimer(); setCurrentSlide(prev => (prev === 0 ? 4 : prev - 1)); }}
             aria-label="Previous Banner"
           >
             <ChevronLeft size={16} className="nav-arrow-icon" />
           </button>
           <button 
             className={`carousel-nav-btn next glass ${areArrowsVisible ? 'visible' : ''}`}
-            onClick={() => { resetArrowsTimer(); setCurrentSlide(prev => (prev + 1) % 4); }}
+            onClick={() => { resetArrowsTimer(); setCurrentSlide(prev => (prev + 1) % 5); }}
             aria-label="Next Banner"
           >
             <ChevronRight size={16} className="nav-arrow-icon" />
@@ -350,7 +370,7 @@ export default function Home() {
           <div 
             className="carousel-track"
             style={{
-              transform: `translateX(-${currentSlide * 25}%)`
+              transform: `translateX(-${currentSlide * 20}%)`
             }}
           >
             {/* SLIDE 0: BORIS MYAGKOV BIG BAND (LIVE SOUNDS) - STARTS FIRST */}
@@ -395,7 +415,49 @@ export default function Home() {
               </div>
             </header>
 
-            {/* SLIDE 1: ROSE'S BAND (LIVE SOUNDS) */}
+            {/* SLIDE 1: GEORGIE MUSHEEV & 7 WINDS (LIVE SOUNDS) */}
+            <header 
+              className="hero-section glass musheev-hero-section"
+              style={{
+                background: 'linear-gradient(135deg, rgba(225, 29, 72, 0.22) 0%, rgba(20, 20, 20, 0.75) 100%)',
+                borderColor: 'rgba(225, 29, 72, 0.35)'
+              }}
+            >
+              <div className="hero-content-wrapper">
+                <div className="hero-content">
+                  <span className="goc-badge" style={{ background: 'linear-gradient(90deg, #e11d48, #be123c)', boxShadow: '0 4px 15px rgba(225, 29, 72, 0.35)' }}>
+                    LIVE SOUNDS COLLECTION
+                  </span>
+                  <h2 className="hero-title text-gradient" style={{ background: 'linear-gradient(90deg, #ffffff, #fb7185, #f43f5e)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }}>
+                    GEORGIE MUSHEEV<br />&amp; 7 WINDS
+                  </h2>
+                  <p className="hero-desc">
+                    Exclusive Live Latin Dance Music. Dedicated Latin Final Mode practice with live band sounds.
+                  </p>
+                  <div className="hero-actions desktop-actions">
+                    <button className="btn-primary" style={{ background: 'linear-gradient(90deg, #e11d48, #be123c)', color: 'white', border: 'none', boxShadow: '0 4px 15px rgba(225, 29, 72, 0.4)' }} onClick={() => router.push('/album/georgie-musheev')}>
+                      Open Live Album
+                    </button>
+                    <button className="btn-outline glass" onClick={() => router.push('/album/georgie-musheev?final=true')}>
+                      Final Mode
+                    </button>
+                  </div>
+                </div>
+                <div className="goc-hero-card-preview" style={{ borderColor: 'rgba(225, 29, 72, 0.3)' }} onClick={() => router.push('/album/georgie-musheev')}>
+                  <img src="/georgie-musheev.jpg" alt="Georgie Musheev & 7 Winds" className="goc-hero-img" />
+                </div>
+              </div>
+              <div className="hero-actions mobile-actions">
+                <button className="btn-primary" style={{ background: 'linear-gradient(90deg, #e11d48, #be123c)', color: 'white', border: 'none' }} onClick={() => router.push('/album/georgie-musheev')}>
+                  Open Live Album
+                </button>
+                <button className="btn-outline glass" onClick={() => router.push('/album/georgie-musheev?final=true')}>
+                  Final Mode
+                </button>
+              </div>
+            </header>
+
+            {/* SLIDE 2: ROSE'S BAND (LIVE SOUNDS) */}
             <header 
               className="hero-section glass rosesband-hero-section"
               style={{
@@ -520,18 +582,23 @@ export default function Home() {
               title="Boris Myagkov Big Band"
             />
             <button 
-              className={`carousel-dot ${currentSlide === 1 ? 'active rosesband' : ''}`}
+              className={`carousel-dot ${currentSlide === 1 ? 'active musheev' : ''}`}
               onClick={() => setCurrentSlide(1)}
+              title="Georgie Musheev & 7 Winds"
+            />
+            <button 
+              className={`carousel-dot ${currentSlide === 2 ? 'active rosesband' : ''}`}
+              onClick={() => setCurrentSlide(2)}
               title="Rose's Band"
             />
             <button 
-              className={`carousel-dot ${currentSlide === 2 ? 'active dancestar' : ''}`}
-              onClick={() => setCurrentSlide(2)}
+              className={`carousel-dot ${currentSlide === 3 ? 'active dancestar' : ''}`}
+              onClick={() => setCurrentSlide(3)}
               title="Dance Star Band"
             />
             <button 
-              className={`carousel-dot ${currentSlide === 3 ? 'active goc' : ''}`}
-              onClick={() => setCurrentSlide(3)}
+              className={`carousel-dot ${currentSlide === 4 ? 'active goc' : ''}`}
+              onClick={() => setCurrentSlide(4)}
               title="GOC Final 2026"
             />
           </div>
@@ -811,6 +878,14 @@ export default function Home() {
           box-shadow: 0 0 12px rgba(245, 158, 11, 0.6);
         }
 
+        .carousel-dot.active.musheev {
+          width: 32px;
+          border-radius: 12px;
+          background: linear-gradient(90deg, #e11d48, #be123c);
+          border-color: #e11d48;
+          box-shadow: 0 0 12px rgba(225, 29, 72, 0.6);
+        }
+
         .carousel-dot.active.rosesband {
           width: 32px;
           border-radius: 12px;
@@ -859,6 +934,11 @@ export default function Home() {
           box-shadow: 0 12px 35px -5px rgba(245, 158, 11, 0.25);
         }
 
+        .hero-carousel-wrapper.slide-musheev {
+          border-color: rgba(225, 29, 72, 0.45);
+          box-shadow: 0 12px 35px -5px rgba(225, 29, 72, 0.25);
+        }
+
         .hero-carousel-wrapper.slide-rosesband {
           border-color: rgba(34, 197, 94, 0.45);
           box-shadow: 0 12px 35px -5px rgba(34, 197, 94, 0.25);
@@ -876,12 +956,12 @@ export default function Home() {
 
         .carousel-track {
           display: flex;
-          width: 400%;
+          width: 500%;
           transition: transform 0.6s cubic-bezier(0.25, 1, 0.5, 1);
         }
 
         .hero-section {
-          width: 25%;
+          width: 20%;
           flex-shrink: 0;
           box-sizing: border-box;
           padding: 44px 40px 40px 40px;

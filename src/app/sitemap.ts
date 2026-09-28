@@ -11,6 +11,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     '/library/finals',
     '/library/favorites',
     '/album/boris-myagkov',
+    '/album/georgie-musheev',
     '/album/roses-band',
     '/album/dance-star-band',
     '/album/goc-2026',

@@ -26,6 +26,7 @@ export interface Track {
   style: string;
   bpm?: string;
   date: string;
+  createdAt?: string;
   folderId?: string;
   audioUrl?: string;
   artworkUrl?: string; // artwork_url in DB
@@ -244,11 +245,17 @@ export const StudioProvider: React.FC<{ children: React.ReactNode }> = ({ childr
           audioUrl: t.audio_url,
           artworkUrl: t.artwork_url,
           folderId: t.folder_id,
+          createdAt: t.created_at || t.date,
           globalOrder: typeof t.global_order === 'number' ? t.global_order : (Number(t.global_order) || 0),
           duration: t.duration || 0,
           isFavorite: userLikes.includes(t.id)
         }));
-        mapped.sort((a, b) => (a.globalOrder ?? 0) - (b.globalOrder ?? 0));
+        mapped.sort((a, b) => {
+          if ((a.globalOrder ?? 0) !== (b.globalOrder ?? 0)) {
+            return (a.globalOrder ?? 0) - (b.globalOrder ?? 0);
+          }
+          return new Date(b.createdAt || b.date || 0).getTime() - new Date(a.createdAt || a.date || 0).getTime();
+        });
         setTracks(mapped);
       }
 
@@ -292,11 +299,17 @@ export const StudioProvider: React.FC<{ children: React.ReactNode }> = ({ childr
                 audioUrl: nt.audio_url, 
                 artworkUrl: nt.artwork_url, 
                 folderId: nt.folder_id, 
+                createdAt: nt.created_at || nt.date,
                 duration: nt.duration || 0, 
                 isFavorite: isLiked, 
                 globalOrder: typeof nt.global_order === 'number' ? nt.global_order : (Number(nt.global_order) || 0)
               };
-              return [...prev, newTrackItem].sort((a, b) => (a.globalOrder ?? 0) - (b.globalOrder ?? 0));
+              return [...prev, newTrackItem].sort((a, b) => {
+                if ((a.globalOrder ?? 0) !== (b.globalOrder ?? 0)) {
+                  return (a.globalOrder ?? 0) - (b.globalOrder ?? 0);
+                }
+                return new Date(b.createdAt || b.date || 0).getTime() - new Date(a.createdAt || a.date || 0).getTime();
+              });
             });
           } else if (payload.eventType === 'UPDATE') {
             const ut = payload.new as any;
@@ -307,11 +320,17 @@ export const StudioProvider: React.FC<{ children: React.ReactNode }> = ({ childr
                 audioUrl: ut.audio_url, 
                 artworkUrl: ut.artwork_url, 
                 folderId: ut.folder_id, 
+                createdAt: ut.created_at || ut.date || t.createdAt,
                 isFavorite: t.isFavorite, // Keep the user's local like status
                 duration: ut.duration || 0,
                 globalOrder: typeof ut.global_order === 'number' ? ut.global_order : (Number(ut.global_order) || 0)
               };
-            }).sort((a, b) => (a.globalOrder ?? 0) - (b.globalOrder ?? 0)));
+            }).sort((a, b) => {
+              if ((a.globalOrder ?? 0) !== (b.globalOrder ?? 0)) {
+                return (a.globalOrder ?? 0) - (b.globalOrder ?? 0);
+              }
+              return new Date(b.createdAt || b.date || 0).getTime() - new Date(a.createdAt || a.date || 0).getTime();
+            }));
           } else if (payload.eventType === 'DELETE') {
             setTracks(prev => prev.filter(t => t.id !== payload.old.id));
           }
@@ -319,14 +338,62 @@ export const StudioProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       )
       .subscribe();
 
-    return () => { supabase.removeChannel(channel); };
+    // Cross-tab synchronization via BroadcastChannel
+    const syncChannel = typeof window !== 'undefined' && 'BroadcastChannel' in window ? new BroadcastChannel('4andone_sync') : null;
+    if (syncChannel) {
+      syncChannel.onmessage = () => {
+        fetchData();
+      };
+    }
+
+    // Storage event listener (fallback cross-tab sync)
+    const handleStorage = (e: StorageEvent) => {
+      if (e.key === '4andone_track_sync') {
+        fetchData();
+      }
+    };
+    if (typeof window !== 'undefined') {
+      window.addEventListener('storage', handleStorage);
+    }
+
+    // Tab focus & visibility change (auto-update when returning to tab)
+    const handleFocus = () => {
+      fetchData();
+    };
+    const handleVisibility = () => {
+      if (typeof document !== 'undefined' && document.visibilityState === 'visible') {
+        fetchData();
+      }
+    };
+    if (typeof window !== 'undefined') {
+      window.addEventListener('focus', handleFocus);
+      document.addEventListener('visibilitychange', handleVisibility);
+    }
+
+    // 15-second background auto-sync interval for active tabs
+    const pollInterval = setInterval(() => {
+      if (typeof document !== 'undefined' && document.visibilityState === 'visible') {
+        fetchData();
+      }
+    }, 15000);
+
+    return () => { 
+      supabase.removeChannel(channel);
+      syncChannel?.close();
+      clearInterval(pollInterval);
+      if (typeof window !== 'undefined') {
+        window.removeEventListener('storage', handleStorage);
+        window.removeEventListener('focus', handleFocus);
+        document.removeEventListener('visibilitychange', handleVisibility);
+      }
+    };
   }, [isAuthenticated, user]);
 
   const addTrack = async (trackData: Partial<Track>) => {
     let initialOrder = trackData.globalOrder;
     if (initialOrder === undefined) {
       const minO = tracks.length > 0 ? Math.min(...tracks.map(t => t.globalOrder ?? 10)) : 10;
-      initialOrder = minO > 0 ? minO - 10 : 0;
+      initialOrder = minO - 10;
     }
 
     const { data, error } = await supabase
@@ -357,20 +424,40 @@ export const StudioProvider: React.FC<{ children: React.ReactNode }> = ({ childr
 
     if (data && data.length > 0) {
       const nt = data[0];
-       const newTrack: Track = {
-          ...nt,
-          audioUrl: nt.audio_url,
-          artworkUrl: nt.artwork_url,
-          folderId: nt.folder_id,
-          duration: nt.duration || 0,
-          isFavorite: false
-       };
+      const newTrack: Track = {
+        ...nt,
+        audioUrl: nt.audio_url,
+        artworkUrl: nt.artwork_url,
+        folderId: nt.folder_id,
+        createdAt: nt.created_at || nt.date,
+        globalOrder: typeof nt.global_order === 'number' ? nt.global_order : (Number(nt.global_order) || initialOrder),
+        duration: nt.duration || 0,
+        isFavorite: false
+      };
       
       setTracks(prev => {
         // Prevent duplicate from real-time INSERT if it fired quickly
         if (prev.some(t => t.id === newTrack.id)) return prev;
-        return [newTrack, ...prev];
+        const updated = [newTrack, ...prev];
+        return updated.sort((a, b) => {
+          if ((a.globalOrder ?? 0) !== (b.globalOrder ?? 0)) {
+            return (a.globalOrder ?? 0) - (b.globalOrder ?? 0);
+          }
+          return new Date(b.createdAt || b.date || 0).getTime() - new Date(a.createdAt || a.date || 0).getTime();
+        });
       });
+
+      // Broadcast to other tabs & windows
+      try {
+        if (typeof window !== 'undefined') {
+          if ('BroadcastChannel' in window) {
+            const bc = new BroadcastChannel('4andone_sync');
+            bc.postMessage({ type: 'TRACK_ADDED', id: newTrack.id });
+            bc.close();
+          }
+          localStorage.setItem('4andone_track_sync', Date.now().toString());
+        }
+      } catch (e) {}
       
       return newTrack;
     }
@@ -383,6 +470,16 @@ export const StudioProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       throw error;
     }
     setTracks(prev => prev.filter(t => t.id !== id));
+    try {
+      if (typeof window !== 'undefined') {
+        if ('BroadcastChannel' in window) {
+          const bc = new BroadcastChannel('4andone_sync');
+          bc.postMessage({ type: 'TRACK_REMOVED', id });
+          bc.close();
+        }
+        localStorage.setItem('4andone_track_sync', Date.now().toString());
+      }
+    } catch (e) {}
   };
 
   const updateTrack = async (id: string, updates: Partial<Track>) => {
@@ -422,6 +519,16 @@ export const StudioProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       throw error;
     }
     setTracks(prev => prev.map(t => t.id === id ? { ...t, ...updates } : t));
+    try {
+      if (typeof window !== 'undefined') {
+        if ('BroadcastChannel' in window) {
+          const bc = new BroadcastChannel('4andone_sync');
+          bc.postMessage({ type: 'TRACK_UPDATED', id });
+          bc.close();
+        }
+        localStorage.setItem('4andone_track_sync', Date.now().toString());
+      }
+    } catch (e) {}
   };
 
   const toggleFavorite = async (id: string) => {
@@ -749,7 +856,7 @@ export const StudioProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     } else if (prevInScoped && nextInScoped) {
       const pO = prevInScoped.globalOrder ?? 10;
       const nO = nextInScoped.globalOrder ?? 20;
-      newOrder = nO > pO ? (pO + nO) / 2 : pO + 0.5;
+      newOrder = nO > pO ? (pO + nO) / 2 : pO + 1;
     } else {
       newOrder = movedTrack.globalOrder ?? 10;
     }
@@ -762,7 +869,12 @@ export const StudioProvider: React.FC<{ children: React.ReactNode }> = ({ childr
         }
         return t;
       });
-      return updated.sort((a, b) => (a.globalOrder ?? 0) - (b.globalOrder ?? 0));
+      return updated.sort((a, b) => {
+        if ((a.globalOrder ?? 0) !== (b.globalOrder ?? 0)) {
+          return (a.globalOrder ?? 0) - (b.globalOrder ?? 0);
+        }
+        return new Date(b.createdAt || b.date || 0).getTime() - new Date(a.createdAt || a.date || 0).getTime();
+      });
     });
 
     // 2. Persist to Supabase

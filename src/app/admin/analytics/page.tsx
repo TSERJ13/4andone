@@ -268,6 +268,38 @@ export default function AdminAnalytics() {
   const tracksRef = React.useRef(tracks);
   React.useEffect(() => { tracksRef.current = tracks; }, [tracks]);
 
+  // --- Top Tracks helper ---
+  const enrichAndSetTopTracks = useCallback(async (
+    rawData: { track_id: string; style: string; play_count: number; share_count: number; view_count: number; total_duration: number }[],
+    fallbackStart: Date
+  ) => {
+    let playsData = rawData;
+    if (!playsData.length) {
+      const { data: fallbackPlays } = await supabase
+        .from('track_plays')
+        .select('track_id, style')
+        .gte('created_at', fallbackStart.toISOString());
+      const counts: Record<string, number> = {};
+      (fallbackPlays || []).forEach((p: { track_id: string }) => {
+        counts[p.track_id] = (counts[p.track_id] || 0) + 1;
+      });
+      playsData = Object.entries(counts)
+        .sort((a, b) => b[1] - a[1])
+        .slice(0, 10)
+        .map(([track_id, play_count]) => ({ track_id, style: '', play_count, share_count: 0, view_count: 0, total_duration: 0 }));
+    }
+    const trackIds = playsData.map(r => r.track_id);
+    const { data: dbTracks } = trackIds.length
+      ? await supabase.from('tracks').select('id, title, artist, style').in('id', trackIds)
+      : { data: [] };
+    const dbMap: Record<string, { title: string; artist: string; style: string }> = {};
+    (dbTracks || []).forEach((t: { id: string; title: string; artist: string; style: string }) => { dbMap[t.id] = t; });
+    setTopTracks(playsData.map(row => {
+      const t = dbMap[row.track_id];
+      return { id: row.track_id, title: t?.title || '—', artist: t?.artist || '—', style: t?.style || row.style || '', play_count: Number(row.play_count) || 0, share_count: Number(row.share_count) || 0, view_count: Number(row.view_count) || 0, total_duration: Number(row.total_duration) || 0 };
+    }));
+  }, []);
+
   const fetch_ = useCallback(async () => {
     setLoading(true);
     try {
@@ -367,9 +399,11 @@ export default function AdminAnalytics() {
       setBuckets(resolvedBuckets);
 
       // --- Metrics ---
+      let currentMonthVisits = 0;
       if (metricsRes.data?.length > 0) {
         const m = metricsRes.data[0];
-        setTotals({ today: Number(m.visits_today)||0, week: Number(m.visits_week)||0, month: Number(m.visits_month)||0, year: Number(m.visits_year)||0 });
+        currentMonthVisits = Number(m.visits_month) || 0;
+        setTotals({ today: Number(m.visits_today)||0, week: Number(m.visits_week)||0, month: currentMonthVisits, year: Number(m.visits_year)||0 });
         setUniqueTotals({ today: Number(m.unique_today)||0, week: Number(m.unique_week)||0, month: Number(m.unique_month)||0, year: Number(m.unique_year)||0 });
         setAvgDuration(Math.round(m.avg_duration_seconds || 0));
       }
@@ -418,7 +452,7 @@ export default function AdminAnalytics() {
         // Fallback: synthetic referrer from recent activity
         setReferrerStats([
           { source_label: 'Telegram', visit_count: tgData.data?.length || 0 },
-          { source_label: 'Direct', visit_count: Math.max(0, (totals.month || 0) - (tgData.data?.length || 0)) },
+          { source_label: 'Direct', visit_count: Math.max(0, currentMonthVisits - (tgData.data?.length || 0)) },
         ].filter(r => r.visit_count > 0));
       }
 
@@ -462,39 +496,7 @@ export default function AdminAnalytics() {
     } finally {
       setLoading(false);
     }
-  }, [period, totals.month]);
-
-  // --- Separate Top Tracks fetcher (called on period tab change) ---
-  const enrichAndSetTopTracks = useCallback(async (
-    rawData: { track_id: string; style: string; play_count: number; share_count: number; view_count: number; total_duration: number }[],
-    fallbackStart: Date
-  ) => {
-    let playsData = rawData;
-    if (!playsData.length) {
-      const { data: fallbackPlays } = await supabase
-        .from('track_plays')
-        .select('track_id, style')
-        .gte('created_at', fallbackStart.toISOString());
-      const counts: Record<string, number> = {};
-      (fallbackPlays || []).forEach((p: { track_id: string }) => {
-        counts[p.track_id] = (counts[p.track_id] || 0) + 1;
-      });
-      playsData = Object.entries(counts)
-        .sort((a, b) => b[1] - a[1])
-        .slice(0, 10)
-        .map(([track_id, play_count]) => ({ track_id, style: '', play_count, share_count: 0, view_count: 0, total_duration: 0 }));
-    }
-    const trackIds = playsData.map(r => r.track_id);
-    const { data: dbTracks } = trackIds.length
-      ? await supabase.from('tracks').select('id, title, artist, style').in('id', trackIds)
-      : { data: [] };
-    const dbMap: Record<string, { title: string; artist: string; style: string }> = {};
-    (dbTracks || []).forEach((t: { id: string; title: string; artist: string; style: string }) => { dbMap[t.id] = t; });
-    setTopTracks(playsData.map(row => {
-      const t = dbMap[row.track_id];
-      return { id: row.track_id, title: t?.title || '—', artist: t?.artist || '—', style: t?.style || row.style || '', play_count: Number(row.play_count) || 0, share_count: Number(row.share_count) || 0, view_count: Number(row.view_count) || 0, total_duration: Number(row.total_duration) || 0 };
-    }));
-  }, []);
+  }, [period, enrichAndSetTopTracks]);
 
   const fetchTopTracksForPeriod = useCallback(async (tp: '24h' | '7d' | '30d' | 'all') => {
     setTracksLoading(true);

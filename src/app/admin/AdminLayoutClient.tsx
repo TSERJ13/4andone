@@ -15,7 +15,7 @@ export default function AdminLayoutClient({
   const pathname = usePathname();
   const router = useRouter();
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
-  const [isCollapsed, setIsCollapsed] = useState(true);
+  const [isCollapsed, setIsCollapsed] = useState(false);
   const [isAuthChecking, setIsAuthChecking] = useState(true);
 
   const isLoginPage = pathname === '/sa-login';

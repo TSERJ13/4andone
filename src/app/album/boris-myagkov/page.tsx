@@ -16,7 +16,7 @@ const LATIN_STYLES = ['Samba', 'Cha-Cha-Cha', 'Rumba', 'Paso Doble', 'Jive'];
 const STANDARD_STYLES = ['Slow Waltz', 'Tango', 'Viennese Waltz', 'Slow Foxtrot', 'Quickstep'];
 
 export default function BorisMyagkovBigBandPage() {
-  const { loadTrack, isPlaying, title: playingTitle, setActiveMode, setSessionTracks } = useAudio();
+  const { loadTrack, isPlaying, title: playingTitle, trackId: playingTrackId, setActiveMode, setSessionTracks } = useAudio();
   const { tracks, styles, toggleFavorite } = useStudio();
   const { isAuthenticated, setIsAuthModalOpen } = useAuth();
   const downloadedIds = useDownloadedTracks();
@@ -237,10 +237,12 @@ export default function BorisMyagkovBigBandPage() {
                       const matchedStyle = styles.find(s => canonicalStyle(s.title) === canonicalStyle(trackStyleName));
                       const badgeColor = matchedStyle?.color || styleObj?.color || '#f59e0b';
 
+                      const isTrackActive = isPlaying && (playingTrackId ? playingTrackId === track.id : (playingTitle === track.title || playingTitle === track.id));
+
                       return (
                         <div
                           key={track.id}
-                          className={`track-row ${isPlaying && (playingTitle === track.title || playingTitle === track.id) ? 'is-active' : ''}`}
+                          className={`track-row ${isTrackActive ? 'is-active' : ''}`}
                           onClick={() => handlePlaySingle(track)}
                         >
                           <div className="track-icon-col">
@@ -252,7 +254,7 @@ export default function BorisMyagkovBigBandPage() {
                                 <Marquee
                                   text={displayTitle}
                                   className="track-name"
-                                  isActive={isPlaying && (playingTitle === track.title || playingTitle === track.id)}
+                                  isActive={isTrackActive}
                                 />
                               </div>
                               {downloadedIds.includes(track.id) && (
@@ -296,7 +298,7 @@ export default function BorisMyagkovBigBandPage() {
                               <Heart size={16} fill={track.isFavorite ? "'#ff4b2b'" : "'none'"} color={track.isFavorite ? "'#ff4b2b'" : "'currentColor'"} />
                             </button>
                             <div className="play-action">
-                              {isPlaying && (playingTitle === track.title || playingTitle === track.id) ? (
+                              {isTrackActive ? (
                                 <div className="playing-bars"><span></span><span></span><span></span></div>
                               ) : (
                                 <Play size={18} fill="currentColor" />

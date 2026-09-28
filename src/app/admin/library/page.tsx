@@ -33,7 +33,7 @@ import { formatDuration } from '@/utils/format';
 import { getMPMFromBPM } from '@/utils/audio';
 
 const AdminLibrary = () => {
-  const { togglePlay, isPlaying, title: playingTitle, loadTrack } = useAudio();
+  const { togglePlay, isPlaying, title: playingTitle, trackId: playingTrackId, loadTrack } = useAudio();
   const { 
     tracks, folders, styles, tags, albums: studioAlbums,
     removeTrack, updateTrack, addTrack, assignToFolder, 
@@ -126,7 +126,7 @@ const AdminLibrary = () => {
   };
 
   const handlePlayToggle = (track: any) => {
-    if (isPlaying && playingTitle === track.title) {
+    if (isPlaying && (playingTrackId ? playingTrackId === track.id : playingTitle === track.title)) {
       togglePlay();
     } else {
       loadTrack(track);
@@ -400,7 +400,7 @@ const AdminLibrary = () => {
             </thead>
             <tbody>
               {filteredTracks.map((track, i) => {
-                const isThisPlaying = isPlaying && playingTitle === track.title;
+                const isThisPlaying = isPlaying && (playingTrackId ? playingTrackId === track.id : playingTitle === track.title);
                 return (
                   <tr 
                     key={track.id} 

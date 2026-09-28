@@ -55,6 +55,8 @@ const PlayerBar = ({ onExpand }: { onExpand?: () => void }) => {
     error,
     title,
     artist,
+    trackId,
+    currentTrack: audioCurrentTrack,
     isRepeat,
     isShuffle,
     toggleRepeat,
@@ -86,7 +88,7 @@ const PlayerBar = ({ onExpand }: { onExpand?: () => void }) => {
   const downloadedIds = useDownloadedTracks();
 
   const handleShareTrack = () => {
-    const currentTrack = tracks.find(t => t.title === title);
+    const currentTrack = (trackId ? (tracks.find(t => t.id === trackId) || finalTracks.find(t => t.id === trackId)) : null) || audioCurrentTrack || tracks.find(t => t.title === title);
     const trackParam = currentTrack?.id || encodeURIComponent(title);
     const shareUrl = `${window.location.origin}/track/${trackParam}`;
     if (typeof navigator !== 'undefined' && navigator.share) {
@@ -233,7 +235,7 @@ const PlayerBar = ({ onExpand }: { onExpand?: () => void }) => {
   const totalDur = isFinalMode ? sessionDuration : duration;
   const displayProgress = isDragging ? dragProgress : (currentTime / (totalDur || 1)) * 100;
 
-  const currentTrack = tracks.find(t => t.title === title) || finalTracks.find(t => t.title === title);
+  const currentTrack = (trackId ? (tracks.find(t => t.id === trackId) || finalTracks.find(t => t.id === trackId)) : null) || audioCurrentTrack || tracks.find(t => t.title === title) || finalTracks.find(t => t.title === title);
 
   if (isAdmin) return null;
 
@@ -310,19 +312,18 @@ const PlayerBar = ({ onExpand }: { onExpand?: () => void }) => {
           <div className="control-buttons">
             {/* 1. Left Button 1: Heart/Favorite */}
             <button
-              className={`feature-btn glass ${tracks.find(t => t.title === title)?.isFavorite ? 'active active-heart' : ''}`}
+              className={`feature-btn glass ${currentTrack?.isFavorite ? 'active active-heart' : ''}`}
               aria-label="Add to favorite tracks"
               onClick={() => {
                 checkAuthAndExecute(() => {
-                  const currTrack = tracks.find(t => t.title === title);
-                  if (currTrack && typeof toggleFavorite === 'function') {
-                    toggleFavorite(currTrack.id);
+                  if (currentTrack && typeof toggleFavorite === 'function') {
+                    toggleFavorite(currentTrack.id);
                   }
                 }, 'favorite tracks');
               }}
               style={{ marginRight: '8px' }}
             >
-              <Heart size={18} fill={tracks.find(t => t.title === title)?.isFavorite ? "currentColor" : "none"} />
+              <Heart size={18} fill={currentTrack?.isFavorite ? "currentColor" : "none"} />
             </button>
 
             {/* 2. Left Button 2: Add to Playlist (+) */}

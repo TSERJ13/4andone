@@ -22,7 +22,7 @@ export default function DynamicAlbumPage() {
   const router = useRouter();
   const slug = (params?.slug as string) || '';
 
-  const { loadTrack, isPlaying, title: playingTitle, setActiveMode, setSessionTracks } = useAudio();
+  const { loadTrack, isPlaying, title: playingTitle, trackId: playingTrackId, setActiveMode, setSessionTracks } = useAudio();
   const { albums, tracks, styles, toggleFavorite, isLoading } = useStudio();
   const { isAuthenticated, setIsAuthModalOpen } = useAuth();
   const downloadedIds = useDownloadedTracks();
@@ -349,11 +349,12 @@ export default function DynamicAlbumPage() {
                       const trackStyleName = track.style || styleName;
                       const matchedStyle = styles.find(s => canonicalStyle(s.title) === canonicalStyle(trackStyleName));
                       const badgeColor = matchedStyle?.color || styleObj?.color || themePrimary;
+                      const isTrackActive = isPlaying && (playingTrackId ? playingTrackId === track.id : (playingTitle === track.title || playingTitle === track.id));
 
                       return (
                         <div
                           key={track.id}
-                          className={`track-row ${isPlaying && (playingTitle === track.title || playingTitle === track.id) ? 'is-active' : ''}`}
+                          className={`track-row ${isTrackActive ? 'is-active' : ''}`}
                           onClick={() => handlePlaySingle(track)}
                         >
                           <div className="track-icon-col">
@@ -365,7 +366,7 @@ export default function DynamicAlbumPage() {
                                 <Marquee
                                   text={displayTitle}
                                   className="track-name"
-                                  isActive={isPlaying && (playingTitle === track.title || playingTitle === track.id)}
+                                  isActive={isTrackActive}
                                 />
                               </div>
                               {downloadedIds.includes(track.id) && (
@@ -409,7 +410,7 @@ export default function DynamicAlbumPage() {
                               <Heart size={16} fill={track.isFavorite ? "#ff4b2b" : "none"} color={track.isFavorite ? "#ff4b2b" : "currentColor"} />
                             </button>
                             <div className="play-action">
-                              {isPlaying && (playingTitle === track.title || playingTitle === track.id) ? (
+                              {isTrackActive ? (
                                 <div className="playing-bars"><span></span><span></span><span></span></div>
                               ) : (
                                 <Play size={18} fill="currentColor" />

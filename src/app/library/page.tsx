@@ -29,7 +29,7 @@ import { getDownloadedTrackIds, subscribeToOfflineUpdates } from '@/utils/offlin
 export default function LibraryPage() {
   const router = useRouter();
   const { tracks, folders, folderTracksMap, styles, finalTracks, addToFinal, removeFromFinal, toggleFavorite } = useStudio();
-  const { isPlaying, title: playingTitle, loadTrack } = useAudio();
+  const { isPlaying, title: playingTitle, trackId: playingTrackId, loadTrack } = useAudio();
   const { isAuthenticated, setIsAuthModalOpen } = useAuth();
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
   const [downloadedIds, setDownloadedIds] = useState<string[]>([]);
@@ -166,10 +166,13 @@ export default function LibraryPage() {
               );
             }
 
-            return list.map((track, i) => (
+            return list.map((track, i) => {
+              const isTrackActive = isPlaying && (playingTrackId ? playingTrackId === track.id : (playingTitle === track.title || playingTitle === track.id));
+
+              return (
               <div
                 key={track.id}
-                className={`track-row ${isPlaying && playingTitle === track.title ? 'is-active' : ''}`}
+                className={`track-row ${isTrackActive ? 'is-active' : ''}`}
                 onClick={() => loadTrack(track)}
                 style={{ cursor: 'pointer' }}
               >
@@ -182,7 +185,7 @@ export default function LibraryPage() {
                       <Marquee 
                         text={track.title} 
                         className="track-name" 
-                        isActive={isPlaying && (playingTitle === track.title || playingTitle === track.id)}
+                        isActive={isTrackActive}
                       />
                     </div>
                     {downloadedIds.includes(track.id) && (
@@ -225,7 +228,7 @@ export default function LibraryPage() {
                   <Heart size={16} fill={track.isFavorite ? "#ff4b2b" : "none"} color={track.isFavorite ? "#ff4b2b" : "currentColor"} />
                 </button>
                 <div className="play-action">
-                  {isPlaying && playingTitle === track.title ? (
+                  {isTrackActive ? (
                      <div className="playing-bars"><span></span><span></span><span></span></div>
                   ) : (
                     <Play size={18} fill="currentColor" />
@@ -233,7 +236,8 @@ export default function LibraryPage() {
                 </div>
               </div>
             </div>
-          ));
+              );
+            });
         })()}
         </div>
       </section>

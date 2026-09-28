@@ -18,14 +18,14 @@ interface Props {
 }
 
 export default function TrackClientView({ track, slug, category, relatedTracks }: Props) {
-  const { isPlaying, title: playingTitle, loadTrack, togglePlay } = useAudio();
+  const { isPlaying, title: playingTitle, trackId: playingTrackId, loadTrack, togglePlay } = useAudio();
   const { tracks, toggleFavorite } = useStudio();
   const { isAuthenticated, setIsAuthModalOpen } = useAuth();
 
   // Find track in StudioProvider state if present to get live favorite status
   const liveTrack = tracks.find((t) => t.id === track.id) || track;
-  const isThisTrackPlaying = isPlaying && (playingTitle === track.title || playingTitle === track.id);
-  const isThisTrackLoaded = playingTitle === track.title || playingTitle === track.id;
+  const isThisTrackPlaying = isPlaying && (playingTrackId ? playingTrackId === track.id : playingTitle === track.title);
+  const isThisTrackLoaded = playingTrackId ? playingTrackId === track.id : playingTitle === track.title;
 
   const handlePlayMain = () => {
     if (isThisTrackLoaded) {
@@ -193,7 +193,7 @@ export default function TrackClientView({ track, slug, category, relatedTracks }
 
           <div className="seo-related-grid">
             {relatedTracks.map(({ track: rTrack, slug: rSlug }) => {
-              const isPlayingThis = isPlaying && (playingTitle === rTrack.title || playingTitle === rTrack.id);
+              const isPlayingThis = isPlaying && (playingTrackId ? playingTrackId === rTrack.id : playingTitle === rTrack.title);
 
               return (
                 <div key={rTrack.id} className="seo-related-card glass">

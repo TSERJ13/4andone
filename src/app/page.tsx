@@ -23,6 +23,7 @@ export default function Home() {
     togglePlay,
     isPlaying,
     title: playingTitle,
+    trackId: playingTrackId,
     loadTrack
   } = useAudio();
   const {
@@ -544,86 +545,90 @@ export default function Home() {
               Array(5).fill(0).map((_, i) => <SkeletonRow key={i} />)
             ) : newArrivals.length > 0 ? (
               <>
-                {newArrivals.slice(0, visibleTrackCount).map((track, i) => (
-                  <div
-                    key={track.id}
-                    className={`track-row ${isPlaying && (playingTitle === track.title || playingTitle === track.id) ? 'is-active' : ''}`}
-                    onClick={() => handlePlay(track)}
-                  >
-                    <div className="track-icon-col">
-                      <Disc size={18} />
-                    </div>
-                    <div className="track-info-col">
-                      <div className="track-title-row">
-                        <div className="track-title-marquee-wrapper">
-                          <Link
-                            href={`/music/${getTrackSlug(track)}`}
-                            className="track-title-seo-link"
-                            onClick={(e) => {
-                              // If normal left-click without modifier keys, play track in existing player
-                              if (!e.metaKey && !e.ctrlKey && !e.shiftKey) {
-                                e.preventDefault();
-                                handlePlay(track);
-                              }
-                            }}
-                          >
-                            <Marquee 
-                              text={track.title} 
-                              className="track-name" 
-                              isActive={isPlaying && (playingTitle === track.title || playingTitle === track.id)}
-                            />
-                          </Link>
+                {newArrivals.slice(0, visibleTrackCount).map((track, i) => {
+                  const isTrackActive = isPlaying && (playingTrackId ? playingTrackId === track.id : playingTitle === track.title);
+
+                  return (
+                    <div
+                      key={track.id}
+                      className={`track-row ${isTrackActive ? 'is-active' : ''}`}
+                      onClick={() => handlePlay(track)}
+                    >
+                      <div className="track-icon-col">
+                        <Disc size={18} />
+                      </div>
+                      <div className="track-info-col">
+                        <div className="track-title-row">
+                          <div className="track-title-marquee-wrapper">
+                            <Link
+                              href={`/music/${getTrackSlug(track)}`}
+                              className="track-title-seo-link"
+                              onClick={(e) => {
+                                // If normal left-click without modifier keys, play track in existing player
+                                if (!e.metaKey && !e.ctrlKey && !e.shiftKey) {
+                                  e.preventDefault();
+                                  handlePlay(track);
+                                }
+                              }}
+                            >
+                              <Marquee 
+                                text={track.title} 
+                                className="track-name" 
+                                isActive={isTrackActive}
+                              />
+                            </Link>
+                          </div>
+                          {downloadedIds.includes(track.id) && (
+                            <span className="track-downloaded-badge" title="Stored on device (Offline)">
+                              <CheckCircle2 size={13} />
+                            </span>
+                          )}
                         </div>
-                        {downloadedIds.includes(track.id) && (
-                          <span className="track-downloaded-badge" title="Stored on device (Offline)">
-                            <CheckCircle2 size={13} />
+                        <p className="track-artist">
+                          {track.artist}
+                          {track.duration ? ` • ${formatDuration(track.duration)}` : ''}
+                        </p>
+                      </div>
+
+                      <div className="track-badge-col">
+                        {styles.find(s => s.title.toLowerCase() === track.style?.toLowerCase()) && (
+                          <span 
+                            className="style-badge-pill" 
+                            style={{ backgroundColor: styles.find(s => s.title.toLowerCase() === track.style?.toLowerCase())?.color }}
+                          >
+                            {track.style}
                           </span>
                         )}
                       </div>
-                      <p className="track-artist">
-                        {track.artist}
-                        {track.duration ? ` • ${formatDuration(track.duration)}` : ''}
-                      </p>
-                    </div>
+                      
+                      <div className="track-meta-col">
+                        {track.style?.toLowerCase() === 'fitness'
+                          ? (track.duration ? formatDuration(track.duration) : '')
+                          : (track.bpm ? `${getMPMFromBPM(Number(track.bpm), track.style)} BPM` : formatDuration(track.duration))}
+                      </div>
 
-                    <div className="track-badge-col">
-                      {styles.find(s => s.title.toLowerCase() === track.style?.toLowerCase()) && (
-                        <span 
-                          className="style-badge-pill" 
-                          style={{ backgroundColor: styles.find(s => s.title.toLowerCase() === track.style?.toLowerCase())?.color }}
+                      <div className="track-actions-col">
+                        <button
+                          className={`fav-action ${track.isFavorite ? 'active-heart' : ''}`}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            checkAuthAndExecute(() => toggleFavorite?.(track.id), 'favorite tracks');
+                          }}
+                          title="Like Song"
                         >
-                          {track.style}
-                        </span>
-                      )}
-                    </div>
-                    
-                    <div className="track-meta-col">
-                      {track.style?.toLowerCase() === 'fitness'
-                        ? (track.duration ? formatDuration(track.duration) : '')
-                        : (track.bpm ? `${getMPMFromBPM(Number(track.bpm), track.style)} BPM` : formatDuration(track.duration))}
-                    </div>
-
-                    <div className="track-actions-col">
-                      <button
-                        className={`fav-action ${track.isFavorite ? 'active-heart' : ''}`}
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          checkAuthAndExecute(() => toggleFavorite?.(track.id), 'favorite tracks');
-                        }}
-                        title="Like Song"
-                      >
-                        <Heart size={16} fill={track.isFavorite ? "#ff4b2b" : "none"} color={track.isFavorite ? "#ff4b2b" : "currentColor"} />
-                      </button>
-                      <div className="play-action">
-                        {isPlaying && (playingTitle === track.title || playingTitle === track.id) ? (
-                          <div className="playing-bars"><span></span><span></span><span></span></div>
-                        ) : (
-                          <Play size={18} fill="currentColor" />
-                        )}
+                          <Heart size={16} fill={track.isFavorite ? "#ff4b2b" : "none"} color={track.isFavorite ? "#ff4b2b" : "currentColor"} />
+                        </button>
+                        <div className="play-action">
+                          {isTrackActive ? (
+                            <div className="playing-bars"><span></span><span></span><span></span></div>
+                          ) : (
+                            <Play size={18} fill="currentColor" />
+                          )}
+                        </div>
                       </div>
                     </div>
-                  </div>
-                ))}
+                  );
+                })}
 
                 {newArrivals.length > visibleTrackCount && (
                   <div className="load-more-container">

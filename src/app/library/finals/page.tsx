@@ -68,7 +68,7 @@ const FinalsPage = () => {
     toggleFavorite
   } = useStudio();
   const { 
-    loadTrack, isPlaying, title: playingTitle, currentTime, trackCurrentTime, duration, 
+    loadTrack, isPlaying, title: playingTitle, trackId: playingTrackId, currentTime, trackCurrentTime, duration, 
     isPauseCountdown, pauseTime, stop, isFitness, setIsFitness,
     activeMode, setActiveMode, sessionTracks, setSessionTracks, sessionDuration,
     isFinalMode, setFitnessTargetTime
@@ -149,7 +149,7 @@ const FinalsPage = () => {
   // Use global sessionTracks instead of Studio's finalTracks for active session UI
   const sessionList = (activeMode && sessionTracks.length > 0) ? sessionTracks : finalTracks;
 
-  const currentTrackIndex = sessionList.findIndex(t => (t.id === playingTitle || t.title === playingTitle));
+  const currentTrackIndex = sessionList.findIndex(t => playingTrackId ? t.id === playingTrackId : (t.id === playingTitle || t.title === playingTitle));
   const currentTrack = currentTrackIndex !== -1 ? sessionList[currentTrackIndex] : null;
   const currentTrackLimit = currentTrack ? getTrackLimit(currentTrack) : 100;
   const currentLimit = isPauseCountdown ? 15 : currentTrackLimit;
@@ -507,10 +507,13 @@ const FinalsPage = () => {
         
         {sessionList.length > 0 && (
           <div className="tracks-list animate-in" style={{ animationDelay: '0.2s', marginTop: '20px' }}>
-            {sessionList.map((track, i) => (
+            {sessionList.map((track, i) => {
+              const isTrackActive = isPlaying && (playingTrackId ? playingTrackId === track.id : (playingTitle === track.title || playingTitle === track.id));
+
+              return (
               <div 
                 key={`${track.id}-${i}`} 
-                className={`track-row ${isPlaying && (playingTitle === track.title || playingTitle === track.id) ? 'is-active' : ''}`}
+                className={`track-row ${isTrackActive ? 'is-active' : ''}`}
                 onClick={() => loadTrack(track, false, true)}
               >
                 <div className="track-icon-col">
@@ -522,7 +525,7 @@ const FinalsPage = () => {
                       <Marquee 
                         text={track.title} 
                         className="track-name" 
-                        isActive={isPlaying && (playingTitle === track.title || playingTitle === track.id)} 
+                        isActive={isTrackActive} 
                       />
                     </div>
                     {downloadedIds.includes(track.id) && (
@@ -556,7 +559,7 @@ const FinalsPage = () => {
 
                 <div className="track-actions-col">
                   <div className="play-action">
-                    {isPlaying && (playingTitle === track.title || playingTitle === track.id) ? (
+                    {isTrackActive ? (
                       <div className="playing-bars"><span></span><span></span><span></span></div>
                     ) : (
                       <Play size={18} fill="currentColor" />
@@ -564,7 +567,8 @@ const FinalsPage = () => {
                   </div>
                 </div>
               </div>
-            ))}
+              );
+            })}
           </div>
         )}
       </div>

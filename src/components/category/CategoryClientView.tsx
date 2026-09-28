@@ -16,7 +16,7 @@ interface Props {
 }
 
 export default function CategoryClientView({ category, initialTracks }: Props) {
-  const { isPlaying, title: playingTitle, loadTrack, togglePlay } = useAudio();
+  const { isPlaying, title: playingTitle, trackId: playingTrackId, loadTrack, togglePlay } = useAudio();
   const { tracks, toggleFavorite } = useStudio();
   const { isAuthenticated, setIsAuthModalOpen } = useAuth();
   const [searchQuery, setSearchQuery] = useState('');
@@ -28,7 +28,7 @@ export default function CategoryClientView({ category, initialTracks }: Props) {
   });
 
   const isCurrentCategoryPlaying = isPlaying && initialTracks.some(
-    ({ track }) => playingTitle === track.title || playingTitle === track.id
+    ({ track }) => playingTrackId ? playingTrackId === track.id : playingTitle === track.title
   );
 
   const handlePlayCategory = () => {
@@ -118,7 +118,7 @@ export default function CategoryClientView({ category, initialTracks }: Props) {
       <div className="cat-tracks-list">
         {filtered.map(({ track, slug }, index) => {
           const liveTrack = tracks.find((t) => t.id === track.id) || track;
-          const isRowActive = isPlaying && (playingTitle === track.title || playingTitle === track.id);
+          const isRowActive = isPlaying && (playingTrackId ? playingTrackId === track.id : playingTitle === track.title);
 
           return (
             <div

@@ -12,7 +12,7 @@ import { getMPMFromBPM } from '@/utils/audio';
 import { Marquee } from '@/components/layout/Marquee';
 
 const FavoritesPage = () => {
-  const { togglePlay, isPlaying, title: playingTitle, loadTrack } = useAudio();
+  const { togglePlay, isPlaying, title: playingTitle, trackId: playingTrackId, loadTrack } = useAudio();
   const { tracks, styles, toggleFavorite } = useStudio();
   const { isAuthenticated, setIsAuthModalOpen } = useAuth();
   const downloadedIds = useDownloadedTracks();
@@ -59,10 +59,13 @@ const FavoritesPage = () => {
         <>
 
           <div className="tracks-list">
-            {likedTracks.map((track, i) => (
+            {likedTracks.map((track, i) => {
+              const isTrackActive = isPlaying && (playingTrackId ? playingTrackId === track.id : (playingTitle === track.title || playingTitle === track.id));
+
+              return (
               <div
                 key={track.id}
-                className={`track-row ${isPlaying && (playingTitle === track.title || playingTitle === track.id) ? 'is-active' : ''}`}
+                className={`track-row ${isTrackActive ? 'is-active' : ''}`}
                 onClick={() => loadTrack(track)}
               >
                 <div className="track-icon-col">
@@ -74,7 +77,7 @@ const FavoritesPage = () => {
                       <Marquee 
                         text={track.title} 
                         className="track-name" 
-                        isActive={isPlaying && (playingTitle === track.title || playingTitle === track.id)}
+                        isActive={isTrackActive}
                       />
                     </div>
                     {downloadedIds.includes(track.id) && (
@@ -119,7 +122,8 @@ const FavoritesPage = () => {
                     </button>
                   </div>
               </div>
-            ))}
+              );
+            })}
           </div>
         </>
       ) : (

@@ -17,7 +17,7 @@ import { Marquee } from '@/components/layout/Marquee';
 const StylePage = () => {
   const { slug } = useParams();
   const { tracks, tags, styles, toggleFavorite, finalTracks, addToFinal, removeFromFinal } = useStudio();
-  const { isPlaying, title: playingTitle, loadTrack } = useAudio();
+  const { isPlaying, title: playingTitle, trackId: playingTrackId, loadTrack } = useAudio();
   const { isAuthenticated, setIsAuthModalOpen } = useAuth();
   const [activeTag, setActiveTag] = useState<string | null>(null);
   const downloadedIds = useDownloadedTracks();
@@ -66,7 +66,7 @@ const StylePage = () => {
       <div className="style-controls animate-in" style={{ animationDelay: '0.1s' }}>
         <div className="style-actions">
           <button className="play-btn-large" style={{ background: styleColor }} onClick={() => filteredTracks[0] && loadTrack(filteredTracks[0])}>
-            {isPlaying && filteredTracks.some(t => t.title === playingTitle) ? <span className="pause-icon">||</span> : <Play fill="currentColor" size={24} />}
+            {isPlaying && filteredTracks.some(t => playingTrackId ? t.id === playingTrackId : t.title === playingTitle) ? <span className="pause-icon">||</span> : <Play fill="currentColor" size={24} />}
           </button>
           <button
             className="action-btn-circle glass"
@@ -104,10 +104,13 @@ const StylePage = () => {
       </div>
 
       <div className="tracks-list animate-in" style={{ animationDelay: '0.2s' }}>
-        {filteredTracks.length > 0 ? filteredTracks.map((track, i) => (
+        {filteredTracks.length > 0 ? filteredTracks.map((track, i) => {
+          const isTrackActive = isPlaying && (playingTrackId ? playingTrackId === track.id : (playingTitle === track.title || playingTitle === track.id));
+
+          return (
           <div
             key={track.id}
-            className={`track-row ${isPlaying && (playingTitle === track.title || playingTitle === track.id) ? 'is-active' : ''}`}
+            className={`track-row ${isTrackActive ? 'is-active' : ''}`}
             onClick={() => loadTrack(track)}
           >
             <div className="track-icon-col">
@@ -129,7 +132,7 @@ const StylePage = () => {
                     <Marquee 
                       text={track.title} 
                       className="track-name" 
-                      isActive={isPlaying && (playingTitle === track.title || playingTitle === track.id)}
+                      isActive={isTrackActive}
                     />
                   </Link>
                 </div>
@@ -172,7 +175,7 @@ const StylePage = () => {
                 <Heart size={16} fill={track.isFavorite ? "#ff4b2b" : "none"} color={track.isFavorite ? "#ff4b2b" : "currentColor"} />
               </button>
               <div className="play-action">
-                {isPlaying && (playingTitle === track.title || playingTitle === track.id) ? (
+                {isTrackActive ? (
                   <div className="playing-bars"><span></span><span></span><span></span></div>
                 ) : (
                   <Play size={18} fill="currentColor" />
@@ -180,7 +183,8 @@ const StylePage = () => {
               </div>
             </div>
           </div>
-        )) : (
+          );
+        }) : (
           <div className="empty-style-state glass">
             <Filter size={48} className="text-secondary" />
             <p>No tracks match your current filter.</p>

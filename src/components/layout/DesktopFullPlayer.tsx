@@ -90,6 +90,8 @@ export default function DesktopFullPlayer({ onClose }: { onClose: () => void }) 
     togglePlay,
     title,
     artist,
+    trackId,
+    currentTrack: audioCurrentTrack,
     currentTime,
     duration,
     playNext,
@@ -128,7 +130,7 @@ export default function DesktopFullPlayer({ onClose }: { onClose: () => void }) 
   const standardStyles = danceStyles.filter(s => s.program === 'Standard');
   const fitnessStyles = sortedStyles.filter(s => s.program?.toLowerCase() === 'fitness' || s.title.toLowerCase() === 'fitness');
 
-  const currentTrack = tracks.find(t => t.title === title);
+  const currentTrack = (trackId ? tracks.find(t => t.id === trackId) : null) || audioCurrentTrack || tracks.find(t => t.title === title);
 
   const filteredTracks = selectedStyle 
     ? tracks.filter(t => t.style === selectedStyle)
@@ -483,9 +485,10 @@ export default function DesktopFullPlayer({ onClose }: { onClose: () => void }) 
                    </div>
                    <div className="queue-list-v32">
                       {sessionTracks.map((t, i) => {
-                        const isActive = t.title === title || t.id === title;
-                        const isUpcoming = !isActive && i > sessionTracks.findIndex(tr => tr.title === title || tr.id === title);
-                        const isPlayed = !isActive && i < sessionTracks.findIndex(tr => tr.title === title || tr.id === title);
+                        const isActive = trackId ? t.id === trackId : (t.title === title && t.artist === artist);
+                        const currentTrackIdx = sessionTracks.findIndex(tr => trackId ? tr.id === trackId : tr.title === title);
+                        const isUpcoming = !isActive && currentTrackIdx !== -1 && i > currentTrackIdx;
+                        const isPlayed = !isActive && currentTrackIdx !== -1 && i < currentTrackIdx;
                         
                         return (
                           <div 
@@ -627,12 +630,12 @@ export default function DesktopFullPlayer({ onClose }: { onClose: () => void }) 
                   {filteredTracks.map((t, i) => (
                     <button 
                       key={t.id} 
-                      className={`deck-track-row ${t.title === title ? 'is-active' : ''}`}
+                      className={`deck-track-row ${(trackId ? t.id === trackId : (t.title === title && t.artist === artist)) ? 'is-active' : ''}`}
                       onClick={() => loadTrack(t)}
                     >
                       <span className="track-idx-pro">{(i + 1).toString().padStart(2, '0')}</span>
                       <div className="track-blob">
-                        {t.title === title ? (
+                        {(trackId ? t.id === trackId : (t.title === title && t.artist === artist)) ? (
                           <div className="track-marquee-wrap">
                             <Marquee text={t.title} speed={45} isActive={true} className="track-name-marquee" />
                           </div>

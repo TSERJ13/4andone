@@ -15,7 +15,7 @@ import { Marquee } from '@/components/layout/Marquee';
 const SearchPage = () => {
   const [query, setQuery] = useState('');
   const { tracks, styles, finalTracks, addToFinal, removeFromFinal, toggleFavorite } = useStudio();
-  const { isPlaying, title: playingTitle, loadTrack } = useAudio();
+  const { isPlaying, title: playingTitle, trackId: playingTrackId, loadTrack } = useAudio();
   const { isAuthenticated, setIsAuthModalOpen } = useAuth();
   const downloadedIds = useDownloadedTracks();
 
@@ -123,10 +123,13 @@ const SearchPage = () => {
             <h2 className="section-title">Best Matches</h2>
             <div className="results-container">
               {searchResults.length > 0 ? (
-                searchResults.map((track, i) => (
+                searchResults.map((track, i) => {
+                  const isTrackActive = isPlaying && (playingTrackId ? playingTrackId === track.id : (playingTitle === track.title || playingTitle === track.id));
+
+                  return (
                   <div
                     key={track.id}
-                    className={`track-row ${isPlaying && (playingTitle === track.title || playingTitle === track.id) ? 'is-active' : ''}`}
+                    className={`track-row ${isTrackActive ? 'is-active' : ''}`}
                     onClick={() => loadTrack(track)}
                   >
                     <div className="track-icon-col">
@@ -138,7 +141,7 @@ const SearchPage = () => {
                           <Marquee 
                             text={track.title} 
                             className="track-name" 
-                            isActive={isPlaying && (playingTitle === track.title || playingTitle === track.id)}
+                            isActive={isTrackActive}
                           />
                         </div>
                         {downloadedIds.includes(track.id) && (
@@ -179,7 +182,7 @@ const SearchPage = () => {
                         <Heart size={16} fill={track.isFavorite ? "#ff4b2b" : "none"} color={track.isFavorite ? "#ff4b2b" : "currentColor"} />
                       </button>
                       <div className="play-action">
-                        {isPlaying && (playingTitle === track.title || playingTitle === track.id) ? (
+                        {isTrackActive ? (
                           <div className="playing-bars"><span></span><span></span><span></span></div>
                         ) : (
                           <Play size={18} fill="currentColor" />
@@ -187,7 +190,8 @@ const SearchPage = () => {
                       </div>
                     </div>
                   </div>
-                ))
+                  );
+                })
               ) : (
                 <div className="no-results glass">
                   <p>No results found for "{query}"</p>

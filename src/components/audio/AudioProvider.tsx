@@ -13,6 +13,8 @@ interface AudioContextType {
   duration: number;
   title: string;
   artist: string;
+  trackId: string | null;
+  currentTrack: any | null;
   error: string | null;
   volume: number;
   isRepeat: boolean;
@@ -63,6 +65,8 @@ export const AudioProvider: React.FC<{ children: React.ReactNode }> = ({ childre
 
   const [title, setTitle] = useState("No Track Selected");
   const [artist, setArtist] = useState("Upload or select a track");
+  const [trackId, setTrackId] = useState<string | null>(null);
+  const [currentTrack, setCurrentTrack] = useState<any | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [volume, setVolumeState] = useState(1);
   const [isRepeat, setIsRepeat] = useState(false);
@@ -612,6 +616,8 @@ export const AudioProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       trackCurrentTimeRef.current = 0;
       setTitle(track.title);
       setArtist(track.artist);
+      setTrackId(track.id || null);
+      setCurrentTrack(track);
       trackIdRef.current = track.id;
       playingTrackRef.current = track;
 
@@ -1540,6 +1546,8 @@ export const AudioProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     // so without this the last track stayed on screen after Final Mode ended.
     setTitle("No Track Selected");
     setArtist("Upload or select a track");
+    setTrackId(null);
+    setCurrentTrack(null);
     setError(null);
     trackIdRef.current = null;
     playingTrackRef.current = null;
@@ -1637,6 +1645,8 @@ export const AudioProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       duration,
       title,
       artist,
+      trackId,
+      currentTrack,
       error,
       volume,
       isRepeat,

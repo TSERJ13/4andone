@@ -26,6 +26,8 @@ const MobileMiniPlayer = ({ onExpand }: { onExpand: () => void }) => {
     isLoaded,
     title,
     artist,
+    trackId,
+    currentTrack: audioCurrentTrack,
     currentTime,
     duration,
     sessionDuration,
@@ -54,8 +56,12 @@ const MobileMiniPlayer = ({ onExpand }: { onExpand: () => void }) => {
   // PERFORMANCE: Memoize the track to avoid searching the array on every render
   const currentTrack = React.useMemo(() => {
     if (!title || title === "No Track Selected") return null;
-    return tracks?.find(t => t.title === title) || finalTracks?.find(t => t.title === title);
-  }, [tracks, finalTracks, title]);
+    if (trackId) {
+      const found = tracks?.find(t => t.id === trackId) || finalTracks?.find(t => t.id === trackId);
+      if (found) return found;
+    }
+    return audioCurrentTrack || tracks?.find(t => t.title === title) || finalTracks?.find(t => t.title === title);
+  }, [tracks, finalTracks, title, trackId, audioCurrentTrack]);
 
   const handleFavoriteToggle = (e: React.MouseEvent) => {
     e.stopPropagation();

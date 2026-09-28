@@ -16,7 +16,7 @@ const PlaylistPage = () => {
   const { id } = useParams();
   const router = useRouter();
   const { tracks, folders, folderTracksMap, styles, reorderGlobalTracks, reorderTracks, finalTracks, addToFinal, removeFromFinal, toggleFavorite, removeFolder, removeTrackFromFolder } = useStudio();
-  const { isPlaying, title: playingTitle, loadTrack } = useAudio();
+  const { isPlaying, title: playingTitle, trackId: playingTrackId, loadTrack } = useAudio();
   const { isAuthenticated, setIsAuthModalOpen } = useAuth();
   const downloadedIds = useDownloadedTracks();
 
@@ -113,7 +113,7 @@ const PlaylistPage = () => {
           className="play-btn-large"
           onClick={() => playlist.tracks[0] && loadTrack(playlist.tracks[0])}
         >
-          {isPlaying && playlist.tracks.some(t => t.title === playingTitle) ? <div className="playing-bars"><span></span><span></span><span></span></div> : <Play fill="currentColor" size={24} />}
+          {isPlaying && playlist.tracks.some(t => playingTrackId ? t.id === playingTrackId : t.title === playingTitle) ? <div className="playing-bars"><span></span><span></span><span></span></div> : <Play fill="currentColor" size={24} />}
         </button>
 
         {id !== 'favorites' && folder && (
@@ -141,10 +141,13 @@ const PlaylistPage = () => {
 
       <div className="tracks-list">
         {playlist.tracks.length > 0 ? (
-          playlist.tracks.map((track, i) => (
+          playlist.tracks.map((track, i) => {
+            const isTrackActive = isPlaying && (playingTrackId ? playingTrackId === track.id : (playingTitle === track.title || playingTitle === track.id));
+
+            return (
             <div
               key={track.id}
-              className={`track-row ${isPlaying && (playingTitle === track.title || playingTitle === track.id) ? 'is-active' : ''}`}
+              className={`track-row ${isTrackActive ? 'is-active' : ''}`}
               draggable
               onDragStart={(e) => handleDragStart(e, i)}
               onDragOver={handleDragOver}
@@ -160,7 +163,7 @@ const PlaylistPage = () => {
                     <Marquee 
                       text={track.title} 
                       className="track-name" 
-                      isActive={isPlaying && (playingTitle === track.title || playingTitle === track.id)}
+                      isActive={isTrackActive}
                     />
                   </div>
                   {downloadedIds.includes(track.id) && (
@@ -218,7 +221,7 @@ const PlaylistPage = () => {
                 )}
 
                 <div className="play-action">
-                  {isPlaying && (playingTitle === track.title || playingTitle === track.id) ? (
+                  {isTrackActive ? (
                     <div className="playing-bars"><span></span><span></span><span></span></div>
                   ) : (
                     <Play size={18} fill="currentColor" />
@@ -226,7 +229,8 @@ const PlaylistPage = () => {
                 </div>
               </div>
             </div>
-          ))
+            );
+          })
         ) : (
           <div className="empty-state">
             <p>No tracks in this folder.</p>

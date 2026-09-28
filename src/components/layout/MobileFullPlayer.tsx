@@ -45,6 +45,8 @@ const MobileFullPlayer = ({ isOpen, onClose }: MobileFullPlayerProps) => {
     isLoaded,
     title,
     artist,
+    trackId,
+    currentTrack: audioCurrentTrack,
     currentTime,
     duration,
     seek,
@@ -66,7 +68,7 @@ const MobileFullPlayer = ({ isOpen, onClose }: MobileFullPlayerProps) => {
     activeMode
   } = useAudio();
 
-  const { tracks, styles, toggleFavorite } = useStudio();
+  const { tracks, styles, toggleFavorite, finalTracks } = useStudio();
   const { isAuthenticated, setIsAuthModalOpen } = useAuth();
 
   const [showSpeed, setShowSpeed] = useState(false);
@@ -80,7 +82,7 @@ const MobileFullPlayer = ({ isOpen, onClose }: MobileFullPlayerProps) => {
   const lastSeekRef = useRef<number>(0);
 
   const handleShareTrack = () => {
-    const currentTrack = tracks.find(t => t.title === title);
+    const currentTrack = (trackId ? (tracks.find(t => t.id === trackId) || finalTracks.find(t => t.id === trackId)) : null) || audioCurrentTrack || tracks.find(t => t.title === title);
     const trackParam = currentTrack?.id || encodeURIComponent(title);
     const shareUrl = `${window.location.origin}/track/${trackParam}`;
     if (typeof navigator !== 'undefined' && navigator.share) {
@@ -226,7 +228,7 @@ const MobileFullPlayer = ({ isOpen, onClose }: MobileFullPlayerProps) => {
 
   const totalDur = isFinalMode ? (sessionTracks && sessionTracks.length > 0 ? sessionDuration : activeDuration) : duration;
   const displayProgress = isDragging ? dragProgress : (Math.min(currentTime, totalDur) / (totalDur || 1)) * 100;
-  const currentTrack = tracks.find(t => t.title === title);
+  const currentTrack = (trackId ? (tracks.find(t => t.id === trackId) || finalTracks.find(t => t.id === trackId)) : null) || audioCurrentTrack || tracks.find(t => t.title === title);
 
   return createPortal(
     <div className="mfp-overlay animate-slide-up" style={{ zIndex: 9999, background: '#121212' }}>
@@ -268,7 +270,7 @@ const MobileFullPlayer = ({ isOpen, onClose }: MobileFullPlayerProps) => {
                   <div className="track-title-marquee-wrapper">
                     <Marquee text={title || ''} speed={30} isActive={isPlaying} className="mfp-title-marquee" />
                   </div>
-                  {tracks.find(t => t.title === title) && downloadedIds.includes(tracks.find(t => t.title === title)!.id) && (
+                  {currentTrack && downloadedIds.includes(currentTrack.id) && (
                     <span className="track-downloaded-badge" title="Stored on device (Offline)">
                       <CheckCircle2 size={16} />
                     </span>
@@ -282,17 +284,16 @@ const MobileFullPlayer = ({ isOpen, onClose }: MobileFullPlayerProps) => {
           <div className="mfp-actions-row">
             {/* 1. Heart (Favorite) */}
             <button
-              className={`mfp-meta-btn mfp-favorite ${tracks.find(t => t.title === title)?.isFavorite ? 'active' : ''}`}
+              className={`mfp-meta-btn mfp-favorite ${currentTrack?.isFavorite ? 'active' : ''}`}
               onClick={() => {
                 checkAuthAndExecute(() => {
-                  const track = tracks.find(t => t.title === title);
-                  if (track) toggleFavorite(track.id);
+                  if (currentTrack) toggleFavorite(currentTrack.id);
                 }, 'favorite tracks');
               }}
               title="Favorite"
               aria-label="Favorite"
             >
-              <Heart size={28} fill={tracks.find(t => t.title === title)?.isFavorite ? "#ef4444" : "none"} />
+              <Heart size={28} fill={currentTrack?.isFavorite ? "#ef4444" : "none"} />
             </button>
 
             {/* 2. Plus (Add to Playlist) */}

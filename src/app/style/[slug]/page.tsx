@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState } from 'react';
+import Link from 'next/link';
 import { useParams } from 'next/navigation';
 import { Play, Clock, Music2, MoreHorizontal, Heart, Disc, Filter, Flag, CheckCircle2 } from 'lucide-react';
 import { useStudio } from '@/components/admin/StudioProvider';
@@ -10,6 +11,7 @@ import { useDownloadedTracks } from '@/hooks/useDownloadedTracks';
 import ConfirmModal from '@/components/admin/ConfirmModal';
 import { formatDuration } from '@/utils/format';
 import { getMPMFromBPM, canonicalStyle } from '@/utils/audio';
+import { getTrackSlug } from '@/utils/seo';
 import { Marquee } from '@/components/layout/Marquee';
 
 const StylePage = () => {
@@ -114,11 +116,22 @@ const StylePage = () => {
             <div className="track-info-col">
               <div className="track-title-row">
                 <div className="track-title-marquee-wrapper">
-                  <Marquee 
-                    text={track.title} 
-                    className="track-name" 
-                    isActive={isPlaying && (playingTitle === track.title || playingTitle === track.id)}
-                  />
+                  <Link
+                    href={`/music/${getTrackSlug(track)}`}
+                    className="track-title-seo-link"
+                    onClick={(e) => {
+                      if (!e.metaKey && !e.ctrlKey && !e.shiftKey) {
+                        e.preventDefault();
+                        loadTrack(track);
+                      }
+                    }}
+                  >
+                    <Marquee 
+                      text={track.title} 
+                      className="track-name" 
+                      isActive={isPlaying && (playingTitle === track.title || playingTitle === track.id)}
+                    />
+                  </Link>
                 </div>
                 {downloadedIds.includes(track.id) && (
                   <span className="track-downloaded-badge" title="Stored on device (Offline)">

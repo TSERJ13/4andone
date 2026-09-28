@@ -395,6 +395,12 @@ button {
   flex-shrink: 1;
 }
 
+.track-title-seo-link {
+  color: inherit;
+  text-decoration: none;
+  display: block;
+}
+
 .track-downloaded-badge {
   color: #22c55e;
   display: inline-flex;

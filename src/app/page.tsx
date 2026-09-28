@@ -9,6 +9,7 @@ import { useAuth } from '@/context/AuthContext';
 import { useDownloadedTracks } from '@/hooks/useDownloadedTracks';
 import { formatDuration } from '@/utils/format';
 import { getMPMFromBPM, canonicalStyle } from '@/utils/audio';
+import { getTrackSlug, normalizeDanceSlug } from '@/utils/seo';
 import ConfirmModal from '@/components/admin/ConfirmModal';
 import { useState, useEffect } from 'react';
 import { UserBadge } from '@/components/auth/UserBadge';
@@ -475,7 +476,7 @@ export default function Home() {
                 return (
                   <Link
                     key={style.id}
-                    href={`/style/${style.title.toLowerCase().replace(/\s+/g, '-')}`}
+                    href={`/${normalizeDanceSlug(style.title)}`}
                     className="style-card glass"
                     style={{ backgroundColor: `${style.color}15`, borderRadius: '16px' }}
                   >
@@ -513,7 +514,7 @@ export default function Home() {
                 return (
                   <Link
                     key={style.id}
-                    href={`/style/${style.title.toLowerCase().replace(/\s+/g, '-')}`}
+                    href={`/${normalizeDanceSlug(style.title)}`}
                     className="style-card glass"
                     style={{ backgroundColor: `${style.color}15`, borderRadius: '16px' }}
                   >
@@ -555,11 +556,23 @@ export default function Home() {
                     <div className="track-info-col">
                       <div className="track-title-row">
                         <div className="track-title-marquee-wrapper">
-                          <Marquee 
-                            text={track.title} 
-                            className="track-name" 
-                            isActive={isPlaying && (playingTitle === track.title || playingTitle === track.id)}
-                          />
+                          <Link
+                            href={`/music/${getTrackSlug(track)}`}
+                            className="track-title-seo-link"
+                            onClick={(e) => {
+                              // If normal left-click without modifier keys, play track in existing player
+                              if (!e.metaKey && !e.ctrlKey && !e.shiftKey) {
+                                e.preventDefault();
+                                handlePlay(track);
+                              }
+                            }}
+                          >
+                            <Marquee 
+                              text={track.title} 
+                              className="track-name" 
+                              isActive={isPlaying && (playingTitle === track.title || playingTitle === track.id)}
+                            />
+                          </Link>
                         </div>
                         {downloadedIds.includes(track.id) && (
                           <span className="track-downloaded-badge" title="Stored on device (Offline)">

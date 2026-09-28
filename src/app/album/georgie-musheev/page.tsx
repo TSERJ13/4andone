@@ -1,8 +1,8 @@
 "use client";
 
-import React, { useState, useMemo, useEffect } from 'react';
+import React, { useState, useMemo } from 'react';
 import Link from 'next/link';
-import { Play, Disc, Flame, Music2, Heart, Zap, Settings, Radio, CheckCircle2 } from 'lucide-react';
+import { Play, Disc, Flame, Music2, Heart, Zap, Activity, Settings, Radio, CheckCircle2 } from 'lucide-react';
 import { useAudio } from '@/components/audio/AudioProvider';
 import { useStudio, Track } from '@/components/admin/StudioProvider';
 import { useAuth } from '@/context/AuthContext';
@@ -13,6 +13,7 @@ import { Marquee } from '@/components/layout/Marquee';
 import ConfirmModal from '@/components/admin/ConfirmModal';
 
 const LATIN_STYLES = ['Samba', 'Cha-Cha-Cha', 'Rumba', 'Paso Doble', 'Jive'];
+const STANDARD_STYLES = ['Slow Waltz', 'Tango', 'Viennese Waltz', 'Slow Foxtrot', 'Quickstep'];
 
 export default function GeorgieMusheevPage() {
   const { loadTrack, isPlaying, title: playingTitle, setActiveMode, setSessionTracks } = useAudio();
@@ -20,6 +21,7 @@ export default function GeorgieMusheevPage() {
   const { isAuthenticated, setIsAuthModalOpen } = useAuth();
   const downloadedIds = useDownloadedTracks();
 
+  const [activeTab, setActiveTab] = useState<'Latin' | 'Standard'>('Latin');
   const [showPasoSettingsModal, setShowPasoSettingsModal] = useState(false);
   const [pasoTheme, setPasoTheme] = useState<'2-theme' | '3-theme'>(() => {
     if (typeof window !== 'undefined') {
@@ -53,15 +55,16 @@ export default function GeorgieMusheevPage() {
         return l.includes('musheev') || l.includes('7 winds') || l.includes('seven winds');
       });
 
-      return albumLower.includes('musheev') || 
-             albumLower.includes('7 winds') || 
-             artistLower.includes('musheev') || 
-             artistLower.includes('7 winds') || 
-             hasMusheevTag;
+      return (
+        albumLower.includes('musheev') || 
+        albumLower.includes('7 winds') || 
+        artistLower.includes('musheev') || 
+        artistLower.includes('7 winds') || 
+        hasMusheevTag
+      );
     });
   }, [tracks]);
 
-  // Strictly Latin styles for Georgie Musheev & 7 Winds
   const latinTracks = useMemo(() => {
     return musheevTracks.filter(t => {
       const canon = canonicalStyle(t.style);
@@ -69,42 +72,46 @@ export default function GeorgieMusheevPage() {
     });
   }, [musheevTracks]);
 
+  const standardTracks = useMemo(() => {
+    return musheevTracks.filter(t => {
+      const canon = canonicalStyle(t.style);
+      return STANDARD_STYLES.some(s => canonicalStyle(s) === canon);
+    });
+  }, [musheevTracks]);
+
+  const currentProgramTracks = activeTab === 'Latin' ? latinTracks : standardTracks;
+
   const handlePlaySingle = (track: Track) => {
     loadTrack(track);
   };
 
-  const startFinalMode = () => {
+  const startFinalMode = (discipline: 'Latin' | 'Standard') => {
+    const targetStyles = discipline === 'Latin' ? LATIN_STYLES : STANDARD_STYLES;
+    const pool = discipline === 'Latin' ? latinTracks : standardTracks;
+
     const selectedTracks: Track[] = [];
-    LATIN_STYLES.forEach(styleName => {
-      const styleTracks = latinTracks.filter(t => canonicalStyle(t.style) === canonicalStyle(styleName));
+    targetStyles.forEach(styleName => {
+      const styleTracks = pool.filter(t => canonicalStyle(t.style) === canonicalStyle(styleName));
       if (styleTracks.length > 0) {
         if (canonicalStyle(styleName) === 'pasodoble') {
           const matchingThemeTrack = styleTracks.find(t => t.tags?.includes(`paso-${pasoTheme}`));
-          selectedTracks.push(matchingThemeTrack || styleTracks[0]);
+          const chosenTrack = matchingThemeTrack || styleTracks[Math.floor(Math.random() * styleTracks.length)];
+          selectedTracks.push(chosenTrack);
         } else {
-          selectedTracks.push(styleTracks[Math.floor(Math.random() * styleTracks.length)]);
+          const randomTrack = styleTracks[Math.floor(Math.random() * styleTracks.length)];
+          selectedTracks.push(randomTrack);
         }
       }
     });
 
     if (selectedTracks.length > 0) {
-      setActiveMode('MUSHEEV_Latin');
+      setActiveMode(`MUSHEEV_${discipline}`);
       setSessionTracks(selectedTracks);
       loadTrack(selectedTracks[0], false, true);
     } else {
-      alert(`No Georgie Musheev & 7 Winds tracks found.\n\nPlease upload Georgie Musheev & 7 Winds tracks in the admin panel with album "Georgie Musheev & 7 Winds".`);
+      alert(`No Georgie Musheev & 7 Winds tracks found for ${discipline}.\n\nPlease upload tracks in the admin panel with album "Georgie Musheev & 7 Winds".`);
     }
   };
-
-  // Auto-start final mode if URL query parameter has ?final=true
-  useEffect(() => {
-    if (typeof window !== 'undefined') {
-      const params = new URLSearchParams(window.location.search);
-      if (params.get('final') === 'true' && latinTracks.length > 0) {
-        startFinalMode();
-      }
-    }
-  }, [latinTracks.length]);
 
   const checkAuthAndExecute = (action: () => void, actionName: string) => {
     if (!isAuthenticated) {
@@ -134,52 +141,75 @@ export default function GeorgieMusheevPage() {
             <span className="goc-pill-badge musheev-badge">LIVE SOUNDS COLLECTION</span>
             <h1 className="goc-title musheev-title">Georgie Musheev &amp; 7 Winds</h1>
             <p className="goc-subtitle">
-              The Seven Winds • Exclusive Live Latin Dance Music • Dedicated Latin Collection &amp; Final Mode
+              The Seven Winds • Exclusive Live Dance Band Sounds • Dedicated Collection with Latin &amp; Standard Final Mode
             </p>
             <div className="goc-stats-row">
-              <span className="stat-pill latin-stat">{latinTracks.length} Latin Tracks</span>
-              <span className="stat-pill">5 Dance Styles</span>
+              <span className="stat-pill">{musheevTracks.length} Total Tracks</span>
+              <span className="stat-pill latin-stat">{latinTracks.length} Latin</span>
+              <span className="stat-pill std-stat">{standardTracks.length} Standard</span>
             </div>
           </div>
         </header>
 
-        {/* Latin Final Mode Banner */}
-        <div className="final-mode-banner glass">
-          <div className="final-mode-content">
+        {/* Main Tabs: International Latin & Standard */}
+        <div className="discipline-tabs-container">
+          <button 
+            className={`tab-btn latin ${activeTab === 'Latin' ? 'active' : ''}`}
+            onClick={() => setActiveTab('Latin')}
+          >
+            <Zap size={20} />
+            <span>International Latin</span>
+            <span className="tab-count">{latinTracks.length}</span>
+          </button>
+          <button 
+            className={`tab-btn standard ${activeTab === 'Standard' ? 'active' : ''}`}
+            onClick={() => setActiveTab('Standard')}
+          >
+            <Activity size={20} />
+            <span>International Standard</span>
+            <span className="tab-count">{standardTracks.length}</span>
+          </button>
+        </div>
+
+        {/* Final Mode Trigger Banner for Active Program */}
+        <div className={`goc-final-banner glass ${activeTab.toLowerCase()}`}>
+          <div className="final-banner-content">
             <Flame size={32} className="flame-icon musheev-flame" />
-            <div className="banner-text">
-              <h3>Georgie Musheev &amp; 7 Winds Latin Final Mode</h3>
-              <p>Run full continuous Latin final sequence (Samba, Cha-Cha-Cha, Rumba, Paso Doble, Jive) using live band tracks only.</p>
+            <div>
+              <h3>Georgie Musheev &amp; 7 Winds {activeTab} Final Mode</h3>
+              <p>Run full continuous final sequence using Georgie Musheev &amp; 7 Winds live tracks only.</p>
             </div>
           </div>
+          
           <div className="banner-actions-group">
             <button 
               className="start-final-btn musheev-start-btn"
-              onClick={startFinalMode}
+              onClick={() => startFinalMode(activeTab)}
             >
-              <Zap size={18} />
-              <span>Start Latin Final Mode</span>
+              <Play size={20} fill="currentColor" />
+              <span>Start {activeTab} Final</span>
             </button>
 
-            <button
-              type="button"
-              className="goc-settings-btn"
-              onClick={() => setShowPasoSettingsModal(true)}
-              title="Paso Doble Settings"
-            >
-              <Settings size={20} />
-              <span className="paso-theme-label musheev-paso-label">
-                {pasoTheme === '3-theme' ? '3 Themes' : '2 Themes'}
-              </span>
-            </button>
+            {activeTab === 'Latin' && (
+              <button
+                className="goc-settings-btn glass"
+                onClick={() => setShowPasoSettingsModal(true)}
+                title="Paso Doble Settings"
+              >
+                <Settings size={20} />
+                <span className="paso-theme-label musheev-paso-label">
+                  {pasoTheme === '3-theme' ? '3 Themes' : '2 Themes'}
+                </span>
+              </button>
+            )}
           </div>
         </div>
 
-        {/* Tracks by Dance Style (Latin Only) */}
+        {/* Tracks by Dance Style */}
         <div className="styles-tracks-section">
-          {LATIN_STYLES.map(styleName => {
+          {(activeTab === 'Latin' ? LATIN_STYLES : STANDARD_STYLES).map(styleName => {
             const styleObj = styles.find(s => canonicalStyle(s.title) === canonicalStyle(styleName));
-            const styleTracks = latinTracks.filter(t => canonicalStyle(t.style) === canonicalStyle(styleName));
+            const styleTracks = currentProgramTracks.filter(t => canonicalStyle(t.style) === canonicalStyle(styleName));
 
             return (
               <div key={styleName} className="style-group-box glass">
@@ -187,7 +217,7 @@ export default function GeorgieMusheevPage() {
                   <div className="style-header-left">
                     <span 
                       className="style-indicator-dot" 
-                      style={{ backgroundColor: styleObj?.color || '#e11d48' }}
+                      style={{ backgroundColor: styleObj?.color || (activeTab === 'Latin' ? '#e11d48' : '#2193b0') }}
                     />
                     <h2>{styleName}</h2>
                   </div>
@@ -244,29 +274,38 @@ export default function GeorgieMusheevPage() {
                             )}
                           </div>
 
-                          <div className="track-action-col">
+                          <div className="track-meta-col">
+                            {track.style?.toLowerCase() === 'fitness'
+                              ? (track.duration ? formatDuration(track.duration) : '')
+                              : (track.bpm ? `${getMPMFromBPM(Number(track.bpm), track.style)} BPM` : formatDuration(track.duration))}
+                          </div>
+
+                          <div className="track-actions-col">
                             <button
-                              className="track-action-btn"
-                              title={track.isFavorite ? "Remove from Favorites" : "Add to Favorites"}
+                              className={`fav-action ${track.isFavorite ? 'active-heart' : ''}`}
                               onClick={(e) => {
                                 e.stopPropagation();
-                                checkAuthAndExecute(() => toggleFavorite(track.id), 'add tracks to favorites');
+                                checkAuthAndExecute(() => toggleFavorite?.(track.id), 'favorite tracks');
                               }}
+                              title="Like Song"
                             >
-                              <Heart
-                                size={18}
-                                fill={track.isFavorite ? "#ff3366" : "none"}
-                                color={track.isFavorite ? "#ff3366" : "currentColor"}
-                              />
+                              <Heart size={16} fill={track.isFavorite ? "#ff4b2b" : "none"} color={track.isFavorite ? "#ff4b2b" : "currentColor"} />
                             </button>
+                            <div className="play-action">
+                              {isPlaying && (playingTitle === track.title || playingTitle === track.id) ? (
+                                <div className="playing-bars"><span></span><span></span><span></span></div>
+                              ) : (
+                                <Play size={18} fill="currentColor" />
+                              )}
+                            </div>
                           </div>
                         </div>
                       );
                     })}
                   </div>
                 ) : (
-                  <div className="empty-style-notice">
-                    <Music2 size={24} />
+                  <div className="empty-style-state">
+                    <Music2 size={24} className="empty-icon" />
                     <span>No {styleName} tracks uploaded to Georgie Musheev &amp; 7 Winds yet.</span>
                   </div>
                 )}
@@ -339,6 +378,7 @@ export default function GeorgieMusheevPage() {
 
         .musheev-cover {
           box-shadow: 0 10px 25px rgba(0, 0, 0, 0.6), 0 0 25px rgba(225, 29, 72, 0.35) !important;
+          border-color: rgba(225, 29, 72, 0.35) !important;
         }
 
         .musheev-badge {
@@ -410,102 +450,377 @@ export default function GeorgieMusheevPage() {
 
         .paso-settings-modal {
           width: 100%;
-          max-width: 440px;
-          padding: 30px;
+          max-width: 460px;
+          padding: 32px;
           border-radius: 24px;
-          background: rgba(18, 18, 18, 0.95);
-          border: 1px solid rgba(255, 255, 255, 0.15);
-          display: flex;
-          flex-direction: column;
-          gap: 24px;
-        }
-
-        .modal-header {
+          background: #141414;
+          border: 1px solid rgba(255, 255, 255, 0.1);
           text-align: center;
-          display: flex;
-          flex-direction: column;
-          align-items: center;
+          box-shadow: 0 20px 60px rgba(0,0,0,0.8);
         }
 
-        .modal-header h2 {
+        .paso-settings-modal .modal-header h2 {
           font-size: 1.4rem;
           font-weight: 800;
-          margin-bottom: 6px;
+          margin-bottom: 4px;
         }
 
-        .modal-header p {
+        .paso-settings-modal .modal-header p {
           font-size: 0.85rem;
-          color: var(--text-secondary);
+          color: rgba(255, 255, 255, 0.6);
+        }
+
+        .modal-body {
+          margin: 20px 0;
         }
 
         .form-label {
-          font-size: 0.85rem;
-          font-weight: 600;
-          color: var(--text-secondary);
-          margin-bottom: 12px;
           display: block;
+          font-size: 0.75rem;
+          font-weight: 800;
+          text-transform: uppercase;
+          letter-spacing: 1px;
+          color: rgba(255, 255, 255, 0.6);
+          margin-bottom: 12px;
+          text-align: left;
         }
 
         .theme-options-grid {
           display: grid;
-          grid-template-columns: 1fr 1fr;
+          grid-template-columns: repeat(2, 1fr);
           gap: 12px;
         }
 
         .theme-opt-card {
-          padding: 16px;
-          border-radius: 16px;
-          background: rgba(255, 255, 255, 0.04);
-          border: 1px solid rgba(255, 255, 255, 0.1);
-          color: white;
-          cursor: pointer;
           display: flex;
           flex-direction: column;
           align-items: center;
-          gap: 4px;
+          justify-content: center;
+          padding: 16px 8px;
+          border-radius: 16px;
+          background: rgba(255, 255, 255, 0.03);
+          border: 1px solid rgba(255, 255, 255, 0.08);
+          color: white;
+          cursor: pointer;
           transition: all 0.2s ease;
         }
 
         .theme-opt-card:hover {
           background: rgba(255, 255, 255, 0.08);
-          border-color: rgba(255, 255, 255, 0.2);
+          border-color: rgba(225, 29, 72, 0.4);
         }
 
         .theme-opt-card.active {
           background: rgba(225, 29, 72, 0.15);
           border-color: #e11d48;
-          box-shadow: 0 0 15px rgba(225, 29, 72, 0.3);
+          box-shadow: 0 4px 15px rgba(225, 29, 72, 0.3);
         }
 
         .opt-title {
-          font-weight: 700;
-          font-size: 1rem;
+          font-size: 0.95rem;
+          font-weight: 800;
+          margin-bottom: 4px;
         }
 
         .opt-desc {
-          font-size: 0.75rem;
-          color: var(--text-secondary);
+          font-size: 0.7rem;
+          opacity: 0.6;
         }
 
         .done-btn {
+          width: 100%;
           padding: 14px;
-          border-radius: 16px;
-          font-weight: 700;
-          border: none;
+          border-radius: 30px;
+          font-weight: 800;
+          font-size: 1rem;
           color: white;
+          border: none;
           cursor: pointer;
+          margin-top: 12px;
+          transition: transform 0.2s ease;
         }
 
-        .empty-style-notice {
+        .done-btn:hover {
+          transform: scale(1.02);
+        }
+
+        .goc-page-wrapper {
+          padding-bottom: 140px;
+        }
+
+        .goc-container {
+          max-width: 1200px;
+          margin: 0 auto;
+        }
+
+        .goc-hero {
+          padding: 32px;
+          border-radius: 24px;
           display: flex;
           align-items: center;
+          gap: 32px;
+          margin-bottom: 32px;
+        }
+
+        .goc-cover-box {
+          width: 240px;
+          height: 140px;
+          border-radius: 16px;
+          overflow: hidden;
+          flex-shrink: 0;
+          border: 1px solid rgba(255, 255, 255, 0.15);
+        }
+
+        .goc-cover-img {
+          width: 100%;
+          height: 100%;
+          object-fit: cover;
+          object-position: center;
+        }
+
+        .goc-hero-info {
+          flex: 1;
+        }
+
+        .goc-pill-badge {
+          color: white;
+          padding: 4px 12px;
+          border-radius: 20px;
+          font-size: 10px;
+          font-weight: 900;
+          letter-spacing: 1px;
+          margin-bottom: 12px;
+          display: inline-block;
+        }
+
+        .goc-title {
+          font-size: 2.4rem;
+          font-weight: 900;
+          letter-spacing: -1px;
+          margin-bottom: 8px;
+        }
+
+        .goc-subtitle {
+          font-size: 0.95rem;
+          color: var(--text-secondary);
+          margin-bottom: 16px;
+        }
+
+        .goc-stats-row {
+          display: flex;
+          gap: 10px;
+        }
+
+        .stat-pill {
+          padding: 6px 14px;
+          border-radius: 20px;
+          background: rgba(255, 255, 255, 0.05);
+          font-size: 0.8rem;
+          font-weight: 700;
+          border: 1px solid rgba(255, 255, 255, 0.08);
+        }
+
+        .latin-stat { color: #f43f5e; border-color: rgba(244, 63, 94, 0.3); }
+        .std-stat { color: #2193b0; border-color: rgba(33, 147, 176, 0.3); }
+
+        .discipline-tabs-container {
+          display: flex;
+          gap: 16px;
+          margin-bottom: 24px;
+        }
+
+        .tab-btn {
+          flex: 1;
+          display: flex;
+          align-items: center;
+          justify-content: center;
           gap: 12px;
-          padding: 24px 20px;
+          padding: 16px;
+          border-radius: 16px;
+          font-size: 1rem;
+          font-weight: 800;
+          background: rgba(255, 255, 255, 0.03);
+          border: 1px solid rgba(255, 255, 255, 0.08);
+          color: var(--text-secondary);
+          cursor: pointer;
+          transition: all 0.25s ease;
+        }
+
+        .tab-btn:hover {
+          background: rgba(255, 255, 255, 0.08);
+          color: white;
+        }
+
+        .tab-btn.active.latin {
+          background: rgba(225, 29, 72, 0.15);
+          border-color: #e11d48;
+          color: #fb7185;
+          box-shadow: 0 4px 20px rgba(225, 29, 72, 0.2);
+        }
+
+        .tab-btn.active.standard {
+          background: rgba(33, 147, 176, 0.15);
+          border-color: #2193b0;
+          color: #2193b0;
+          box-shadow: 0 4px 20px rgba(33, 147, 176, 0.2);
+        }
+
+        .tab-count {
+          padding: 2px 8px;
+          border-radius: 10px;
+          background: rgba(255, 255, 255, 0.1);
+          font-size: 0.8rem;
+        }
+
+        .goc-final-banner {
+          padding: 24px 32px;
+          border-radius: 20px;
+          display: flex;
+          align-items: center;
+          justify-content: space-between;
+          margin-bottom: 32px;
+          gap: 20px;
+          border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        .goc-final-banner.latin {
+          background: linear-gradient(135deg, rgba(225, 29, 72, 0.18) 0%, rgba(20, 20, 20, 0.5) 100%);
+          border-color: rgba(225, 29, 72, 0.35);
+        }
+
+        .goc-final-banner.standard {
+          background: linear-gradient(135deg, rgba(33, 147, 176, 0.15) 0%, rgba(20, 20, 20, 0.4) 100%);
+          border-color: rgba(33, 147, 176, 0.3);
+        }
+
+        .final-banner-content {
+          display: flex;
+          align-items: center;
+          gap: 16px;
+        }
+
+        .final-banner-content h3 {
+          font-size: 1.2rem;
+          font-weight: 800;
+          margin-bottom: 2px;
+        }
+
+        .final-banner-content p {
+          font-size: 0.85rem;
+          color: var(--text-secondary);
+        }
+
+        .start-final-btn {
+          display: flex;
+          align-items: center;
+          gap: 10px;
+          padding: 14px 28px;
+          border-radius: 30px;
+          font-weight: 800;
+          font-size: 0.95rem;
+          color: white;
+          border: none;
+          cursor: pointer;
+          transition: transform 0.2s ease;
+        }
+
+        .start-final-btn:hover {
+          transform: scale(1.04);
+        }
+
+        .styles-tracks-section {
+          display: flex;
+          flex-direction: column;
+          gap: 24px;
+        }
+
+        .style-group-box {
+          padding: 24px;
+          border-radius: 20px;
+          border: 1px solid rgba(255, 255, 255, 0.05);
+          background: rgba(255, 255, 255, 0.02);
+        }
+
+        .style-group-header {
+          display: flex;
+          align-items: center;
+          justify-content: space-between;
+          margin-bottom: 16px;
+          padding-bottom: 12px;
+          border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+        }
+
+        .style-header-left {
+          display: flex;
+          align-items: center;
+          gap: 10px;
+        }
+
+        .style-indicator-dot {
+          width: 10px;
+          height: 10px;
+          border-radius: 50%;
+        }
+
+        .style-group-header h2 {
+          font-size: 1.3rem;
+          font-weight: 800;
+        }
+
+        .style-track-count {
+          font-size: 0.85rem;
+          color: var(--text-secondary);
+        }
+
+        .tracks-list {
+          display: flex;
+          flex-direction: column;
+          gap: 8px;
+        }
+
+        .empty-style-state {
+          display: flex;
+          align-items: center;
+          gap: 10px;
+          padding: 20px;
+          border-radius: 12px;
+          background: rgba(255, 255, 255, 0.01);
           color: var(--text-secondary);
           font-size: 0.9rem;
-          background: rgba(255, 255, 255, 0.02);
-          border-radius: 12px;
-          margin-top: 10px;
+        }
+
+        @media (max-width: 768px) {
+          .discipline-tabs-container {
+            flex-direction: column;
+          }
+          .goc-hero {
+            flex-direction: column;
+            text-align: center;
+            padding: 24px;
+          }
+          .goc-cover-box {
+            width: 100%;
+            height: 160px;
+          }
+          .goc-title {
+            font-size: 1.8rem;
+          }
+          .goc-final-banner {
+            flex-direction: column;
+            align-items: stretch;
+            text-align: center;
+          }
+          .final-banner-content {
+            flex-direction: column;
+          }
+          .banner-actions-group {
+            flex-direction: column;
+            width: 100%;
+          }
+          .start-final-btn, .goc-settings-btn {
+            width: 100%;
+            justify-content: center;
+          }
         }
       `}</style>
     </div>

@@ -342,7 +342,7 @@ export default function Home() {
 
         {/* 10-Second Auto-Rotating Hero Carousel Banner */}
         <div 
-          className={`hero-carousel-wrapper ${currentSlide === 0 ? 'slide-borismyagkov' : currentSlide === 1 ? 'slide-musheev' : currentSlide === 2 ? 'slide-rosesband' : currentSlide === 3 ? 'slide-dancestar' : 'slide-goc'}`}
+          className={`hero-carousel-wrapper ${currentSlide === 0 ? 'slide-musheev' : currentSlide === 1 ? 'slide-borismyagkov' : currentSlide === 2 ? 'slide-rosesband' : currentSlide === 3 ? 'slide-dancestar' : 'slide-goc'}`}
           onMouseEnter={() => { setIsCarouselPaused(true); resetArrowsTimer(); }}
           onMouseLeave={() => { setIsCarouselPaused(false); setAreArrowsVisible(false); }}
           onMouseMove={resetArrowsTimer}
@@ -373,49 +373,7 @@ export default function Home() {
               transform: `translateX(-${currentSlide * 20}%)`
             }}
           >
-            {/* SLIDE 0: BORIS MYAGKOV BIG BAND (LIVE SOUNDS) - STARTS FIRST */}
-            <header 
-              className="hero-section glass borismyagkov-hero-section"
-              style={{
-                background: 'linear-gradient(135deg, rgba(245, 158, 11, 0.18) 0%, rgba(20, 20, 20, 0.7) 100%)',
-                borderColor: 'rgba(245, 158, 11, 0.3)'
-              }}
-            >
-              <div className="hero-content-wrapper">
-                <div className="hero-content">
-                  <span className="goc-badge" style={{ background: 'linear-gradient(90deg, #f59e0b, #d97706)', boxShadow: '0 4px 15px rgba(245, 158, 11, 0.4)' }}>
-                    LIVE SOUNDS COLLECTION
-                  </span>
-                  <h2 className="hero-title text-gradient" style={{ background: 'linear-gradient(90deg, #ffffff, #fbbf24, #f59e0b)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }}>
-                    BORIS MYAGKOV<br />BIG BAND
-                  </h2>
-                  <p className="hero-desc">
-                    Legendary Big Band Dance Music. Isolated collection with dedicated Latin &amp; Standard Final Mode practice.
-                  </p>
-                  <div className="hero-actions desktop-actions">
-                    <button className="btn-primary" style={{ background: 'linear-gradient(90deg, #f59e0b, #d97706)', color: 'white', border: 'none', boxShadow: '0 4px 15px rgba(245, 158, 11, 0.4)' }} onClick={() => router.push('/album/boris-myagkov')}>
-                      Open Live Album
-                    </button>
-                    <button className="btn-outline glass" onClick={() => router.push('/album/boris-myagkov')}>
-                      Final Mode
-                    </button>
-                  </div>
-                </div>
-                <div className="goc-hero-card-preview" style={{ borderColor: 'rgba(245, 158, 11, 0.3)' }} onClick={() => router.push('/album/boris-myagkov')}>
-                  <img src="/boris-myagkov-big-band.jpg" alt="Boris Myagkov Big Band Live Sounds" className="goc-hero-img" />
-                </div>
-              </div>
-              <div className="hero-actions mobile-actions">
-                <button className="btn-primary" style={{ background: 'linear-gradient(90deg, #f59e0b, #d97706)', color: 'white', border: 'none' }} onClick={() => router.push('/album/boris-myagkov')}>
-                  Open Live Album
-                </button>
-                <button className="btn-outline glass" onClick={() => router.push('/album/boris-myagkov')}>
-                  Final Mode
-                </button>
-              </div>
-            </header>
-
-            {/* SLIDE 1: GEORGIE MUSHEEV & 7 WINDS (LIVE SOUNDS) */}
+            {/* SLIDE 0: GEORGIE MUSHEEV & 7 WINDS (LIVE SOUNDS) - STARTS FIRST */}
             <header 
               className="hero-section glass musheev-hero-section"
               style={{
@@ -452,6 +410,48 @@ export default function Home() {
                   Open Live Album
                 </button>
                 <button className="btn-outline glass" onClick={() => router.push('/album/georgie-musheev?final=true')}>
+                  Final Mode
+                </button>
+              </div>
+            </header>
+
+            {/* SLIDE 1: BORIS MYAGKOV BIG BAND (LIVE SOUNDS) */}
+            <header 
+              className="hero-section glass borismyagkov-hero-section"
+              style={{
+                background: 'linear-gradient(135deg, rgba(245, 158, 11, 0.18) 0%, rgba(20, 20, 20, 0.7) 100%)',
+                borderColor: 'rgba(245, 158, 11, 0.3)'
+              }}
+            >
+              <div className="hero-content-wrapper">
+                <div className="hero-content">
+                  <span className="goc-badge" style={{ background: 'linear-gradient(90deg, #f59e0b, #d97706)', boxShadow: '0 4px 15px rgba(245, 158, 11, 0.4)' }}>
+                    LIVE SOUNDS COLLECTION
+                  </span>
+                  <h2 className="hero-title text-gradient" style={{ background: 'linear-gradient(90deg, #ffffff, #fbbf24, #f59e0b)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }}>
+                    BORIS MYAGKOV<br />BIG BAND
+                  </h2>
+                  <p className="hero-desc">
+                    Legendary Big Band Dance Music. Isolated collection with dedicated Latin &amp; Standard Final Mode practice.
+                  </p>
+                  <div className="hero-actions desktop-actions">
+                    <button className="btn-primary" style={{ background: 'linear-gradient(90deg, #f59e0b, #d97706)', color: 'white', border: 'none', boxShadow: '0 4px 15px rgba(245, 158, 11, 0.4)' }} onClick={() => router.push('/album/boris-myagkov')}>
+                      Open Live Album
+                    </button>
+                    <button className="btn-outline glass" onClick={() => router.push('/album/boris-myagkov')}>
+                      Final Mode
+                    </button>
+                  </div>
+                </div>
+                <div className="goc-hero-card-preview" style={{ borderColor: 'rgba(245, 158, 11, 0.3)' }} onClick={() => router.push('/album/boris-myagkov')}>
+                  <img src="/boris-myagkov-big-band.jpg" alt="Boris Myagkov Big Band Live Sounds" className="goc-hero-img" />
+                </div>
+              </div>
+              <div className="hero-actions mobile-actions">
+                <button className="btn-primary" style={{ background: 'linear-gradient(90deg, #f59e0b, #d97706)', color: 'white', border: 'none' }} onClick={() => router.push('/album/boris-myagkov')}>
+                  Open Live Album
+                </button>
+                <button className="btn-outline glass" onClick={() => router.push('/album/boris-myagkov')}>
                   Final Mode
                 </button>
               </div>
@@ -577,14 +577,14 @@ export default function Home() {
           {/* Dot Indicators */}
           <div className="carousel-dots-container">
             <button 
-              className={`carousel-dot ${currentSlide === 0 ? 'active borismyagkov' : ''}`}
+              className={`carousel-dot ${currentSlide === 0 ? 'active musheev' : ''}`}
               onClick={() => setCurrentSlide(0)}
-              title="Boris Myagkov Big Band"
+              title="Georgie Musheev & 7 Winds"
             />
             <button 
-              className={`carousel-dot ${currentSlide === 1 ? 'active musheev' : ''}`}
+              className={`carousel-dot ${currentSlide === 1 ? 'active borismyagkov' : ''}`}
               onClick={() => setCurrentSlide(1)}
-              title="Georgie Musheev & 7 Winds"
+              title="Boris Myagkov Big Band"
             />
             <button 
               className={`carousel-dot ${currentSlide === 2 ? 'active rosesband' : ''}`}

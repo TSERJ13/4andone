@@ -3,9 +3,10 @@
 import React, { createContext, useContext, useState, useEffect, useMemo } from 'react';
 import { supabase } from '@/utils/supabase';
 import { useAuth } from '@/context/AuthContext';
-import { Album } from '@/types/album';
+import { Album, DEFAULT_ALBUMS } from '@/types/album';
 
 export type { Album } from '@/types/album';
+export { DEFAULT_ALBUMS } from '@/types/album';
 
 export interface Style {
   id: string;
@@ -147,11 +148,13 @@ export const StudioProvider: React.FC<{ children: React.ReactNode }> = ({ childr
   const [finalTracks, setFinalTracks] = useState<Track[]>([]);
   const [finalFolders, setFinalFolders] = useState<FinalFolder[]>([]);
   const [finalFolderTracksMap, setFinalFolderTracksMap] = useState<Record<string, string[]>>({}); // folderId -> [trackIds]
-  const [albums, setAlbums] = useState<Album[]>([]);
+  const [albums, setAlbums] = useState<Album[]>(DEFAULT_ALBUMS);
   const [isLoading, setIsLoading] = useState(true);
 
-  const fetchData = async () => {
-    setIsLoading(true);
+  const fetchData = async (silent = false) => {
+    if (!silent && tracks.length === 0) {
+      setIsLoading(true);
+    }
     try {
       // 1. Fetch Global Tracks
       const { data: tracksData } = await supabase
@@ -364,14 +367,14 @@ export const StudioProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     const syncChannel = typeof window !== 'undefined' && 'BroadcastChannel' in window ? new BroadcastChannel('4andone_sync') : null;
     if (syncChannel) {
       syncChannel.onmessage = () => {
-        fetchData();
+        fetchData(true);
       };
     }
 
     // Storage event listener (fallback cross-tab sync)
     const handleStorage = (e: StorageEvent) => {
       if (e.key === '4andone_track_sync') {
-        fetchData();
+        fetchData(true);
       }
     };
     if (typeof window !== 'undefined') {
@@ -380,11 +383,11 @@ export const StudioProvider: React.FC<{ children: React.ReactNode }> = ({ childr
 
     // Tab focus & visibility change (auto-update when returning to tab)
     const handleFocus = () => {
-      fetchData();
+      fetchData(true);
     };
     const handleVisibility = () => {
       if (typeof document !== 'undefined' && document.visibilityState === 'visible') {
-        fetchData();
+        fetchData(true);
       }
     };
     if (typeof window !== 'undefined') {
@@ -395,7 +398,7 @@ export const StudioProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     // 15-second background auto-sync interval for active tabs
     const pollInterval = setInterval(() => {
       if (typeof document !== 'undefined' && document.visibilityState === 'visible') {
-        fetchData();
+        fetchData(true);
       }
     }, 15000);
 

@@ -316,6 +316,24 @@ export default function Home() {
         </div>
 
         {/* Dynamic Auto-Rotating Hero Carousel Banner */}
+        {albums.length === 0 ? (
+          <div className="hero-carousel-wrapper" style={{ minHeight: '299px' }}>
+            <div className="hero-section skeleton glass" style={{ minHeight: '299px', width: '100%', boxSizing: 'border-box' }}>
+              <div className="hero-content-wrapper">
+                <div className="hero-content" style={{ maxWidth: '550px', width: '100%' }}>
+                  <div className="skeleton-shimmer" style={{ width: '160px', height: '24px', borderRadius: '12px', marginBottom: '16px', background: 'rgba(255,255,255,0.06)' }} />
+                  <div className="skeleton-shimmer" style={{ width: '320px', height: '36px', borderRadius: '8px', marginBottom: '16px', background: 'rgba(255,255,255,0.06)' }} />
+                  <div className="skeleton-shimmer" style={{ width: '450px', height: '16px', borderRadius: '6px', marginBottom: '24px', background: 'rgba(255,255,255,0.04)' }} />
+                  <div style={{ display: 'flex', gap: '12px' }}>
+                    <div className="skeleton-shimmer" style={{ width: '140px', height: '44px', borderRadius: '24px', background: 'rgba(255,255,255,0.06)' }} />
+                    <div className="skeleton-shimmer" style={{ width: '120px', height: '44px', borderRadius: '24px', background: 'rgba(255,255,255,0.06)' }} />
+                  </div>
+                </div>
+                <div className="goc-hero-card-preview skeleton-shimmer" style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.05)' }} />
+              </div>
+            </div>
+          </div>
+        ) : (
         <div 
           className="hero-carousel-wrapper"
           style={{
@@ -440,6 +458,7 @@ export default function Home() {
             ))}
           </div>
         </div>
+        )}
 
         <section className="section">
           <div className="section-header-flex">
@@ -759,6 +778,7 @@ export default function Home() {
         .hero-carousel-wrapper {
           position: relative;
           width: 100%;
+          min-height: 299px;
           border-radius: 24px;
           overflow: hidden;
           margin-bottom: 48px;

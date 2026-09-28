@@ -17,6 +17,17 @@ interface TelegramUser {
   visit_count: number;
 }
 
+interface WebVisitor {
+  id: string;
+  ip: string;
+  country_code: string;
+  country_name: string;
+  visit_count: number;
+  total_duration: number;
+  first_seen: string;
+  last_seen: string;
+}
+
 interface CountryStat { country_name: string; country_code: string; count: number; }
 
 const FLAG: Record<string, string> = {
@@ -41,7 +52,9 @@ function fmtDate(d: string) {
 }
 
 export default function AdminUsersPage() {
+  const [activeTab, setActiveTab] = useState<'telegram' | 'web'>('telegram');
   const [users, setUsers] = useState<TelegramUser[]>([]);
+  const [webVisitors, setWebVisitors] = useState<WebVisitor[]>([]);
   const [countries, setCountries] = useState<CountryStat[]>([]);
   const [totalVisits, setTotalVisits] = useState(0);
   const [avgSession, setAvgSession] = useState(0);
@@ -51,20 +64,63 @@ export default function AdminUsersPage() {
   const fetchData = useCallback(async () => {
     setLoading(true);
     try {
-      const [usersRes, visitsRes, durRes] = await Promise.all([
+      const [usersRes, visitsRes, durRes, recentVisitsRes] = await Promise.all([
         supabase.from('telegram_users').select('*').order('visit_count', { ascending: false }),
         supabase.from('page_visits').select('id', { count: 'exact', head: true }),
         supabase.from('page_visits').select('duration_seconds').gt('duration_seconds', 0),
+        supabase.from('page_visits').select('id, created_at, session_id, user_ref, duration_seconds, country_code, country_name').order('created_at', { ascending: false }).limit(2000),
       ]);
 
       const allUsers = (usersRes.data || []) as TelegramUser[];
       setUsers(allUsers);
       setTotalVisits(visitsRes.count ?? 0);
 
-      // Country aggregation from users
+      // Aggregate Web Visitors (by IP or persistent user_ref)
+      const visitorMap: Record<string, WebVisitor> = {};
+      (recentVisitsRes.data || []).forEach((v: any) => {
+        // Skip telegram users
+        const isTgUser = allUsers.some(u => u.telegram_id.toString() === v.user_ref);
+        if (isTgUser) return;
+
+        let ip = 'Unknown IP';
+        if (v.user_ref && v.user_ref.startsWith('ip:')) {
+          ip = v.user_ref.replace('ip:', '');
+        } else if (v.user_ref && !v.user_ref.startsWith('v_')) {
+          ip = v.user_ref;
+        }
+
+        const key = ip !== 'Unknown IP' ? ip : (v.user_ref || v.session_id);
+        if (!visitorMap[key]) {
+          visitorMap[key] = {
+            id: v.id,
+            ip: ip,
+            country_code: v.country_code || 'Unknown',
+            country_name: v.country_name || v.country_code || 'Unknown',
+            visit_count: 1,
+            total_duration: v.duration_seconds || 0,
+            first_seen: v.created_at,
+            last_seen: v.created_at,
+          };
+        } else {
+          visitorMap[key].visit_count += 1;
+          visitorMap[key].total_duration += (v.duration_seconds || 0);
+          if (new Date(v.created_at) < new Date(visitorMap[key].first_seen)) {
+            visitorMap[key].first_seen = v.created_at;
+          }
+          if (new Date(v.created_at) > new Date(visitorMap[key].last_seen)) {
+            visitorMap[key].last_seen = v.created_at;
+          }
+        }
+      });
+
+      const sortedWebVisitors = Object.values(visitorMap).sort((a, b) => b.visit_count - a.visit_count);
+      setWebVisitors(sortedWebVisitors);
+
+      // Country aggregation
       const cmap: Record<string, CountryStat> = {};
-      allUsers.forEach(u => {
-        if (!u.country_code) return;
+      const sourceList = activeTab === 'telegram' ? allUsers : sortedWebVisitors;
+      sourceList.forEach((u: any) => {
+        if (!u.country_code || u.country_code === 'Unknown') return;
         cmap[u.country_code] = cmap[u.country_code]
           ? { ...cmap[u.country_code], count: cmap[u.country_code].count + 1 }
           : { country_code: u.country_code, country_name: u.country_name || u.country_code, count: 1 };
@@ -78,17 +134,25 @@ export default function AdminUsersPage() {
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [activeTab]);
 
   useEffect(() => { fetchData(); }, [fetchData]);
 
-  const filtered = users.filter(u => {
+  const filteredTelegram = users.filter(u => {
     if (!search) return true;
     const q = search.toLowerCase();
     return u.first_name?.toLowerCase().includes(q)
       || u.last_name?.toLowerCase().includes(q)
       || u.username?.toLowerCase().includes(q)
       || u.country_name?.toLowerCase().includes(q);
+  });
+
+  const filteredWeb = webVisitors.filter(w => {
+    if (!search) return true;
+    const q = search.toLowerCase();
+    return w.ip.toLowerCase().includes(q)
+      || w.country_name.toLowerCase().includes(q)
+      || w.country_code.toLowerCase().includes(q);
   });
 
   const fmtDur = (s: number) => s > 60 ? `${Math.floor(s/60)}m ${s%60}s` : `${s}s`;
@@ -132,16 +196,55 @@ export default function AdminUsersPage() {
         </div>
       </div>
 
+      {/* Tabs: Telegram Users vs Web Visitors */}
+      <div style={{ display: 'flex', gap: '10px', borderBottom: '1px solid rgba(255,255,255,0.08)', paddingBottom: '14px' }}>
+        <button
+          onClick={() => setActiveTab('telegram')}
+          style={{
+            padding: '9px 18px',
+            borderRadius: '12px',
+            fontSize: '13px',
+            fontWeight: 700,
+            cursor: 'pointer',
+            border: activeTab === 'telegram' ? '1px solid #1db954' : '1px solid rgba(255,255,255,0.1)',
+            background: activeTab === 'telegram' ? 'rgba(29, 185, 84, 0.15)' : 'rgba(255,255,255,0.03)',
+            color: activeTab === 'telegram' ? '#1db954' : '#a1a1aa',
+            transition: 'all 0.2s',
+          }}
+        >
+          ✈️ Telegram Users ({users.length})
+        </button>
+        <button
+          onClick={() => setActiveTab('web')}
+          style={{
+            padding: '9px 18px',
+            borderRadius: '12px',
+            fontSize: '13px',
+            fontWeight: 700,
+            cursor: 'pointer',
+            border: activeTab === 'web' ? '1px solid #38bdf8' : '1px solid rgba(255,255,255,0.1)',
+            background: activeTab === 'web' ? 'rgba(56, 189, 248, 0.15)' : 'rgba(255,255,255,0.03)',
+            color: activeTab === 'web' ? '#38bdf8' : '#a1a1aa',
+            transition: 'all 0.2s',
+          }}
+        >
+          🌐 Web Visitors & IPs ({webVisitors.length})
+        </button>
+      </div>
+
       {/* Main content: user list + country sidebar */}
       <div className="content-grid">
 
         {/* Users table */}
         <div className="users-panel">
           <div className="panel-header">
-            <h2><Users size={18} /> All Users ({filtered.length})</h2>
+            <h2>
+              <Users size={18} /> 
+              {activeTab === 'telegram' ? `Telegram Users (${filteredTelegram.length})` : `Web Visitors & IPs (${filteredWeb.length})`}
+            </h2>
             <input
               className="search-input glass"
-              placeholder="Search by name, @username, country..."
+              placeholder={activeTab === 'telegram' ? "Search by name, @username, country..." : "Search by IP, country..."}
               value={search}
               onChange={e => setSearch(e.target.value)}
             />
@@ -149,45 +252,94 @@ export default function AdminUsersPage() {
 
           {loading ? (
             <div className="loading-state"><div className="spinner" /><span>Loading users...</span></div>
-          ) : filtered.length === 0 ? (
-            <div className="empty-state">
-              <Users size={40} opacity={0.2} />
-              <p>No users yet. Users will appear here after they log in with Telegram.</p>
-            </div>
+          ) : activeTab === 'telegram' ? (
+            filteredTelegram.length === 0 ? (
+              <div className="empty-state">
+                <Users size={40} opacity={0.2} />
+                <p>No Telegram users found.</p>
+              </div>
+            ) : (
+              <div className="users-list">
+                {filteredTelegram.map((u, i) => (
+                  <div key={u.telegram_id} className="user-row glass">
+                    <div className="user-rank">#{i + 1}</div>
+                    <div className="user-avatar">
+                      {u.photo_url
+                        ? <img src={u.photo_url} alt="" />
+                        : <span>{u.first_name?.charAt(0) || '?'}</span>
+                      }
+                    </div>
+                    <div className="user-info">
+                      <div className="user-name">
+                        {u.first_name}{u.last_name ? ` ${u.last_name}` : ''}
+                      </div>
+                      <div className="user-meta">
+                        {u.username && <span className="tg-handle">@{u.username}</span>}
+                        {u.country_name && (
+                          <span className="user-country">
+                            {FLAG[u.country_code || ''] || '🌍'} {u.country_name}
+                          </span>
+                        )}
+                      </div>
+                    </div>
+                    <div className="user-stats">
+                      <div className="stat-pill visits">{u.visit_count}x logins</div>
+                      <div className="stat-pill date">
+                        <Calendar size={10} /> {fmtDate(u.first_seen)}
+                      </div>
+                      <div className="stat-pill lastseen">last: {timeAgo(u.last_seen)}</div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )
           ) : (
-            <div className="users-list">
-              {filtered.map((u, i) => (
-                <div key={u.telegram_id} className="user-row glass">
-                  <div className="user-rank">#{i + 1}</div>
-                  <div className="user-avatar">
-                    {u.photo_url
-                      ? <img src={u.photo_url} alt="" />
-                      : <span>{u.first_name?.charAt(0) || '?'}</span>
-                    }
-                  </div>
-                  <div className="user-info">
-                    <div className="user-name">
-                      {u.first_name}{u.last_name ? ` ${u.last_name}` : ''}
+            filteredWeb.length === 0 ? (
+              <div className="empty-state">
+                <Globe size={40} opacity={0.2} />
+                <p>No web visitors tracked yet.</p>
+              </div>
+            ) : (
+              <div className="users-list">
+                {filteredWeb.map((w, i) => (
+                  <div key={w.id || w.ip} className="user-row glass">
+                    <div className="user-rank">#{i + 1}</div>
+                    <div className="user-avatar" style={{ background: '#0284c7', color: 'white' }}>
+                      🌐
                     </div>
-                    <div className="user-meta">
-                      {u.username && <span className="tg-handle">@{u.username}</span>}
-                      {u.country_name && (
+                    <div className="user-info">
+                      <div className="user-name" style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                        <span style={{ fontFamily: 'monospace', fontSize: '15px' }}>{w.ip}</span>
+                        {w.visit_count > 1 && (
+                          <span style={{ fontSize: '11px', background: 'rgba(56, 189, 248, 0.15)', color: '#38bdf8', border: '1px solid rgba(56, 189, 248, 0.3)', padding: '2px 8px', borderRadius: '6px', fontWeight: 800 }}>
+                            {w.visit_count} visits
+                          </span>
+                        )}
+                      </div>
+                      <div className="user-meta">
                         <span className="user-country">
-                          {FLAG[u.country_code || ''] || '🌍'} {u.country_name}
+                          {FLAG[w.country_code] || '🌍'} {w.country_name} {w.country_code !== 'Unknown' ? `(${w.country_code})` : ''}
                         </span>
-                      )}
+                        {w.total_duration > 0 && (
+                          <span style={{ fontSize: '12px', color: '#a1a1aa' }}>
+                            ⏱ {fmtDur(w.total_duration)} total time
+                          </span>
+                        )}
+                      </div>
+                    </div>
+                    <div className="user-stats">
+                      <div className="stat-pill visits" style={{ background: 'rgba(56, 189, 248, 0.15)', color: '#38bdf8' }}>
+                        {w.visit_count}x visits
+                      </div>
+                      <div className="stat-pill date">
+                        <Calendar size={10} /> first: {fmtDate(w.first_seen)}
+                      </div>
+                      <div className="stat-pill lastseen">last: {timeAgo(w.last_seen)}</div>
                     </div>
                   </div>
-                  <div className="user-stats">
-                    <div className="stat-pill visits">{u.visit_count}x logins</div>
-                    <div className="stat-pill date">
-                      <Calendar size={10} /> {fmtDate(u.first_seen)}
-                    </div>
-                    <div className="stat-pill lastseen">last: {timeAgo(u.last_seen)}</div>
-                  </div>
-                </div>
-              ))}
-            </div>
+                ))}
+              </div>
+            )
           )}
         </div>
 

@@ -25,13 +25,32 @@ export default function AnalyticsTracker() {
       return;
     }
 
-    // 1. Initialize Session
+    // 1. Initialize Persistent Visitor & Session
+    let visitorId = typeof window !== 'undefined' ? localStorage.getItem("4andone_visitor_id") : null;
+    if (!visitorId) {
+      visitorId = 'v_' + Math.random().toString(36).substring(2, 11) + Date.now().toString(36);
+      if (typeof window !== 'undefined') localStorage.setItem("4andone_visitor_id", visitorId);
+    }
+
     let sessionId = sessionStorage.getItem("4andone_session_id");
+    let isNewSession = false;
     if (!sessionId) {
       sessionId = Math.random().toString(36).substring(2, 15) + Math.random().toString(36).substring(2, 15);
       sessionStorage.setItem("4andone_session_id", sessionId);
+      isNewSession = true;
     }
     sessionIdRef.current = sessionId;
+
+    let visitCount = 1;
+    if (typeof window !== 'undefined') {
+      const savedCount = parseInt(localStorage.getItem("4andone_visit_count") || '0', 10);
+      if (isNewSession) {
+        visitCount = savedCount + 1;
+        localStorage.setItem("4andone_visit_count", visitCount.toString());
+      } else {
+        visitCount = Math.max(1, savedCount);
+      }
+    }
 
     let presenceChannel: ReturnType<typeof supabase.channel> | null = null;
     let displayName: string | null = null;
@@ -45,16 +64,24 @@ export default function AnalyticsTracker() {
 
     let countryCode = "Unknown";
     let countryName = "Unknown";
+    let clientIp = "";
+    let clientCity = "";
     if (typeof window !== "undefined") {
       countryCode = sessionStorage.getItem("4andone_country_code") || "Unknown";
       countryName = sessionStorage.getItem("4andone_country_name") || "Unknown";
+      clientIp = sessionStorage.getItem("4andone_client_ip") || "";
+      clientCity = sessionStorage.getItem("4andone_client_city") || "";
     }
 
-    const sendPresence = (code: string, name: string) => {
+    const sendPresence = (code: string, name: string, ipAddr: string, cityStr: string) => {
       if (!presenceChannel) return;
       try {
         presenceChannel.track({
           session_id: sessionId,
+          visitor_id: visitorId,
+          ip: ipAddr || null,
+          city: cityStr || null,
+          visit_count: visitCount,
           name: displayName,
           is_telegram: isTg,
           country_code: code,
@@ -74,7 +101,7 @@ export default function AnalyticsTracker() {
 
       presenceChannel.subscribe((status) => {
         if (status === 'SUBSCRIBED') {
-          sendPresence(countryCode, countryName);
+          sendPresence(countryCode, countryName, clientIp, clientCity);
         }
       });
     } catch (e) {
@@ -83,8 +110,8 @@ export default function AnalyticsTracker() {
 
     const logVisit = async () => {
       try {
-        // 2. Fetch Geo-IP (Country) if not already known
-        if (countryCode === "Unknown") {
+        // 2. Fetch Geo-IP (Country & IP)
+        if (countryCode === "Unknown" || !clientIp) {
           try {
             const geoRes = await fetch("/api/geo");
             if (geoRes.ok) {
@@ -93,18 +120,32 @@ export default function AnalyticsTracker() {
                 countryCode = geoData.country_code;
                 countryName = geoData.country_name || geoData.country_code;
               }
+              if (geoData.ip) clientIp = geoData.ip;
+              if (geoData.city) clientCity = geoData.city;
             }
           } catch (e) {
-            // Internal geo failed, proceed to external fallback
+            // Internal geo failed
+          }
+
+          if (!clientIp) {
+            try {
+              const ipRes = await fetch("https://api.ipify.org?format=json", { signal: AbortSignal.timeout(3000) });
+              if (ipRes.ok) {
+                const ipData = await ipRes.json();
+                if (ipData.ip) clientIp = ipData.ip;
+              }
+            } catch (e) {}
           }
 
           if (countryCode === "Unknown") {
             try {
-              const res = await fetch("https://ipapi.co/json/");
+              const res = await fetch("https://ipapi.co/json/", { signal: AbortSignal.timeout(3000) });
               if (res.ok) {
                 const data = await res.json();
                 countryCode = data.country_code || "Unknown";
                 countryName = data.country_name || "Unknown";
+                if (!clientIp && data.ip) clientIp = data.ip;
+                if (!clientCity && data.city) clientCity = data.city;
               }
             } catch (e) {
               console.warn("[ANALYTICS] Geo-IP external fallback failed:", e);
@@ -114,14 +155,16 @@ export default function AnalyticsTracker() {
           if (typeof window !== "undefined") {
             sessionStorage.setItem("4andone_country_code", countryCode);
             sessionStorage.setItem("4andone_country_name", countryName);
+            if (clientIp) sessionStorage.setItem("4andone_client_ip", clientIp);
+            if (clientCity) sessionStorage.setItem("4andone_client_city", clientCity);
           }
 
-          // Re-send presence with now-resolved country
-          sendPresence(countryCode, countryName);
+          // Re-send presence with resolved IP, city, country
+          sendPresence(countryCode, countryName, clientIp, clientCity);
         }
 
         // 3. Telegram WebApp Integration
-        let userRef = null;
+        let userRef: string | null = null;
         if (tg) {
           userRef = tg.id.toString();
 
@@ -139,19 +182,26 @@ export default function AnalyticsTracker() {
 
           // Increment visit count via helper function
           await supabase.rpc("increment_user_visit", { uid: tg.id });
+        } else if (clientIp) {
+          // Record IP for web visitor
+          userRef = `ip:${clientIp}`;
+        } else if (visitorId) {
+          userRef = `v:${visitorId.slice(0, 10)}`;
         }
 
         // 4. Initial Page Visit Entry
+        const visitPayload: Record<string, any> = {
+          session_id: sessionId,
+          user_ref: userRef,
+          country_code: countryCode,
+          country_name: countryName,
+          duration_seconds: 0,
+          referrer: document.referrer || null,
+        };
+
         const { data, error } = await supabase
           .from("page_visits")
-          .insert({
-            session_id: sessionId,
-            user_ref: userRef,
-            country_code: countryCode,
-            country_name: countryName,
-            duration_seconds: 0,
-            referrer: document.referrer || null,
-          })
+          .insert(visitPayload)
           .select("id")
           .single();
 

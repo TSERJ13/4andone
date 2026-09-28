@@ -123,3 +123,32 @@ export async function POST(request: NextRequest) {
     );
   }
 }
+
+export async function DELETE(request: Request) {
+  try {
+    const { searchParams } = new URL(request.url);
+    const id = searchParams.get('id');
+
+    if (!id) {
+      return NextResponse.json({ error: 'Message ID is required' }, { status: 400 });
+    }
+
+    const { error } = await supabase
+      .from('track_plays')
+      .delete()
+      .eq('id', id)
+      .eq('event_type', 'contact_message');
+
+    if (error) {
+      throw error;
+    }
+
+    return NextResponse.json({ success: true, deletedId: id });
+  } catch (error: any) {
+    console.error('[CONTACT_API_DELETE] Error deleting message:', error);
+    return NextResponse.json(
+      { error: error?.message || 'Failed to delete message.' },
+      { status: 500 }
+    );
+  }
+}

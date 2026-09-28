@@ -61,6 +61,10 @@ interface TopTrack {
 interface ReferrerStat { source_label: string; visit_count: number; }
 interface LiveUser {
   session_id: string;
+  visitor_id?: string;
+  ip?: string | null;
+  city?: string | null;
+  visit_count?: number;
   name: string | null;
   is_telegram: boolean;
   country_code?: string;
@@ -532,7 +536,18 @@ export default function AdminAnalytics() {
     const syncLive = () => {
       if (!channel || !mounted) return;
       try {
-        type PresenceEntry = { session_id?: string; name?: string | null; is_telegram?: boolean; country_code?: string; country_name?: string; online_at?: string };
+        type PresenceEntry = { 
+          session_id?: string; 
+          visitor_id?: string;
+          ip?: string | null;
+          city?: string | null;
+          visit_count?: number;
+          name?: string | null; 
+          is_telegram?: boolean; 
+          country_code?: string; 
+          country_name?: string; 
+          online_at?: string;
+        };
         const state = channel.presenceState() as Record<string, PresenceEntry[]>;
         const seen = new Set<string>();
         const users: LiveUser[] = [];
@@ -543,6 +558,10 @@ export default function AdminAnalytics() {
             seen.add(e.session_id);
             users.push({
               session_id: e.session_id,
+              visitor_id: e.visitor_id,
+              ip: e.ip || null,
+              city: e.city || null,
+              visit_count: e.visit_count || 1,
               name: e.name ?? null,
               is_telegram: !!e.is_telegram,
               country_code: e.country_code || 'Unknown',
@@ -868,18 +887,31 @@ export default function AdminAnalytics() {
                           <div className="coffee-row-name">
                             <div className="coffee-supporter-identity">
                               <span className="supporter-full-name">
-                                {u.name || `Anonymous Visitor #${u.session_id.slice(0, 6)}`}
+                                {u.name || (u.ip ? `Visitor • ${u.ip}` : `Visitor #${u.session_id.slice(0, 6)}`)}
                               </span>
                               {tgUser?.username && <span className="act-handle">@{tgUser.username}</span>}
                               <span className={`supporter-platform-badge ${u.is_telegram ? 'tg' : 'web'}`}>
                                 {u.is_telegram ? '✈️ Telegram' : '🌐 Web Visitor'}
                               </span>
+                              {u.visit_count ? (
+                                <span className="badge-online" style={{ background: 'rgba(234, 179, 8, 0.15)', color: '#facc15', border: '1px solid rgba(234, 179, 8, 0.3)' }}>
+                                  🔥 {u.visit_count} {u.visit_count === 1 ? 'visit' : 'visits'}
+                                </span>
+                              ) : null}
                               <span className="session-sub-tag">sess: {u.session_id.slice(0, 8)}</span>
                             </div>
                           </div>
                           <div className="coffee-row-meta">
                             <span className="act-flag">{getFlag(geo.code)}</span>
-                            <span className="font-semibold text-zinc-300">{geo.name || geo.code} {geo.code !== 'Unknown' ? `(${geo.code})` : ''}</span>
+                            <span className="font-semibold text-zinc-300">
+                              {u.city ? `${u.city}, ` : ''}{geo.name || geo.code} {geo.code !== 'Unknown' ? `(${geo.code})` : ''}
+                            </span>
+                            {u.ip && (
+                              <>
+                                <span className="act-dot">·</span>
+                                <span className="font-mono text-xs text-zinc-400">IP: {u.ip}</span>
+                              </>
+                            )}
                             <span className="act-dot">·</span>
                             <span className="badge-online">● Active Now</span>
                             {matchedVisit?.duration_seconds && matchedVisit.duration_seconds > 0 ? (
@@ -920,6 +952,8 @@ export default function AdminAnalytics() {
                   const isOnline = liveUsers.some(lu => lu.session_id === v.session_id);
                   const tgUser = tgUsers.find(tu => tu.telegram_id.toString() === v.user_ref);
                   const isTelegram = !!tgUser;
+                  const isIp = v.user_ref?.startsWith('ip:');
+                  const visitorIp = isIp ? v.user_ref!.replace('ip:', '') : null;
                   const refLabel = getReferrerLabel(v.referrer);
 
                   return (
@@ -934,7 +968,9 @@ export default function AdminAnalytics() {
                               <span className="supporter-full-name">
                                 {isTelegram
                                   ? `${tgUser!.first_name}${tgUser!.last_name ? ' ' + tgUser!.last_name : ''}`
-                                  : `Visitor #${v.session_id ? v.session_id.slice(0, 8) : 'Web'}`}
+                                  : visitorIp
+                                    ? `Visitor • ${visitorIp}`
+                                    : `Visitor #${v.session_id ? v.session_id.slice(0, 8) : 'Web'}`}
                               </span>
                               {tgUser?.username && <span className="act-handle">@{tgUser.username}</span>}
                               <span className={`supporter-platform-badge ${isTelegram ? 'tg' : 'web'}`}>
@@ -946,6 +982,12 @@ export default function AdminAnalytics() {
                           <div className="coffee-row-meta">
                             <span className="act-flag">{getFlag(v.country_code)}</span>
                             <span className="font-semibold text-zinc-300">{v.country_name || v.country_code || 'Unknown'} {v.country_code ? `(${v.country_code})` : ''}</span>
+                            {visitorIp && (
+                              <>
+                                <span className="act-dot">·</span>
+                                <span className="font-mono text-xs text-zinc-400">IP: {visitorIp}</span>
+                              </>
+                            )}
                             <span className="act-dot">·</span>
                             <span>{timeAgo(v.created_at)}</span>
                             <span className="act-dot">·</span>
@@ -987,6 +1029,8 @@ export default function AdminAnalytics() {
                   const isOnline = liveUsers.some(lu => lu.session_id === v.session_id);
                   const tgUser = tgUsers.find(tu => tu.telegram_id.toString() === v.user_ref);
                   const isTelegram = !!tgUser;
+                  const isIp = v.user_ref?.startsWith('ip:');
+                  const visitorIp = isIp ? v.user_ref!.replace('ip:', '') : null;
                   const refLabel = getReferrerLabel(v.referrer);
 
                   return (
@@ -1001,7 +1045,9 @@ export default function AdminAnalytics() {
                               <span className="supporter-full-name">
                                 {isTelegram
                                   ? `${tgUser!.first_name}${tgUser!.last_name ? ' ' + tgUser!.last_name : ''}`
-                                  : `Visitor #${v.session_id ? v.session_id.slice(0, 8) : 'Web'}`}
+                                  : visitorIp
+                                    ? `Visitor • ${visitorIp}`
+                                    : `Visitor #${v.session_id ? v.session_id.slice(0, 8) : 'Web'}`}
                               </span>
                               {tgUser?.username && <span className="act-handle">@{tgUser.username}</span>}
                               <span className={`supporter-platform-badge ${isTelegram ? 'tg' : 'web'}`}>
@@ -1013,6 +1059,12 @@ export default function AdminAnalytics() {
                           <div className="coffee-row-meta">
                             <span className="act-flag">{getFlag(v.country_code)}</span>
                             <span className="font-semibold text-zinc-300">{v.country_name || v.country_code || 'Unknown'} {v.country_code ? `(${v.country_code})` : ''}</span>
+                            {visitorIp && (
+                              <>
+                                <span className="act-dot">·</span>
+                                <span className="font-mono text-xs text-zinc-400">IP: {visitorIp}</span>
+                              </>
+                            )}
                             <span className="act-dot">·</span>
                             <span>{timeAgo(v.created_at)}</span>
                             <span className="act-dot">·</span>

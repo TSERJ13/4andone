@@ -27,6 +27,7 @@ export default function Home() {
   const {
     tracks,
     styles,
+    albums,
     finalTracks,
     addToFinal,
     removeFromFinal,
@@ -46,7 +47,7 @@ export default function Home() {
 
   const [visibleTrackCount, setVisibleTrackCount] = useState(25);
 
-  // 10-Second Hero Carousel State (0 = Boris Myagkov Big Band, 1 = Georgie Musheev & 7 Winds, 2 = Rose's Band, 3 = Dance Star Band, 4 = GOC 2026)
+  const totalSlides = albums.length > 0 ? albums.length : 1;
   const [currentSlide, setCurrentSlide] = useState(0);
   const [isCarouselPaused, setIsCarouselPaused] = useState(false);
 
@@ -68,9 +69,9 @@ export default function Home() {
     const distance = touchStartX.current - touchEndX.current;
     const minSwipeDistance = 35;
     if (distance > minSwipeDistance) {
-      setCurrentSlide(prev => (prev + 1) % 5);
+      setCurrentSlide(prev => (prev + 1) % totalSlides);
     } else if (distance < -minSwipeDistance) {
-      setCurrentSlide(prev => (prev === 0 ? 4 : prev - 1));
+      setCurrentSlide(prev => (prev === 0 ? totalSlides - 1 : prev - 1));
     }
     touchStartX.current = null;
     touchEndX.current = null;
@@ -96,12 +97,12 @@ export default function Home() {
   }, [resetArrowsTimer]);
 
   useEffect(() => {
-    if (isCarouselPaused) return;
+    if (isCarouselPaused || totalSlides <= 1) return;
     const timer = setInterval(() => {
-      setCurrentSlide(prev => (prev + 1) % 5);
+      setCurrentSlide(prev => (prev + 1) % totalSlides);
     }, 10000);
     return () => clearInterval(timer);
-  }, [isCarouselPaused]);
+  }, [isCarouselPaused, totalSlides]);
 
   // Auto-play shared track link when opening https://4and.one/?track=... in browser
   React.useEffect(() => {
@@ -129,68 +130,42 @@ export default function Home() {
     });
     if (isStandardLib) return false;
 
-    // Check if track belongs to Boris Myagkov
-    const isBoris = (t.album || '').toLowerCase().includes('boris myagkov') ||
-      (t.artist || '').toLowerCase().includes('boris myagkov') ||
-      t.tags?.some((tag: string) => {
-        const tg = tag.toLowerCase();
-        return tg.includes('boris myagkov') || tg.includes('myagkov');
-      });
+    const tAlbum = (t.album || '').toLowerCase();
+    const tArtist = (t.artist || '').toLowerCase();
+    const tTags = (t.tags || []).map((tg: string) => tg.toLowerCase());
 
     // Check if GOC
-    const isGoc = (t.album || '').toLowerCase() === 'goc 2026' ||
-      t.tags?.some((tag: string) => {
-        const tg = tag.toLowerCase();
-        return tg === 'goc 2026' || tg === 'goc' || tg.includes('goc');
-      });
+    const isGoc = tAlbum === 'goc 2026' || tTags.some((tg: string) => tg === 'goc 2026' || tg === 'goc' || tg.includes('goc'));
 
-    // Boris Myagkov Latin tracks MUST appear in New Arrivals!
-    if (isBoris && !isGoc) {
-      const LATIN_CANONICAL = ['samba', 'chachacha', 'rumba', 'pasodoble', 'jive'];
-      const trackCanon = canonicalStyle(t.style);
-      if (LATIN_CANONICAL.includes(trackCanon)) {
-        return false; // Included in newArrivals
-      }
-      return true; // Boris standard tracks remain in the album and are excluded from newArrivals
-    }
+    // Check if track matches any dynamic album
+    const matchedAlbum = albums.find(a => {
+      const aSlug = a.slug.toLowerCase();
+      const aTitle = a.title.toLowerCase();
+      const aArtist = (a.artist || '').toLowerCase();
+      const aTags = (a.tags || []).map(tg => tg.toLowerCase());
 
-    // Check if track belongs to Georgie Musheev & 7 Winds
-    const isMusheev = (t.album || '').toLowerCase().includes('musheev') ||
-      (t.album || '').toLowerCase().includes('7 winds') ||
-      (t.artist || '').toLowerCase().includes('musheev') ||
-      (t.artist || '').toLowerCase().includes('7 winds') ||
-      t.tags?.some((tag: string) => {
-        const tg = tag.toLowerCase();
-        return tg.includes('musheev') || tg.includes('7 winds') || tg.includes('seven winds');
-      });
-
-    // Georgie Musheev Latin tracks appear in New Arrivals!
-    if (isMusheev && !isGoc) {
-      const LATIN_CANONICAL = ['samba', 'chachacha', 'rumba', 'pasodoble', 'jive'];
-      const trackCanon = canonicalStyle(t.style);
-      if (LATIN_CANONICAL.includes(trackCanon)) {
-        return false; // Included in newArrivals
-      }
-      return true;
-    }
-
-    const albumLower = (t.album || '').toLowerCase();
-    if (albumLower === 'goc 2026' || albumLower === 'dance star band' || albumLower === "rose's band" || albumLower === 'roses band') return true;
-    if (t.tags?.some((tag: string) => {
-      const tg = tag.toLowerCase();
       return (
-        tg === 'goc 2026' ||
-        tg === 'goc' ||
-        tg === 'dance star band' ||
-        tg === 'dance star' ||
-        tg === 'dancestar' ||
-        tg === "rose's band" ||
-        tg === 'roses band' ||
-        tg === 'rosesband'
+        tAlbum.includes(aSlug) ||
+        tAlbum.includes(aTitle) ||
+        tArtist.includes(aTitle) ||
+        (aArtist && tArtist.includes(aArtist)) ||
+        tTags.some((tg: string) => aTags.includes(tg) || tg.includes(aSlug) || aTitle.includes(tg))
       );
-    })) return true;
+    });
+
+    if (matchedAlbum && !isGoc) {
+      // Latin tracks appear in New Arrivals!
+      const LATIN_CANONICAL = ['samba', 'chachacha', 'rumba', 'pasodoble', 'jive'];
+      const trackCanon = canonicalStyle(t.style);
+      if (LATIN_CANONICAL.includes(trackCanon)) {
+        return false; // Included in newArrivals
+      }
+      return true; // Standard tracks remain in the album and are excluded from newArrivals
+    }
+
+    if (isGoc) return true;
     return false;
-  }, []);
+  }, [albums]);
 
   const newArrivals = React.useMemo(() => {
     return tracks.filter(t =>
@@ -340,9 +315,13 @@ export default function Home() {
           </div>
         </div>
 
-        {/* 10-Second Auto-Rotating Hero Carousel Banner */}
+        {/* Dynamic Auto-Rotating Hero Carousel Banner */}
         <div 
-          className={`hero-carousel-wrapper ${currentSlide === 0 ? 'slide-musheev' : currentSlide === 1 ? 'slide-borismyagkov' : currentSlide === 2 ? 'slide-rosesband' : currentSlide === 3 ? 'slide-dancestar' : 'slide-goc'}`}
+          className="hero-carousel-wrapper"
+          style={{
+            borderColor: `${albums[currentSlide]?.themeColor || '#e11d48'}50`,
+            boxShadow: `0 20px 40px -15px ${albums[currentSlide]?.themeColor || '#e11d48'}30`
+          }}
           onMouseEnter={() => { setIsCarouselPaused(true); resetArrowsTimer(); }}
           onMouseLeave={() => { setIsCarouselPaused(false); setAreArrowsVisible(false); }}
           onMouseMove={resetArrowsTimer}
@@ -353,14 +332,14 @@ export default function Home() {
           {/* Navigation Controls: Smart Auto-Hiding Arrows */}
           <button 
             className={`carousel-nav-btn prev glass ${areArrowsVisible ? 'visible' : ''}`}
-            onClick={() => { resetArrowsTimer(); setCurrentSlide(prev => (prev === 0 ? 4 : prev - 1)); }}
+            onClick={() => { resetArrowsTimer(); setCurrentSlide(prev => (prev === 0 ? totalSlides - 1 : prev - 1)); }}
             aria-label="Previous Banner"
           >
             <ChevronLeft size={16} className="nav-arrow-icon" />
           </button>
           <button 
             className={`carousel-nav-btn next glass ${areArrowsVisible ? 'visible' : ''}`}
-            onClick={() => { resetArrowsTimer(); setCurrentSlide(prev => (prev + 1) % 5); }}
+            onClick={() => { resetArrowsTimer(); setCurrentSlide(prev => (prev + 1) % totalSlides); }}
             aria-label="Next Banner"
           >
             <ChevronRight size={16} className="nav-arrow-icon" />
@@ -370,237 +349,95 @@ export default function Home() {
           <div 
             className="carousel-track"
             style={{
-              transform: `translateX(-${currentSlide * 20}%)`
+              width: `${totalSlides * 100}%`,
+              transform: `translateX(-${currentSlide * (100 / totalSlides)}%)`,
+              display: 'flex',
+              transition: 'transform 0.6s cubic-bezier(0.16, 1, 0.3, 1)'
             }}
           >
-            {/* SLIDE 0: GEORGIE MUSHEEV & 7 WINDS (LIVE SOUNDS) - STARTS FIRST */}
-            <header 
-              className="hero-section glass musheev-hero-section"
-              style={{
-                background: 'linear-gradient(135deg, rgba(225, 29, 72, 0.22) 0%, rgba(20, 20, 20, 0.75) 100%)',
-                borderColor: 'rgba(225, 29, 72, 0.35)'
-              }}
-            >
-              <div className="hero-content-wrapper">
-                <div className="hero-content">
-                  <span className="goc-badge" style={{ background: 'linear-gradient(90deg, #e11d48, #be123c)', boxShadow: '0 4px 15px rgba(225, 29, 72, 0.35)' }}>
-                    LIVE SOUNDS COLLECTION
-                  </span>
-                  <h2 className="hero-title text-gradient" style={{ background: 'linear-gradient(90deg, #ffffff, #fb7185, #f43f5e)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }}>
-                    GEORGIE MUSHEEV<br />&amp; 7 WINDS
-                  </h2>
-                  <p className="hero-desc">
-                    Exclusive Live Latin Dance Music. Dedicated Latin Final Mode practice with live band sounds.
-                  </p>
-                  <div className="hero-actions desktop-actions">
-                    <button className="btn-primary" style={{ background: 'linear-gradient(90deg, #e11d48, #be123c)', color: 'white', border: 'none', boxShadow: '0 4px 15px rgba(225, 29, 72, 0.4)' }} onClick={() => router.push('/album/georgie-musheev')}>
+            {albums.map((alb) => {
+              const themePrimary = alb.themeColor || '#e11d48';
+              const themeSecondary = alb.secondaryColor || '#be123c';
+              const themeGradient = alb.gradient || `linear-gradient(90deg, ${themePrimary}, ${themeSecondary})`;
+
+              return (
+                <header 
+                  key={alb.id || alb.slug}
+                  className="hero-section glass"
+                  style={{
+                    width: `${100 / totalSlides}%`,
+                    flexShrink: 0,
+                    background: `linear-gradient(135deg, ${themePrimary}30 0%, rgba(20, 20, 20, 0.75) 100%)`,
+                    borderColor: `${themePrimary}50`
+                  }}
+                >
+                  <div className="hero-content-wrapper">
+                    <div className="hero-content">
+                      <span className="goc-badge" style={{ background: themeGradient, boxShadow: `0 4px 15px ${themePrimary}50` }}>
+                        {alb.badge || 'LIVE SOUNDS COLLECTION'}
+                      </span>
+                      <h2 className="hero-title text-gradient" style={{ background: `linear-gradient(90deg, #ffffff, ${themePrimary})`, WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }}>
+                        {alb.title}
+                      </h2>
+                      <p className="hero-desc">
+                        {alb.subtitle || alb.description || 'Exclusive Live Dance Music.'}
+                      </p>
+                      <div className="hero-actions desktop-actions">
+                        <button 
+                          className="btn-primary" 
+                          style={{ background: themeGradient, color: 'white', border: 'none', boxShadow: `0 4px 15px ${themePrimary}50` }} 
+                          onClick={() => router.push(`/album/${alb.slug}`)}
+                        >
+                          Open Live Album
+                        </button>
+                        <button 
+                          className="btn-outline glass" 
+                          onClick={() => router.push(`/album/${alb.slug}?final=true`)}
+                        >
+                          Final Mode
+                        </button>
+                      </div>
+                    </div>
+                    <div className="goc-hero-card-preview" style={{ borderColor: `${themePrimary}50` }} onClick={() => router.push(`/album/${alb.slug}`)}>
+                      <img 
+                        src={alb.coverUrl || '/georgie-musheev.jpg'} 
+                        alt={alb.title} 
+                        className="goc-hero-img" 
+                        onError={(e) => { (e.target as HTMLImageElement).src = '/georgie-musheev.jpg'; }} 
+                      />
+                    </div>
+                  </div>
+                  <div className="hero-actions mobile-actions">
+                    <button 
+                      className="btn-primary" 
+                      style={{ background: themeGradient, color: 'white', border: 'none' }} 
+                      onClick={() => router.push(`/album/${alb.slug}`)}
+                    >
                       Open Live Album
                     </button>
-                    <button className="btn-outline glass" onClick={() => router.push('/album/georgie-musheev?final=true')}>
+                    <button 
+                      className="btn-outline glass" 
+                      onClick={() => router.push(`/album/${alb.slug}?final=true`)}
+                    >
                       Final Mode
                     </button>
                   </div>
-                </div>
-                <div className="goc-hero-card-preview" style={{ borderColor: 'rgba(225, 29, 72, 0.3)' }} onClick={() => router.push('/album/georgie-musheev')}>
-                  <img src="/georgie-musheev.jpg" alt="Georgie Musheev & 7 Winds" className="goc-hero-img" />
-                </div>
-              </div>
-              <div className="hero-actions mobile-actions">
-                <button className="btn-primary" style={{ background: 'linear-gradient(90deg, #e11d48, #be123c)', color: 'white', border: 'none' }} onClick={() => router.push('/album/georgie-musheev')}>
-                  Open Live Album
-                </button>
-                <button className="btn-outline glass" onClick={() => router.push('/album/georgie-musheev?final=true')}>
-                  Final Mode
-                </button>
-              </div>
-            </header>
-
-            {/* SLIDE 1: BORIS MYAGKOV BIG BAND (LIVE SOUNDS) */}
-            <header 
-              className="hero-section glass borismyagkov-hero-section"
-              style={{
-                background: 'linear-gradient(135deg, rgba(245, 158, 11, 0.18) 0%, rgba(20, 20, 20, 0.7) 100%)',
-                borderColor: 'rgba(245, 158, 11, 0.3)'
-              }}
-            >
-              <div className="hero-content-wrapper">
-                <div className="hero-content">
-                  <span className="goc-badge" style={{ background: 'linear-gradient(90deg, #f59e0b, #d97706)', boxShadow: '0 4px 15px rgba(245, 158, 11, 0.4)' }}>
-                    LIVE SOUNDS COLLECTION
-                  </span>
-                  <h2 className="hero-title text-gradient" style={{ background: 'linear-gradient(90deg, #ffffff, #fbbf24, #f59e0b)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }}>
-                    BORIS MYAGKOV<br />BIG BAND
-                  </h2>
-                  <p className="hero-desc">
-                    Legendary Big Band Dance Music. Isolated collection with dedicated Latin &amp; Standard Final Mode practice.
-                  </p>
-                  <div className="hero-actions desktop-actions">
-                    <button className="btn-primary" style={{ background: 'linear-gradient(90deg, #f59e0b, #d97706)', color: 'white', border: 'none', boxShadow: '0 4px 15px rgba(245, 158, 11, 0.4)' }} onClick={() => router.push('/album/boris-myagkov')}>
-                      Open Live Album
-                    </button>
-                    <button className="btn-outline glass" onClick={() => router.push('/album/boris-myagkov')}>
-                      Final Mode
-                    </button>
-                  </div>
-                </div>
-                <div className="goc-hero-card-preview" style={{ borderColor: 'rgba(245, 158, 11, 0.3)' }} onClick={() => router.push('/album/boris-myagkov')}>
-                  <img src="/boris-myagkov-big-band.jpg" alt="Boris Myagkov Big Band Live Sounds" className="goc-hero-img" />
-                </div>
-              </div>
-              <div className="hero-actions mobile-actions">
-                <button className="btn-primary" style={{ background: 'linear-gradient(90deg, #f59e0b, #d97706)', color: 'white', border: 'none' }} onClick={() => router.push('/album/boris-myagkov')}>
-                  Open Live Album
-                </button>
-                <button className="btn-outline glass" onClick={() => router.push('/album/boris-myagkov')}>
-                  Final Mode
-                </button>
-              </div>
-            </header>
-
-            {/* SLIDE 2: ROSE'S BAND (LIVE SOUNDS) */}
-            <header 
-              className="hero-section glass rosesband-hero-section"
-              style={{
-                background: 'linear-gradient(135deg, rgba(34, 197, 94, 0.18) 0%, rgba(20, 20, 20, 0.7) 100%)',
-                borderColor: 'rgba(34, 197, 94, 0.3)'
-              }}
-            >
-              <div className="hero-content-wrapper">
-                <div className="hero-content">
-                  <span className="goc-badge" style={{ background: 'linear-gradient(90deg, #22c55e, #10b981)', boxShadow: '0 4px 15px rgba(34, 197, 94, 0.3)' }}>
-                    LIVE SOUNDS COLLECTION
-                  </span>
-                  <h2 className="hero-title text-gradient" style={{ background: 'linear-gradient(90deg, #ffffff, #22c55e, #4ade80)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }}>
-                    ROSE&apos;S BAND<br />LIVE SOUNDS
-                  </h2>
-                  <p className="hero-desc">
-                    Exclusive Live Dance Band Sounds. Isolated collection with dedicated Latin &amp; Standard Final Mode practice.
-                  </p>
-                  <div className="hero-actions desktop-actions">
-                    <button className="btn-primary" style={{ background: 'linear-gradient(90deg, #22c55e, #10b981)', color: 'white', border: 'none', boxShadow: '0 4px 15px rgba(34, 197, 94, 0.4)' }} onClick={() => router.push('/album/roses-band')}>
-                      Open Live Album
-                    </button>
-                    <button className="btn-outline glass" onClick={() => router.push('/album/roses-band')}>
-                      Final Mode
-                    </button>
-                  </div>
-                </div>
-                <div className="goc-hero-card-preview" style={{ borderColor: 'rgba(34, 197, 94, 0.3)' }} onClick={() => router.push('/album/roses-band')}>
-                  <img src="/rosesband.jpg" alt="Rose's Band Live Sounds" className="goc-hero-img" />
-                </div>
-              </div>
-              <div className="hero-actions mobile-actions">
-                <button className="btn-primary" style={{ background: 'linear-gradient(90deg, #22c55e, #10b981)', color: 'white', border: 'none' }} onClick={() => router.push('/album/roses-band')}>
-                  Open Live Album
-                </button>
-                <button className="btn-outline glass" onClick={() => router.push('/album/roses-band')}>
-                  Final Mode
-                </button>
-              </div>
-            </header>
-
-            {/* SLIDE 2: DANCE STAR BAND (LIVE SOUNDS) */}
-            <header 
-              className="hero-section glass dancestar-hero-section"
-              style={{
-                background: 'linear-gradient(135deg, rgba(217, 70, 239, 0.18) 0%, rgba(20, 20, 20, 0.7) 100%)',
-                borderColor: 'rgba(217, 70, 239, 0.3)'
-              }}
-            >
-              <div className="hero-content-wrapper">
-                <div className="hero-content">
-                  <span className="goc-badge" style={{ background: 'linear-gradient(90deg, #d946ef, #8b5cf6)', boxShadow: '0 4px 15px rgba(217, 70, 239, 0.3)' }}>
-                    LIVE SOUNDS COLLECTION
-                  </span>
-                  <h2 className="hero-title text-gradient" style={{ background: 'linear-gradient(90deg, #ffffff, #d946ef, #a855f7)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }}>
-                    DANCE STAR BAND<br />LIVE SOUNDS
-                  </h2>
-                  <p className="hero-desc">
-                    Exclusive Live Dance Band Sounds. Isolated collection with dedicated Latin & Standard Final Mode practice.
-                  </p>
-                  <div className="hero-actions desktop-actions">
-                    <button className="btn-primary" style={{ background: 'linear-gradient(90deg, #d946ef, #8b5cf6)', color: 'white', border: 'none', boxShadow: '0 4px 15px rgba(217, 70, 239, 0.4)' }} onClick={() => router.push('/album/dance-star-band')}>
-                      Open Live Album
-                    </button>
-                    <button className="btn-outline glass" onClick={() => router.push('/album/dance-star-band')}>
-                      Final Mode
-                    </button>
-                  </div>
-                </div>
-                <div className="goc-hero-card-preview" style={{ borderColor: 'rgba(217, 70, 239, 0.3)' }} onClick={() => router.push('/album/dance-star-band')}>
-                  <img src="/dancestar.jpg" alt="Dance Star Band Live Sounds" className="goc-hero-img" />
-                </div>
-              </div>
-              <div className="hero-actions mobile-actions">
-                <button className="btn-primary" style={{ background: 'linear-gradient(90deg, #d946ef, #8b5cf6)', color: 'white', border: 'none' }} onClick={() => router.push('/album/dance-star-band')}>
-                  Open Live Album
-                </button>
-                <button className="btn-outline glass" onClick={() => router.push('/album/dance-star-band')}>
-                  Final Mode
-                </button>
-              </div>
-            </header>
-
-            {/* SLIDE 3: GOC FINAL 2026 MUSIC */}
-            <header className="hero-section goc-hero-section glass">
-              <div className="hero-content-wrapper">
-                <div className="hero-content">
-                  <span className="goc-badge">SPECIAL COLLECTION</span>
-                  <h2 className="hero-title text-gradient">GOC FINAL 2026<br />MUSIC</h2>
-                  <p className="hero-desc">
-                    Exclusive German Open Championship finals music. Isolated collection with dedicated Latin & Standard Final Mode practice.
-                  </p>
-                  <div className="hero-actions desktop-actions">
-                    <button className="btn-primary goc-btn" aria-label="Open GOC Album" onClick={() => router.push('/album/goc-2026')}>
-                      Open GOC Album
-                    </button>
-                    <button className="btn-outline glass" aria-label="Open Final Mode" onClick={() => router.push('/album/goc-2026')}>
-                      Final Mode
-                    </button>
-                  </div>
-                </div>
-                <div className="goc-hero-card-preview" onClick={() => router.push('/album/goc-2026')}>
-                  <img src="/goc2026.png" alt="GOC 2026 Latin Final Music" className="goc-hero-img" />
-                </div>
-              </div>
-              <div className="hero-actions mobile-actions">
-                <button className="btn-primary goc-btn" onClick={() => router.push('/album/goc-2026')}>
-                  Open GOC Album
-                </button>
-                <button className="btn-outline glass" onClick={() => router.push('/album/goc-2026')}>
-                  Final Mode
-                </button>
-              </div>
-            </header>
+                </header>
+              );
+            })}
           </div>
 
           {/* Dot Indicators */}
           <div className="carousel-dots-container">
-            <button 
-              className={`carousel-dot ${currentSlide === 0 ? 'active musheev' : ''}`}
-              onClick={() => setCurrentSlide(0)}
-              title="Georgie Musheev & 7 Winds"
-            />
-            <button 
-              className={`carousel-dot ${currentSlide === 1 ? 'active borismyagkov' : ''}`}
-              onClick={() => setCurrentSlide(1)}
-              title="Boris Myagkov Big Band"
-            />
-            <button 
-              className={`carousel-dot ${currentSlide === 2 ? 'active rosesband' : ''}`}
-              onClick={() => setCurrentSlide(2)}
-              title="Rose's Band"
-            />
-            <button 
-              className={`carousel-dot ${currentSlide === 3 ? 'active dancestar' : ''}`}
-              onClick={() => setCurrentSlide(3)}
-              title="Dance Star Band"
-            />
-            <button 
-              className={`carousel-dot ${currentSlide === 4 ? 'active goc' : ''}`}
-              onClick={() => setCurrentSlide(4)}
-              title="GOC Final 2026"
-            />
+            {albums.map((alb, idx) => (
+              <button 
+                key={alb.id || alb.slug}
+                className={`carousel-dot ${currentSlide === idx ? 'active' : ''}`}
+                style={currentSlide === idx ? { background: alb.themeColor || '#e11d48', borderColor: alb.themeColor || '#e11d48', boxShadow: `0 0 10px ${alb.themeColor || '#e11d48'}` } : undefined}
+                onClick={() => setCurrentSlide(idx)}
+                title={alb.title}
+              />
+            ))}
           </div>
         </div>
 

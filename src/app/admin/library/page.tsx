@@ -35,7 +35,7 @@ import { getMPMFromBPM } from '@/utils/audio';
 const AdminLibrary = () => {
   const { togglePlay, isPlaying, title: playingTitle, loadTrack } = useAudio();
   const { 
-    tracks, folders, styles, tags, 
+    tracks, folders, styles, tags, albums: studioAlbums,
     removeTrack, updateTrack, addTrack, assignToFolder, 
     finalTracks, addToFinal, removeFromFinal, 
     reorderGlobalTracks, reorderTracks, moveTrack 
@@ -170,39 +170,31 @@ const AdminLibrary = () => {
     const matchesFolder = activeFolderId === 'All' || track.folderId === activeFolderId;
     const matchesTag = activeTag === 'All' || (track.tags && track.tags.includes(activeTag));
     const matchesAlbum = activeAlbum === 'All' || (() => {
-      const alb = activeAlbum.toLowerCase();
-      if (alb === 'standard library') {
+      const albLower = activeAlbum.toLowerCase();
+      if (albLower === 'standard library') {
         const isStdTag = track.tags?.some((t: string) => t.toLowerCase() === 'standard library' || t.toLowerCase() === 'standard-library');
         const hasNoBand = !track.album && !track.tags?.some((t: string) => {
           const lt = t.toLowerCase();
-          return lt.includes('boris') || lt.includes('rose') || lt.includes('dance star') || lt.includes('goc') || lt.includes('musheev') || lt.includes('7 winds') || lt.includes('seven winds');
+          return studioAlbums.some(a => (a.tags || []).some(at => lt.includes(at.toLowerCase())) || lt.includes(a.slug.toLowerCase()) || lt.includes(a.title.toLowerCase()));
         });
         return isStdTag || hasNoBand;
       }
-      if (alb.includes('musheev') || alb.includes('7 winds') || alb.includes('seven winds')) {
-        return (track.album || '').toLowerCase().includes('musheev') || 
-               (track.artist || '').toLowerCase().includes('musheev') || 
-               track.tags?.some((t: string) => {
-                 const lt = t.toLowerCase();
-                 return lt.includes('musheev') || lt.includes('7 winds') || lt.includes('seven winds');
-               });
+      const matched = studioAlbums.find(a => a.title.toLowerCase() === albLower || a.slug.toLowerCase() === albLower);
+      if (matched) {
+        const mTags = (matched.tags || []).map(t => t.toLowerCase());
+        const mSlug = matched.slug.toLowerCase();
+        const mTitle = matched.title.toLowerCase();
+        return (
+          (track.album || '').toLowerCase().includes(mSlug) ||
+          (track.album || '').toLowerCase().includes(mTitle) ||
+          (track.artist || '').toLowerCase().includes(mTitle) ||
+          track.tags?.some((t: string) => {
+            const lt = t.toLowerCase();
+            return mTags.includes(lt) || lt.includes(mSlug) || mTitle.includes(lt);
+          })
+        );
       }
-      if (alb.includes('boris')) {
-        return (track.album || '').toLowerCase().includes('boris') || track.tags?.some((t: string) => t.toLowerCase().includes('boris'));
-      }
-      if (alb.includes('rose')) {
-        return (track.album || '').toLowerCase().includes('rose') || track.tags?.some((t: string) => t.toLowerCase().includes('rose'));
-      }
-      if (alb.includes('dance star') || alb.includes('dancestar')) {
-        return (track.album || '').toLowerCase().includes('dance star') || track.tags?.some((t: string) => {
-          const lt = t.toLowerCase();
-          return lt.includes('dance star') || lt.includes('dancestar');
-        });
-      }
-      if (alb.includes('goc')) {
-        return (track.album || '').toLowerCase().includes('goc') || track.tags?.some((t: string) => t.toLowerCase().includes('goc'));
-      }
-      return (track.album || '').toLowerCase().includes(alb);
+      return (track.album || '').toLowerCase().includes(albLower);
     })();
 
     return matchesSearch && matchesFilter && matchesFolder && matchesTag && matchesAlbum;
@@ -272,47 +264,25 @@ const AdminLibrary = () => {
               All Albums
             </button>
             <button 
-              className={`filter-btn glass ${activeAlbum === 'GOC 2026' ? 'active' : ''}`}
-              style={activeAlbum === 'GOC 2026' ? { borderColor: '#ff416c', color: '#ff416c', background: 'rgba(255, 65, 108, 0.15)' } : undefined}
-              onClick={() => setActiveAlbum('GOC 2026')}
-            >
-              🏆 GOC 2026
-            </button>
-            <button 
-              className={`filter-btn glass ${activeAlbum === "Rose's Band" ? 'active' : ''}`}
-              style={activeAlbum === "Rose's Band" ? { borderColor: '#22c55e', color: '#22c55e', background: 'rgba(34, 197, 94, 0.15)' } : undefined}
-              onClick={() => setActiveAlbum("Rose's Band")}
-            >
-              🌹 Rose&apos;s Band
-            </button>
-            <button 
-              className={`filter-btn glass ${activeAlbum === 'Dance Star Band' ? 'active' : ''}`}
-              style={activeAlbum === 'Dance Star Band' ? { borderColor: '#d946ef', color: '#d946ef', background: 'rgba(217, 70, 239, 0.15)' } : undefined}
-              onClick={() => setActiveAlbum('Dance Star Band')}
-            >
-              🎷 Dance Star Band
-            </button>
-            <button 
-              className={`filter-btn glass ${activeAlbum === 'Boris Myagkov Big Band' ? 'active' : ''}`}
-              style={activeAlbum === 'Boris Myagkov Big Band' ? { borderColor: '#f59e0b', color: '#f59e0b', background: 'rgba(245, 158, 11, 0.15)' } : undefined}
-              onClick={() => setActiveAlbum('Boris Myagkov Big Band')}
-            >
-              🎺 Boris Myagkov
-            </button>
-            <button 
-              className={`filter-btn glass ${activeAlbum === 'Georgie Musheev & 7 Winds' ? 'active' : ''}`}
-              style={activeAlbum === 'Georgie Musheev & 7 Winds' ? { borderColor: '#e11d48', color: '#e11d48', background: 'rgba(225, 29, 72, 0.15)' } : undefined}
-              onClick={() => setActiveAlbum('Georgie Musheev & 7 Winds')}
-            >
-              🎤 Georgie Musheev
-            </button>
-            <button 
               className={`filter-btn glass ${activeAlbum === 'Standard Library' ? 'active' : ''}`}
-              style={activeAlbum === 'Standard Library' ? { borderColor: '#3b82f6', color: '#3b82f6', background: 'rgba(59, 130, 246, 0.15)' } : undefined}
+              style={activeAlbum === 'Standard Library' ? { borderColor: '#38bdf8', color: '#38bdf8', background: 'rgba(56, 189, 248, 0.15)' } : undefined}
               onClick={() => setActiveAlbum('Standard Library')}
             >
-              🎵 Standard Library
+              🌐 Standard Library
             </button>
+            {studioAlbums.map((alb) => {
+              const isActive = activeAlbum === alb.title;
+              return (
+                <button 
+                  key={alb.id || alb.slug}
+                  className={`filter-btn glass ${isActive ? 'active' : ''}`}
+                  style={isActive ? { borderColor: alb.themeColor || '#e11d48', color: alb.themeColor || '#e11d48', background: `${alb.themeColor || '#e11d48'}25` } : undefined}
+                  onClick={() => setActiveAlbum(alb.title)}
+                >
+                  <span>{alb.title}</span>
+                </button>
+              );
+            })}
           </div>
         </div>
 

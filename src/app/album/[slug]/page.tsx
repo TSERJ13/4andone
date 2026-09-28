@@ -1,8 +1,9 @@
 "use client";
 
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
+import { useParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
-import { Play, Disc, Flame, Music2, Heart, Zap, Activity, Settings, Radio, CheckCircle2 } from 'lucide-react';
+import { Play, Disc, Flame, Music2, Heart, Zap, Activity, Settings, Radio, CheckCircle2, ChevronLeft } from 'lucide-react';
 import { useAudio } from '@/components/audio/AudioProvider';
 import { useStudio, Track } from '@/components/admin/StudioProvider';
 import { useAuth } from '@/context/AuthContext';
@@ -11,19 +12,31 @@ import { formatDuration } from '@/utils/format';
 import { getMPMFromBPM, canonicalStyle } from '@/utils/audio';
 import { Marquee } from '@/components/layout/Marquee';
 import ConfirmModal from '@/components/admin/ConfirmModal';
+import { Album } from '@/types/album';
 
 const LATIN_STYLES = ['Samba', 'Cha-Cha-Cha', 'Rumba', 'Paso Doble', 'Jive'];
+const STANDARD_STYLES = ['Slow Waltz', 'Tango', 'Viennese Waltz', 'Slow Foxtrot', 'Quickstep'];
 
-export default function GeorgieMusheevPage() {
+export default function DynamicAlbumPage() {
+  const params = useParams();
+  const router = useRouter();
+  const slug = (params?.slug as string) || '';
+
   const { loadTrack, isPlaying, title: playingTitle, setActiveMode, setSessionTracks } = useAudio();
-  const { tracks, styles, toggleFavorite, isLoading } = useStudio();
+  const { albums, tracks, styles, toggleFavorite, isLoading } = useStudio();
   const { isAuthenticated, setIsAuthModalOpen } = useAuth();
   const downloadedIds = useDownloadedTracks();
 
+  // Find matching album from albums list
+  const album = useMemo(() => {
+    return albums.find(a => a.slug.toLowerCase() === slug.toLowerCase());
+  }, [albums, slug]);
+
+  const [activeTab, setActiveTab] = useState<'Latin' | 'Standard'>('Latin');
   const [showPasoSettingsModal, setShowPasoSettingsModal] = useState(false);
   const [pasoTheme, setPasoTheme] = useState<'2-theme' | '3-theme'>(() => {
     if (typeof window !== 'undefined') {
-      const stored = localStorage.getItem('musheev_paso_theme');
+      const stored = localStorage.getItem(`album_${slug}_paso_theme`);
       if (stored === '3-theme') return '3-theme';
     }
     return '2-theme';
@@ -32,7 +45,7 @@ export default function GeorgieMusheevPage() {
   const handleSavePasoTheme = (theme: '2-theme' | '3-theme') => {
     setPasoTheme(theme);
     if (typeof window !== 'undefined') {
-      localStorage.setItem('musheev_paso_theme', theme);
+      localStorage.setItem(`album_${slug}_paso_theme`, theme);
     }
   };
 
@@ -43,41 +56,81 @@ export default function GeorgieMusheevPage() {
     onConfirm: () => {}
   });
 
-  // Filter tracks belonging to Georgie Musheev & 7 Winds
-  const musheevTracks = useMemo(() => {
+  // Filter tracks matching this album
+  const albumTracks = useMemo(() => {
+    if (!album) return [];
+    const albumSlug = album.slug.toLowerCase();
+    const albumTitle = album.title.toLowerCase();
+    const albumArtist = (album.artist || '').toLowerCase();
+    const albumTags = (album.tags || []).map(t => t.toLowerCase());
+
     return tracks.filter(t => {
-      const albumLower = (t.album || '').toLowerCase();
-      const artistLower = (t.artist || '').toLowerCase();
-      const hasMusheevTag = t.tags?.some(tag => {
+      const tAlbum = (t.album || '').toLowerCase();
+      const tArtist = (t.artist || '').toLowerCase();
+      const hasTag = t.tags?.some(tag => {
         const l = tag.toLowerCase();
-        return l.includes('musheev') || l.includes('7 winds') || l.includes('seven winds');
+        return albumTags.includes(l) || l.includes(albumSlug) || albumTitle.includes(l);
       });
 
       return (
-        albumLower.includes('musheev') || 
-        albumLower.includes('7 winds') || 
-        artistLower.includes('musheev') || 
-        artistLower.includes('7 winds') || 
-        hasMusheevTag
+        tAlbum.includes(albumSlug) || 
+        tAlbum.includes(albumTitle) || 
+        tArtist.includes(albumTitle) || 
+        (albumArtist && tArtist.includes(albumArtist)) ||
+        hasTag
       );
     });
-  }, [tracks]);
+  }, [tracks, album]);
 
   const latinTracks = useMemo(() => {
-    return musheevTracks.filter(t => {
+    return albumTracks.filter(t => {
       const canon = canonicalStyle(t.style);
       return LATIN_STYLES.some(s => canonicalStyle(s) === canon);
     });
-  }, [musheevTracks]);
+  }, [albumTracks]);
+
+  const standardTracks = useMemo(() => {
+    return albumTracks.filter(t => {
+      const canon = canonicalStyle(t.style);
+      return STANDARD_STYLES.some(s => canonicalStyle(s) === canon);
+    });
+  }, [albumTracks]);
+
+  const isLatinOnly = album?.program === 'Latin';
+  const isStandardOnly = album?.program === 'Standard';
+  const isBoth = !isLatinOnly && !isStandardOnly;
+
+  const currentProgramTracks = isLatinOnly ? latinTracks : isStandardOnly ? standardTracks : (activeTab === 'Latin' ? latinTracks : standardTracks);
+
+  // Active styles to display
+  const activeDisplayStyles = useMemo(() => {
+    if (!album) return [];
+    let baseStyles: string[] = [];
+    if (isLatinOnly) {
+      baseStyles = LATIN_STYLES;
+    } else if (isStandardOnly) {
+      baseStyles = STANDARD_STYLES;
+    } else {
+      baseStyles = activeTab === 'Latin' ? LATIN_STYLES : STANDARD_STYLES;
+    }
+
+    if (album.allowedStyles && album.allowedStyles.length > 0) {
+      return baseStyles.filter(s => album.allowedStyles.includes(s));
+    }
+    return baseStyles;
+  }, [album, isLatinOnly, isStandardOnly, activeTab]);
 
   const handlePlaySingle = (track: Track) => {
     loadTrack(track);
   };
 
-  const startFinalMode = () => {
+  const startFinalMode = (discipline: 'Latin' | 'Standard' = 'Latin') => {
+    const targetStyles = discipline === 'Latin' ? LATIN_STYLES : STANDARD_STYLES;
+    const pool = discipline === 'Latin' ? latinTracks : standardTracks;
+
     const selectedTracks: Track[] = [];
-    LATIN_STYLES.forEach(styleName => {
-      const styleTracks = latinTracks.filter(t => canonicalStyle(t.style) === canonicalStyle(styleName));
+    targetStyles.forEach(styleName => {
+      const styleTracks = pool.filter(t => canonicalStyle(t.style) === canonicalStyle(styleName));
       if (styleTracks.length > 0) {
         if (canonicalStyle(styleName) === 'pasodoble') {
           const matchingThemeTrack = styleTracks.find(t => t.tags?.includes(`paso-${pasoTheme}`));
@@ -91,13 +144,23 @@ export default function GeorgieMusheevPage() {
     });
 
     if (selectedTracks.length > 0) {
-      setActiveMode('MUSHEEV_Latin');
+      setActiveMode(`ALBUM_${slug}_${discipline}`);
       setSessionTracks(selectedTracks);
       loadTrack(selectedTracks[0], false, true);
     } else {
-      alert(`No Georgie Musheev & 7 Winds tracks found.\n\nPlease upload tracks in the admin panel with album "Georgie Musheev & 7 Winds".`);
+      alert(`No tracks found for ${album?.title || 'album'} ${discipline}.\n\nPlease upload tracks in the admin panel with album "${album?.title}".`);
     }
   };
+
+  // Auto-start final mode if URL query parameter has ?final=true
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      const p = new URLSearchParams(window.location.search);
+      if (p.get('final') === 'true' && latinTracks.length > 0) {
+        startFinalMode(isStandardOnly ? 'Standard' : 'Latin');
+      }
+    }
+  }, [latinTracks.length, standardTracks.length]);
 
   const checkAuthAndExecute = (action: () => void, actionName: string) => {
     if (!isAuthenticated) {
@@ -115,64 +178,155 @@ export default function GeorgieMusheevPage() {
     action();
   };
 
+  if (!album && !isLoading) {
+    return (
+      <div className="page-wrapper goc-page-wrapper">
+        <div className="goc-container not-found-state glass">
+          <Disc size={48} className="text-secondary" />
+          <h2>Album Not Found</h2>
+          <p>The album &quot;{slug}&quot; could not be found or has not been published yet.</p>
+          <Link href="/" className="back-home-btn">
+            <ChevronLeft size={18} />
+            <span>Return to Homepage</span>
+          </Link>
+        </div>
+      </div>
+    );
+  }
+
+  const themePrimary = album?.themeColor || '#e11d48';
+  const themeSecondary = album?.secondaryColor || '#be123c';
+  const themeGradient = album?.gradient || `linear-gradient(90deg, ${themePrimary}, ${themeSecondary})`;
+
   return (
     <div className="page-wrapper goc-page-wrapper">
       <div className="goc-container">
         {/* Hero Album Cover Header */}
-        <header className="goc-hero glass musheev-hero">
-          <div className="goc-cover-box musheev-cover">
-            <img src="/georgie-musheev.jpg" alt="Georgie Musheev & 7 Winds" className="goc-cover-img" />
+        <header 
+          className="goc-hero glass album-hero"
+          style={{
+            background: `linear-gradient(135deg, ${themePrimary}25 0%, rgba(20, 20, 20, 0.85) 100%)`,
+            borderColor: `${themePrimary}45`
+          }}
+        >
+          <div 
+            className="goc-cover-box album-cover"
+            style={{
+              boxShadow: `0 10px 25px rgba(0, 0, 0, 0.6), 0 0 25px ${themePrimary}40`,
+              borderColor: `${themePrimary}45`
+            }}
+          >
+            <img 
+              src={album?.coverUrl || '/georgie-musheev.jpg'} 
+              alt={album?.title || 'Album'} 
+              className="goc-cover-img"
+              onError={(e) => { (e.target as HTMLImageElement).src = '/georgie-musheev.jpg'; }}
+            />
           </div>
           <div className="goc-hero-info">
-            <span className="goc-pill-badge musheev-badge">LIVE SOUNDS COLLECTION</span>
-            <h1 className="goc-title musheev-title">Georgie Musheev &amp; 7 Winds</h1>
+            <span 
+              className="goc-pill-badge"
+              style={{
+                background: themeGradient,
+                boxShadow: `0 4px 15px ${themePrimary}40`
+              }}
+            >
+              {album?.badge || 'LIVE SOUNDS COLLECTION'}
+            </span>
+            <h1 
+              className="goc-title"
+              style={{
+                background: `linear-gradient(90deg, #ffffff, ${themePrimary})`,
+                WebkitBackgroundClip: 'text',
+                WebkitTextFillColor: 'transparent'
+              }}
+            >
+              {album?.title}
+            </h1>
             <p className="goc-subtitle">
-              The Seven Winds • Exclusive Live Latin Dance Music • Dedicated Latin Collection &amp; Final Mode
+              {album?.subtitle || album?.description || `${album?.artist} • Dedicated Live Collection & Final Mode`}
             </p>
             <div className="goc-stats-row">
-              <span className="stat-pill latin-stat">{latinTracks.length} Latin Tracks</span>
-              <span className="stat-pill">5 Dance Styles</span>
+              <span className="stat-pill">{albumTracks.length} Total Tracks</span>
+              {!isStandardOnly && <span className="stat-pill latin-stat" style={{ color: themePrimary, borderColor: `${themePrimary}40` }}>{latinTracks.length} Latin</span>}
+              {!isLatinOnly && <span className="stat-pill std-stat">{standardTracks.length} Standard</span>}
             </div>
           </div>
         </header>
 
-        {/* Latin Final Mode Trigger Banner */}
-        <div className="goc-final-banner glass latin">
+        {/* Both Discipline Tabs (Only shown if album program is 'Both') */}
+        {isBoth && (
+          <div className="discipline-tabs-container">
+            <button 
+              className={`tab-btn latin ${activeTab === 'Latin' ? 'active' : ''}`}
+              style={activeTab === 'Latin' ? { borderColor: themePrimary, color: themePrimary, background: `${themePrimary}20` } : undefined}
+              onClick={() => setActiveTab('Latin')}
+            >
+              <Zap size={20} />
+              <span>International Latin</span>
+              <span className="tab-count">{latinTracks.length}</span>
+            </button>
+            <button 
+              className={`tab-btn standard ${activeTab === 'Standard' ? 'active' : ''}`}
+              onClick={() => setActiveTab('Standard')}
+            >
+              <Activity size={20} />
+              <span>International Standard</span>
+              <span className="tab-count">{standardTracks.length}</span>
+            </button>
+          </div>
+        )}
+
+        {/* Final Mode Trigger Banner */}
+        <div 
+          className="goc-final-banner glass"
+          style={{
+            background: `linear-gradient(135deg, ${themePrimary}20 0%, rgba(20, 20, 20, 0.5) 100%)`,
+            borderColor: `${themePrimary}40`
+          }}
+        >
           <div className="final-banner-content">
-            <Flame size={32} className="flame-icon musheev-flame" />
+            <Flame size={32} style={{ color: themePrimary }} />
             <div>
-              <h3>Georgie Musheev &amp; 7 Winds Latin Final Mode</h3>
-              <p>Run full continuous Latin final sequence (Samba, Cha-Cha-Cha, Rumba, Paso Doble, Jive) using live band tracks only.</p>
+              <h3>{album?.title} {isBoth ? activeTab : (isLatinOnly ? 'Latin' : 'Standard')} Final Mode</h3>
+              <p>Run full continuous final sequence using {album?.title} live band tracks only.</p>
             </div>
           </div>
           
           <div className="banner-actions-group">
             <button 
-              className="start-final-btn musheev-start-btn"
-              onClick={startFinalMode}
+              className="start-final-btn"
+              style={{
+                background: themeGradient,
+                boxShadow: `0 4px 20px ${themePrimary}50`
+              }}
+              onClick={() => startFinalMode(isBoth ? activeTab : (isLatinOnly ? 'Latin' : 'Standard'))}
             >
               <Play size={20} fill="currentColor" />
-              <span>Start Latin Final</span>
+              <span>Start {isBoth ? activeTab : (isLatinOnly ? 'Latin' : 'Standard')} Final</span>
             </button>
 
-            <button
-              className="goc-settings-btn glass"
-              onClick={() => setShowPasoSettingsModal(true)}
-              title="Paso Doble Settings"
-            >
-              <Settings size={20} />
-              <span className="paso-theme-label musheev-paso-label">
-                {pasoTheme === '3-theme' ? '3 Themes' : '2 Themes'}
-              </span>
-            </button>
+            {(!isStandardOnly || activeTab === 'Latin') && (
+              <button
+                className="goc-settings-btn glass"
+                style={{ borderColor: `${themePrimary}40` }}
+                onClick={() => setShowPasoSettingsModal(true)}
+                title="Paso Doble Settings"
+              >
+                <Settings size={20} />
+                <span className="paso-theme-label" style={{ color: themePrimary }}>
+                  {pasoTheme === '3-theme' ? '3 Themes' : '2 Themes'}
+                </span>
+              </button>
+            )}
           </div>
         </div>
 
-        {/* Tracks by Dance Style (Latin Only) */}
+        {/* Tracks by Dance Style */}
         <div className="styles-tracks-section">
-          {LATIN_STYLES.map(styleName => {
+          {activeDisplayStyles.map(styleName => {
             const styleObj = styles.find(s => canonicalStyle(s.title) === canonicalStyle(styleName));
-            const styleTracks = latinTracks.filter(t => canonicalStyle(t.style) === canonicalStyle(styleName));
+            const styleTracks = currentProgramTracks.filter(t => canonicalStyle(t.style) === canonicalStyle(styleName));
 
             return (
               <div key={styleName} className="style-group-box glass">
@@ -180,7 +334,7 @@ export default function GeorgieMusheevPage() {
                   <div className="style-header-left">
                     <span 
                       className="style-indicator-dot" 
-                      style={{ backgroundColor: styleObj?.color || '#e11d48' }}
+                      style={{ backgroundColor: styleObj?.color || themePrimary }}
                     />
                     <h2>{styleName}</h2>
                   </div>
@@ -191,10 +345,10 @@ export default function GeorgieMusheevPage() {
                   <div className="tracks-list">
                     {styleTracks.map((track) => {
                       const displayTitle = track.title || 'Untitled Track';
-                      const displayArtist = track.artist || 'Georgie Musheev & 7 Winds';
+                      const displayArtist = track.artist || album?.artist || 'Live Band';
                       const trackStyleName = track.style || styleName;
                       const matchedStyle = styles.find(s => canonicalStyle(s.title) === canonicalStyle(trackStyleName));
-                      const badgeColor = matchedStyle?.color || styleObj?.color || '#e11d48';
+                      const badgeColor = matchedStyle?.color || styleObj?.color || themePrimary;
 
                       return (
                         <div
@@ -269,7 +423,7 @@ export default function GeorgieMusheevPage() {
                 ) : (
                   <div className="empty-style-state">
                     <Music2 size={24} className="empty-icon" />
-                    <span>No {styleName} tracks uploaded to Georgie Musheev &amp; 7 Winds yet.</span>
+                    <span>No {styleName} tracks uploaded to {album?.title} yet.</span>
                   </div>
                 )}
               </div>
@@ -283,7 +437,7 @@ export default function GeorgieMusheevPage() {
         <div className="modal-overlay" onClick={() => setShowPasoSettingsModal(false)}>
           <div className="modal-content paso-settings-modal glass" onClick={e => e.stopPropagation()}>
             <div className="modal-header">
-              <Settings size={36} style={{ color: '#e11d48', marginBottom: '8px' }} />
+              <Settings size={36} style={{ color: themePrimary, marginBottom: '8px' }} />
               <h2>Paso Doble Settings</h2>
               <p>Select how many themes Paso Doble should be in practice &amp; finals</p>
             </div>
@@ -296,6 +450,7 @@ export default function GeorgieMusheevPage() {
                 <button
                   type="button"
                   className={`theme-opt-card ${pasoTheme === '2-theme' ? 'active' : ''}`}
+                  style={pasoTheme === '2-theme' ? { borderColor: themePrimary, background: `${themePrimary}20` } : undefined}
                   onClick={() => handleSavePasoTheme('2-theme')}
                 >
                   <span className="opt-title">2 Themes</span>
@@ -305,6 +460,7 @@ export default function GeorgieMusheevPage() {
                 <button
                   type="button"
                   className={`theme-opt-card ${pasoTheme === '3-theme' ? 'active' : ''}`}
+                  style={pasoTheme === '3-theme' ? { borderColor: themePrimary, background: `${themePrimary}20` } : undefined}
                   onClick={() => handleSavePasoTheme('3-theme')}
                 >
                   <span className="opt-title">3 Themes</span>
@@ -314,7 +470,8 @@ export default function GeorgieMusheevPage() {
             </div>
 
             <button
-              className="primary-btn done-btn musheev-done-btn"
+              className="primary-btn done-btn"
+              style={{ background: themeGradient }}
               onClick={() => setShowPasoSettingsModal(false)}
             >
               Done
@@ -334,48 +491,200 @@ export default function GeorgieMusheevPage() {
       />
 
       <style jsx>{`
-        .musheev-hero {
-          background: linear-gradient(135deg, rgba(225, 29, 72, 0.22) 0%, rgba(20, 20, 20, 0.85) 100%) !important;
-          border-color: rgba(225, 29, 72, 0.35) !important;
+        .goc-page-wrapper {
+          padding-bottom: 140px;
         }
 
-        .musheev-cover {
-          box-shadow: 0 10px 25px rgba(0, 0, 0, 0.6), 0 0 25px rgba(225, 29, 72, 0.35) !important;
-          border-color: rgba(225, 29, 72, 0.35) !important;
+        .goc-container {
+          max-width: 1200px;
+          margin: 0 auto;
         }
 
-        .musheev-badge {
-          background: linear-gradient(90deg, #e11d48, #be123c) !important;
-          box-shadow: 0 4px 15px rgba(225, 29, 72, 0.4) !important;
+        .not-found-state {
+          padding: 60px 20px;
+          border-radius: 20px;
+          text-align: center;
+          display: flex;
+          flex-direction: column;
+          align-items: center;
+          gap: 16px;
+          margin-top: 40px;
         }
 
-        .musheev-title {
-          background: linear-gradient(90deg, #ffffff, #fb7185, #f43f5e) !important;
-          -webkit-background-clip: text !important;
-          -webkit-text-fill-color: transparent !important;
+        .back-home-btn {
+          display: flex;
+          align-items: center;
+          gap: 8px;
+          padding: 10px 20px;
+          border-radius: 20px;
+          background: rgba(255, 255, 255, 0.1);
+          color: white;
+          text-decoration: none;
+          font-weight: 700;
         }
 
-        .musheev-flame {
-          color: #e11d48 !important;
+        .goc-hero {
+          padding: 32px;
+          border-radius: 24px;
+          display: flex;
+          align-items: center;
+          gap: 32px;
+          margin-bottom: 32px;
+          border: 1px solid rgba(255, 255, 255, 0.1);
         }
 
-        .musheev-start-btn {
-          background: linear-gradient(90deg, #e11d48, #be123c) !important;
-          box-shadow: 0 4px 20px rgba(225, 29, 72, 0.4) !important;
+        .goc-cover-box {
+          width: 240px;
+          height: 140px;
+          border-radius: 16px;
+          overflow: hidden;
+          flex-shrink: 0;
+          border: 1px solid rgba(255, 255, 255, 0.15);
         }
 
-        .musheev-paso-label {
-          color: #e11d48 !important;
+        .goc-cover-img {
+          width: 100%;
+          height: 100%;
+          object-fit: cover;
+          object-position: center;
         }
 
-        .musheev-done-btn {
-          background: linear-gradient(90deg, #e11d48, #be123c) !important;
+        .goc-hero-info {
+          flex: 1;
+        }
+
+        .goc-pill-badge {
+          color: white;
+          padding: 4px 12px;
+          border-radius: 20px;
+          font-size: 10px;
+          font-weight: 900;
+          letter-spacing: 1px;
+          margin-bottom: 12px;
+          display: inline-block;
+        }
+
+        .goc-title {
+          font-size: 2.4rem;
+          font-weight: 900;
+          letter-spacing: -1px;
+          margin-bottom: 8px;
+        }
+
+        .goc-subtitle {
+          font-size: 0.95rem;
+          color: var(--text-secondary);
+          margin-bottom: 16px;
+        }
+
+        .goc-stats-row {
+          display: flex;
+          gap: 10px;
+        }
+
+        .stat-pill {
+          padding: 6px 14px;
+          border-radius: 20px;
+          background: rgba(255, 255, 255, 0.05);
+          font-size: 0.8rem;
+          font-weight: 700;
+          border: 1px solid rgba(255, 255, 255, 0.08);
+        }
+
+        .std-stat { color: #2193b0; border-color: rgba(33, 147, 176, 0.3); }
+
+        .discipline-tabs-container {
+          display: flex;
+          gap: 16px;
+          margin-bottom: 24px;
+        }
+
+        .tab-btn {
+          flex: 1;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          gap: 12px;
+          padding: 16px;
+          border-radius: 16px;
+          font-size: 1rem;
+          font-weight: 800;
+          background: rgba(255, 255, 255, 0.03);
+          border: 1px solid rgba(255, 255, 255, 0.08);
+          color: var(--text-secondary);
+          cursor: pointer;
+          transition: all 0.25s ease;
+        }
+
+        .tab-btn:hover {
+          background: rgba(255, 255, 255, 0.08);
+          color: white;
+        }
+
+        .tab-btn.active.standard {
+          background: rgba(33, 147, 176, 0.15);
+          border-color: #2193b0;
+          color: #2193b0;
+          box-shadow: 0 4px 20px rgba(33, 147, 176, 0.2);
+        }
+
+        .tab-count {
+          padding: 2px 8px;
+          border-radius: 10px;
+          background: rgba(255, 255, 255, 0.1);
+          font-size: 0.8rem;
+        }
+
+        .goc-final-banner {
+          padding: 24px 32px;
+          border-radius: 20px;
+          display: flex;
+          align-items: center;
+          justify-content: space-between;
+          margin-bottom: 32px;
+          gap: 20px;
+          border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        .final-banner-content {
+          display: flex;
+          align-items: center;
+          gap: 16px;
+        }
+
+        .final-banner-content h3 {
+          font-size: 1.2rem;
+          font-weight: 800;
+          margin-bottom: 2px;
+        }
+
+        .final-banner-content p {
+          font-size: 0.85rem;
+          color: var(--text-secondary);
         }
 
         .banner-actions-group {
           display: flex;
           align-items: center;
           gap: 12px;
+        }
+
+        .start-final-btn {
+          display: flex;
+          align-items: center;
+          gap: 10px;
+          padding: 14px 28px;
+          border-radius: 30px;
+          font-weight: 800;
+          font-size: 0.95rem;
+          color: white;
+          border: none;
+          cursor: pointer;
+          transition: transform 0.2s ease;
+        }
+
+        .start-final-btn:hover {
+          transform: scale(1.04);
         }
 
         .goc-settings-btn {
@@ -395,10 +704,71 @@ export default function GeorgieMusheevPage() {
 
         .goc-settings-btn:hover {
           background: rgba(255, 255, 255, 0.12);
-          border-color: #e11d48;
           transform: translateY(-1px);
         }
 
+        .styles-tracks-section {
+          display: flex;
+          flex-direction: column;
+          gap: 24px;
+        }
+
+        .style-group-box {
+          padding: 24px;
+          border-radius: 20px;
+          border: 1px solid rgba(255, 255, 255, 0.05);
+          background: rgba(255, 255, 255, 0.02);
+        }
+
+        .style-group-header {
+          display: flex;
+          align-items: center;
+          justify-content: space-between;
+          margin-bottom: 16px;
+          padding-bottom: 12px;
+          border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+        }
+
+        .style-header-left {
+          display: flex;
+          align-items: center;
+          gap: 10px;
+        }
+
+        .style-indicator-dot {
+          width: 10px;
+          height: 10px;
+          border-radius: 50%;
+        }
+
+        .style-group-header h2 {
+          font-size: 1.3rem;
+          font-weight: 800;
+        }
+
+        .style-track-count {
+          font-size: 0.85rem;
+          color: var(--text-secondary);
+        }
+
+        .tracks-list {
+          display: flex;
+          flex-direction: column;
+          gap: 8px;
+        }
+
+        .empty-style-state {
+          display: flex;
+          align-items: center;
+          gap: 10px;
+          padding: 20px;
+          border-radius: 12px;
+          background: rgba(255, 255, 255, 0.01);
+          color: var(--text-secondary);
+          font-size: 0.9rem;
+        }
+
+        /* MODAL */
         .modal-overlay {
           position: fixed;
           inset: 0;
@@ -470,13 +840,6 @@ export default function GeorgieMusheevPage() {
 
         .theme-opt-card:hover {
           background: rgba(255, 255, 255, 0.08);
-          border-color: rgba(225, 29, 72, 0.4);
-        }
-
-        .theme-opt-card.active {
-          background: rgba(225, 29, 72, 0.15);
-          border-color: #e11d48;
-          box-shadow: 0 4px 15px rgba(225, 29, 72, 0.3);
         }
 
         .opt-title {
@@ -505,251 +868,6 @@ export default function GeorgieMusheevPage() {
 
         .done-btn:hover {
           transform: scale(1.02);
-        }
-
-        .goc-page-wrapper {
-          padding-bottom: 140px;
-        }
-
-        .goc-container {
-          max-width: 1200px;
-          margin: 0 auto;
-        }
-
-        .goc-hero {
-          padding: 32px;
-          border-radius: 24px;
-          display: flex;
-          align-items: center;
-          gap: 32px;
-          margin-bottom: 32px;
-        }
-
-        .goc-cover-box {
-          width: 240px;
-          height: 140px;
-          border-radius: 16px;
-          overflow: hidden;
-          flex-shrink: 0;
-          border: 1px solid rgba(255, 255, 255, 0.15);
-        }
-
-        .goc-cover-img {
-          width: 100%;
-          height: 100%;
-          object-fit: cover;
-          object-position: center;
-        }
-
-        .goc-hero-info {
-          flex: 1;
-        }
-
-        .goc-pill-badge {
-          color: white;
-          padding: 4px 12px;
-          border-radius: 20px;
-          font-size: 10px;
-          font-weight: 900;
-          letter-spacing: 1px;
-          margin-bottom: 12px;
-          display: inline-block;
-        }
-
-        .goc-title {
-          font-size: 2.4rem;
-          font-weight: 900;
-          letter-spacing: -1px;
-          margin-bottom: 8px;
-        }
-
-        .goc-subtitle {
-          font-size: 0.95rem;
-          color: var(--text-secondary);
-          margin-bottom: 16px;
-        }
-
-        .goc-stats-row {
-          display: flex;
-          gap: 10px;
-        }
-
-        .stat-pill {
-          padding: 6px 14px;
-          border-radius: 20px;
-          background: rgba(255, 255, 255, 0.05);
-          font-size: 0.8rem;
-          font-weight: 700;
-          border: 1px solid rgba(255, 255, 255, 0.08);
-        }
-
-        .latin-stat { color: #f43f5e; border-color: rgba(244, 63, 94, 0.3); }
-        .std-stat { color: #2193b0; border-color: rgba(33, 147, 176, 0.3); }
-
-        .discipline-tabs-container {
-          display: flex;
-          gap: 16px;
-          margin-bottom: 24px;
-        }
-
-        .tab-btn {
-          flex: 1;
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          gap: 12px;
-          padding: 16px;
-          border-radius: 16px;
-          font-size: 1rem;
-          font-weight: 800;
-          background: rgba(255, 255, 255, 0.03);
-          border: 1px solid rgba(255, 255, 255, 0.08);
-          color: var(--text-secondary);
-          cursor: pointer;
-          transition: all 0.25s ease;
-        }
-
-        .tab-btn:hover {
-          background: rgba(255, 255, 255, 0.08);
-          color: white;
-        }
-
-        .tab-btn.active.latin {
-          background: rgba(225, 29, 72, 0.15);
-          border-color: #e11d48;
-          color: #fb7185;
-          box-shadow: 0 4px 20px rgba(225, 29, 72, 0.2);
-        }
-
-        .tab-btn.active.standard {
-          background: rgba(33, 147, 176, 0.15);
-          border-color: #2193b0;
-          color: #2193b0;
-          box-shadow: 0 4px 20px rgba(33, 147, 176, 0.2);
-        }
-
-        .tab-count {
-          padding: 2px 8px;
-          border-radius: 10px;
-          background: rgba(255, 255, 255, 0.1);
-          font-size: 0.8rem;
-        }
-
-        .goc-final-banner {
-          padding: 24px 32px;
-          border-radius: 20px;
-          display: flex;
-          align-items: center;
-          justify-content: space-between;
-          margin-bottom: 32px;
-          gap: 20px;
-          border: 1px solid rgba(255, 255, 255, 0.1);
-        }
-
-        .goc-final-banner.latin {
-          background: linear-gradient(135deg, rgba(225, 29, 72, 0.18) 0%, rgba(20, 20, 20, 0.5) 100%);
-          border-color: rgba(225, 29, 72, 0.35);
-        }
-
-        .goc-final-banner.standard {
-          background: linear-gradient(135deg, rgba(33, 147, 176, 0.15) 0%, rgba(20, 20, 20, 0.4) 100%);
-          border-color: rgba(33, 147, 176, 0.3);
-        }
-
-        .final-banner-content {
-          display: flex;
-          align-items: center;
-          gap: 16px;
-        }
-
-        .final-banner-content h3 {
-          font-size: 1.2rem;
-          font-weight: 800;
-          margin-bottom: 2px;
-        }
-
-        .final-banner-content p {
-          font-size: 0.85rem;
-          color: var(--text-secondary);
-        }
-
-        .start-final-btn {
-          display: flex;
-          align-items: center;
-          gap: 10px;
-          padding: 14px 28px;
-          border-radius: 30px;
-          font-weight: 800;
-          font-size: 0.95rem;
-          color: white;
-          border: none;
-          cursor: pointer;
-          transition: transform 0.2s ease;
-        }
-
-        .start-final-btn:hover {
-          transform: scale(1.04);
-        }
-
-        .styles-tracks-section {
-          display: flex;
-          flex-direction: column;
-          gap: 24px;
-        }
-
-        .style-group-box {
-          padding: 24px;
-          border-radius: 20px;
-          border: 1px solid rgba(255, 255, 255, 0.05);
-          background: rgba(255, 255, 255, 0.02);
-        }
-
-        .style-group-header {
-          display: flex;
-          align-items: center;
-          justify-content: space-between;
-          margin-bottom: 16px;
-          padding-bottom: 12px;
-          border-bottom: 1px solid rgba(255, 255, 255, 0.05);
-        }
-
-        .style-header-left {
-          display: flex;
-          align-items: center;
-          gap: 10px;
-        }
-
-        .style-indicator-dot {
-          width: 10px;
-          height: 10px;
-          border-radius: 50%;
-        }
-
-        .style-group-header h2 {
-          font-size: 1.3rem;
-          font-weight: 800;
-        }
-
-        .style-track-count {
-          font-size: 0.85rem;
-          color: var(--text-secondary);
-        }
-
-        .tracks-list {
-          display: flex;
-          flex-direction: column;
-          gap: 8px;
-        }
-
-        .empty-style-state {
-          display: flex;
-          align-items: center;
-          gap: 10px;
-          padding: 20px;
-          border-radius: 12px;
-          background: rgba(255, 255, 255, 0.01);
-          color: var(--text-secondary);
-          font-size: 0.9rem;
         }
 
         @media (max-width: 768px) {

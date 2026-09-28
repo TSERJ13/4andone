@@ -3,6 +3,9 @@
 import React, { createContext, useContext, useState, useEffect, useMemo } from 'react';
 import { supabase } from '@/utils/supabase';
 import { useAuth } from '@/context/AuthContext';
+import { Album } from '@/types/album';
+
+export type { Album } from '@/types/album';
 
 export interface Style {
   id: string;
@@ -99,7 +102,14 @@ interface StudioContextType {
   moveTrack: (trackId: string, direction: 'up' | 'down', visibleList?: Track[]) => Promise<void>;
   addTrackToFinalFolder: (trackId: string, finalFolderId: string, force?: boolean) => Promise<{ success: boolean; duplicate?: string }>;
   getTracksForFinalFolder: (finalFolderId: string) => Track[];
-  
+  // Albums (Dynamic Album Builder)
+  albums: Album[];
+  refreshAlbums: () => Promise<void>;
+  addAlbum: (album: Partial<Album>) => Promise<Album | undefined>;
+  updateAlbum: (id: string, updates: Partial<Album>) => Promise<void>;
+  deleteAlbum: (id: string) => Promise<void>;
+  reorderAlbums: (albumIds: string[]) => Promise<void>;
+
   stats: {
     totalTracks: number;
     totalFolders: number;
@@ -137,6 +147,7 @@ export const StudioProvider: React.FC<{ children: React.ReactNode }> = ({ childr
   const [finalTracks, setFinalTracks] = useState<Track[]>([]);
   const [finalFolders, setFinalFolders] = useState<FinalFolder[]>([]);
   const [finalFolderTracksMap, setFinalFolderTracksMap] = useState<Record<string, string[]>>({}); // folderId -> [trackIds]
+  const [albums, setAlbums] = useState<Album[]>([]);
   const [isLoading, setIsLoading] = useState(true);
 
   const fetchData = async () => {
@@ -268,6 +279,17 @@ export const StudioProvider: React.FC<{ children: React.ReactNode }> = ({ childr
 
       const { data: tagsData } = await supabase.from('tags').select('*').order('name');
       if (tagsData) setTags(tagsData);
+
+      // Fetch Albums (Dynamic Album Builder)
+      try {
+        const aRes = await fetch('/api/albums');
+        if (aRes.ok) {
+          const aData = await aRes.json();
+          if (aData.albums) setAlbums(aData.albums);
+        }
+      } catch (e) {
+        console.warn('Failed to load albums:', e);
+      }
     } finally {
       setIsLoading(false);
     }
@@ -907,6 +929,123 @@ export const StudioProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     }
   };
 
+  // Dynamic Album Builder Methods
+  const refreshAlbums = async () => {
+    try {
+      const res = await fetch('/api/albums');
+      if (res.ok) {
+        const data = await res.json();
+        if (data.albums) setAlbums(data.albums);
+      }
+    } catch (e) {
+      console.error('refreshAlbums failed:', e);
+    }
+  };
+
+  const addAlbum = async (albumData: Partial<Album>) => {
+    try {
+      const res = await fetch('/api/albums', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(albumData),
+      });
+      if (res.ok) {
+        const json = await res.json();
+        if (json.album) {
+          setAlbums(prev => {
+            const next = [json.album, ...prev.filter(a => a.id !== json.album.id)];
+            next.sort((a, b) => (a.orderIndex ?? 0) - (b.orderIndex ?? 0));
+            return next;
+          });
+          try {
+            const bc = new BroadcastChannel('4andone_sync');
+            bc.postMessage({ type: 'SYNC_ALBUMS' });
+            bc.close();
+          } catch (e) {}
+          return json.album;
+        }
+      }
+    } catch (e) {
+      console.error('addAlbum failed:', e);
+    }
+  };
+
+  const updateAlbum = async (id: string, updates: Partial<Album>) => {
+    try {
+      const res = await fetch('/api/albums', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id, ...updates }),
+      });
+      if (res.ok) {
+        const json = await res.json();
+        if (json.album) {
+          setAlbums(prev => prev.map(a => a.id === id ? json.album : a));
+          try {
+            const bc = new BroadcastChannel('4andone_sync');
+            bc.postMessage({ type: 'SYNC_ALBUMS' });
+            bc.close();
+          } catch (e) {}
+        }
+      }
+    } catch (e) {
+      console.error('updateAlbum failed:', e);
+    }
+  };
+
+  const deleteAlbum = async (id: string) => {
+    try {
+      const res = await fetch(`/api/albums?id=${encodeURIComponent(id)}`, {
+        method: 'DELETE',
+      });
+      if (res.ok) {
+        setAlbums(prev => prev.filter(a => a.id !== id));
+        try {
+          const bc = new BroadcastChannel('4andone_sync');
+          bc.postMessage({ type: 'SYNC_ALBUMS' });
+          bc.close();
+        } catch (e) {}
+      }
+    } catch (e) {
+      console.error('deleteAlbum failed:', e);
+    }
+  };
+
+  const reorderAlbums = async (albumIds: string[]) => {
+    try {
+      setAlbums(prev => {
+        const map = new Map(prev.map(a => [a.id, a]));
+        const next: Album[] = [];
+        albumIds.forEach((id, idx) => {
+          const album = map.get(id);
+          if (album) {
+            next.push({ ...album, orderIndex: idx });
+            map.delete(id);
+          }
+        });
+        map.forEach(a => next.push({ ...a, orderIndex: next.length }));
+        return next;
+      });
+
+      const res = await fetch('/api/albums/reorder', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ albumIds }),
+      });
+      if (res.ok) {
+        const json = await res.json();
+        if (json.albums) setAlbums(json.albums);
+        try {
+          const bc = new BroadcastChannel('4andone_sync');
+          bc.postMessage({ type: 'SYNC_ALBUMS' });
+          bc.close();
+        } catch (e) {}
+      }
+    } catch (e) {
+      console.error('reorderAlbums failed:', e);
+    }
+  };
+
   const stats = {
     totalTracks: tracks.length,
     totalFolders: folders.length,
@@ -925,6 +1064,7 @@ export const StudioProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       finalTracks, finalFolders, addFinalFolder, removeFinalFolder,
       addToFinal, removeFromFinal, reorderFinalTracks, setFinalTracks,
       reorderGlobalTracks, reorderTracks, moveTrack, addTrackToFinalFolder, getTracksForFinalFolder,
+      albums, refreshAlbums, addAlbum, updateAlbum, deleteAlbum, reorderAlbums,
       stats,
       isLoading,
       refreshData: fetchData

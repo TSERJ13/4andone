@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState, useRef } from 'react';
+import Link from 'next/link';
 import { useStudio } from '@/components/admin/StudioProvider';
 import { Album } from '@/types/album';
 import { 
@@ -229,10 +230,16 @@ export default function AdminAlbumsPage() {
             Create, customize, and reorder dynamic albums without touching any code. Albums update automatically on the homepage carousel and dedicate pages.
           </p>
         </div>
-        <button className="btn-primary-create" onClick={openCreateModal}>
-          <Plus size={18} />
-          <span>Create New Album</span>
-        </button>
+        <div style={{ display: 'flex', gap: '12px', alignItems: 'center' }}>
+          <Link href="/admin/dashboard" className="btn-bulk-link">
+            <Upload size={16} />
+            <span>Bulk Upload Tracks</span>
+          </Link>
+          <button className="btn-primary-create" onClick={openCreateModal}>
+            <Plus size={18} />
+            <span>Create New Album</span>
+          </button>
+        </div>
       </div>
 
       {/* Overview Stats Bar */}
@@ -337,6 +344,13 @@ export default function AdminAlbumsPage() {
 
               {/* Action Buttons */}
               <div className="album-actions">
+                <Link
+                  href={`/admin/dashboard?album=${album.slug}`}
+                  className="action-icon-btn upload-tracks-btn"
+                  title="Bulk Upload Tracks to this Album"
+                >
+                  <Upload size={18} />
+                </Link>
                 <a 
                   href={`/album/${album.slug}`} 
                   target="_blank" 
@@ -711,6 +725,30 @@ export default function AdminAlbumsPage() {
           transform: translateY(-2px);
         }
 
+        .btn-bulk-link {
+          display: flex;
+          align-items: center;
+          gap: 8px;
+          padding: 12px 20px;
+          border-radius: 14px;
+          background: rgba(255, 255, 255, 0.05);
+          color: white;
+          border: 1px solid rgba(255, 255, 255, 0.1);
+          font-weight: 700;
+          font-size: 0.95rem;
+          cursor: pointer;
+          text-decoration: none;
+          transition: all 0.2s ease;
+          flex-shrink: 0;
+        }
+
+        .btn-bulk-link:hover {
+          background: rgba(255, 255, 255, 0.1);
+          border-color: #1db954;
+          color: #1db954;
+          transform: translateY(-2px);
+        }
+
         .stats-row {
           display: grid;
           grid-template-columns: repeat(3, 1fr);
@@ -924,6 +962,7 @@ export default function AdminAlbumsPage() {
           transform: translateY(-2px);
         }
 
+        .upload-tracks-btn:hover { color: #1db954; border-color: #1db954; }
         .preview-btn:hover { color: #38bdf8; border-color: #38bdf8; }
         .edit-btn:hover { color: #f59e0b; border-color: #f59e0b; }
         .delete-btn:hover { color: #ef4444; border-color: #ef4444; }

@@ -23,8 +23,10 @@ import {
   Tag as TagIcon,
   X as XIcon,
   CheckSquare,
-  Square
+  Square,
+  Upload
 } from 'lucide-react';
+import Link from 'next/link';
 import AddTrackModal from '@/components/admin/AddTrackModal';
 import ConfirmModal from '@/components/admin/ConfirmModal';
 import { useAudio } from '@/components/audio/AudioProvider';
@@ -228,13 +230,19 @@ const AdminLibrary = () => {
               onChange={(e) => setSearchQuery(e.target.value)}
             />
           </div>
-          <button className="btn-primary" onClick={() => {
-            setSelectedTrack(null);
-            setIsAddModalOpen(true);
-          }}>
-            <Plus size={18} />
-            Add Track
-          </button>
+          <div style={{ display: 'flex', gap: '10px' }}>
+            <Link href="/admin/dashboard" className="btn-secondary glass" style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '10px 18px', borderRadius: '12px', color: 'white', textDecoration: 'none', fontSize: '14px', fontWeight: 700, border: '1px solid rgba(255,255,255,0.1)' }}>
+              <Upload size={16} />
+              <span>Bulk Upload</span>
+            </Link>
+            <button className="btn-primary" onClick={() => {
+              setSelectedTrack(null);
+              setIsAddModalOpen(true);
+            }}>
+              <Plus size={18} />
+              Add Track
+            </button>
+          </div>
         </div>
         <div className="breadcrumb-nav glass">
           <button 

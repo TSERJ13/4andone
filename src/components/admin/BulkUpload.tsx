@@ -16,9 +16,10 @@ import {
   Activity,
   Tag as TagIcon,
   Trash2,
-  Layers
+  Layers,
+  Disc
 } from 'lucide-react';
-import { useStudio } from './StudioProvider';
+import { useStudio, Album } from './StudioProvider';
 import { 
   detectBPM, 
   getStyleFromBPM, 
@@ -46,14 +47,66 @@ interface StagedFile {
   style: string;
   artist: string;
   album: string;
+  destinations?: Record<string, boolean>;
+  gocDiscipline?: 'Latin' | 'Standard';
   tags: string[]; // Tag names
 }
 
+export const computeDestinationTagsAndAlbum = (
+  destinations: Record<string, boolean>,
+  gocDiscipline: 'Latin' | 'Standard',
+  baseTags: string[],
+  fallbackAlbum?: string,
+  albumsList: Album[] = []
+): { album: string; tags: string[] } => {
+  let finalTags = [...baseTags].filter(t => {
+    if (t.startsWith('paso-')) return false;
+    if (t === 'GOC 2026' || t === 'GOC Latin' || t === 'GOC Standard' || t === 'Standard Library') return false;
+    for (const alb of albumsList) {
+      if (t.toLowerCase() === alb.title.toLowerCase()) return false;
+      if (alb.tags?.some((at: string) => at.toLowerCase() === t.toLowerCase())) return false;
+    }
+    return true;
+  });
+
+  if (destinations.standard) {
+    finalTags.push('Standard Library');
+  }
+
+  let finalAlbum = fallbackAlbum && fallbackAlbum !== 'Bulk Upload' && fallbackAlbum !== 'Standard Library' ? fallbackAlbum : '';
+
+  for (const alb of albumsList) {
+    if (destinations[alb.slug]) {
+      if (!finalAlbum) finalAlbum = alb.title;
+      if (!finalTags.includes(alb.title)) {
+        finalTags.push(alb.title);
+      }
+      if (alb.tags) {
+        alb.tags.forEach((t: string) => {
+          if (!finalTags.includes(t)) finalTags.push(t);
+        });
+      }
+      if (alb.slug === 'goc-2026' || alb.slug === 'goc') {
+        finalTags.push(gocDiscipline === 'Standard' ? 'GOC Standard' : 'GOC Latin');
+      }
+    }
+  }
+
+  return {
+    album: finalAlbum || (destinations.standard ? 'Standard Library' : ''),
+    tags: finalTags
+  };
+};
+
 const BulkUpload = () => {
-  const { addTrack, folders, styles, tags: availableTags } = useStudio();
+  const { addTrack, folders, styles, tags: availableTags, albums } = useStudio();
   const [files, setFiles] = useState<StagedFile[]>([]);
   const [isDragging, setIsDragging] = useState(false);
   
+  // Destination selection (Standard Library + Dynamic Albums)
+  const [batchDestinations, setBatchDestinations] = useState<Record<string, boolean>>({ standard: true });
+  const [batchGocDiscipline, setBatchGocDiscipline] = useState<'Latin' | 'Standard'>('Latin');
+
   // Batch defaults (now optional)
   const [batchAlbum, setBatchAlbum] = useState('');
   const [batchArtist, setBatchArtist] = useState('');
@@ -72,7 +125,48 @@ const BulkUpload = () => {
   useEffect(() => {
     const saved = localStorage.getItem('recentArtists');
     if (saved) setRecentArtists(JSON.parse(saved));
-  }, []);
+
+    if (typeof window !== 'undefined' && albums.length > 0) {
+      const params = new URLSearchParams(window.location.search);
+      const preselectedSlug = params.get('album');
+      if (preselectedSlug) {
+        const target = albums.find(a => a.slug === preselectedSlug);
+        if (target) {
+          setBatchDestinations({ standard: false, [target.slug]: true });
+          setBatchAlbum(target.title);
+          if (target.artist) setBatchArtist(target.artist);
+        }
+      }
+    }
+  }, [albums]);
+
+  const toggleBatchDestination = (key: string) => {
+    const nextVal = !batchDestinations[key];
+    const updated = { ...batchDestinations, [key]: nextVal };
+
+    // Ensure at least one destination remains active
+    const hasAny = Object.values(updated).some(v => v);
+    if (!hasAny) {
+      updated.standard = true;
+    }
+
+    setBatchDestinations(updated);
+
+    // Auto-suggest artist and album if selecting an album
+    if (key !== 'standard' && nextVal) {
+      const targetAlbum = albums.find(a => a.slug === key);
+      if (targetAlbum) {
+        if (!batchArtist || batchArtist === 'Unknown Artist') {
+          if (targetAlbum.artist) setBatchArtist(targetAlbum.artist);
+        }
+        if (!batchAlbum) {
+          setBatchAlbum(targetAlbum.title);
+        }
+      }
+    } else if (key === 'standard' && nextVal && !Object.keys(updated).some(k => k !== 'standard' && updated[k])) {
+      setBatchAlbum('Standard Library');
+    }
+  };
 
   const processFiles = async (fileList: FileList | null) => {
     if (!fileList) return;
@@ -122,21 +216,31 @@ const BulkUpload = () => {
           finalTitle = finalTitle.replace(/[_\-]/g, ' ');
         }
 
-          const defaultTempo = detectedStyle ? getDefaultTempoForStyle(detectedStyle) : null;
-          return {
-            id,
-            file,
-            progress: 0,
-            status: 'pending' as const,
-            isAnalyzing: true,
-            title: finalTitle,
-            artist: autoArtist,
-            bpm: defaultTempo ? defaultTempo.bpm.toString() : '0',
-            duration: 0,
-            style: detectedStyle,
-            album: batchAlbum || 'Bulk Upload',
-            tags: [...batchTags]
-          };
+        const destMeta = computeDestinationTagsAndAlbum(
+          batchDestinations,
+          batchGocDiscipline,
+          [...batchTags],
+          batchAlbum,
+          albums
+        );
+
+        const defaultTempo = detectedStyle ? getDefaultTempoForStyle(detectedStyle) : null;
+        return {
+          id,
+          file,
+          progress: 0,
+          status: 'pending' as const,
+          isAnalyzing: true,
+          title: finalTitle,
+          artist: autoArtist,
+          bpm: defaultTempo ? defaultTempo.bpm.toString() : '0',
+          duration: 0,
+          style: detectedStyle,
+          album: destMeta.album || batchAlbum || 'Standard Library',
+          destinations: { ...batchDestinations },
+          gocDiscipline: batchGocDiscipline,
+          tags: destMeta.tags
+        };
       });
 
     setFiles(prev => [...prev, ...newFilesBase]);
@@ -198,14 +302,26 @@ const BulkUpload = () => {
 
   const applyBatchMetadata = () => {
     const batchTempo = batchStyle ? getDefaultTempoForStyle(batchStyle) : null;
-    setFiles(prev => prev.map(f => f.status === 'pending' ? {
-      ...f,
-      artist: batchArtist || f.artist,
-      album: batchAlbum || f.album,
-      style: batchStyle || f.style,
-      ...(batchTempo ? { bpm: batchTempo.bpm.toString() } : {}),
-      tags: batchTags.length > 0 ? [...batchTags] : f.tags
-    } : f));
+    setFiles(prev => prev.map(f => {
+      if (f.status !== 'pending') return f;
+      const destMeta = computeDestinationTagsAndAlbum(
+        batchDestinations,
+        batchGocDiscipline,
+        batchTags.length > 0 ? [...batchTags] : f.tags,
+        batchAlbum,
+        albums
+      );
+      return {
+        ...f,
+        artist: batchArtist || f.artist,
+        album: destMeta.album || batchAlbum || f.album,
+        style: batchStyle || f.style,
+        destinations: { ...batchDestinations },
+        gocDiscipline: batchGocDiscipline,
+        ...(batchTempo ? { bpm: batchTempo.bpm.toString() } : {}),
+        tags: destMeta.tags
+      };
+    }));
   };
 
   const toggleTagInBatch = (tagName: string) => {
@@ -302,18 +418,26 @@ const BulkUpload = () => {
         xhr.send(f.file);
         await uploadPromise;
 
+        const destMeta = computeDestinationTagsAndAlbum(
+          f.destinations || batchDestinations,
+          f.gocDiscipline || batchGocDiscipline,
+          f.tags,
+          f.album || batchAlbum,
+          albums
+        );
+
         // 3. Register in Supabase
         await addTrack({
           title: f.title,
-          artist: f.artist,
-          album: f.album,
+          artist: f.artist || batchArtist || 'Unknown Artist',
+          album: destMeta.album || undefined,
           style: f.style,
           bpm: f.bpm || '0',
           duration: f.duration || 0,
           audioUrl: publicUrl,
-          artworkUrl: commonArtworkUrl, // Apply batch artwork
+          artworkUrl: commonArtworkUrl || undefined,
           folderId: targetFolderId || undefined,
-          tags: f.tags
+          tags: destMeta.tags
         });
 
         setFiles(current => current.map(curr => 
@@ -361,6 +485,74 @@ const BulkUpload = () => {
         <>
           <div className="batch-header-bar glass">
             <div className="batch-main-meta">
+              {/* ROW 0: Collection Destination Selector */}
+              <div className="batch-dest-group">
+                <div className="batch-dest-header">
+                  <div className="dest-title-with-icon">
+                    <Disc size={16} style={{ color: '#ff416c' }} />
+                    <span className="dest-title-text">Collection Destination (ალბომი / კოლექცია)</span>
+                  </div>
+                  <span className="dest-sub-hint">Multi-select enabled (ერთდროულად რამდენიმეს არჩევა)</span>
+                </div>
+
+                <div className="batch-dest-chips">
+                  <button
+                    type="button"
+                    className={`batch-dest-chip standard-chip ${batchDestinations.standard ? 'active' : ''}`}
+                    onClick={() => toggleBatchDestination('standard')}
+                  >
+                    <div className="dest-chip-dot"></div>
+                    <span>Standard Library</span>
+                  </button>
+
+                  {albums.map(alb => {
+                    const isSelected = !!batchDestinations[alb.slug];
+                    const color = alb.themeColor || '#ff416c';
+                    return (
+                      <button
+                        key={alb.id || alb.slug}
+                        type="button"
+                        className={`batch-dest-chip ${isSelected ? 'active' : ''}`}
+                        style={{
+                          '--chip-color': color,
+                          borderColor: isSelected ? color : 'rgba(255,255,255,0.08)',
+                          backgroundColor: isSelected ? `${color}25` : 'rgba(255,255,255,0.03)',
+                          color: isSelected ? 'white' : '#a1a1aa',
+                          boxShadow: isSelected ? `0 0 16px ${color}35` : 'none',
+                        } as any}
+                        onClick={() => toggleBatchDestination(alb.slug)}
+                      >
+                        <div className="dest-chip-dot" style={{ backgroundColor: color }}></div>
+                        {alb.badge && <span className="dest-chip-badge">{alb.badge}</span>}
+                        <span className="dest-chip-name">{alb.title}</span>
+                      </button>
+                    );
+                  })}
+                </div>
+
+                {(batchDestinations['goc-2026'] || batchDestinations['goc']) && (
+                  <div className="batch-goc-discipline-box animate-in">
+                    <span className="goc-discipline-label">Select Discipline:</span>
+                    <div className="goc-discipline-btns">
+                      <button
+                        type="button"
+                        className={`goc-discipline-btn latin ${batchGocDiscipline === 'Latin' ? 'active' : ''}`}
+                        onClick={() => setBatchGocDiscipline('Latin')}
+                      >
+                        🔥 GOC Latin
+                      </button>
+                      <button
+                        type="button"
+                        className={`goc-discipline-btn standard ${batchGocDiscipline === 'Standard' ? 'active' : ''}`}
+                        onClick={() => setBatchGocDiscipline('Standard')}
+                      >
+                        ⚡ GOC Standard
+                      </button>
+                    </div>
+                  </div>
+                )}
+              </div>
+
               {/* ROW 1: Album and Artist */}
               <div className="inputs-row">
                 <div className="meta-field-group">
@@ -368,42 +560,10 @@ const BulkUpload = () => {
                     <FolderPlus size={16} className="meta-icon" />
                     <input 
                       type="text" 
-                      placeholder="Collection / Album (e.g. GOC 2026)" 
+                      placeholder="Collection / Album (optional override)" 
                       value={batchAlbum}
                       onChange={(e) => setBatchAlbum(e.target.value)}
                     />
-                  </div>
-                  <div className="recent-artists-suggestions">
-                    <button 
-                      type="button" 
-                      className={`artist-suggestion-chip ${batchAlbum === 'GOC 2026' && batchTags.includes('GOC Latin') ? 'active-goc' : ''}`}
-                      onClick={() => {
-                        setBatchAlbum('GOC 2026');
-                        setBatchTags(prev => {
-                          const filtered = prev.filter(t => t !== 'GOC Standard');
-                          if (!filtered.includes('GOC 2026')) filtered.push('GOC 2026');
-                          if (!filtered.includes('GOC Latin')) filtered.push('GOC Latin');
-                          return filtered;
-                        });
-                      }}
-                    >
-                      🔥 GOC 2026 Latin
-                    </button>
-                    <button 
-                      type="button" 
-                      className={`artist-suggestion-chip ${batchAlbum === 'GOC 2026' && batchTags.includes('GOC Standard') ? 'active-goc' : ''}`}
-                      onClick={() => {
-                        setBatchAlbum('GOC 2026');
-                        setBatchTags(prev => {
-                          const filtered = prev.filter(t => t !== 'GOC Latin');
-                          if (!filtered.includes('GOC 2026')) filtered.push('GOC 2026');
-                          if (!filtered.includes('GOC Standard')) filtered.push('GOC Standard');
-                          return filtered;
-                        });
-                      }}
-                    >
-                      ⚡ GOC 2026 Standard
-                    </button>
                   </div>
                 </div>
                 <div className="meta-field-group">
@@ -571,7 +731,13 @@ const BulkUpload = () => {
                 onClick={startUpload}
               >
                 <Plus size={18} />
-                <span>{isReadyToUpload ? `Start Upload (${files.length} Tracks)` : 'Enter Collection & Artist'}</span>
+                <span>
+                  {files.some(f => f.isAnalyzing) 
+                    ? 'Analyzing Audio...' 
+                    : files.some(f => f.status === 'uploading')
+                      ? 'Uploading...'
+                      : `Start Upload (${files.filter(f => f.status === 'pending').length} Tracks)`}
+                </span>
               </button>
             </div>
           </div>
@@ -579,7 +745,8 @@ const BulkUpload = () => {
           <div className="staging-table">
             <div className="table-header">
               <div className="col-status">#</div>
-              <div className="col-info">Track Info</div>
+              <div className="col-info">Track / Artist</div>
+              <div className="col-album">Destination</div>
               <div className="col-style">Style</div>
               <div className="col-bpm">Beats/Min</div>
               <div className="col-mpm">Bars/Min</div>
@@ -602,6 +769,50 @@ const BulkUpload = () => {
                       onChange={(e) => updateFileMeta(f.id, { title: e.target.value })}
                       placeholder="Title"
                     />
+                    <div className="row-artist-wrapper">
+                      <span className="row-artist-label">by</span>
+                      <input 
+                        className="row-artist-input"
+                        value={f.artist}
+                        onChange={(e) => updateFileMeta(f.id, { artist: e.target.value })}
+                        placeholder="Artist"
+                      />
+                    </div>
+                  </div>
+
+                  <div className="col-album">
+                    <select 
+                      className="row-select row-album-select"
+                      value={f.album || 'Standard Library'}
+                      onChange={(e) => {
+                        const chosenTitle = e.target.value;
+                        const targetAlbum = albums.find(a => a.title === chosenTitle);
+                        const newDests: Record<string, boolean> = { standard: chosenTitle === 'Standard Library' };
+                        if (targetAlbum) {
+                          newDests[targetAlbum.slug] = true;
+                        }
+                        const destMeta = computeDestinationTagsAndAlbum(
+                          newDests,
+                          f.gocDiscipline || batchGocDiscipline,
+                          f.tags,
+                          chosenTitle,
+                          albums
+                        );
+                        updateFileMeta(f.id, { 
+                          album: chosenTitle,
+                          destinations: newDests,
+                          tags: destMeta.tags,
+                          ...(targetAlbum?.artist && (!f.artist || f.artist === 'Unknown Artist') ? { artist: targetAlbum.artist } : {})
+                        });
+                      }}
+                    >
+                      <option value="Standard Library">📁 Standard Library</option>
+                      {albums.map(alb => (
+                        <option key={alb.id || alb.slug} value={alb.title}>
+                          💿 {alb.title}
+                        </option>
+                      ))}
+                    </select>
                   </div>
 
                   <div className="col-style">
@@ -690,6 +901,38 @@ const BulkUpload = () => {
           border: 1px solid rgba(255,255,255,0.05); background: rgba(255,255,255,0.02);
         }
         .batch-main-meta { flex: 1; display: flex; flex-direction: column; gap: 20px; }
+
+        /* Destination Section */
+        .batch-dest-group { display: flex; flex-direction: column; gap: 10px; width: 100%; }
+        .batch-dest-header { display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 6px; }
+        .dest-title-with-icon { display: flex; align-items: center; gap: 8px; }
+        .dest-title-text { font-size: 13px; font-weight: 900; color: #ff416c; text-transform: uppercase; letter-spacing: 0.5px; }
+        .dest-sub-hint { font-size: 11px; color: #71717a; font-weight: 600; }
+        .batch-dest-chips { display: flex; flex-wrap: wrap; gap: 8px; }
+        .batch-dest-chip {
+          display: inline-flex; align-items: center; gap: 8px; padding: 8px 14px;
+          border-radius: 12px; font-size: 12px; font-weight: 800; cursor: pointer;
+          border: 1px solid rgba(255,255,255,0.08); background: rgba(255,255,255,0.03);
+          color: #a1a1aa; transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+        }
+        .batch-dest-chip:hover { border-color: rgba(255,255,255,0.2); transform: translateY(-1px); }
+        .batch-dest-chip.standard-chip.active {
+          border-color: #38bdf8 !important; color: #38bdf8 !important;
+          background: rgba(56, 189, 248, 0.15) !important;
+          box-shadow: 0 0 16px rgba(56, 189, 248, 0.25) !important;
+        }
+        .dest-chip-dot { width: 7px; height: 7px; border-radius: 50%; background: #71717a; }
+        .standard-chip .dest-chip-dot { background: #38bdf8; }
+        .dest-chip-badge { font-size: 9px; font-weight: 950; opacity: 0.6; text-transform: uppercase; letter-spacing: 0.5px; }
+        .dest-chip-name { font-size: 12px; font-weight: 800; }
+
+        .batch-goc-discipline-box { display: flex; align-items: center; gap: 12px; margin-top: 6px; padding: 10px 14px; border-radius: 12px; background: rgba(239, 68, 68, 0.05); border: 1px solid rgba(239, 68, 68, 0.15); width: fit-content; }
+        .goc-discipline-label { font-size: 11px; font-weight: 800; color: #f87171; text-transform: uppercase; }
+        .goc-discipline-btns { display: flex; gap: 6px; }
+        .goc-discipline-btn { padding: 4px 12px; border-radius: 8px; font-size: 12px; font-weight: 800; border: 1px solid rgba(255,255,255,0.1); background: rgba(255,255,255,0.04); color: #71717a; cursor: pointer; transition: all 0.2s; }
+        .goc-discipline-btn.latin.active { background: #ef4444; color: white; border-color: #ef4444; box-shadow: 0 0 12px rgba(239, 68, 68, 0.4); }
+        .goc-discipline-btn.standard.active { background: #3b82f6; color: white; border-color: #3b82f6; box-shadow: 0 0 12px rgba(59, 130, 246, 0.4); }
+
         .inputs-row { display: flex; gap: 12px; }
         .meta-field { position: relative; flex: 1; display: flex; align-items: center; }
         .meta-icon { position: absolute; left: 14px; color: #71717a; }
@@ -789,23 +1032,38 @@ const BulkUpload = () => {
           border: 1px solid rgba(255,255,255,0.05);
         }
         .table-header { 
-          display: grid; grid-template-columns: 50px 1fr 140px 90px 90px 200px 60px;
+          display: grid; grid-template-columns: 44px 1.8fr 1.3fr 130px 75px 75px 180px 44px;
           padding: 12px 20px; background: rgba(255,255,255,0.03);
           font-size: 11px; font-weight: 900; color: #52525b; text-transform: uppercase; letter-spacing: 0.5px;
         }
         .table-body { max-height: 480px; overflow-y: auto; }
         .table-row { 
-          display: grid; grid-template-columns: 50px 1fr 140px 90px 90px 200px 60px;
-          padding: 8px 20px; border-bottom: 1px solid rgba(255,255,255,0.03);
+          display: grid; grid-template-columns: 44px 1.8fr 1.3fr 130px 75px 75px 180px 44px;
+          padding: 10px 20px; border-bottom: 1px solid rgba(255,255,255,0.03);
           align-items: center; transition: background 0.2s;
         }
         .table-row:hover { background: rgba(255,255,255,0.03); }
         
         .col-status { text-align: center; color: #52525b; }
         .row-number { font-size: 12px; font-weight: 800; }
-        .row-title-input { background: transparent; border: none; color: white; font-size: 14px; font-weight: 700; width: 100%; outline: none; }
-        .row-select { background: rgba(255,255,255,0.05); border: none; color: #a1a1aa; font-size: 12px; font-weight: 700; padding: 4px 8px; border-radius: 6px; width: 100%; cursor: pointer; outline: none; }
-        .row-bpm-input { background: rgba(255,255,255,0.05); border: none; color: white; font-size: 12px; font-weight: 800; width: 50px; text-align: center; padding: 4px; border-radius: 6px; outline: none; }
+        .row-title-input { background: transparent; border: none; color: white; font-size: 14px; font-weight: 700; width: 100%; outline: none; margin-bottom: 3px; }
+        .row-title-input:focus { color: #1db954; }
+        .row-artist-wrapper { display: flex; align-items: center; gap: 6px; }
+        .row-artist-label { font-size: 11px; color: #71717a; font-weight: 600; }
+        .row-artist-input { background: transparent; border: none; color: #a1a1aa; font-size: 12px; font-weight: 600; width: 100%; outline: none; }
+        .row-artist-input:focus { color: white; }
+
+        .col-album { padding-right: 8px; }
+        .row-album-select { 
+          background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.08); 
+          color: #ff416c; font-size: 12px; font-weight: 700; padding: 6px 10px; 
+          border-radius: 8px; width: 100%; cursor: pointer; outline: none; 
+          transition: all 0.2s;
+        }
+        .row-album-select:focus { border-color: #ff416c; background: rgba(255,65,108,0.1); }
+
+        .row-select { background: rgba(255,255,255,0.05); border: none; color: #a1a1aa; font-size: 12px; font-weight: 700; padding: 6px 8px; border-radius: 6px; width: 100%; cursor: pointer; outline: none; }
+        .row-bpm-input { background: rgba(255,255,255,0.05); border: none; color: white; font-size: 12px; font-weight: 800; width: 55px; text-align: center; padding: 6px 4px; border-radius: 6px; outline: none; }
         
         .row-tags-list { display: flex; flex-wrap: wrap; gap: 4px; }
         .row-tag-btn { 
@@ -846,7 +1104,7 @@ const BulkUpload = () => {
         @keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
         
         @media (max-width: 1200px) {
-          .table-header, .table-row { grid-template-columns: 50px 1fr 140px 60px 180px 50px; }
+          .table-header, .table-row { grid-template-columns: 44px 1.5fr 1fr 110px 65px 65px 140px 40px; }
         }
 
         @media (max-width: 900px) {
@@ -855,7 +1113,7 @@ const BulkUpload = () => {
           .table-header { display: none; }
           .table-row { grid-template-columns: 1fr 1fr; gap: 12px; padding: 20px; height: auto; }
           .col-status, .col-actions { display: none; }
-          .col-info, .col-style, .col-bpm, .col-tags { grid-column: span 2; }
+          .col-info, .col-album, .col-style, .col-bpm, .col-mpm, .col-tags { grid-column: span 2; }
           .row-title-input { font-size: 16px; border-bottom: 1px solid rgba(255,255,255,0.1); }
         }
       `}</style>

@@ -17,7 +17,8 @@ import {
   Tag as TagIcon,
   Trash2,
   Layers,
-  Disc
+  Disc,
+  ChevronDown
 } from 'lucide-react';
 import { useStudio, Album } from './StudioProvider';
 import { 
@@ -103,12 +104,13 @@ const BulkUpload = () => {
   const [files, setFiles] = useState<StagedFile[]>([]);
   const [isDragging, setIsDragging] = useState(false);
   
-  // Destination selection (Standard Library + Dynamic Albums)
+  // Destination selection (Standard Library + Dynamic Albums via Dropdown)
+  const [batchDestKey, setBatchDestKey] = useState<string>('standard');
   const [batchDestinations, setBatchDestinations] = useState<Record<string, boolean>>({ standard: true });
   const [batchGocDiscipline, setBatchGocDiscipline] = useState<'Latin' | 'Standard'>('Latin');
 
   // Batch defaults (now optional)
-  const [batchAlbum, setBatchAlbum] = useState('');
+  const [batchAlbum, setBatchAlbum] = useState('Standard Library');
   const [batchArtist, setBatchArtist] = useState('');
   const [batchStyle, setBatchStyle] = useState('Samba');
   const [batchTags, setBatchTags] = useState<string[]>([]);
@@ -132,7 +134,8 @@ const BulkUpload = () => {
       if (preselectedSlug) {
         const target = albums.find(a => a.slug === preselectedSlug);
         if (target) {
-          setBatchDestinations({ standard: false, [target.slug]: true });
+          setBatchDestKey(target.slug);
+          setBatchDestinations({ standard: true, [target.slug]: true });
           setBatchAlbum(target.title);
           if (target.artist) setBatchArtist(target.artist);
         }
@@ -140,31 +143,26 @@ const BulkUpload = () => {
     }
   }, [albums]);
 
-  const toggleBatchDestination = (key: string) => {
-    const nextVal = !batchDestinations[key];
-    const updated = { ...batchDestinations, [key]: nextVal };
+  const handleDestinationChange = (key: string) => {
+    setBatchDestKey(key);
 
-    // Ensure at least one destination remains active
-    const hasAny = Object.values(updated).some(v => v);
-    if (!hasAny) {
-      updated.standard = true;
-    }
-
-    setBatchDestinations(updated);
-
-    // Auto-suggest artist and album if selecting an album
-    if (key !== 'standard' && nextVal) {
-      const targetAlbum = albums.find(a => a.slug === key);
-      if (targetAlbum) {
-        if (!batchArtist || batchArtist === 'Unknown Artist') {
-          if (targetAlbum.artist) setBatchArtist(targetAlbum.artist);
-        }
-        if (!batchAlbum) {
-          setBatchAlbum(targetAlbum.title);
-        }
-      }
-    } else if (key === 'standard' && nextVal && !Object.keys(updated).some(k => k !== 'standard' && updated[k])) {
+    if (key === 'standard') {
+      setBatchDestinations({ standard: true });
       setBatchAlbum('Standard Library');
+    } else if (key === '__custom__') {
+      setBatchDestinations({ standard: true });
+      setBatchAlbum('');
+    } else {
+      const targetAlbum = albums.find(a => a.slug === key);
+      setBatchDestinations({ [key]: true, standard: true });
+      if (targetAlbum) {
+        setBatchAlbum(targetAlbum.title);
+        if (targetAlbum.artist && (!batchArtist || batchArtist === 'Unknown Artist')) {
+          setBatchArtist(targetAlbum.artist);
+        }
+      } else {
+        setBatchAlbum(key);
+      }
     }
   };
 
@@ -485,87 +483,75 @@ const BulkUpload = () => {
         <>
           <div className="batch-header-bar glass">
             <div className="batch-main-meta">
-              {/* ROW 0: Collection Destination Selector */}
-              <div className="batch-dest-group">
-                <div className="batch-dest-header">
-                  <div className="dest-title-with-icon">
-                    <Disc size={16} style={{ color: '#ff416c' }} />
-                    <span className="dest-title-text">Collection Destination (ალბომი / კოლექცია)</span>
-                  </div>
-                  <span className="dest-sub-hint">Multi-select enabled (ერთდროულად რამდენიმეს არჩევა)</span>
-                </div>
-
-                <div className="batch-dest-chips">
-                  <button
-                    type="button"
-                    className={`batch-dest-chip standard-chip ${batchDestinations.standard ? 'active' : ''}`}
-                    onClick={() => toggleBatchDestination('standard')}
-                  >
-                    <div className="dest-chip-dot"></div>
-                    <span>Standard Library</span>
-                  </button>
-
-                  {albums.map(alb => {
-                    const isSelected = !!batchDestinations[alb.slug];
-                    const color = alb.themeColor || '#ff416c';
-                    return (
-                      <button
-                        key={alb.id || alb.slug}
-                        type="button"
-                        className={`batch-dest-chip ${isSelected ? 'active' : ''}`}
-                        style={{
-                          '--chip-color': color,
-                          borderColor: isSelected ? color : 'rgba(255,255,255,0.08)',
-                          backgroundColor: isSelected ? `${color}25` : 'rgba(255,255,255,0.03)',
-                          color: isSelected ? 'white' : '#a1a1aa',
-                          boxShadow: isSelected ? `0 0 16px ${color}35` : 'none',
-                        } as any}
-                        onClick={() => toggleBatchDestination(alb.slug)}
-                      >
-                        <div className="dest-chip-dot" style={{ backgroundColor: color }}></div>
-                        {alb.badge && <span className="dest-chip-badge">{alb.badge}</span>}
-                        <span className="dest-chip-name">{alb.title}</span>
-                      </button>
-                    );
-                  })}
-                </div>
-
-                {(batchDestinations['goc-2026'] || batchDestinations['goc']) && (
-                  <div className="batch-goc-discipline-box animate-in">
-                    <span className="goc-discipline-label">Select Discipline:</span>
-                    <div className="goc-discipline-btns">
-                      <button
-                        type="button"
-                        className={`goc-discipline-btn latin ${batchGocDiscipline === 'Latin' ? 'active' : ''}`}
-                        onClick={() => setBatchGocDiscipline('Latin')}
-                      >
-                        🔥 GOC Latin
-                      </button>
-                      <button
-                        type="button"
-                        className={`goc-discipline-btn standard ${batchGocDiscipline === 'Standard' ? 'active' : ''}`}
-                        onClick={() => setBatchGocDiscipline('Standard')}
-                      >
-                        ⚡ GOC Standard
-                      </button>
-                    </div>
-                  </div>
-                )}
-              </div>
-
-              {/* ROW 1: Album and Artist */}
+              {/* ROW 1: Destination (Album Dropdown) & Artist */}
               <div className="inputs-row">
                 <div className="meta-field-group">
-                  <div className="meta-field">
-                    <FolderPlus size={16} className="meta-icon" />
-                    <input 
-                      type="text" 
-                      placeholder="Collection / Album (optional override)" 
-                      value={batchAlbum}
-                      onChange={(e) => setBatchAlbum(e.target.value)}
+                  <div className="meta-field dest-field">
+                    <Disc 
+                      size={16} 
+                      className="meta-icon" 
+                      style={{ 
+                        color: batchDestKey !== "standard" && batchDestKey !== "__custom__" 
+                          ? (albums.find(a => a.slug === batchDestKey)?.themeColor || "#ff416c") 
+                          : "#38bdf8" 
+                      }} 
                     />
+                    <select 
+                      className="meta-select dest-meta-select"
+                      value={batchDestKey}
+                      onChange={(e) => handleDestinationChange(e.target.value)}
+                    >
+                      <option value="standard">📁 Standard Library (Main)</option>
+                      {albums.length > 0 && (
+                        <optgroup label="── Albums & Collections ──">
+                          {albums.map(alb => (
+                            <option key={alb.id || alb.slug} value={alb.slug}>
+                              💿 {alb.title} {alb.badge ? `(${alb.badge})` : ""}
+                            </option>
+                          ))}
+                        </optgroup>
+                      )}
+                      <option value="__custom__">✏️ Custom Album Name...</option>
+                    </select>
+                    <ChevronDown size={14} className="meta-chevron" />
                   </div>
+
+                  {batchDestKey === "__custom__" && (
+                    <div className="meta-field custom-album-subfield animate-in">
+                      <FolderPlus size={15} className="meta-icon" />
+                      <input 
+                        type="text" 
+                        placeholder="Type Album or Collection Title..." 
+                        value={batchAlbum === "Standard Library" ? "" : batchAlbum}
+                        onChange={(e) => setBatchAlbum(e.target.value)}
+                        autoFocus
+                      />
+                    </div>
+                  )}
+
+                  {(batchDestKey === "goc-2026" || batchDestKey === "goc") && (
+                    <div className="batch-goc-discipline-box animate-in">
+                      <span className="goc-discipline-label">Discipline:</span>
+                      <div className="goc-discipline-btns">
+                        <button
+                          type="button"
+                          className={`goc-discipline-btn latin ${batchGocDiscipline === "Latin" ? "active" : ""}`}
+                          onClick={() => setBatchGocDiscipline("Latin")}
+                        >
+                          🔥 Latin
+                        </button>
+                        <button
+                          type="button"
+                          className={`goc-discipline-btn standard ${batchGocDiscipline === "Standard" ? "active" : ""}`}
+                          onClick={() => setBatchGocDiscipline("Standard")}
+                        >
+                          ⚡ Standard
+                        </button>
+                      </div>
+                    </div>
+                  )}
                 </div>
+
                 <div className="meta-field-group">
                   <div className="meta-field">
                     <User size={16} className="meta-icon" />
@@ -902,36 +888,36 @@ const BulkUpload = () => {
         }
         .batch-main-meta { flex: 1; display: flex; flex-direction: column; gap: 20px; }
 
-        /* Destination Section */
-        .batch-dest-group { display: flex; flex-direction: column; gap: 10px; width: 100%; }
-        .batch-dest-header { display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 6px; }
-        .dest-title-with-icon { display: flex; align-items: center; gap: 8px; }
-        .dest-title-text { font-size: 13px; font-weight: 900; color: #ff416c; text-transform: uppercase; letter-spacing: 0.5px; }
-        .dest-sub-hint { font-size: 11px; color: #71717a; font-weight: 600; }
-        .batch-dest-chips { display: flex; flex-wrap: wrap; gap: 8px; }
-        .batch-dest-chip {
-          display: inline-flex; align-items: center; gap: 8px; padding: 8px 14px;
-          border-radius: 12px; font-size: 12px; font-weight: 800; cursor: pointer;
-          border: 1px solid rgba(255,255,255,0.08); background: rgba(255,255,255,0.03);
-          color: #a1a1aa; transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+        /* Destination Dropdown Section */
+        .dest-field { position: relative; }
+        .dest-meta-select { 
+          font-weight: 800; cursor: pointer; 
         }
-        .batch-dest-chip:hover { border-color: rgba(255,255,255,0.2); transform: translateY(-1px); }
-        .batch-dest-chip.standard-chip.active {
-          border-color: #38bdf8 !important; color: #38bdf8 !important;
-          background: rgba(56, 189, 248, 0.15) !important;
-          box-shadow: 0 0 16px rgba(56, 189, 248, 0.25) !important;
+        .dest-meta-select option, .dest-meta-select optgroup {
+          background: #18181b;
+          color: white;
+          font-weight: 600;
+          padding: 8px 12px;
         }
-        .dest-chip-dot { width: 7px; height: 7px; border-radius: 50%; background: #71717a; }
-        .standard-chip .dest-chip-dot { background: #38bdf8; }
-        .dest-chip-badge { font-size: 9px; font-weight: 950; opacity: 0.6; text-transform: uppercase; letter-spacing: 0.5px; }
-        .dest-chip-name { font-size: 12px; font-weight: 800; }
+        .custom-album-subfield { margin-top: 6px; }
 
-        .batch-goc-discipline-box { display: flex; align-items: center; gap: 12px; margin-top: 6px; padding: 10px 14px; border-radius: 12px; background: rgba(239, 68, 68, 0.05); border: 1px solid rgba(239, 68, 68, 0.15); width: fit-content; }
+        .batch-goc-discipline-box { 
+          display: flex; align-items: center; gap: 10px; margin-top: 6px; 
+          padding: 6px 12px; border-radius: 10px; 
+          background: rgba(239, 68, 68, 0.06); border: 1px solid rgba(239, 68, 68, 0.2); 
+          width: fit-content; 
+        }
         .goc-discipline-label { font-size: 11px; font-weight: 800; color: #f87171; text-transform: uppercase; }
         .goc-discipline-btns { display: flex; gap: 6px; }
-        .goc-discipline-btn { padding: 4px 12px; border-radius: 8px; font-size: 12px; font-weight: 800; border: 1px solid rgba(255,255,255,0.1); background: rgba(255,255,255,0.04); color: #71717a; cursor: pointer; transition: all 0.2s; }
-        .goc-discipline-btn.latin.active { background: #ef4444; color: white; border-color: #ef4444; box-shadow: 0 0 12px rgba(239, 68, 68, 0.4); }
-        .goc-discipline-btn.standard.active { background: #3b82f6; color: white; border-color: #3b82f6; box-shadow: 0 0 12px rgba(59, 130, 246, 0.4); }
+        .goc-discipline-btn { 
+          padding: 4px 10px; border-radius: 8px; font-size: 11px; font-weight: 800; 
+          border: 1px solid rgba(255,255,255,0.1); background: rgba(255,255,255,0.04); 
+          color: #71717a; cursor: pointer; transition: all 0.2s; 
+        }
+        .goc-discipline-btn.latin.active { background: #ef4444; color: white; border-color: #ef4444; box-shadow: 0 0 10px rgba(239, 68, 68, 0.4); }
+        .goc-discipline-btn.standard.active { background: #3b82f6; color: white; border-color: #3b82f6; box-shadow: 0 0 10px rgba(59, 130, 246, 0.4); }
+
+        .meta-chevron { position: absolute; right: 14px; color: #71717a; pointer-events: none; }
 
         .inputs-row { display: flex; gap: 12px; }
         .meta-field { position: relative; flex: 1; display: flex; align-items: center; }

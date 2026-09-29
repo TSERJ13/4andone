@@ -88,8 +88,8 @@ const AddTrackModal = ({ isOpen, onClose, onAdd, initialData }: AddTrackModalPro
   });
 
   const toggleDestination = (key: string) => {
+    const nextVal = !destinations[key];
     setDestinations(prev => {
-      const nextVal = !prev[key];
       const updated = { ...prev, [key]: nextVal };
 
       // Ensure at least one destination remains active
@@ -97,21 +97,26 @@ const AddTrackModal = ({ isOpen, onClose, onAdd, initialData }: AddTrackModalPro
       if (!hasAny) {
         updated.standard = true;
       }
-
-      // Auto-suggest artist if empty
-      if (key !== 'standard' && nextVal && (!formData.artist || formData.artist === 'Unknown')) {
-        const targetAlbum = albums.find(a => a.slug === key);
-        if (targetAlbum?.artist) {
-          setFormData(p => ({ ...p, artist: targetAlbum.artist }));
-        }
-      }
-
       return updated;
     });
+
+    // Auto-suggest artist and cover if empty
+    if (key !== 'standard' && nextVal) {
+      const targetAlbum = albums.find(a => a.slug === key);
+      if (targetAlbum?.artist && (!formData.artist || formData.artist === 'Unknown')) {
+        setFormData(p => ({ ...p, artist: targetAlbum.artist }));
+      }
+      if (targetAlbum?.coverUrl && !coverPreview && !formData.artworkUrl) {
+        setFormData(p => ({ ...p, artworkUrl: targetAlbum.coverUrl }));
+        setCoverPreview(targetAlbum.coverUrl);
+      }
+    }
   };
 
   const fileInputRef = useRef<HTMLInputElement>(null);
   const coverInputRef = useRef<HTMLInputElement>(null);
+  const prevIsOpenRef = useRef(false);
+  const prevInitialDataIdRef = useRef<string | null>(null);
 
   const resetForm = () => {
     setFormData({
@@ -133,27 +138,41 @@ const AddTrackModal = ({ isOpen, onClose, onAdd, initialData }: AddTrackModalPro
     const saved = localStorage.getItem('recentArtists');
     if (saved) setRecentArtists(JSON.parse(saved));
 
-    if (isOpen && initialData) {
-      setFormData({
-        title: initialData.title,
-        artist: initialData.artist,
-        album: initialData.album || '',
-        style: initialData.style,
-        tags: initialData.tags || [],
-        bpm: initialData.bpm,
-        artworkUrl: initialData.artworkUrl || '',
-        isClosed: initialData.tags?.some((t: string) => t.toLowerCase() === 'closed' || t === 'დახურული') || false
-      });
-      setDestinations(getInitialDestinations(initialData, albums));
-      setGocDiscipline(initialData.tags?.includes('GOC Standard') ? 'Standard' : 'Latin');
-      setCoverPreview(initialData.artworkUrl || null);
-      if (initialData.bpm) setMpmState(getMPMFromBPM(Number(initialData.bpm), initialData.style).toString());
-      setPasoTheme(initialData.tags?.includes('paso-2-theme') ? '2-theme' : initialData.tags?.includes('paso-3-theme') ? '3-theme' : '');
-      setPasoVersion(initialData.tags?.includes('paso-wdsf') ? 'wdsf' : initialData.tags?.includes('paso-other') ? 'other' : '');
-    } else if (isOpen && !initialData) {
-      resetForm();
+    const justOpened = isOpen && !prevIsOpenRef.current;
+    const initialDataChanged = isOpen && (
+      (initialData && initialData.id !== prevInitialDataIdRef.current) ||
+      (!initialData && prevInitialDataIdRef.current !== null)
+    );
+
+    prevIsOpenRef.current = isOpen;
+    prevInitialDataIdRef.current = initialData?.id || null;
+
+    // ONLY initialize/reset the form when the modal first opens or when the edited track changes.
+    // Never reset when albums, styles, or background sync causes a re-render!
+    if (justOpened || initialDataChanged) {
+      if (initialData) {
+        setFormData({
+          title: initialData.title || '',
+          artist: initialData.artist || '',
+          album: initialData.album || '',
+          style: initialData.style || (styles.length > 0 ? styles[0].title : 'Samba'),
+          tags: initialData.tags || [],
+          bpm: initialData.bpm || '',
+          artworkUrl: initialData.artworkUrl || '',
+          isClosed: initialData.tags?.some((t: string) => t.toLowerCase() === 'closed' || t === 'დახურული') || false
+        });
+        setDestinations(getInitialDestinations(initialData, albums));
+        setGocDiscipline(initialData.tags?.includes('GOC Standard') ? 'Standard' : 'Latin');
+        setCoverPreview(initialData.artworkUrl || null);
+        if (initialData.bpm) setMpmState(getMPMFromBPM(Number(initialData.bpm), initialData.style).toString());
+        setPasoTheme(initialData.tags?.includes('paso-2-theme') ? '2-theme' : initialData.tags?.includes('paso-3-theme') ? '3-theme' : '');
+        setPasoVersion(initialData.tags?.includes('paso-wdsf') ? 'wdsf' : initialData.tags?.includes('paso-other') ? 'other' : '');
+      } else {
+        resetForm();
+      }
     }
-  }, [isOpen, initialData, styles, albums]);
+  }, [isOpen, initialData]);
+
 
   if (!isOpen) return null;
 
@@ -175,8 +194,8 @@ const AddTrackModal = ({ isOpen, onClose, onAdd, initialData }: AddTrackModalPro
 
       setFormData(prev => ({ 
         ...prev, 
-        title: autoTitle, 
-        artist: autoArtist,
+        title: autoTitle || prev.title, 
+        artist: prev.artist || autoArtist,
         style: detectedStyle ? detectedStyle.title : prev.style 
       }));
 
@@ -211,7 +230,7 @@ const AddTrackModal = ({ isOpen, onClose, onAdd, initialData }: AddTrackModalPro
       let duration = initialData?.duration || 0;
 
       if (selectedFile) {
-        const audioFileType = selectedFile.type || 'audio/mpeg';
+        const audioFileType = selectedFile.type || (selectedFile.name.endsWith('.m4a') ? 'audio/mp4' : selectedFile.name.endsWith('.wav') ? 'audio/wav' : 'audio/mpeg');
         const signRes = await fetch('/api/upload', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -580,7 +599,12 @@ const AddTrackModal = ({ isOpen, onClose, onAdd, initialData }: AddTrackModalPro
               </div>
             </div>
 
-            <div className={`audio-zone glass large ${selectedFile ? 'has-file' : ''}`} onClick={() => !isAnalyzing && fileInputRef.current?.click()}>
+            <div className={`audio-zone glass large ${selectedFile ? 'has-file' : ''}`} onClick={() => {
+              if (!isAnalyzing && fileInputRef.current) {
+                fileInputRef.current.value = '';
+                fileInputRef.current.click();
+              }
+            }}>
               {isAnalyzing ? <div className="analyzing-state"><div className="spinner"></div>Analyzing...</div> : selectedFile ? <><CheckCircle2 size={24} className="text-primary" /><span>{selectedFile.name} Ready</span></> : <><Upload size={24} /><span>Upload Audio File</span></>}
               <input type="file" ref={fileInputRef} hidden accept="audio/*" onChange={handleFileChange} />
             </div>

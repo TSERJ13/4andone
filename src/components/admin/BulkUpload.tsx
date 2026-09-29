@@ -636,46 +636,51 @@ const BulkUpload = () => {
               </div>
             </div>
             
-            <div className="batch-cover-side">
-               <div className="batch-dest-label">Batch Cover</div>
-               <div 
-                 className={`batch-cover-zone glass ${batchCoverPreview ? 'has-preview' : ''}`}
-                 onClick={() => coverInputRef.current?.click()}
-               >
-                 {batchCoverPreview ? (
-                   <img src={batchCoverPreview} alt="Batch Cover" className="batch-cover-img" />
-                 ) : (
-                   <Plus size={20} />
-                 )}
-                 <input 
-                   type="file" 
-                   ref={coverInputRef} 
-                   className="hidden" 
-                   accept="image/*" 
-                   onChange={(e) => {
-                     if (e.target.files && e.target.files[0]) {
-                       setBatchCoverFile(e.target.files[0]);
-                       setBatchCoverPreview(URL.createObjectURL(e.target.files[0]));
-                     }
-                   }} 
-                 />
-               </div>
-            </div>
+            {/* Right Side: Cover Art + Target Folder (Stacked together) */}
+            <div className="batch-side-panel">
+              <div className="batch-cover-box">
+                <span className="side-panel-label">Batch Cover</span>
+                <div 
+                  className={`batch-cover-zone glass ${batchCoverPreview ? 'has-preview' : ''}`}
+                  onClick={() => coverInputRef.current?.click()}
+                  title="Upload Cover Art for this batch"
+                >
+                  {batchCoverPreview ? (
+                    <img src={batchCoverPreview} alt="Batch Cover" className="batch-cover-img" />
+                  ) : (
+                    <div className="cover-empty-prompt">
+                      <Plus size={18} />
+                      <span>Art</span>
+                    </div>
+                  )}
+                  <input 
+                    type="file" 
+                    ref={coverInputRef} 
+                    className="hidden" 
+                    accept="image/*" 
+                    onChange={(e) => {
+                      if (e.target.files && e.target.files[0]) {
+                        setBatchCoverFile(e.target.files[0]);
+                        setBatchCoverPreview(URL.createObjectURL(e.target.files[0]));
+                      }
+                    }} 
+                  />
+                </div>
+              </div>
 
-            <div className="batch-actions-side">
-               <div className="target-folder-box">
-                  <span className="dest-label">Target Folder</span>
-                  <select 
-                    className="meta-select-sm"
-                    value={targetFolderId}
-                    onChange={(e) => setTargetFolderId(e.target.value)}
-                  >
-                    <option value="">Studio Inbox</option>
-                    {folders.map((f: Folder) => (
-                      <option key={f.id} value={f.id}>{f.name}</option>
-                    ))}
-                  </select>
-               </div>
+              <div className="batch-folder-box">
+                <span className="side-panel-label">Target Folder</span>
+                <select 
+                  className="side-folder-select"
+                  value={targetFolderId}
+                  onChange={(e) => setTargetFolderId(e.target.value)}
+                >
+                  <option value="">Studio Inbox</option>
+                  {folders.map((f: Folder) => (
+                    <option key={f.id} value={f.id}>{f.name}</option>
+                  ))}
+                </select>
+              </div>
             </div>
           </div>
 
@@ -883,10 +888,11 @@ const BulkUpload = () => {
         .bulk-upload-wrapper { display: flex; flex-direction: column; gap: 24px; width: 100%; }
         
         .batch-header-bar { 
-          display: flex; gap: 32px; padding: 24px; border-radius: 24px;
-          border: 1px solid rgba(255,255,255,0.05); background: rgba(255,255,255,0.02);
+          display: flex; gap: 20px; padding: 22px; border-radius: 24px;
+          border: 1px solid rgba(255,255,255,0.06); background: rgba(255,255,255,0.02);
+          width: 100%; box-sizing: border-box; overflow: hidden;
         }
-        .batch-main-meta { flex: 1; display: flex; flex-direction: column; gap: 20px; }
+        .batch-main-meta { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 16px; }
 
         /* Destination Dropdown Section */
         .dest-field { position: relative; }
@@ -919,8 +925,8 @@ const BulkUpload = () => {
 
         .meta-chevron { position: absolute; right: 14px; color: #71717a; pointer-events: none; }
 
-        .inputs-row { display: flex; gap: 12px; }
-        .meta-field { position: relative; flex: 1; display: flex; align-items: center; }
+        .inputs-row { display: flex; gap: 12px; width: 100%; }
+        .meta-field { position: relative; flex: 1; min-width: 0; display: flex; align-items: center; }
         .meta-icon { position: absolute; left: 14px; color: #71717a; }
         .meta-field input, .meta-select { 
           width: 100%; height: 44px; background: rgba(255,255,255,0.05); 
@@ -931,7 +937,7 @@ const BulkUpload = () => {
         .meta-field input:focus, .meta-select:focus { border-color: #1db954; background: rgba(255,255,255,0.08); }
         .meta-select { cursor: pointer; }
 
-        .meta-field-group { flex: 1; display: flex; flex-direction: column; gap: 8px; }
+        .meta-field-group { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 8px; }
         .recent-artists-suggestions { display: flex; flex-wrap: wrap; gap: 6px; }
         .artist-suggestion-chip { 
           padding: 4px 10px; border-radius: 8px; background: rgba(255,255,255,0.05); 
@@ -953,7 +959,7 @@ const BulkUpload = () => {
 
         .btn-apply-batch-v2 { 
           display: flex; align-items: center; gap: 8px;
-          height: 44px; padding: 0 40px; border-radius: 12px; font-size: 14px; 
+          height: 44px; padding: 0 28px; border-radius: 12px; font-size: 14px; flex-shrink: 0; 
           font-weight: 950; background: #1db954; color: black; border: none;
           white-space: nowrap; cursor: pointer; transition: all 0.2s cubic-bezier(0.175, 0.885, 0.32, 1.275);
           box-shadow: 0 4px 12px rgba(29, 185, 84, 0.15);
@@ -967,22 +973,71 @@ const BulkUpload = () => {
 
         .style-flex { flex: 1.5; }
         
-        .batch-cover-side { display: flex; flex-direction: column; gap: 8px; align-items: center; }
-        .batch-dest-label { font-size: 10px; font-weight: 900; color: #52525b; text-transform: uppercase; }
-        .batch-cover-zone { 
-           width: 80px; height: 80px; border-radius: 12px; border: 1px dashed rgba(255,255,255,0.1); 
-           display: flex; align-items: center; justify-content: center; cursor: pointer; overflow: hidden;
-           transition: all 0.2s;
+        /* Clean side panel containing Cover & Target Folder */
+        .batch-side-panel {
+          width: 105px;
+          flex-shrink: 0;
+          display: flex;
+          flex-direction: column;
+          align-items: center;
+          justify-content: flex-start;
+          gap: 12px;
+          padding-left: 18px;
+          border-left: 1px solid rgba(255,255,255,0.06);
+          box-sizing: border-box;
         }
-        .batch-cover-zone:hover { border-color: #1db954; background: rgba(29, 185, 84, 0.05); }
+        .batch-cover-box {
+          display: flex;
+          flex-direction: column;
+          align-items: center;
+          gap: 5px;
+          width: 100%;
+        }
+        .side-panel-label {
+          font-size: 10px;
+          font-weight: 900;
+          color: #71717a;
+          text-transform: uppercase;
+          letter-spacing: 0.5px;
+          text-align: center;
+          white-space: nowrap;
+        }
+        .batch-cover-zone { 
+          width: 76px; height: 76px; border-radius: 12px; border: 1px dashed rgba(255,255,255,0.15); 
+          display: flex; align-items: center; justify-content: center; cursor: pointer; overflow: hidden;
+          background: rgba(255,255,255,0.02); transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+        }
+        .batch-cover-zone:hover { 
+          border-color: #1db954; background: rgba(29, 185, 84, 0.08); 
+          transform: translateY(-2px); box-shadow: 0 4px 16px rgba(29, 185, 84, 0.15); 
+        }
         .batch-cover-zone.has-preview { border: 1px solid #1db954; }
         .batch-cover-img { width: 100%; height: 100%; object-fit: cover; }
+        .cover-empty-prompt {
+          display: flex; flex-direction: column; align-items: center; gap: 2px; color: #71717a; transition: color 0.2s;
+        }
+        .cover-empty-prompt span { font-size: 9px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.5px; }
+        .batch-cover-zone:hover .cover-empty-prompt { color: #1db954; }
 
-        .target-folder-box { display: flex; flex-direction: column; gap: 6px; }
-        .dest-label { font-size: 10px; font-weight: 900; color: #52525b; text-transform: uppercase; text-align: right; }
-        .meta-select-sm { 
-          background: rgba(255,255,255,0.05); color: #1db954; border: 1px solid rgba(29, 185, 84, 0.2); 
-          height: 32px; padding: 0 12px; border-radius: 8px; font-size: 11px; font-weight: 800; cursor: pointer;
+        .batch-folder-box {
+          display: flex;
+          flex-direction: column;
+          align-items: center;
+          gap: 5px;
+          width: 100%;
+        }
+        .side-folder-select { 
+          width: 100%; max-width: 95px; height: 28px;
+          background: rgba(255,255,255,0.04); color: #a1a1aa; 
+          border: 1px solid rgba(255,255,255,0.08); border-radius: 8px; 
+          font-size: 11px; font-weight: 700; padding: 0 6px; 
+          cursor: pointer; outline: none; text-align: center; transition: all 0.2s;
+        }
+        .side-folder-select:hover, .side-folder-select:focus {
+          border-color: #1db954; color: white; background: rgba(255,255,255,0.08);
+        }
+        .side-folder-select option {
+          background: #18181b; color: white;
         }
 
         .dropzone { 

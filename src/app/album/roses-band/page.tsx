@@ -40,10 +40,21 @@ export default function RosesBandPage() {
     }
   };
 
-  const [infoModal, setInfoModal] = useState({
+  const [infoModal, setInfoModal] = useState<{
+    isOpen: boolean;
+    title: string;
+    message: string;
+    confirmText?: string;
+    variant?: 'danger' | 'primary';
+    showCancel?: boolean;
+    onConfirm: () => void;
+  }>({
     isOpen: false,
     title: '',
     message: '',
+    confirmText: 'OK',
+    variant: 'primary',
+    showCancel: false,
     onConfirm: () => {}
   });
 
@@ -106,9 +117,15 @@ export default function RosesBandPage() {
       setSessionTracks(selectedTracks);
       loadTrack(selectedTracks[0], false, true);
     } else {
-      alert(`No Rose's Band tracks found for ${discipline}.
-
-Please upload Rose's Band tracks in the admin panel with album "Rose's Band".`);
+      setInfoModal({
+        isOpen: true,
+        title: 'No Tracks Found',
+        message: `No Rose's Band tracks found for ${discipline}.\n\nPlease upload Rose's Band tracks in the admin panel with album "Rose's Band".`,
+        confirmText: 'OK',
+        variant: 'primary',
+        showCancel: false,
+        onConfirm: () => setInfoModal(prev => ({ ...prev, isOpen: false }))
+      });
     }
   };
 
@@ -118,6 +135,9 @@ Please upload Rose's Band tracks in the admin panel with album "Rose's Band".`);
         isOpen: true,
         title: 'Authentication Required',
         message: `Please log in with Telegram to ${actionName}.`,
+        confirmText: 'Connect Telegram',
+        variant: 'primary',
+        showCancel: true,
         onConfirm: () => {
           setInfoModal(prev => ({ ...prev, isOpen: false }));
           setIsAuthModalOpen(true);
@@ -389,8 +409,9 @@ Please upload Rose's Band tracks in the admin panel with album "Rose's Band".`);
         onConfirm={infoModal.onConfirm}
         title={infoModal.title}
         message={infoModal.message}
-        confirmText="Connect Telegram"
-        variant="primary"
+        confirmText={infoModal.confirmText || "OK"}
+        variant={infoModal.variant || "primary"}
+        showCancel={infoModal.showCancel ?? false}
       />
 
       <style jsx>{`

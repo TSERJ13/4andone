@@ -41,10 +41,21 @@ export default function DanceStarBandPage() {
     }
   };
 
-  const [infoModal, setInfoModal] = useState({
+  const [infoModal, setInfoModal] = useState<{
+    isOpen: boolean;
+    title: string;
+    message: string;
+    confirmText?: string;
+    variant?: 'danger' | 'primary';
+    showCancel?: boolean;
+    onConfirm: () => void;
+  }>({
     isOpen: false,
     title: '',
     message: '',
+    confirmText: 'OK',
+    variant: 'primary',
+    showCancel: false,
     onConfirm: () => {}
   });
 
@@ -103,7 +114,15 @@ export default function DanceStarBandPage() {
       setSessionTracks(selectedTracks);
       loadTrack(selectedTracks[0], false, true);
     } else {
-      alert(`No Dance Star Band tracks found for ${discipline}.\n\nPlease upload Dance Star Band tracks in the admin panel with album "Dance Star Band".`);
+      setInfoModal({
+        isOpen: true,
+        title: 'No Tracks Found',
+        message: `No Dance Star Band tracks found for ${discipline}.\n\nPlease upload Dance Star Band tracks in the admin panel with album "Dance Star Band".`,
+        confirmText: 'OK',
+        variant: 'primary',
+        showCancel: false,
+        onConfirm: () => setInfoModal(prev => ({ ...prev, isOpen: false }))
+      });
     }
   };
 
@@ -113,6 +132,9 @@ export default function DanceStarBandPage() {
         isOpen: true,
         title: 'Authentication Required',
         message: `Please log in with Telegram to ${actionName}.`,
+        confirmText: 'Connect Telegram',
+        variant: 'primary',
+        showCancel: true,
         onConfirm: () => {
           setInfoModal(prev => ({ ...prev, isOpen: false }));
           setIsAuthModalOpen(true);
@@ -384,8 +406,9 @@ export default function DanceStarBandPage() {
         onConfirm={infoModal.onConfirm}
         title={infoModal.title}
         message={infoModal.message}
-        confirmText="Connect Telegram"
-        variant="primary"
+        confirmText={infoModal.confirmText || "OK"}
+        variant={infoModal.variant || "primary"}
+        showCancel={infoModal.showCancel ?? false}
       />
 
       <style jsx>{`

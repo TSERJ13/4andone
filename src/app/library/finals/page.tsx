@@ -78,6 +78,23 @@ const FinalsPage = () => {
   const downloadedIds = useDownloadedTracks();
   const [showStopConfirm, setShowStopConfirm] = useState(false);
   const [showFinalOver, setShowFinalOver] = useState(false);
+  const [infoModal, setInfoModal] = useState<{
+    isOpen: boolean;
+    title: string;
+    message: string;
+    confirmText?: string;
+    variant?: 'danger' | 'primary';
+    showCancel?: boolean;
+    onConfirm: () => void;
+  }>({
+    isOpen: false,
+    title: '',
+    message: '',
+    confirmText: 'OK',
+    variant: 'primary',
+    showCancel: false,
+    onConfirm: () => {}
+  });
   const userManuallyStoppedRef = useRef(false);
   const lastActiveModeRef = useRef<string | null>(null);
   const lastSessionTracksRef = useRef<any[]>([]);
@@ -246,7 +263,15 @@ const FinalsPage = () => {
         checkAuthAndExecute(() => {
           const liked = tracks.filter(t => t.isFavorite);
           if (liked.length === 0) {
-            alert("No liked songs yet. Tap the heart on tracks to add them here.");
+            setInfoModal({
+              isOpen: true,
+              title: 'No Liked Songs',
+              message: 'No liked songs yet. Tap the heart on tracks to add them here.',
+              confirmText: 'OK',
+              variant: 'primary',
+              showCancel: false,
+              onConfirm: () => setInfoModal(prev => ({ ...prev, isOpen: false }))
+            });
             return;
           }
           setShowLikedSongsModal(true);
@@ -367,16 +392,25 @@ const FinalsPage = () => {
       // instead of failing silently.
       if (requiredTag && programDef) {
         const tagName = programDef.tag;
-        alert(
-          `"${programDef.label}" program is empty.\n\n` +
-          `This program only uses tracks tagged "${tagName}".\n\n` +
-          `To add tracks:\n` +
-          `1. Open Admin → Taxonomy and create a tag named "${tagName}" (if it doesn't exist).\n` +
-          `2. Open Admin → Library, edit a track, and select the "${tagName}" tag.\n\n` +
-          `Tracks with that tag will then appear in this program.`
-        );
+        setInfoModal({
+          isOpen: true,
+          title: `${programDef.label} Is Empty`,
+          message: `This program only uses tracks tagged "${tagName}".\n\nTo add tracks:\n1. Open Admin → Taxonomy and create a tag named "${tagName}".\n2. Open Admin → Library, edit a track, and select the "${tagName}" tag.`,
+          confirmText: 'OK',
+          variant: 'primary',
+          showCancel: false,
+          onConfirm: () => setInfoModal(prev => ({ ...prev, isOpen: false }))
+        });
       } else {
-        alert("No tracks found for this program. Add tracks for these styles in the Admin Panel.");
+        setInfoModal({
+          isOpen: true,
+          title: 'No Tracks Found',
+          message: 'No tracks found for this program. Add tracks for these styles in the Admin Panel.',
+          confirmText: 'OK',
+          variant: 'primary',
+          showCancel: false,
+          onConfirm: () => setInfoModal(prev => ({ ...prev, isOpen: false }))
+        });
       }
     }
   };
@@ -393,7 +427,15 @@ const FinalsPage = () => {
   const startLikedSongsProgram = (discipline: 'Latin' | 'Standard') => {
     const liked = tracks.filter(t => t.isFavorite);
     if (liked.length === 0) {
-      alert("No liked songs yet. Tap the heart on tracks to add them here.");
+      setInfoModal({
+        isOpen: true,
+        title: 'No Liked Songs',
+        message: 'No liked songs yet. Tap the heart on tracks to add them here.',
+        confirmText: 'OK',
+        variant: 'primary',
+        showCancel: false,
+        onConfirm: () => setInfoModal(prev => ({ ...prev, isOpen: false }))
+      });
       setShowLikedSongsModal(false);
       return;
     }
@@ -414,7 +456,15 @@ const FinalsPage = () => {
       setSessionTracks(selectedTracks);
       loadTrack(selectedTracks[0], false, true);
     } else {
-      alert(`No liked songs found for ${discipline} styles.`);
+      setInfoModal({
+        isOpen: true,
+        title: 'No Liked Songs Found',
+        message: `No liked songs found for ${discipline} styles.`,
+        confirmText: 'OK',
+        variant: 'primary',
+        showCancel: false,
+        onConfirm: () => setInfoModal(prev => ({ ...prev, isOpen: false }))
+      });
     }
     setShowLikedSongsModal(false);
   };
@@ -428,7 +478,15 @@ const FinalsPage = () => {
     setIsFitness(true);
     
     if (fitnessPool.length === 0) {
-      alert("No tracks found with Style 'Fitness'. Please assign tracks to the Fitness style in the Admin Panel.");
+      setInfoModal({
+        isOpen: true,
+        title: 'No Fitness Tracks',
+        message: "No tracks found with Style 'Fitness'. Please assign tracks to the Fitness style in the Admin Panel.",
+        confirmText: 'OK',
+        variant: 'primary',
+        showCancel: false,
+        onConfirm: () => setInfoModal(prev => ({ ...prev, isOpen: false }))
+      });
       setShowFitnessModal(false);
       return;
     }
@@ -1405,6 +1463,19 @@ const FinalsPage = () => {
             </button>
           </div>
         </div>
+      )}
+
+      {infoModal.isOpen && (
+        <ConfirmModal
+          isOpen={infoModal.isOpen}
+          onClose={() => setInfoModal(prev => ({ ...prev, isOpen: false }))}
+          onConfirm={infoModal.onConfirm}
+          title={infoModal.title}
+          message={infoModal.message}
+          confirmText={infoModal.confirmText || 'OK'}
+          variant={infoModal.variant || 'primary'}
+          showCancel={infoModal.showCancel ?? false}
+        />
       )}
 
     </div>

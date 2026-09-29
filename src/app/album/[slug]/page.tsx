@@ -51,10 +51,21 @@ export default function DynamicAlbumPage() {
     }
   };
 
-  const [infoModal, setInfoModal] = useState({
+  const [infoModal, setInfoModal] = useState<{
+    isOpen: boolean;
+    title: string;
+    message: string;
+    confirmText?: string;
+    variant?: 'danger' | 'primary';
+    showCancel?: boolean;
+    onConfirm: () => void;
+  }>({
     isOpen: false,
     title: '',
     message: '',
+    confirmText: 'OK',
+    variant: 'primary',
+    showCancel: false,
     onConfirm: () => {}
   });
 
@@ -155,7 +166,15 @@ export default function DynamicAlbumPage() {
       setSessionTracks(selectedTracks);
       loadTrack(selectedTracks[0], false, true);
     } else {
-      alert(`No tracks found for ${album?.title || 'album'} ${discipline}.\n\nPlease upload tracks in the admin panel with album "${album?.title}".`);
+      setInfoModal({
+        isOpen: true,
+        title: 'No Tracks Found',
+        message: `No tracks found for ${album?.title || 'album'} ${discipline}.\n\nPlease upload tracks in the admin panel with album "${album?.title}".`,
+        confirmText: 'OK',
+        variant: 'primary',
+        showCancel: false,
+        onConfirm: () => setInfoModal(prev => ({ ...prev, isOpen: false }))
+      });
     }
   };
 
@@ -175,6 +194,9 @@ export default function DynamicAlbumPage() {
         isOpen: true,
         title: 'Authentication Required',
         message: `Please log in with Telegram to ${actionName}.`,
+        confirmText: 'Connect Telegram',
+        variant: 'primary',
+        showCancel: true,
         onConfirm: () => {
           setInfoModal(prev => ({ ...prev, isOpen: false }));
           setIsAuthModalOpen(true);
@@ -516,8 +538,9 @@ export default function DynamicAlbumPage() {
         onConfirm={infoModal.onConfirm}
         title={infoModal.title}
         message={infoModal.message}
-        confirmText="Connect Telegram"
-        variant="primary"
+        confirmText={infoModal.confirmText || "OK"}
+        variant={infoModal.variant || "primary"}
+        showCancel={infoModal.showCancel ?? false}
       />
 
       <style jsx>{`

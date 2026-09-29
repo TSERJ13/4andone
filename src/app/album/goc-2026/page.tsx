@@ -40,10 +40,21 @@ export default function GocAlbumPage() {
     }
   };
 
-  const [infoModal, setInfoModal] = useState({
+  const [infoModal, setInfoModal] = useState<{
+    isOpen: boolean;
+    title: string;
+    message: string;
+    confirmText?: string;
+    variant?: 'danger' | 'primary';
+    showCancel?: boolean;
+    onConfirm: () => void;
+  }>({
     isOpen: false,
     title: '',
     message: '',
+    confirmText: 'OK',
+    variant: 'primary',
+    showCancel: false,
     onConfirm: () => {}
   });
 
@@ -98,7 +109,15 @@ export default function GocAlbumPage() {
       setSessionTracks(selectedTracks);
       loadTrack(selectedTracks[0], false, true);
     } else {
-      alert(`No GOC 2026 tracks found for ${discipline}.\n\nPlease upload GOC tracks and set the album to "GOC 2026" or tag them with "GOC 2026".`);
+      setInfoModal({
+        isOpen: true,
+        title: 'No Tracks Found',
+        message: `No GOC 2026 tracks found for ${discipline}.\n\nPlease upload GOC tracks and set the album to "GOC 2026" or tag them with "GOC 2026".`,
+        confirmText: 'OK',
+        variant: 'primary',
+        showCancel: false,
+        onConfirm: () => setInfoModal(prev => ({ ...prev, isOpen: false }))
+      });
     }
   };
 
@@ -108,6 +127,9 @@ export default function GocAlbumPage() {
         isOpen: true,
         title: 'Authentication Required',
         message: `Please log in with Telegram to ${actionName}.`,
+        confirmText: 'Connect Telegram',
+        variant: 'primary',
+        showCancel: true,
         onConfirm: () => {
           setInfoModal(prev => ({ ...prev, isOpen: false }));
           setIsAuthModalOpen(true);
@@ -379,8 +401,9 @@ export default function GocAlbumPage() {
         onConfirm={infoModal.onConfirm}
         title={infoModal.title}
         message={infoModal.message}
-        confirmText="Connect Telegram"
-        variant="primary"
+        confirmText={infoModal.confirmText || "OK"}
+        variant={infoModal.variant || "primary"}
+        showCancel={infoModal.showCancel ?? false}
       />
 
       <style jsx>{`

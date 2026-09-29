@@ -124,6 +124,31 @@ export async function POST(request: NextRequest) {
   }
 }
 
+export async function GET() {
+  try {
+    const [{ data: rawMessages, error: msgErr }, { data: delRows }] = await Promise.all([
+      supabase
+        .from('track_plays')
+        .select('id, created_at, style, bpm, user_ref, session_id')
+        .eq('event_type', 'contact_message')
+        .order('created_at', { ascending: false }),
+      supabase
+        .from('folders')
+        .select('color')
+        .eq('name', '__deleted_msg__')
+    ]);
+
+    if (msgErr) throw msgErr;
+
+    const deletedIds = new Set((delRows || []).map(r => r.color));
+    const activeMessages = (rawMessages || []).filter(m => !deletedIds.has(m.id));
+
+    return NextResponse.json({ success: true, count: activeMessages.length, messages: activeMessages });
+  } catch (error: any) {
+    return NextResponse.json({ error: error?.message || 'Failed to fetch messages' }, { status: 500 });
+  }
+}
+
 export async function DELETE(request: Request) {
   try {
     const { searchParams } = new URL(request.url);
@@ -133,15 +158,20 @@ export async function DELETE(request: Request) {
       return NextResponse.json({ error: 'Message ID is required' }, { status: 400 });
     }
 
-    const { error } = await supabase
+    // 1. Attempt direct delete on track_plays
+    await supabase
       .from('track_plays')
       .delete()
       .eq('id', id)
       .eq('event_type', 'contact_message');
 
-    if (error) {
-      throw error;
-    }
+    // 2. Persist deletion marker in folders table so RLS never restores it
+    await supabase
+      .from('folders')
+      .insert({
+        name: '__deleted_msg__',
+        color: id
+      });
 
     return NextResponse.json({ success: true, deletedId: id });
   } catch (error: any) {

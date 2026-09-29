@@ -253,6 +253,50 @@
   white-space: nowrap;
 }
 
+.nav-badge-pill {
+  margin-left: auto;
+  background: #ef4444;
+  color: #ffffff;
+  font-size: 11px;
+  font-weight: 900;
+  padding: 2px 7px;
+  border-radius: 9999px;
+  line-height: 1.2;
+  box-shadow: 0 0 10px rgba(239, 68, 68, 0.6);
+  letter-spacing: 0.5px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  animation: pulse-badge-red 2s infinite;
+}
+
+.sidebar-badge-dot {
+  position: absolute;
+  top: -2px;
+  right: -2px;
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  background: #ef4444;
+  border: 1.5px solid #09090b;
+  box-shadow: 0 0 8px rgba(239, 68, 68, 0.9);
+}
+
+@keyframes pulse-badge-red {
+  0% {
+    transform: scale(1);
+    box-shadow: 0 0 8px rgba(239, 68, 68, 0.4);
+  }
+  50% {
+    transform: scale(1.08);
+    box-shadow: 0 0 16px rgba(239, 68, 68, 0.8);
+  }
+  100% {
+    transform: scale(1);
+    box-shadow: 0 0 8px rgba(239, 68, 68, 0.4);
+  }
+}
+
 .sidebar-footer {
   margin-top: auto;
   padding-top: 24px;

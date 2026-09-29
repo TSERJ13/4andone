@@ -36,15 +36,24 @@ export default function AdminMessagesPage() {
   const fetchMessages = useCallback(async () => {
     setLoading(true);
     try {
-      const { data, error } = await supabase
-        .from('track_plays')
-        .select('id, created_at, style, bpm, user_ref, session_id')
-        .eq('event_type', 'contact_message')
-        .order('created_at', { ascending: false });
+      const [{ data, error }, { data: delRows }] = await Promise.all([
+        supabase
+          .from('track_plays')
+          .select('id, created_at, style, bpm, user_ref, session_id')
+          .eq('event_type', 'contact_message')
+          .order('created_at', { ascending: false }),
+        supabase
+          .from('folders')
+          .select('color')
+          .eq('name', '__deleted_msg__')
+      ]);
 
       if (error) throw error;
 
-      const formatted: ContactMessage[] = (data || []).map((r: any) => {
+      const deletedIds = new Set((delRows || []).map(r => r.color));
+      const activeRaw = (data || []).filter((r: any) => !deletedIds.has(r.id));
+
+      const formatted: ContactMessage[] = activeRaw.map((r: any) => {
         const rawStyle = r.style || '';
         let topic = 'General';
         let body = rawStyle;

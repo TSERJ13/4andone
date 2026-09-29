@@ -2,7 +2,7 @@
 
 import React, { useState, useRef, useEffect } from 'react';
 import { Music, User, Globe, Activity, Upload, CheckCircle2, AlertTriangle } from 'lucide-react';
-import { detectBPM, getStyleFromBPM, getMPMFromBPM, getBPMFromMPM } from '@/utils/audio';
+import { detectBPM, getStyleFromBPM, getMPMFromBPM, getBPMFromMPM, getDefaultTempoForStyle, getStyleFromText } from '@/utils/audio';
 import { useStudio } from './StudioProvider';
 
 interface AddTrackModalProps {
@@ -200,21 +200,40 @@ const AddTrackModal = ({ isOpen, onClose, onAdd, initialData }: AddTrackModalPro
       }
 
       const normalizedName = file.name.toLowerCase();
-      const detectedStyle = styles.find(s => normalizedName.includes(s.title.toLowerCase()));
+      const matchedStyleFromText = getStyleFromText(file.name);
+      const detectedStyle = styles.find(s => 
+        (matchedStyleFromText && s.title.toLowerCase() === matchedStyleFromText.toLowerCase()) ||
+        normalizedName.includes(s.title.toLowerCase())
+      );
+      const detectedStyleTitle = detectedStyle ? detectedStyle.title : (matchedStyleFromText || '');
+      const initialDefaultTempo = detectedStyleTitle ? getDefaultTempoForStyle(detectedStyleTitle) : null;
 
       setFormData(prev => ({ 
         ...prev, 
         title: autoTitle, 
         artist: prev.artist && prev.artist !== 'Unknown' ? prev.artist : (autoArtist || prev.artist),
-        style: detectedStyle ? detectedStyle.title : prev.style 
+        style: detectedStyleTitle || prev.style,
+        ...(initialDefaultTempo ? { bpm: initialDefaultTempo.bpm.toString() } : {})
       }));
+      if (initialDefaultTempo) {
+        setMpmState(initialDefaultTempo.mpm.toString());
+      }
 
       try {
         const detectedBpm = await detectBPM(file);
         if (detectedBpm > 0) {
-          const finalStyle = detectedStyle ? detectedStyle.title : getStyleFromBPM(detectedBpm, file.name);
-          setFormData(prev => ({ ...prev, bpm: detectedBpm.toString(), style: finalStyle }));
-          setMpmState(getMPMFromBPM(detectedBpm, finalStyle).toString());
+          const finalStyle = detectedStyleTitle || getStyleFromBPM(detectedBpm, file.name);
+          const defaultTempo = getDefaultTempoForStyle(finalStyle);
+          if (defaultTempo) {
+            setFormData(prev => ({ ...prev, bpm: defaultTempo.bpm.toString(), style: finalStyle }));
+            setMpmState(defaultTempo.mpm.toString());
+          } else {
+            setFormData(prev => ({ ...prev, bpm: detectedBpm.toString(), style: finalStyle }));
+            setMpmState(getMPMFromBPM(detectedBpm, finalStyle).toString());
+          }
+        } else if (detectedStyleTitle && initialDefaultTempo) {
+          setFormData(prev => ({ ...prev, bpm: initialDefaultTempo.bpm.toString(), style: detectedStyleTitle }));
+          setMpmState(initialDefaultTempo.mpm.toString());
         }
       } catch (err) { console.error(err); } finally { setIsAnalyzing(false); }
     }
@@ -541,8 +560,14 @@ const AddTrackModal = ({ isOpen, onClose, onAdd, initialData }: AddTrackModalPro
                     const color = s.color || styleColors[s.title] || '#1db954';
                     return (
                       <button type="button" key={s.id} className={`style-chip ${isSelected ? 'active' : ''}`} style={{ '--chip-color': color } as React.CSSProperties} onClick={() => {
-                        setFormData({ ...formData, style: s.title });
-                        if (formData.bpm) setMpmState(getMPMFromBPM(Number(formData.bpm), s.title).toString());
+                        const defaultTempo = getDefaultTempoForStyle(s.title);
+                        if (defaultTempo) {
+                          setFormData({ ...formData, style: s.title, bpm: defaultTempo.bpm.toString() });
+                          setMpmState(defaultTempo.mpm.toString());
+                        } else {
+                          setFormData({ ...formData, style: s.title });
+                          if (formData.bpm) setMpmState(getMPMFromBPM(Number(formData.bpm), s.title).toString());
+                        }
                       }}>
                         <div className="dot"></div>{s.title}
                       </button>

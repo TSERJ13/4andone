@@ -24,7 +24,8 @@ import {
   getStyleFromBPM, 
   getMPMFromBPM,
   getBPMFromMPM,
-  getStyleFromFilenamePart
+  getStyleFromFilenamePart,
+  getDefaultTempoForStyle
 } from '@/utils/audio';
 
 interface Style { id: string; title: string; }
@@ -121,20 +122,21 @@ const BulkUpload = () => {
           finalTitle = finalTitle.replace(/[_\-]/g, ' ');
         }
 
-        return {
-          id,
-          file,
-          progress: 0,
-          status: 'pending' as const,
-          isAnalyzing: true,
-          title: finalTitle,
-          artist: autoArtist,
-          bpm: '0',
-          duration: 0,
-          style: detectedStyle,
-          album: batchAlbum || 'Bulk Upload',
-          tags: [...batchTags]
-        };
+          const defaultTempo = detectedStyle ? getDefaultTempoForStyle(detectedStyle) : null;
+          return {
+            id,
+            file,
+            progress: 0,
+            status: 'pending' as const,
+            isAnalyzing: true,
+            title: finalTitle,
+            artist: autoArtist,
+            bpm: defaultTempo ? defaultTempo.bpm.toString() : '0',
+            duration: 0,
+            style: detectedStyle,
+            album: batchAlbum || 'Bulk Upload',
+            tags: [...batchTags]
+          };
       });
 
     setFiles(prev => [...prev, ...newFilesBase]);
@@ -162,13 +164,14 @@ const BulkUpload = () => {
         });
 
         const bestStyle = getStyleFromBPM(detectedBpm, staged.file.name);
+        const resolvedStyle = (bestStyle && bestStyle !== '') ? bestStyle : staged.style;
+        const defaultTempo = getDefaultTempoForStyle(resolvedStyle);
 
         setFiles(current => current.map(f => f.id === staged.id ? {
           ...f,
-          bpm: detectedBpm > 0 ? detectedBpm.toString() : f.bpm,
+          bpm: defaultTempo ? defaultTempo.bpm.toString() : (detectedBpm > 0 ? detectedBpm.toString() : f.bpm),
           duration: duration || f.duration, 
-          // Only override if detected style is more specific than a generic default
-          style: (bestStyle && bestStyle !== '') ? bestStyle : f.style,
+          style: resolvedStyle,
           isAnalyzing: false
         } : f));
 
@@ -194,11 +197,13 @@ const BulkUpload = () => {
   };
 
   const applyBatchMetadata = () => {
+    const batchTempo = batchStyle ? getDefaultTempoForStyle(batchStyle) : null;
     setFiles(prev => prev.map(f => f.status === 'pending' ? {
       ...f,
       artist: batchArtist || f.artist,
       album: batchAlbum || f.album,
       style: batchStyle || f.style,
+      ...(batchTempo ? { bpm: batchTempo.bpm.toString() } : {}),
       tags: batchTags.length > 0 ? [...batchTags] : f.tags
     } : f));
   };
@@ -603,7 +608,14 @@ const BulkUpload = () => {
                     <select 
                       className="row-select"
                       value={f.style}
-                      onChange={(e) => updateFileMeta(f.id, { style: e.target.value })}
+                      onChange={(e) => {
+                        const newStyle = e.target.value;
+                        const tempo = getDefaultTempoForStyle(newStyle);
+                        updateFileMeta(f.id, { 
+                          style: newStyle,
+                          ...(tempo ? { bpm: tempo.bpm.toString() } : {})
+                        });
+                      }}
                     >
                       {styles.map((s: Style) => <option key={s.id} value={s.title}>{s.title}</option>)}
                       {!styles.length && <option value={f.style}>{f.style}</option>}

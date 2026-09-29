@@ -18,8 +18,8 @@ export const DANCE_STYLES: DanceStyleInfo[] = [
   { name: 'Quickstep', minMPM: 50, maxMPM: 52, timeSignature: 4 },
   { name: 'Cha-Cha-Cha', minMPM: 30, maxMPM: 32, timeSignature: 4 },
   { name: 'Samba', minMPM: 50, maxMPM: 52, timeSignature: 2 },
-  { name: 'Rumba', minMPM: 25, maxMPM: 27, timeSignature: 4 },
-  { name: 'Paso Doble', minMPM: 60, maxMPM: 62, timeSignature: 2 },
+  { name: 'Rumba', minMPM: 24, maxMPM: 27, timeSignature: 4 },
+  { name: 'Paso Doble', minMPM: 58, maxMPM: 62, timeSignature: 2 },
   { name: 'Jive', minMPM: 42, maxMPM: 44, timeSignature: 4 },
 ];
 
@@ -128,16 +128,64 @@ function detectBPMSimple(data: Float32Array): number {
   return bpm;
 }
 
-function normalizeStyleName(name: string): string {
-  if (!name) return '';
-  return name.toLowerCase()
-    .replace(/[^a-z0-9]/g, '')
-    .trim();
+export function canonicalStyle(styleName?: string): string {
+  if (!styleName) return '';
+  const s = styleName.toLowerCase().replace(/[\s\-_]+/g, '');
+  if (s === 'waltz' || s === 'slowwaltz' || s === 'englishwaltz' || s === 'sw') return 'slowwaltz';
+  if (s === 'tango' || s === 'tg') return 'tango';
+  if (s === 'viennesewaltz' || s === 'viennese' || s === 'vw' || s === 'vinesewaltz' || s === 'vienesse' || s === 'vienessewaltz' || s === 'vienesewaltz') return 'viennesewaltz';
+  if (s === 'slowfoxtrot' || s === 'foxtrot' || s === 'slowfox' || s === 'fox' || s === 'sf') return 'slowfoxtrot';
+  if (s === 'quickstep' || s === 'qs') return 'quickstep';
+  if (s === 'samba' || s === 'sa') return 'samba';
+  if (s === 'chachacha' || s === 'chacha' || s === 'cha' || s === 'cc') return 'chachacha';
+  if (s === 'rumba' || s === 'rhumba' || s === 'ru') return 'rumba';
+  if (s === 'pasodoble' || s === 'paso' || s === 'pd') return 'pasodoble';
+  if (s === 'jive' || s === 'ji') return 'jive';
+  if (s === 'fitness') return 'fitness';
+  return s;
+}
+
+export interface StyleTempo {
+  mpm: number; // Bars per minute (Ballroom standard tempo)
+  bpm: number; // Beats per minute (mpm * timeSignature)
+}
+
+/**
+ * Ballroom Competition Standard Tempos:
+ * Cha Cha Cha: 31 Bars (124 BPM)
+ * Samba: 51 Bars (102 BPM)
+ * Rumba: 25 Bars (100 BPM)
+ * Paso Doble: 59 Bars (118 BPM)
+ * Jive: 43 Bars (172 BPM)
+ *
+ * Slow Waltz: 29 Bars (87 BPM)
+ * Tango: 32 Bars (64 BPM)
+ * Viennese Waltz: 59 Bars (177 BPM)
+ * Slow Foxtrot: 29 Bars (116 BPM)
+ * Quickstep: 50 Bars (200 BPM)
+ */
+export const STANDARD_STYLE_TEMPOS: Record<string, StyleTempo> = {
+  chachacha: { mpm: 31, bpm: 124 },
+  samba: { mpm: 51, bpm: 102 },
+  rumba: { mpm: 25, bpm: 100 },
+  pasodoble: { mpm: 59, bpm: 118 },
+  jive: { mpm: 43, bpm: 172 },
+  slowwaltz: { mpm: 29, bpm: 87 },
+  tango: { mpm: 32, bpm: 64 },
+  viennesewaltz: { mpm: 59, bpm: 177 },
+  slowfoxtrot: { mpm: 29, bpm: 116 },
+  quickstep: { mpm: 50, bpm: 200 },
+};
+
+export function getDefaultTempoForStyle(styleName?: string): StyleTempo | null {
+  if (!styleName) return null;
+  const canon = canonicalStyle(styleName);
+  return STANDARD_STYLE_TEMPOS[canon] || null;
 }
 
 export function getStyleInfo(styleName: string): DanceStyleInfo | undefined {
-  const normalized = normalizeStyleName(styleName);
-  return DANCE_STYLES.find(s => normalizeStyleName(s.name) === normalized);
+  const canon = canonicalStyle(styleName);
+  return DANCE_STYLES.find(s => canonicalStyle(s.name) === canon);
 }
 
 /**
@@ -148,10 +196,10 @@ export function getStyleFromFilenamePart(part: string): string | null {
   const p = part.toLowerCase().trim();
   if (p === 'cha cha' || p === 'chacha' || p === 'cha-cha' || p === 'cha-cha-cha') return 'Cha-Cha-Cha';
   if (p === 'samba') return 'Samba';
-  if (p === 'rumba') return 'Rumba';
+  if (p === 'rumba' || p === 'rhumba') return 'Rumba';
   if (p === 'jive') return 'Jive';
   if (p === 'paso' || p === 'paso doble') return 'Paso Doble';
-  if (p === 'viennese' || p === 'viennese waltz') return 'Viennese Waltz';
+  if (p === 'viennese' || p === 'viennese waltz' || p === 'vienesse' || p === 'vienesse waltz') return 'Viennese Waltz';
   if (p === 'waltz' || p === 'slow waltz') return 'Slow Waltz';
   if (p === 'tango') return 'Tango';
   if (p === 'foxtrot' || p === 'slow foxtrot') return 'Slow Foxtrot';
@@ -159,7 +207,27 @@ export function getStyleFromFilenamePart(part: string): string | null {
   return null;
 }
 
+export function getStyleFromText(text: string): string | null {
+  if (!text) return null;
+  const t = text.toLowerCase();
+  if (t.includes('cha cha') || t.includes('chacha') || t.includes('chachacha') || t.includes('cha-cha')) return 'Cha-Cha-Cha';
+  if (t.includes('samba')) return 'Samba';
+  if (t.includes('rumba') || t.includes('rhumba')) return 'Rumba';
+  if (t.includes('paso') || t.includes('pasodoble')) return 'Paso Doble';
+  if (t.includes('jive')) return 'Jive';
+  if (t.includes('viennese') || t.includes('vienesse')) return 'Viennese Waltz';
+  if (t.includes('waltz') || t.includes('walzer')) return 'Slow Waltz';
+  if (t.includes('tango')) return 'Tango';
+  if (t.includes('foxtrot') || t.includes('slow fox')) return 'Slow Foxtrot';
+  if (t.includes('quickstep') || t.includes('quick step')) return 'Quickstep';
+  return null;
+}
+
 export function getStyleFromBPM(bpm: number, filename?: string): string {
+  if (filename) {
+    const fromText = getStyleFromText(filename);
+    if (fromText) return fromText;
+  }
   if (!bpm || bpm === 0) return 'Samba'; 
   const fnLower = filename?.toLowerCase() || '';
   
@@ -169,18 +237,6 @@ export function getStyleFromBPM(bpm: number, filename?: string): string {
     const matched = getStyleFromFilenamePart(part);
     if (matched) return matched;
   }
-
-  // Fallback: Broad string searching
-  if (fnLower.includes('cha cha') || fnLower.includes('chacha')) return 'Cha-Cha-Cha';
-  if (fnLower.includes('samba')) return 'Samba';
-  if (fnLower.includes('rumba')) return 'Rumba';
-  if (fnLower.includes('jive')) return 'Jive';
-  if (fnLower.includes('paso')) return 'Paso Doble';
-  if (fnLower.includes('viennese')) return 'Viennese Waltz';
-  if (fnLower.includes('waltz') && !fnLower.includes('viennese')) return 'Slow Waltz';
-  if (fnLower.includes('tango')) return 'Tango';
-  if (fnLower.includes('foxtrot')) return 'Slow Foxtrot';
-  if (fnLower.includes('quickstep')) return 'Quickstep';
 
   // Final Fallback: Rhythmic analysis
   for (const style of DANCE_STYLES) {
@@ -202,21 +258,4 @@ export function getBPMFromMPM(mpm: number, styleName: string): number {
   const style = getStyleInfo(styleName);
   if (!style) return 0;
   return Math.round(mpm * style.timeSignature);
-}
-
-export function canonicalStyle(styleName?: string): string {
-  if (!styleName) return '';
-  const s = styleName.toLowerCase().replace(/[\s\-_]+/g, '');
-  if (s === 'waltz' || s === 'slowwaltz' || s === 'englishwaltz' || s === 'sw') return 'slowwaltz';
-  if (s === 'tango' || s === 'tg') return 'tango';
-  if (s === 'viennesewaltz' || s === 'viennese' || s === 'vw' || s === 'vinesewaltz') return 'viennesewaltz';
-  if (s === 'slowfoxtrot' || s === 'foxtrot' || s === 'slowfox' || s === 'fox' || s === 'sf') return 'slowfoxtrot';
-  if (s === 'quickstep' || s === 'qs') return 'quickstep';
-  if (s === 'samba' || s === 'sa') return 'samba';
-  if (s === 'chachacha' || s === 'chacha' || s === 'cha' || s === 'cc') return 'chachacha';
-  if (s === 'rumba' || s === 'rhumba' || s === 'ru') return 'rumba';
-  if (s === 'pasodoble' || s === 'paso' || s === 'pd') return 'pasodoble';
-  if (s === 'jive' || s === 'ji') return 'jive';
-  if (s === 'fitness') return 'fitness';
-  return s;
 }

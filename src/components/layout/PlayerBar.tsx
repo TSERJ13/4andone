@@ -233,7 +233,11 @@ const PlayerBar = ({ onExpand }: { onExpand?: () => void }) => {
   }, [showSpeedSelector]);
 
   const totalDur = isFinalMode ? sessionDuration : duration;
-  const displayProgress = isDragging ? dragProgress : (currentTime / (totalDur || 1)) * 100;
+  const rawProgress = isDragging ? dragProgress : (Math.min(currentTime, totalDur || currentTime) / (totalDur || 1)) * 100;
+  const displayProgress = Math.min(rawProgress, 100);
+  // Suppress CSS transition when the bar resets to 0 to prevent a visible 100%→0% flash.
+  const suppressTransition = displayProgress < 2;
+
 
   const currentTrack = (trackId ? (tracks.find(t => t.id === trackId) || finalTracks.find(t => t.id === trackId)) : null) || audioCurrentTrack || tracks.find(t => t.title === title) || finalTracks.find(t => t.title === title);
 
@@ -415,12 +419,13 @@ const PlayerBar = ({ onExpand }: { onExpand?: () => void }) => {
             >
               <div
                 className={`progress-bar-fill ${error ? 'error' : ''}`}
-                style={{ width: `${displayProgress}%` }}
+                style={{ width: `${displayProgress}%`, transition: suppressTransition ? 'none' : undefined }}
               ></div>
               <div
                 className={`progress-knob ${isDragging ? 'active' : ''}`}
-                style={{ left: `${displayProgress}%` }}
+                style={{ left: `${displayProgress}%`, transition: suppressTransition ? 'none' : undefined }}
               ></div>
+
             </div>
             <span className="time-text">{formatTime(totalDur)}</span>
           </div>

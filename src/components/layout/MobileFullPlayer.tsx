@@ -227,7 +227,10 @@ const MobileFullPlayer = ({ isOpen, onClose }: MobileFullPlayerProps) => {
   }
 
   const totalDur = isFinalMode ? (sessionTracks && sessionTracks.length > 0 ? sessionDuration : activeDuration) : duration;
-  const displayProgress = isDragging ? dragProgress : (Math.min(currentTime, totalDur) / (totalDur || 1)) * 100;
+  const displayProgress = Math.min(isDragging ? dragProgress : (Math.min(currentTime, totalDur) / (totalDur || 1)) * 100, 100);
+  // Suppress CSS transition when the bar resets to 0 to prevent a visible 100%→0% flash.
+  const suppressTransition = displayProgress < 2;
+
   const currentTrack = (trackId ? (tracks.find(t => t.id === trackId) || finalTracks.find(t => t.id === trackId)) : null) || audioCurrentTrack || tracks.find(t => t.title === title);
 
   return createPortal(
@@ -340,8 +343,9 @@ const MobileFullPlayer = ({ isOpen, onClose }: MobileFullPlayerProps) => {
               touchAction: 'none'
             }}
           >
-            <div className={`mfp-progress-fill ${isFinalMode ? 'mfp-final-active' : ''}`} style={{ width: `${displayProgress}%` }}></div>
-            <div className={`mfp-progress-knob ${isDragging ? 'active' : ''} ${isFinalMode ? 'mfp-final-active' : ''}`} style={{ left: `${displayProgress}%` }}></div>
+            <div className={`mfp-progress-fill ${isFinalMode ? 'mfp-final-active' : ''}`} style={{ width: `${displayProgress}%`, transition: suppressTransition ? 'none' : undefined }}></div>
+            <div className={`mfp-progress-knob ${isDragging ? 'active' : ''} ${isFinalMode ? 'mfp-final-active' : ''}`} style={{ left: `${displayProgress}%`, transition: suppressTransition ? 'none' : undefined }}></div>
+
           </div>
           <div className="mfp-time-labels">
             <span>{formatDuration(isDragging ? (dragProgress / 100) * (totalDur || 0) : Math.min(currentTime, totalDur))}</span>
@@ -644,7 +648,8 @@ const MobileFullPlayer = ({ isOpen, onClose }: MobileFullPlayerProps) => {
           left: 50%;
           transform: translateX(-50%);
         }
-        .countdown-ring-mobile .count { font-size: 80px; font-weight: 900; color: var(--accent); }
+        .countdown-ring-mobile .count { font-size: 80px; font-weight: 900; color: #ef4444; }
+
         .countdown-ring-mobile .label { font-size: 10px; font-weight: 900; text-transform: uppercase; letter-spacing: 5px; opacity: 0.3; }
 
         .mfp-now-playing-label { font-size: 10px; font-weight: 800; text-transform: uppercase; letter-spacing: 2px; opacity: 0.4; }

@@ -16,10 +16,12 @@ const LATIN_STYLES = ['Samba', 'Cha-Cha-Cha', 'Rumba', 'Paso Doble', 'Jive'];
 const STANDARD_STYLES = ['Slow Waltz', 'Tango', 'Viennese Waltz', 'Slow Foxtrot', 'Quickstep'];
 
 export default function RosesBandPage() {
-  const { loadTrack, isPlaying, title: playingTitle, trackId: playingTrackId, setActiveMode, setSessionTracks } = useAudio();
+  const { loadTrack, isPlaying, title: playingTitle, trackId: playingTrackId, setActiveMode, setSessionTracks, isFinalMode, stop } = useAudio();
   const { tracks, styles, toggleFavorite, isLoading } = useStudio();
   const { isAuthenticated, setIsAuthModalOpen } = useAuth();
   const downloadedIds = useDownloadedTracks();
+  const [showAlbumStopConfirm, setShowAlbumStopConfirm] = useState(false);
+  const [pendingTrack, setPendingTrack] = useState<Track | null>(null);
 
   const [activeTab, setActiveTab] = useState<'Latin' | 'Standard'>('Latin');
   const [showPasoSettingsModal, setShowPasoSettingsModal] = useState(false);
@@ -72,6 +74,11 @@ export default function RosesBandPage() {
   const currentProgramTracks = activeTab === 'Latin' ? latinTracks : standardTracks;
 
   const handlePlaySingle = (track: Track) => {
+    if (isFinalMode) {
+      setPendingTrack(track);
+      setShowAlbumStopConfirm(true);
+      return;
+    }
     loadTrack(track);
   };
 
@@ -352,6 +359,28 @@ Please upload Rose's Band tracks in the admin panel with album "Rose's Band".`);
             </button>
           </div>
         </div>
+      )}
+
+      {showAlbumStopConfirm && (
+        <ConfirmModal
+          isOpen={showAlbumStopConfirm}
+          onClose={() => {
+            setShowAlbumStopConfirm(false);
+            setPendingTrack(null);
+          }}
+          onConfirm={() => {
+            stop();
+            if (pendingTrack) {
+              loadTrack(pendingTrack);
+            }
+            setShowAlbumStopConfirm(false);
+            setPendingTrack(null);
+          }}
+          title="End Finals Practice?"
+          message="Final Mode is currently running. Do you want to stop the practice session and play this track?"
+          confirmText="Stop & Play"
+          variant="danger"
+        />
       )}
 
       <ConfirmModal

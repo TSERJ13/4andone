@@ -17,7 +17,8 @@ import {
   Heart,
   MoreHorizontal,
   Settings,
-  CheckCircle2
+  CheckCircle2,
+  X
 } from 'lucide-react';
 import Link from 'next/link';
 import { useAudio } from '@/components/audio/AudioProvider';
@@ -76,6 +77,11 @@ const FinalsPage = () => {
   const { isAuthenticated, setIsAuthModalOpen } = useAuth();
   const downloadedIds = useDownloadedTracks();
   const [showStopConfirm, setShowStopConfirm] = useState(false);
+  const [showFinalOver, setShowFinalOver] = useState(false);
+  const userManuallyStoppedRef = useRef(false);
+  const lastActiveModeRef = useRef<string | null>(null);
+  const lastSessionTracksRef = useRef<any[]>([]);
+
   const [cardDim, setCardDim] = useState({ w: 0, h: 0 });
   const activeCardRef = useRef<HTMLDivElement>(null);
   const [showFitnessModal, setShowFitnessModal] = useState(false);
@@ -127,6 +133,25 @@ const FinalsPage = () => {
     obs.observe(activeCardRef.current);
     return () => obs.disconnect();
   }, [activeMode]);
+
+  // Track activeMode/sessionTracks so we can detect when Final Mode ends naturally.
+  useEffect(() => {
+    if (activeMode && sessionTracks.length > 0) {
+      lastActiveModeRef.current = activeMode;
+      lastSessionTracksRef.current = sessionTracks;
+    }
+  }, [activeMode, sessionTracks]);
+
+  // Detect natural session end: isFinalMode flips false when AudioProvider's stop() fires.
+  useEffect(() => {
+    if (!isFinalMode && lastActiveModeRef.current && !userManuallyStoppedRef.current) {
+      setShowFinalOver(true);
+    }
+    if (!isFinalMode) {
+      userManuallyStoppedRef.current = false;
+    }
+  }, [isFinalMode]);
+
 
   const generateDynamicPath = (w: number, h: number, r: number) => {
     if (w === 0 || h === 0) return "";
@@ -357,10 +382,13 @@ const FinalsPage = () => {
   };
 
   const handleStopProgram = () => {
+    userManuallyStoppedRef.current = true;
+    lastActiveModeRef.current = null;
     stop(); // stop() in context now handles setActiveMode(null) and setSessionTracks([])
     setShowStopConfirm(false);
     setIsFitness(false);
   };
+
 
   const startLikedSongsProgram = (discipline: 'Latin' | 'Standard') => {
     const liked = tracks.filter(t => t.isFavorite);
@@ -435,6 +463,22 @@ const FinalsPage = () => {
   const handleDragOver = (e: React.DragEvent) => {
     e.preventDefault();
   };
+
+  const handleReplayFinalMode = () => {
+    setShowFinalOver(false);
+    const modeToReplay = lastActiveModeRef.current;
+    lastActiveModeRef.current = null;
+    if (modeToReplay) {
+      // Small timeout to allow state to settle before starting a new session
+      setTimeout(() => handleProgramShuffle(modeToReplay), 100);
+    }
+  };
+
+  const handleCloseFinalOver = () => {
+    setShowFinalOver(false);
+    lastActiveModeRef.current = null;
+  };
+
 
   return (
     <div className="page-wrapper">
@@ -861,15 +905,15 @@ const FinalsPage = () => {
           display: flex;
           align-items: center;
           justify-content: center;
-          background: radial-gradient(circle, rgba(244, 67, 54, 0.5) 0%, rgba(244, 67, 54, 0.1) 100%);
+          background: radial-gradient(circle, rgba(244, 67, 54, 0.35) 0%, rgba(20, 20, 20, 0.75) 100%);
           border-radius: 20px;
-          font-size: 48px;
+          font-size: 52px;
           font-weight: 1000;
-          color: white;
+          color: #ff3b30;
           z-index: 15;
           backdrop-filter: blur(12px);
           animation: pulse-intense 1s infinite ease-in-out;
-          text-shadow: 0 0 20px rgba(0,0,0,0.5);
+          text-shadow: 0 0 25px rgba(255, 59, 48, 0.8), 0 0 10px rgba(0,0,0,0.8);
         }
 
         .card-icon {
@@ -1054,7 +1098,76 @@ const FinalsPage = () => {
         }
 
         .cancel-btn { margin-top: 8px; width: 100%; height: 48px; border-radius: 12px; }
+
+        .final-over-modal {
+          text-align: center;
+          padding: 40px 32px;
+          max-width: 360px;
+          border-radius: 24px;
+          display: flex;
+          flex-direction: column;
+          align-items: center;
+          gap: 12px;
+        }
+        .final-over-icon {
+          font-size: 56px;
+          line-height: 1;
+          animation: pop-in 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
+        }
+        @keyframes pop-in {
+          from { transform: scale(0.3); opacity: 0; }
+          to { transform: scale(1); opacity: 1; }
+        }
+        .final-over-title {
+          font-size: 22px;
+          font-weight: 900;
+          color: white;
+          margin: 0;
+        }
+        .final-over-subtitle {
+          font-size: 14px;
+          color: rgba(255,255,255,0.55);
+          margin: 0;
+        }
+        .final-over-btns {
+          display: flex;
+          flex-direction: column;
+          gap: 10px;
+          width: 100%;
+          margin-top: 8px;
+        }
+        .final-over-replay-btn {
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          gap: 8px;
+          width: 100%;
+          height: 52px;
+          border-radius: 14px;
+          background: linear-gradient(135deg, #f59e0b, #ef4444);
+          color: white;
+          font-size: 15px;
+          font-weight: 800;
+          border: none;
+          cursor: pointer;
+          transition: opacity 0.2s;
+        }
+        .final-over-replay-btn:hover { opacity: 0.85; }
+        .final-over-close-btn {
+          width: 100%;
+          height: 44px;
+          border-radius: 12px;
+          background: rgba(255,255,255,0.07);
+          color: rgba(255,255,255,0.6);
+          font-size: 14px;
+          font-weight: 700;
+          border: 1px solid rgba(255,255,255,0.1);
+          cursor: pointer;
+          transition: background 0.2s;
+        }
+        .final-over-close-btn:hover { background: rgba(255,255,255,0.12); }
       `}</style>
+
       
       {showStopConfirm && (
         <ConfirmModal 
@@ -1066,6 +1179,48 @@ const FinalsPage = () => {
           confirmText="Finish"
           variant="danger"
         />
+      )}
+
+      {/* Final Mode Over Modal */}
+      {showFinalOver && (
+        <div className="modal-overlay" onClick={handleCloseFinalOver}>
+          <div className="modal-content glass final-over-modal animate-in" onClick={e => e.stopPropagation()} style={{ position: 'relative' }}>
+            <button 
+              onClick={handleCloseFinalOver}
+              aria-label="Close"
+              style={{
+                position: 'absolute',
+                top: '16px',
+                right: '16px',
+                background: 'rgba(255,255,255,0.08)',
+                border: 'none',
+                borderRadius: '50%',
+                width: '32px',
+                height: '32px',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                color: 'rgba(255,255,255,0.7)',
+                cursor: 'pointer',
+                transition: 'all 0.2s'
+              }}
+            >
+              <X size={18} />
+            </button>
+            <div className="final-over-icon">🏆</div>
+            <h2 className="final-over-title">Final Mode is Over</h2>
+            <p className="final-over-subtitle">Do you want to replay?</p>
+            <div className="final-over-btns">
+              <button className="final-over-replay-btn" onClick={handleReplayFinalMode}>
+                <Play size={18} fill="currentColor" />
+                Replay
+              </button>
+              <button className="final-over-close-btn" onClick={handleCloseFinalOver}>
+                ✕ Close
+              </button>
+            </div>
+          </div>
+        </div>
       )}
 
       {/* Fitness Duration Modal */}

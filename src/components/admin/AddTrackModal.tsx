@@ -43,6 +43,7 @@ const AddTrackModal = ({ isOpen, onClose, onAdd, initialData }: AddTrackModalPro
   const [coverFile, setCoverFile] = useState<File | null>(null);
   const [coverPreview, setCoverPreview] = useState<string | null>(initialData?.artworkUrl || null);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [uploadProgress, setUploadProgress] = useState<number | null>(null);
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [isSuccess, setIsSuccess] = useState(false);
   const [mpm, setMpmState] = useState<string>('');
@@ -100,15 +101,11 @@ const AddTrackModal = ({ isOpen, onClose, onAdd, initialData }: AddTrackModalPro
       return updated;
     });
 
-    // Auto-suggest artist and cover if empty
+    // Auto-suggest artist if empty (DO NOT auto-apply album cover to track)
     if (key !== 'standard' && nextVal) {
       const targetAlbum = albums.find(a => a.slug === key);
       if (targetAlbum?.artist && (!formData.artist || formData.artist === 'Unknown')) {
         setFormData(p => ({ ...p, artist: targetAlbum.artist }));
-      }
-      if (targetAlbum?.coverUrl && !coverPreview && !formData.artworkUrl) {
-        setFormData(p => ({ ...p, artworkUrl: targetAlbum.coverUrl }));
-        setCoverPreview(targetAlbum.coverUrl);
       }
     }
   };
@@ -129,6 +126,7 @@ const AddTrackModal = ({ isOpen, onClose, onAdd, initialData }: AddTrackModalPro
     setDestinations(defaultDests);
     setGocDiscipline('Latin');
     setSelectedFile(null); setCoverFile(null); setCoverPreview(null); setMpmState('');
+    setUploadProgress(null);
     setPasoTheme(''); setPasoVersion('');
     if (fileInputRef.current) fileInputRef.current.value = '';
     if (coverInputRef.current) coverInputRef.current.value = '';
@@ -182,11 +180,23 @@ const AddTrackModal = ({ isOpen, onClose, onAdd, initialData }: AddTrackModalPro
       setSelectedFile(file);
       setIsAnalyzing(true);
 
-      let autoTitle = file.name.replace(/\.[^/.]+$/, "");
+      const rawBaseName = file.name.replace(/\.[^/.]+$/, "");
       let autoArtist = '';
-      if (autoTitle.includes('-')) {
-        const parts = autoTitle.split('-').map(s => s.trim());
-        autoTitle = parts[0]; autoArtist = parts[1] || '';
+      let autoTitle = rawBaseName;
+
+      // Correctly handle standard "Artist - Title" format (e.g. "7 Winds Group - In The Beautiful Mood")
+      if (rawBaseName.includes(' - ')) {
+        const parts = rawBaseName.split(' - ').map(s => s.trim());
+        if (parts.length >= 2) {
+          autoArtist = parts[0];
+          autoTitle = parts.slice(1).join(' - ');
+        }
+      } else if (rawBaseName.includes('-')) {
+        const parts = rawBaseName.split('-').map(s => s.trim());
+        if (parts.length >= 2) {
+          autoArtist = parts[0];
+          autoTitle = parts.slice(1).join('-');
+        }
       }
 
       const normalizedName = file.name.toLowerCase();
@@ -194,8 +204,8 @@ const AddTrackModal = ({ isOpen, onClose, onAdd, initialData }: AddTrackModalPro
 
       setFormData(prev => ({ 
         ...prev, 
-        title: autoTitle || prev.title, 
-        artist: prev.artist || autoArtist,
+        title: autoTitle, 
+        artist: prev.artist && prev.artist !== 'Unknown' ? prev.artist : (autoArtist || prev.artist),
         style: detectedStyle ? detectedStyle.title : prev.style 
       }));
 
@@ -244,15 +254,28 @@ const AddTrackModal = ({ isOpen, onClose, onAdd, initialData }: AddTrackModalPro
 
         const { uploadUrl, publicUrl } = await signRes.json();
 
-        const putRes = await fetch(uploadUrl, {
-          method: 'PUT',
-          body: selectedFile,
-          headers: { 'Content-Type': audioFileType }
+        setUploadProgress(0);
+        await new Promise<void>((resolve, reject) => {
+          const xhr = new XMLHttpRequest();
+          xhr.open('PUT', uploadUrl);
+          xhr.setRequestHeader('Content-Type', audioFileType);
+          xhr.upload.onprogress = (event) => {
+            if (event.lengthComputable) {
+              const percent = Math.round((event.loaded / event.total) * 100);
+              setUploadProgress(percent);
+            }
+          };
+          xhr.onload = () => {
+            if (xhr.status >= 200 && xhr.status < 300) {
+              setUploadProgress(100);
+              resolve();
+            } else {
+              reject(new Error(`File upload to storage failed (${xhr.status})`));
+            }
+          };
+          xhr.onerror = () => reject(new Error('Network error during file upload'));
+          xhr.send(selectedFile);
         });
-
-        if (!putRes.ok) {
-          throw new Error(`File upload to storage failed (${putRes.status})`);
-        }
 
         audioUrl = publicUrl;
 
@@ -372,6 +395,7 @@ const AddTrackModal = ({ isOpen, onClose, onAdd, initialData }: AddTrackModalPro
       console.error("[ADD-TRACK-ERROR]", err);
       setValidationError(err.message || "Failed to upload track.");
       setIsSubmitting(false);
+      setUploadProgress(null);
     }
   };
 
@@ -612,7 +636,10 @@ const AddTrackModal = ({ isOpen, onClose, onAdd, initialData }: AddTrackModalPro
             <footer className="modal-footer">
               <button type="button" className="btn-secondary" onClick={onClose} disabled={isSubmitting}>Cancel</button>
               <button type="submit" className="btn-primary" disabled={isSubmitting || isAnalyzing}>
-                {isSubmitting ? 'Uploading...' : 'Save Track'}
+                {isSubmitting 
+                  ? (uploadProgress !== null ? `Uploading (${uploadProgress}%)...` : 'Saving...')
+                  : 'Save Track'
+                }
               </button>
             </footer>
           </form>

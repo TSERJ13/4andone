@@ -381,13 +381,20 @@ export const StudioProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       window.addEventListener('storage', handleStorage);
     }
 
-    // Tab focus & visibility change (auto-update when returning to tab)
-    const handleFocus = () => {
-      fetchData(true);
+    // Tab focus & visibility change (throttled auto-update: max once every 60s)
+    let lastFetchTime = Date.now();
+    const throttledFetch = () => {
+      const now = Date.now();
+      if (now - lastFetchTime > 60000) {
+        lastFetchTime = now;
+        fetchData(true);
+      }
     };
+
+    const handleFocus = () => throttledFetch();
     const handleVisibility = () => {
       if (typeof document !== 'undefined' && document.visibilityState === 'visible') {
-        fetchData(true);
+        throttledFetch();
       }
     };
     if (typeof window !== 'undefined') {
@@ -395,12 +402,13 @@ export const StudioProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       document.addEventListener('visibilitychange', handleVisibility);
     }
 
-    // 15-second background auto-sync interval for active tabs
+    // Background sync fallback (every 3 minutes instead of 15 seconds)
+    // Supabase Realtime already delivers instant live sync for tracks!
     const pollInterval = setInterval(() => {
       if (typeof document !== 'undefined' && document.visibilityState === 'visible') {
         fetchData(true);
       }
-    }, 15000);
+    }, 180000);
 
     return () => { 
       supabase.removeChannel(channel);

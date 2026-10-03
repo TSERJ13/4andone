@@ -11,8 +11,6 @@ const inter = Inter({
   weight: ['400', '500', '600', '700', '800', '900'] 
 });
 
-import { headers } from "next/headers";
-
 export const metadata: Metadata = {
   title: "4and.one - Free Web Music Player | Dancesport & Ballroom Music",
   description: "Free powerful web music player for Dancesport and Ballroom dancers. Listen to Cha Cha Cha, Samba, Rumba, Paso Doble, Jive, Slow Waltz, Tango, Viennese Waltz, Slow Foxtrot, and Quickstep music with BPM tempo control.",
@@ -319,19 +317,20 @@ const jsonLdSchema = {
   }
 };
 
-export default async function RootLayout({
+export default function RootLayout({
   children,
 }: Readonly<{
   children: React.ReactNode;
 }>) {
-  const headersList = await headers();
-  const pathname = headersList.get('x-pathname') || '/';
-  const isHome = pathname === '/';
-
   return (
     <html lang="en" suppressHydrationWarning>
       <head>
         <meta name="google-site-verification" content="hmYQzKJ5eZK-N6rFBBDmqMyRCh3UtPeC8kjDeZyg-l4" />
+        <script
+          async
+          src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-2697205988789699"
+          crossOrigin="anonymous"
+        />
         <script src="https://telegram.org/js/telegram-web-app.js" />
         <script
           type="application/ld+json"
@@ -366,13 +365,6 @@ export default async function RootLayout({
           src="https://telegram.org/js/telegram-web-app.js"
           strategy="beforeInteractive"
         />
-        {isHome && (
-          <script
-            async
-            src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-2697205988789699"
-            crossOrigin="anonymous"
-          />
-        )}
       </body>
     </html>
 );

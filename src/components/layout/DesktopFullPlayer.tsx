@@ -269,8 +269,10 @@ export default function DesktopFullPlayer({ onClose }: { onClose: () => void }) 
   return createPortal(
     <div className={`desktop-player-overlay animate-fade-in ${isFinalMode ? 'final-active' : ''}`} style={{ zIndex: 9999, background: '#121212' }}>
       <div className="dp-console-wrapper">
-        <AdBanner variant="desktop" className="dp-top-ad" style={{ margin: '0 auto 12px auto' }} />
         <main className="dp-player-console">
+          <div className="dp-top-ad-wrapper">
+            <AdBanner variant="desktop" className="dp-top-ad" />
+          </div>
           <button 
             onClick={handleShareTrack} 
             className="dp-share-corner-btn glass" 
@@ -712,6 +714,17 @@ export default function DesktopFullPlayer({ onClose }: { onClose: () => void }) 
           height: 100%;
           justify-content: center;
           position: relative;
+        }
+
+        .dp-top-ad-wrapper {
+          position: absolute;
+          top: 14px;
+          left: 0;
+          right: 0;
+          display: flex;
+          justify-content: center;
+          align-items: center;
+          z-index: 50;
         }
 
         .dp-share-corner-btn {

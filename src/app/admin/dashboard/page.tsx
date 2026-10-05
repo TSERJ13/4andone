@@ -14,6 +14,7 @@ import {
   Coffee
 } from 'lucide-react';
 import BulkUpload from "../../../components/admin/BulkUpload";
+import AdSenseStatsCard from "@/components/admin/AdSenseStatsCard";
 import { useAudio } from '@/components/audio/AudioProvider';
 import { useStudio } from '@/components/admin/StudioProvider';
 import { supabase } from '@/utils/supabase';
@@ -92,6 +93,9 @@ export default function AdminDashboard() {
   return (
     <div className="dashboard-container animate-in">
       <div className="dashboard-main-flow">
+        {/* Google AdSense Live Performance */}
+        <AdSenseStatsCard />
+
         {/* Bulk Upload - Now Full Width and Primary Focus */}
         <section className="dashboard-section glass">
           <div className="section-header">

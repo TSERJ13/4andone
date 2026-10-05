@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import { google } from 'googleapis';
-import { saveAdSenseTokens } from '@/lib/adsense-token';
+import { saveAdSenseTokens, getGoogleOAuthCredentials } from '@/lib/adsense-token';
 
 export const dynamic = 'force-dynamic';
 
@@ -19,8 +19,7 @@ export async function GET(request: Request) {
     return NextResponse.redirect(`${redirectTarget}?adsense_error=No_code_received`);
   }
 
-  const clientId = process.env.GOOGLE_ADSENSE_CLIENT_ID;
-  const clientSecret = process.env.GOOGLE_ADSENSE_CLIENT_SECRET;
+  const { clientId, clientSecret } = getGoogleOAuthCredentials();
 
   if (!clientId || !clientSecret) {
     return NextResponse.redirect(`${redirectTarget}?adsense_error=Missing_client_credentials`);

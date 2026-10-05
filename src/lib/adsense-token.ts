@@ -9,6 +9,13 @@ const R2_SECRET = process.env.R2_SECRET_ACCESS_KEY || '';
 
 const S3_KEY_PATH = '_system/adsense-tokens.json';
 
+export function getGoogleOAuthCredentials() {
+  const clientId = process.env.GOOGLE_ADSENSE_CLIENT_ID || '';
+  const clientSecret = process.env.GOOGLE_ADSENSE_CLIENT_SECRET || '';
+
+  return { clientId, clientSecret };
+}
+
 function getS3Client() {
   if (!R2_ENDPOINT || !R2_KEY || !R2_SECRET) return null;
   return new S3Client({

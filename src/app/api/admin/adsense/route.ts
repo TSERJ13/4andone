@@ -1,13 +1,11 @@
 import { NextResponse } from 'next/server';
 import { google } from 'googleapis';
-import { getAdSenseRefreshToken } from '@/lib/adsense-token';
+import { getAdSenseRefreshToken, getGoogleOAuthCredentials } from '@/lib/adsense-token';
 
 export const dynamic = 'force-dynamic';
 
 async function getAuthClient() {
-  const clientId = process.env.GOOGLE_ADSENSE_CLIENT_ID;
-  const clientSecret = process.env.GOOGLE_ADSENSE_CLIENT_SECRET;
-
+  const { clientId, clientSecret } = getGoogleOAuthCredentials();
   const refreshToken = await getAdSenseRefreshToken();
 
   // 1. Primary: OAuth2 Refresh Token (Recommended by Google for AdSense Management API)

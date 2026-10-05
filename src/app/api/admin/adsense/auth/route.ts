@@ -1,15 +1,15 @@
 import { NextResponse } from 'next/server';
 import { google } from 'googleapis';
+import { getGoogleOAuthCredentials } from '@/lib/adsense-token';
 
 export const dynamic = 'force-dynamic';
 
 export async function GET(request: Request) {
-  const clientId = process.env.GOOGLE_ADSENSE_CLIENT_ID;
-  const clientSecret = process.env.GOOGLE_ADSENSE_CLIENT_SECRET;
+  const { clientId, clientSecret } = getGoogleOAuthCredentials();
 
   if (!clientId || !clientSecret) {
     return NextResponse.json(
-      { error: 'Google OAuth Client ID and Secret not configured in environment.' },
+      { error: 'Google OAuth Client ID and Secret not configured.' },
       { status: 400 }
     );
   }

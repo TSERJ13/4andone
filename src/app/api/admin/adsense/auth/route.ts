@@ -5,7 +5,7 @@ import { getGoogleOAuthCredentials } from '@/lib/adsense-token';
 export const dynamic = 'force-dynamic';
 
 export async function GET(request: Request) {
-  const { clientId, clientSecret } = getGoogleOAuthCredentials();
+  const { clientId, clientSecret } = await getGoogleOAuthCredentials();
 
   if (!clientId || !clientSecret) {
     return NextResponse.json(

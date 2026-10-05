@@ -5,7 +5,7 @@ import { getAdSenseRefreshToken, getGoogleOAuthCredentials } from '@/lib/adsense
 export const dynamic = 'force-dynamic';
 
 async function getAuthClient() {
-  const { clientId, clientSecret } = getGoogleOAuthCredentials();
+  const { clientId, clientSecret } = await getGoogleOAuthCredentials();
   const refreshToken = await getAdSenseRefreshToken();
 
   // 1. Primary: OAuth2 Refresh Token (Recommended by Google for AdSense Management API)

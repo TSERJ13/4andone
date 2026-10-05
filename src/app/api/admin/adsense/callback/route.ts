@@ -19,7 +19,7 @@ export async function GET(request: Request) {
     return NextResponse.redirect(`${redirectTarget}?adsense_error=No_code_received`);
   }
 
-  const { clientId, clientSecret } = getGoogleOAuthCredentials();
+  const { clientId, clientSecret } = await getGoogleOAuthCredentials();
 
   if (!clientId || !clientSecret) {
     return NextResponse.redirect(`${redirectTarget}?adsense_error=Missing_client_credentials`);

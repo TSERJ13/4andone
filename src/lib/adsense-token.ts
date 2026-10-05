@@ -8,13 +8,7 @@ const R2_KEY = process.env.R2_ACCESS_KEY_ID || '';
 const R2_SECRET = process.env.R2_SECRET_ACCESS_KEY || '';
 
 const S3_KEY_PATH = '_system/adsense-tokens.json';
-
-export function getGoogleOAuthCredentials() {
-  const clientId = process.env.GOOGLE_ADSENSE_CLIENT_ID || '';
-  const clientSecret = process.env.GOOGLE_ADSENSE_CLIENT_SECRET || '';
-
-  return { clientId, clientSecret };
-}
+const S3_CONFIG_PATH = '_system/adsense-config.json';
 
 function getS3Client() {
   if (!R2_ENDPOINT || !R2_KEY || !R2_SECRET) return null;
@@ -26,6 +20,40 @@ function getS3Client() {
       secretAccessKey: R2_SECRET,
     },
   });
+}
+
+export async function getGoogleOAuthCredentials(): Promise<{ clientId: string; clientSecret: string }> {
+  // 1. Env variables
+  if (process.env.GOOGLE_ADSENSE_CLIENT_ID && process.env.GOOGLE_ADSENSE_CLIENT_SECRET) {
+    return {
+      clientId: process.env.GOOGLE_ADSENSE_CLIENT_ID,
+      clientSecret: process.env.GOOGLE_ADSENSE_CLIENT_SECRET,
+    };
+  }
+
+  // 2. Read from Cloudflare R2
+  const s3 = getS3Client();
+  if (s3 && R2_BUCKET) {
+    try {
+      const res = await s3.send(
+        new GetObjectCommand({
+          Bucket: R2_BUCKET,
+          Key: S3_CONFIG_PATH,
+        })
+      );
+      if (res.Body) {
+        const bodyStr = await res.Body.transformToString();
+        const data = JSON.parse(bodyStr);
+        if (data?.clientId && data?.clientSecret) {
+          return { clientId: data.clientId, clientSecret: data.clientSecret };
+        }
+      }
+    } catch (e) {
+      console.error('Failed to load AdSense OAuth config from R2', e);
+    }
+  }
+
+  return { clientId: '', clientSecret: '' };
 }
 
 export async function saveAdSenseTokens(tokens: any): Promise<boolean> {

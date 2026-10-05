@@ -1,62 +1,52 @@
 import { NextResponse } from 'next/server';
 import { google } from 'googleapis';
+import { getAdSenseRefreshToken } from '@/lib/adsense-token';
 
 export const dynamic = 'force-dynamic';
 
-function getCredentials() {
-  // Option 1: Full JSON string in single env var
-  if (process.env.GOOGLE_ADSENSE_CREDENTIALS) {
-    try {
-      const parsed = JSON.parse(process.env.GOOGLE_ADSENSE_CREDENTIALS);
-      return {
-        clientEmail: parsed.client_email,
-        privateKey: parsed.private_key,
-      };
-    } catch (e) {
-      console.error('Failed to parse GOOGLE_ADSENSE_CREDENTIALS JSON', e);
-    }
+async function getAuthClient() {
+  const clientId = process.env.GOOGLE_ADSENSE_CLIENT_ID;
+  const clientSecret = process.env.GOOGLE_ADSENSE_CLIENT_SECRET;
+
+  const refreshToken = await getAdSenseRefreshToken();
+
+  // 1. Primary: OAuth2 Refresh Token (Recommended by Google for AdSense Management API)
+  if (clientId && clientSecret && refreshToken) {
+    const oauth2Client = new google.auth.OAuth2(clientId, clientSecret);
+    oauth2Client.setCredentials({ refresh_token: refreshToken });
+    return oauth2Client;
   }
 
-  // Option 2: Separate env vars
-  if (process.env.GOOGLE_ADSENSE_CLIENT_EMAIL && process.env.GOOGLE_ADSENSE_PRIVATE_KEY) {
-    return {
-      clientEmail: process.env.GOOGLE_ADSENSE_CLIENT_EMAIL,
-      privateKey: process.env.GOOGLE_ADSENSE_PRIVATE_KEY,
-    };
+  // 2. Secondary: Service Account JWT fallback if configured
+  const clientEmail = process.env.GOOGLE_ADSENSE_CLIENT_EMAIL;
+  const privateKey = process.env.GOOGLE_ADSENSE_PRIVATE_KEY;
+
+  if (clientEmail && privateKey) {
+    const formattedKey = privateKey.includes('\\n')
+      ? privateKey.replace(/\\n/g, '\n')
+      : privateKey;
+    return new google.auth.JWT({
+      email: clientEmail,
+      key: formattedKey,
+      scopes: ['https://www.googleapis.com/auth/adsense.readonly'],
+    });
   }
 
   return null;
 }
 
-function formatDate(d: Date) {
-  return {
-    year: d.getFullYear(),
-    month: d.getMonth() + 1,
-    day: d.getDate(),
-  };
-}
-
 export async function GET() {
-  const creds = getCredentials();
+  const auth = await getAuthClient();
 
-  if (!creds || !creds.clientEmail || !creds.privateKey) {
+  if (!auth) {
     return NextResponse.json({
       connected: false,
-      message: 'AdSense API credentials not configured yet.',
+      hasOauthConfig: true,
+      message: 'AdSense API not connected yet.',
     });
   }
 
   try {
-    const formattedKey = creds.privateKey.includes('\\n')
-      ? creds.privateKey.replace(/\\n/g, '\n')
-      : creds.privateKey;
-
-    const auth = new google.auth.JWT({
-      email: creds.clientEmail,
-      key: formattedKey,
-      scopes: ['https://www.googleapis.com/auth/adsense.readonly'],
-    });
-
     const adsense = google.adsense({ version: 'v2', auth });
 
     // 1. Discover account name
@@ -66,7 +56,8 @@ export async function GET() {
     if (accounts.length === 0) {
       return NextResponse.json({
         connected: false,
-        message: 'No AdSense accounts found for this Service Account. Ensure user is added in AdSense -> User management.',
+        hasOauthConfig: true,
+        message: 'No active AdSense account found. Please ensure you are logged into the correct Google account.',
       });
     }
 

@@ -30,6 +30,7 @@ import { formatDuration } from '@/utils/format';
 import { Marquee } from '@/components/layout/Marquee';
 import AddToPlaylistModal from '@/components/audio/AddToPlaylistModal';
 import OfflineDownloadButton from '@/components/audio/OfflineDownloadButton';
+import AdBanner from '@/components/ads/AdBanner';
 
 interface MobileFullPlayerProps {
   isOpen: boolean;
@@ -244,6 +245,8 @@ const MobileFullPlayer = ({ isOpen, onClose }: MobileFullPlayerProps) => {
           <Share2 size={24} />
         </button>
       </div>
+
+      <AdBanner className="mfp-top-ad" style={{ maxWidth: '360px', margin: '0 auto 10px auto' }} />
 
       <div className="mfp-content">
         <div className="art-container">

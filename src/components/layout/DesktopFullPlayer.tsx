@@ -34,6 +34,7 @@ import SpeedSelector from '@/components/audio/SpeedSelector';
 import { formatDuration } from '@/utils/format';
 import AddToPlaylistModal from '@/components/audio/AddToPlaylistModal';
 import OfflineDownloadButton from '@/components/audio/OfflineDownloadButton';
+import AdBanner from '@/components/ads/AdBanner';
 
 const LATIN_FIRST_ORDER: Record<string, number> = {
   // Latin First
@@ -268,6 +269,7 @@ export default function DesktopFullPlayer({ onClose }: { onClose: () => void }) 
   return createPortal(
     <div className={`desktop-player-overlay animate-fade-in ${isFinalMode ? 'final-active' : ''}`} style={{ zIndex: 9999, background: '#121212' }}>
       <div className="dp-console-wrapper">
+        <AdBanner className="dp-top-ad" style={{ maxWidth: '728px', margin: '0 auto 16px auto' }} />
         <main className="dp-player-console">
           <button 
             onClick={handleShareTrack} 

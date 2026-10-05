@@ -145,6 +145,26 @@ button {
   border-radius: 6px;
 }
 
+/* Global Top Ad Banner */
+.global-top-banner {
+  max-width: 970px;
+  width: 100%;
+  margin: 0 auto 20px auto;
+  min-height: 60px;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  position: relative;
+  z-index: 10;
+}
+
+@media (max-width: 1024px) {
+  .global-top-banner {
+    max-width: 100%;
+    margin: 0 auto 16px auto;
+  }
+}
+
 /* Player Bar (Restoring Flat Bottom) */
 .player-bar {
   grid-area: player;
@@ -197,6 +217,7 @@ button {
     flex: 1;
     width: 100%;
     padding: 24px 16px;
+    padding-top: max(78px, calc(env(safe-area-inset-top, 0px) + 64px));
     padding-bottom: 200px; /* Space for MiniPlayer + Grounded BottomNav */
     border-radius: 0;
   }
@@ -624,7 +645,7 @@ button {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-bottom: 40px;
+  margin-bottom: 12px;
   flex-shrink: 0;
 }
 

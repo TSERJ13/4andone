@@ -14,6 +14,7 @@ import { ContactModal } from '@/components/modals/ContactModal';
 import MobileFullPlayer from './MobileFullPlayer';
 import DesktopFullPlayer from './DesktopFullPlayer';
 import OfflineBanner from './OfflineBanner';
+import AdBanner from '@/components/ads/AdBanner';
 
 export default function AppLayout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
@@ -138,6 +139,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
         <OfflineBanner />
         <Sidebar />
         <main className="main-content">
+          <AdBanner key={pathname} className="global-top-banner" />
           {children}
         </main>
         <PlayerBar onExpand={handleExpand} />

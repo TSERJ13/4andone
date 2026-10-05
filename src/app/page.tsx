@@ -13,7 +13,6 @@ import { getTrackSlug, normalizeDanceSlug } from '@/utils/seo';
 import ConfirmModal from '@/components/admin/ConfirmModal';
 import { useState, useEffect } from 'react';
 import { UserBadge } from '@/components/auth/UserBadge';
-import { KofiButton } from '@/components/kofi/KofiButton';
 import { TopSocialMenu } from '@/components/kofi/TopSocialMenu';
 import { useRouter } from 'next/navigation';
 import { Marquee } from '@/components/layout/Marquee';
@@ -308,9 +307,8 @@ export default function Home() {
           </p>
         </div>
 
-        {/* Top Header Row: Buy Me Coffee on left, Social Menu + Login on right */}
+        {/* Top Header Row: Social Menu + Login on right */}
         <div className="home-top-header">
-          <KofiButton />
           <div className="header-right-group">
             <TopSocialMenu />
             <UserBadge />
@@ -666,7 +664,7 @@ export default function Home() {
         .home-top-header {
           display: flex;
           align-items: center;
-          justify-content: space-between;
+          justify-content: flex-end;
           margin-bottom: 16px;
           padding: 0 4px;
           position: relative;

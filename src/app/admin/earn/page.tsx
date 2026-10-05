@@ -30,7 +30,7 @@ export default function AdminEarnPage() {
             rel="noopener noreferrer"
             className="adsense-console-btn glass"
           >
-            <span>Open AdSense Console</span>
+            <span><span className="desktop-only">Open </span>AdSense Console</span>
             <ExternalLink size={14} />
           </a>
         </div>
@@ -220,13 +220,72 @@ export default function AdminEarnPage() {
           margin: 0;
         }
 
-        @media (max-width: 768px) {
-          .earn-page {
-            padding: 20px 16px;
+        .desktop-only {
+          display: inline;
+        }
+
+        @media (max-width: 640px) {
+          .desktop-only {
+            display: none;
           }
+
+          .earn-page {
+            padding: 4px 0 100px 0;
+          }
+
           .page-header {
-            flex-direction: column;
-            align-items: flex-start;
+            flex-direction: row;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 16px;
+            gap: 10px;
+          }
+
+          .title-row {
+            gap: 10px;
+          }
+
+          .earn-badge {
+            width: 36px;
+            height: 36px;
+            border-radius: 10px;
+          }
+
+          .page-title {
+            font-size: 20px;
+            letter-spacing: -0.3px;
+          }
+
+          .page-subtitle {
+            display: none;
+          }
+
+          .adsense-console-btn {
+            padding: 7px 12px;
+            font-size: 11.5px;
+            border-radius: 10px;
+            gap: 5px;
+            white-space: nowrap;
+          }
+
+          .earn-content {
+            gap: 14px;
+          }
+
+          .monetization-grid {
+            grid-template-columns: 1fr;
+            gap: 12px;
+            margin-top: 2px;
+          }
+
+          .monetization-card {
+            padding: 14px 16px;
+            border-radius: 14px;
+          }
+
+          .monetization-card p {
+            font-size: 12px;
+            line-height: 1.5;
           }
         }
       `}</style>

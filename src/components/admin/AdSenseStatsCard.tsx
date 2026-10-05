@@ -68,14 +68,14 @@ export default function AdSenseStatsCard() {
           </div>
           <div>
             <div className="card-heading">
-              <h3>Google AdSense Performance</h3>
+              <h3>Google AdSense<span className="desktop-only"> Performance</span></h3>
               {data?.connected ? (
                 <span className="status-pill active">
                   <CheckCircle2 size={12} /> Connected
                 </span>
               ) : (
                 <span className="status-pill pending">
-                  <AlertCircle size={12} /> Setup Required
+                  <AlertCircle size={12} /> Setup
                 </span>
               )}
             </div>
@@ -115,13 +115,13 @@ export default function AdSenseStatsCard() {
               className={`time-tab ${activeTab === 'last7Days' ? 'active' : ''}`}
               onClick={() => setActiveTab('last7Days')}
             >
-              Last 7 Days
+              <span className="desktop-only">Last </span>7 Days
             </button>
             <button 
               className={`time-tab ${activeTab === 'thisMonth' ? 'active' : ''}`}
               onClick={() => setActiveTab('thisMonth')}
             >
-              This Month
+              <span className="desktop-only">This </span>Month
             </button>
           </div>
 
@@ -129,7 +129,7 @@ export default function AdSenseStatsCard() {
           <div className="metrics-grid">
             <div className="metric-box earnings-box">
               <div className="metric-header">
-                <span className="metric-title">Estimated Earnings</span>
+                <span className="metric-title"><span className="desktop-only">Estimated </span>Earnings</span>
                 <span className="metric-icon earnings"><DollarSign size={18} /></span>
               </div>
               <div className="metric-value">€{currentMetrics.earnings}</div>
@@ -138,7 +138,7 @@ export default function AdSenseStatsCard() {
 
             <div className="metric-box">
               <div className="metric-header">
-                <span className="metric-title">Ad Impressions</span>
+                <span className="metric-title"><span className="desktop-only">Ad </span>Impressions</span>
                 <span className="metric-icon impressions"><Eye size={18} /></span>
               </div>
               <div className="metric-value">{currentMetrics.impressions.toLocaleString()}</div>
@@ -478,6 +478,10 @@ export default function AdSenseStatsCard() {
           border: 1px solid rgba(255, 255, 255, 0.05);
         }
 
+        .desktop-only {
+          display: inline;
+        }
+
         .step-num {
           width: 22px;
           height: 22px;
@@ -490,6 +494,127 @@ export default function AdSenseStatsCard() {
           align-items: center;
           justify-content: center;
           flex-shrink: 0;
+        }
+
+        @media (max-width: 640px) {
+          .desktop-only {
+            display: none;
+          }
+
+          .adsense-stats-card {
+            padding: 16px 14px;
+            border-radius: 16px;
+            margin-bottom: 16px;
+          }
+
+          .card-top-bar {
+            margin-bottom: 14px;
+            gap: 10px;
+          }
+
+          .title-group {
+            gap: 10px;
+            min-width: 0;
+            flex: 1;
+          }
+
+          .logo-badge {
+            width: 36px;
+            height: 36px;
+            border-radius: 10px;
+            flex-shrink: 0;
+          }
+
+          .logo-text {
+            font-size: 17px;
+          }
+
+          .card-heading {
+            gap: 6px;
+            flex-wrap: wrap;
+            align-items: center;
+          }
+
+          .card-heading h3 {
+            font-size: 15px;
+            line-height: 1.2;
+          }
+
+          .card-subtitle {
+            font-size: 11px;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            max-width: 190px;
+          }
+
+          .status-pill {
+            font-size: 10px;
+            padding: 2px 7px;
+          }
+
+          .refresh-btn {
+            width: 32px;
+            height: 32px;
+            border-radius: 8px;
+            flex-shrink: 0;
+          }
+
+          .time-tabs {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 6px;
+            margin-bottom: 14px;
+            padding-bottom: 10px;
+          }
+
+          .time-tab {
+            padding: 8px 2px;
+            font-size: 11.5px;
+            font-weight: 700;
+            border-radius: 8px;
+            text-align: center;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            white-space: nowrap;
+          }
+
+          .metrics-grid {
+            grid-template-columns: repeat(2, 1fr);
+            gap: 10px;
+          }
+
+          .metric-box {
+            padding: 12px 10px;
+            border-radius: 12px;
+            gap: 4px;
+          }
+
+          .metric-title {
+            font-size: 10px;
+            letter-spacing: 0.2px;
+          }
+
+          .metric-icon {
+            width: 26px;
+            height: 26px;
+            border-radius: 6px;
+          }
+
+          .metric-icon :global(svg) {
+            width: 14px;
+            height: 14px;
+          }
+
+          .metric-value {
+            font-size: 19px;
+            margin-top: 2px;
+          }
+
+          .metric-footer {
+            font-size: 9.5px;
+          }
         }
       `}</style>
     </div>

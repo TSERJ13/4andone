@@ -667,55 +667,31 @@ export default function Home() {
       <style jsx>{`
         .home-top-header {
           display: flex;
+          flex-direction: column;
           align-items: center;
-          justify-content: space-between;
-          gap: 16px;
-          margin-bottom: 8px;
+          gap: 10px;
+          margin-bottom: 12px;
           padding: 0 4px;
           position: relative;
           z-index: 20;
-          min-height: 90px;
+          width: 100%;
         }
 
         .header-ad-slot {
-          flex: 1;
+          width: 100%;
           display: flex;
           justify-content: center;
           align-items: center;
-          max-width: 728px;
         }
 
         .header-right-group {
+          width: 100%;
           display: flex;
           align-items: center;
+          justify-content: flex-end;
           gap: 10px;
           position: relative;
           z-index: 100;
-          flex-shrink: 0;
-        }
-
-        @media (max-width: 1024px) {
-          .home-top-header {
-            flex-direction: column-reverse;
-            align-items: center;
-            gap: 8px;
-            min-height: auto;
-            margin-bottom: 8px;
-          }
-          .header-right-group {
-            width: 100%;
-            justify-content: flex-end;
-          }
-          .header-ad-slot {
-            width: 100%;
-            max-width: 468px;
-          }
-        }
-
-        @media (max-width: 640px) {
-          .header-ad-slot {
-            max-width: 320px;
-          }
         }
 
         .carousel-nav-btn {

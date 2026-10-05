@@ -58,6 +58,7 @@ export function AdBanner({
 }: AdBannerProps) {
   const [deviceType, setDeviceType] = useState<AdDeviceType>('desktop');
   const [mounted, setMounted] = useState(false);
+  const containerRef = useRef<HTMLDivElement | null>(null);
   const adRef = useRef<HTMLModElement | null>(null);
   const pushedRef = useRef(false);
 
@@ -65,11 +66,19 @@ export function AdBanner({
     setMounted(true);
 
     const updateDevice = () => {
-      if (variant === 'auto') {
-        setDeviceType(resolveDeviceType());
-      } else {
+      if (variant !== 'auto') {
         setDeviceType(variant);
+        return;
       }
+      // Pick the largest unit that actually fits in the available width,
+      // otherwise Google auto-resizes the fixed unit into an odd format.
+      const byDevice = resolveDeviceType();
+      const available = containerRef.current?.clientWidth ?? window.innerWidth;
+      let fit: AdDeviceType = 'mobile';
+      if (available >= AD_CONFIGS.desktop.width) fit = 'desktop';
+      else if (available >= AD_CONFIGS.tablet.width) fit = 'tablet';
+      const order: AdDeviceType[] = ['mobile', 'tablet', 'desktop'];
+      setDeviceType(order[Math.min(order.indexOf(byDevice), order.indexOf(fit))]);
     };
 
     updateDevice();
@@ -79,7 +88,7 @@ export function AdBanner({
       window.removeEventListener('resize', updateDevice);
       window.removeEventListener('orientationchange', updateDevice);
     };
-  }, [variant]);
+  }, [variant, mounted]);
 
   const activeType: AdDeviceType = variant === 'auto' ? deviceType : variant;
   const config = AD_CONFIGS[activeType];
@@ -127,6 +136,7 @@ export function AdBanner({
 
   return (
     <div
+      ref={containerRef}
       className={`adsense-banner-container ${className}`}
       style={{
         width: '100%',
@@ -134,7 +144,6 @@ export function AdBanner({
         display: 'flex',
         justifyContent: 'center',
         alignItems: 'center',
-        overflow: 'hidden',
         position: 'relative',
         zIndex: 10,
         ...style

@@ -308,10 +308,15 @@ export default function Home() {
           </p>
         </div>
 
-        {/* Top Header Row: AdSense Banner on left/center, Social Menu + Login on right */}
+        {/* Top Header Row: Dual AdSense Banners on Desktop, Single on Mobile/Tablet */}
         <div className="home-top-header">
-          <div className="header-ad-slot">
-            <AdBanner variant="auto" />
+          <div className="header-dual-ads">
+            <div className="header-ad-primary">
+              <AdBanner variant="auto" />
+            </div>
+            <div className="header-ad-secondary">
+              <AdBanner slot="3539678305" width={468} height={60} />
+            </div>
           </div>
           <div className="header-right-group">
             <TopSocialMenu />
@@ -677,11 +682,31 @@ export default function Home() {
           width: 100%;
         }
 
-        .header-ad-slot {
+        .header-dual-ads {
           width: 100%;
           display: flex;
           justify-content: center;
           align-items: center;
+          gap: 16px;
+          flex-wrap: nowrap;
+        }
+
+        .header-ad-primary {
+          display: flex;
+          justify-content: center;
+          align-items: center;
+        }
+
+        .header-ad-secondary {
+          display: flex;
+          justify-content: center;
+          align-items: center;
+        }
+
+        @media (max-width: 1024px) {
+          .header-ad-secondary {
+            display: none !important;
+          }
         }
 
         .header-right-group {

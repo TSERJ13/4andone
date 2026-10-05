@@ -6,16 +6,19 @@ export type AdDeviceType = 'desktop' | 'tablet' | 'mobile';
 
 interface AdBannerProps {
   variant?: 'auto' | 'desktop' | 'tablet' | 'mobile';
+  slot?: string;
+  width?: number;
+  height?: number;
   className?: string;
   style?: React.CSSProperties;
 }
 
 const AD_CONFIGS = {
   desktop: {
-    slot: '7499637445',
-    width: 728,
-    height: 90,
-    style: { display: 'inline-block', width: '728px', height: '90px' } as React.CSSProperties,
+    slot: '9997722559',
+    width: 468,
+    height: 60,
+    style: { display: 'inline-block', width: '468px', height: '60px' } as React.CSSProperties,
   },
   tablet: {
     slot: '9997722559',
@@ -41,6 +44,9 @@ function resolveDeviceType(): AdDeviceType {
 
 export function AdBanner({
   variant = 'auto',
+  slot,
+  width,
+  height,
   className = '',
   style
 }: AdBannerProps) {
@@ -76,12 +82,21 @@ export function AdBanner({
   const activeType: AdDeviceType = variant === 'auto' ? deviceType : variant;
   const config = AD_CONFIGS[activeType];
 
+  const slotToUse = slot || config.slot;
+  const widthToUse = width || config.width;
+  const heightToUse = height || config.height;
+  const styleToUse = (width && height)
+    ? { display: 'inline-block', width: `${widthToUse}px`, height: `${heightToUse}px` }
+    : config.style;
+
   useEffect(() => {
     pushedRef.current = false;
 
-    const timer = setTimeout(() => {
+    const tryPush = () => {
       try {
         if (typeof window !== 'undefined' && adRef.current) {
+          // If the element is hidden (display: none), offsetParent is null; do not push
+          if (adRef.current.offsetParent === null) return;
           const isDone = adRef.current.getAttribute('data-adsbygoogle-status') === 'done';
           if (!isDone && !pushedRef.current) {
             ((window as any).adsbygoogle = (window as any).adsbygoogle || []).push({});
@@ -91,12 +106,18 @@ export function AdBanner({
       } catch (err) {
         // Silently catch adblock
       }
-    }, 100);
+    };
 
-    return () => clearTimeout(timer);
-  }, [activeType]);
+    const timer = setTimeout(tryPush, 100);
+    window.addEventListener('resize', tryPush);
 
-  const containerMinHeight = `${config.height}px`;
+    return () => {
+      clearTimeout(timer);
+      window.removeEventListener('resize', tryPush);
+    };
+  }, [slotToUse, activeType]);
+
+  const containerMinHeight = `${heightToUse}px`;
 
   return (
     <div
@@ -116,9 +137,9 @@ export function AdBanner({
       <ins
         ref={adRef}
         className="adsbygoogle"
-        style={config.style}
+        style={styleToUse}
         data-ad-client="ca-pub-2697205988789699"
-        data-ad-slot={config.slot}
+        data-ad-slot={slotToUse}
       />
     </div>
   );

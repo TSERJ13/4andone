@@ -269,7 +269,7 @@ export default function DesktopFullPlayer({ onClose }: { onClose: () => void }) 
   return createPortal(
     <div className={`desktop-player-overlay animate-fade-in ${isFinalMode ? 'final-active' : ''}`} style={{ zIndex: 9999, background: '#121212' }}>
       <div className="dp-console-wrapper">
-        <AdBanner className="dp-top-ad" style={{ maxWidth: '728px', margin: '0 auto 16px auto' }} />
+        <AdBanner variant="desktop" className="dp-top-ad" style={{ margin: '0 auto 12px auto' }} />
         <main className="dp-player-console">
           <button 
             onClick={handleShareTrack} 

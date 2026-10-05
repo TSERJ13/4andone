@@ -246,7 +246,7 @@ const MobileFullPlayer = ({ isOpen, onClose }: MobileFullPlayerProps) => {
         </button>
       </div>
 
-      <AdBanner className="mfp-top-ad" style={{ maxWidth: '360px', margin: '0 auto 10px auto' }} />
+      <AdBanner variant="mobile" className="mfp-top-ad" style={{ margin: '0 auto 8px auto' }} />
 
       <div className="mfp-content">
         <div className="art-container">

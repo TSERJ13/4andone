@@ -1,56 +1,139 @@
 "use client";
 
-import React, { useEffect, useRef } from 'react';
+import React, { useEffect, useState, useRef } from 'react';
+
+export type AdDeviceType = 'desktop' | 'tablet' | 'mobile';
 
 interface AdBannerProps {
-  slot?: string;
-  format?: 'auto' | 'fluid' | 'horizontal' | 'rectangle';
-  responsive?: boolean;
+  variant?: 'auto' | 'desktop' | 'tablet' | 'mobile';
   className?: string;
   style?: React.CSSProperties;
 }
 
+const AD_CONFIGS = {
+  desktop: {
+    slot: '7499637445',
+    width: 728,
+    height: 90,
+    style: { display: 'inline-block', width: '728px', height: '90px' } as React.CSSProperties,
+  },
+  tablet: {
+    slot: '9997722559',
+    width: 468,
+    height: 60,
+    style: { display: 'inline-block', width: '468px', height: '60px' } as React.CSSProperties,
+  },
+  mobile: {
+    slot: '3269671833',
+    width: 320,
+    height: 50,
+    style: { display: 'inline-block', width: '320px', height: '50px' } as React.CSSProperties,
+  },
+};
+
+function resolveDeviceType(): AdDeviceType {
+  if (typeof window === 'undefined') return 'desktop';
+  const width = window.innerWidth;
+  const height = window.innerHeight;
+  const isLandscape = width > height;
+
+  // Mobile: narrow screen (phones)
+  if (width < 640) {
+    return 'mobile';
+  }
+
+  // Tablet in vertical (portrait) position: width between 640 and 1024 and not landscape
+  if (width <= 1024 && !isLandscape) {
+    return 'tablet';
+  }
+
+  // Desktop and horizontal (landscape) tablet
+  return 'desktop';
+}
+
 export function AdBanner({
-  slot,
-  format = 'auto',
-  responsive = true,
+  variant = 'auto',
   className = '',
   style
 }: AdBannerProps) {
+  const [deviceType, setDeviceType] = useState<AdDeviceType>('desktop');
+  const [mounted, setMounted] = useState(false);
   const adRef = useRef<HTMLModElement | null>(null);
   const pushedRef = useRef(false);
 
   useEffect(() => {
-    // Avoid double-pushing to the same ins element in React 18 strict mode
-    if (pushedRef.current) return;
+    setMounted(true);
+
+    const updateDevice = () => {
+      if (variant === 'auto') {
+        setDeviceType(resolveDeviceType());
+      } else {
+        setDeviceType(variant);
+      }
+    };
+
+    updateDevice();
+    window.addEventListener('resize', updateDevice);
+    window.addEventListener('orientationchange', updateDevice);
+    return () => {
+      window.removeEventListener('resize', updateDevice);
+      window.removeEventListener('orientationchange', updateDevice);
+    };
+  }, [variant]);
+
+  const activeType: AdDeviceType = variant === 'auto' ? deviceType : variant;
+  const config = AD_CONFIGS[activeType];
+
+  useEffect(() => {
+    if (!mounted) return;
+    pushedRef.current = false;
 
     const timer = setTimeout(() => {
       try {
         if (typeof window !== 'undefined' && adRef.current) {
           const isDone = adRef.current.getAttribute('data-adsbygoogle-status') === 'done';
-          if (!isDone) {
+          if (!isDone && !pushedRef.current) {
             ((window as any).adsbygoogle = (window as any).adsbygoogle || []).push({});
             pushedRef.current = true;
           }
         }
       } catch (err) {
-        // Silently handle adblock or ad loading exceptions
+        // Silently catch adblock or ad loading issues
       }
-    }, 150);
+    }, 100);
 
     return () => clearTimeout(timer);
-  }, []);
+  }, [mounted, activeType]);
+
+  const containerMinHeight = `${config.height}px`;
+
+  if (!mounted) {
+    return (
+      <div
+        className={`adsense-banner-container ${className}`}
+        style={{
+          width: '100%',
+          minHeight: containerMinHeight,
+          height: containerMinHeight,
+          display: 'flex',
+          justifyContent: 'center',
+          alignItems: 'center',
+          overflow: 'hidden',
+          ...style
+        }}
+      />
+    );
+  }
 
   return (
     <div
       className={`adsense-banner-container ${className}`}
       style={{
         width: '100%',
-        minHeight: '60px',
+        minHeight: containerMinHeight,
         display: 'flex',
         justifyContent: 'center',
         alignItems: 'center',
-        margin: '0 auto 16px auto',
         overflow: 'hidden',
         position: 'relative',
         zIndex: 10,
@@ -58,18 +141,12 @@ export function AdBanner({
       }}
     >
       <ins
+        key={`${config.slot}-${activeType}`}
         ref={adRef}
         className="adsbygoogle"
-        style={{
-          display: 'block',
-          width: '100%',
-          textAlign: 'center',
-          ...style
-        }}
+        style={config.style}
         data-ad-client="ca-pub-2697205988789699"
-        {...(slot ? { 'data-ad-slot': slot } : {})}
-        data-ad-format={format}
-        data-full-width-responsive={responsive ? 'true' : 'false'}
+        data-ad-slot={config.slot}
       />
     </div>
   );

@@ -270,17 +270,22 @@ export default function DesktopFullPlayer({ onClose }: { onClose: () => void }) 
     <div className={`desktop-player-overlay animate-fade-in ${isFinalMode ? 'final-active' : ''}`} style={{ zIndex: 9999, background: '#121212' }}>
       <div className="dp-console-wrapper">
         <main className="dp-player-console">
-          <div className="dp-top-ad-wrapper">
-            <AdBanner variant="desktop" className="dp-top-ad" />
+          <div className="dp-top-header-group">
+            <div className="dp-top-ads">
+              <AdBanner slot="9997722559" width={468} height={60} />
+              <AdBanner slot="3539678305" width={468} height={60} className="dp-secondary-ad" />
+            </div>
+            <div className="dp-top-actions">
+              <button 
+                onClick={handleShareTrack} 
+                className="dp-share-corner-btn glass" 
+                title="Share Track"
+                aria-label="Share Track"
+              >
+                <Share2 size={18} />
+              </button>
+            </div>
           </div>
-          <button 
-            onClick={handleShareTrack} 
-            className="dp-share-corner-btn glass" 
-            title="Share Track"
-            aria-label="Share Track"
-          >
-            <Share2 size={18} />
-          </button>
 
           <div className="console-body">
              <div className="visualizer-stage-v8">
@@ -716,35 +721,54 @@ export default function DesktopFullPlayer({ onClose }: { onClose: () => void }) 
           position: relative;
         }
 
-        .dp-top-ad-wrapper {
+        .dp-top-header-group {
           position: absolute;
           top: 14px;
           left: 0;
           right: 0;
           display: flex;
+          flex-direction: column;
+          align-items: center;
+          gap: 10px;
+          z-index: 50;
+          padding: 0 32px;
+        }
+
+        .dp-top-ads {
+          display: flex;
           justify-content: center;
           align-items: center;
-          z-index: 50;
+          gap: 16px;
+          width: 100%;
+        }
+
+        .dp-top-actions {
+          width: 100%;
+          display: flex;
+          justify-content: flex-end;
+          align-items: center;
         }
 
         .dp-share-corner-btn {
-          position: absolute;
-          top: 20px;
-          right: 32px;
-          width: 48px;
-          height: 48px;
-          border-radius: 14px;
+          width: 44px;
+          height: 44px;
+          border-radius: 12px;
           display: flex;
           align-items: center;
           justify-content: center;
           color: rgba(255, 255, 255, 0.7);
           cursor: pointer;
-          z-index: 100;
           transition: all 0.2s ease;
         }
         .dp-share-corner-btn:hover {
           color: #ffffff;
           transform: scale(1.08);
+        }
+
+        @media (max-width: 1360px) {
+          .dp-secondary-ad {
+            display: none !important;
+          }
         }
 
         @media (max-height: 950px) {

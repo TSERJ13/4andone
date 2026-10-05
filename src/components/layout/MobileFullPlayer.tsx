@@ -236,6 +236,10 @@ const MobileFullPlayer = ({ isOpen, onClose }: MobileFullPlayerProps) => {
 
   return createPortal(
     <div className="mfp-overlay animate-slide-up" style={{ zIndex: 9999, background: '#121212' }}>
+      <div className="mfp-top-ad-wrapper" style={{ display: 'flex', justifyContent: 'center', marginBottom: '8px', flexShrink: 0 }}>
+        <AdBanner variant="mobile" className="mfp-top-ad" />
+      </div>
+
       <div className="mfp-header">
         <button onClick={onClose} className="mfp-header-btn"><ChevronDown size={32} /></button>
         <span className={`mfp-now-playing-label ${isFinalMode ? 'final-active-text' : ''}`}>
@@ -245,8 +249,6 @@ const MobileFullPlayer = ({ isOpen, onClose }: MobileFullPlayerProps) => {
           <Share2 size={24} />
         </button>
       </div>
-
-      <AdBanner variant="mobile" className="mfp-top-ad" style={{ margin: '0 auto 8px auto' }} />
 
       <div className="mfp-content">
         <div className="art-container">

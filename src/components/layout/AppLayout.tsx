@@ -139,7 +139,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
         <OfflineBanner />
         <Sidebar />
         <main className="main-content">
-          <AdBanner key={pathname} className="global-top-banner" />
+          {pathname !== '/' && <AdBanner key={pathname} className="global-top-banner" />}
           {children}
         </main>
         <PlayerBar onExpand={handleExpand} />

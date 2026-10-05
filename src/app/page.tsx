@@ -14,6 +14,7 @@ import ConfirmModal from '@/components/admin/ConfirmModal';
 import { useState, useEffect } from 'react';
 import { UserBadge } from '@/components/auth/UserBadge';
 import { TopSocialMenu } from '@/components/kofi/TopSocialMenu';
+import AdBanner from '@/components/ads/AdBanner';
 import { useRouter } from 'next/navigation';
 import { Marquee } from '@/components/layout/Marquee';
 
@@ -307,8 +308,11 @@ export default function Home() {
           </p>
         </div>
 
-        {/* Top Header Row: Social Menu + Login on right */}
+        {/* Top Header Row: AdSense Banner on left/center, Social Menu + Login on right */}
         <div className="home-top-header">
+          <div className="header-ad-slot">
+            <AdBanner variant="auto" />
+          </div>
           <div className="header-right-group">
             <TopSocialMenu />
             <UserBadge />
@@ -664,11 +668,21 @@ export default function Home() {
         .home-top-header {
           display: flex;
           align-items: center;
-          justify-content: flex-end;
-          margin-bottom: 16px;
+          justify-content: space-between;
+          gap: 16px;
+          margin-bottom: 8px;
           padding: 0 4px;
           position: relative;
           z-index: 20;
+          min-height: 90px;
+        }
+
+        .header-ad-slot {
+          flex: 1;
+          display: flex;
+          justify-content: center;
+          align-items: center;
+          max-width: 728px;
         }
 
         .header-right-group {
@@ -677,6 +691,31 @@ export default function Home() {
           gap: 10px;
           position: relative;
           z-index: 100;
+          flex-shrink: 0;
+        }
+
+        @media (max-width: 1024px) {
+          .home-top-header {
+            flex-direction: column-reverse;
+            align-items: center;
+            gap: 8px;
+            min-height: auto;
+            margin-bottom: 8px;
+          }
+          .header-right-group {
+            width: 100%;
+            justify-content: flex-end;
+          }
+          .header-ad-slot {
+            width: 100%;
+            max-width: 468px;
+          }
+        }
+
+        @media (max-width: 640px) {
+          .header-ad-slot {
+            max-width: 320px;
+          }
         }
 
         .carousel-nav-btn {

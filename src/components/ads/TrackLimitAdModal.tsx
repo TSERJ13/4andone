@@ -54,7 +54,7 @@ export const TrackLimitAdModal: React.FC<TrackLimitAdModalProps> = ({ isOpen, on
         </div>
 
         <div className="track-ad-heading">
-          <h3>You've enjoyed 5 tracks!</h3>
+          <h3>You've enjoyed 10 tracks!</h3>
           <p>Music will continue shortly. Or go ad-free with Premium.</p>
         </div>
 

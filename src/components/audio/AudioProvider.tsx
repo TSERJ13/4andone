@@ -67,6 +67,7 @@ export const AudioProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   const [songsPlayedCount, setSongsPlayedCount] = useState(0);
   const [isAdModalOpen, setIsAdModalOpen] = useState(false);
   const songsPlayedRef = useRef(0);
+  const currentTrackQualifiedRef = useRef(false);
 
 
   const [title, setTitle] = useState("No Track Selected");
@@ -602,6 +603,7 @@ export const AudioProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         finalEndHandledRef.current = false; // Allow end-handling for the new track
         customTimeLimitRef.current = null;
         toggledPastLimitRef.current = false;
+        currentTrackQualifiedRef.current = false;
       };
 
       stopAndPrepare();
@@ -843,6 +845,19 @@ export const AudioProvider: React.FC<{ children: React.ReactNode }> = ({ childre
           audio.ontimeupdate = () => {
             if (currentToken !== loadingTokenRef.current) return;
             const currentTimeVal = audio.currentTime;
+
+            // 0. 30-SECOND REAL PLAYBACK QUALIFICATION (FOR 10-TRACK AD INTERMISSION)
+            if (!isPremium && !currentTrackQualifiedRef.current && currentTimeVal >= 30) {
+              currentTrackQualifiedRef.current = true;
+              songsPlayedRef.current += 1;
+              setSongsPlayedCount(songsPlayedRef.current);
+
+              if (songsPlayedRef.current >= 10) {
+                songsPlayedRef.current = 0;
+                setSongsPlayedCount(0);
+                setIsAdModalOpen(true);
+              }
+            }
             
             // 1. FITNESS TARGET DURATION OVERALL CUTOFF & FADE-OUT
             if (isFitnessRef.current && fitnessTargetTimeRef.current > 0 && isPlayingRef.current) {
@@ -1079,18 +1094,6 @@ export const AudioProvider: React.FC<{ children: React.ReactNode }> = ({ childre
             seek(details.seekTime);
           }
         });
-      }
-
-      // 5-TRACK AD TRIGGER (FOR NON-PREMIUM USERS)
-      if (!isPremium) {
-        songsPlayedRef.current += 1;
-        setSongsPlayedCount(songsPlayedRef.current);
-        if (songsPlayedRef.current >= 5) {
-          // Pause and show Ad modal
-          songsPlayedRef.current = 0;
-          setSongsPlayedCount(0);
-          setIsAdModalOpen(true);
-        }
       }
 
       // ANALYTICS: Log track play event

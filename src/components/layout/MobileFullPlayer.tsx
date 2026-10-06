@@ -19,9 +19,9 @@ import {
   Share2,
   Plus,
   CheckCircle2,
-  Square
 } from 'lucide-react';
 import { useAudio } from '@/components/audio/AudioProvider';
+import { FinalStopButton } from '@/components/audio/FinalStopButton';
 import { useStudio } from '@/components/admin/StudioProvider';
 import { useAuth } from '@/context/AuthContext';
 import { useDownloadedTracks } from '@/hooks/useDownloadedTracks';
@@ -317,14 +317,7 @@ const MobileFullPlayer = ({ isOpen, onClose }: MobileFullPlayerProps) => {
 
             {/* 3. Offline Download — in Final Mode: STOP Final Mode instead */}
             {isFinalMode ? (
-              <button
-                className="mfp-meta-btn mfp-final-stop"
-                onClick={() => stop()}
-                title="Stop Final Mode"
-                aria-label="Stop Final Mode"
-              >
-                <Square size={26} fill="currentColor" />
-              </button>
+              <FinalStopButton onStop={() => stop()} size={42} />
             ) : (
               <div className="mfp-meta-btn" title="Offline Download">
                 <OfflineDownloadButton track={currentTrack} iconSize={28} />
@@ -668,7 +661,6 @@ const MobileFullPlayer = ({ isOpen, onClose }: MobileFullPlayerProps) => {
         .countdown-ring-mobile { border-color: #ef4444 !important; box-shadow: 0 0 30px rgba(239, 68, 68, 0.35); }
         /* Final Mode: speed button red, Stop button red */
         .mfp-meta-btn.final-speed, .mfp-meta-btn.final-speed.active-speed { color: #ef4444 !important; opacity: 1; }
-        .mfp-meta-btn.mfp-final-stop { color: #ef4444; opacity: 1; }
 
         .countdown-ring-mobile .label { font-size: 10px; font-weight: 900; text-transform: uppercase; letter-spacing: 5px; opacity: 0.3; }
 

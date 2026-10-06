@@ -7,6 +7,7 @@ import { useAudioControls } from '@/components/audio/AudioProvider';
 import { useStudio } from '@/components/admin/StudioProvider';
 import { useAuth } from '@/context/AuthContext';
 import { useDownloadedTracks } from '@/hooks/useDownloadedTracks';
+import { displayStyleName } from '@/utils/styleNames';
 import { canonicalStyle } from '@/utils/audio';
 import { normalizeDanceSlug } from '@/utils/seo';
 import ConfirmModal from '@/components/admin/ConfirmModal';
@@ -485,7 +486,7 @@ export default function Home() {
                         <Music2 size={24} color={style.color} />
                       </div>
                       <div className="style-info">
-                        <h3>{style.title}</h3>
+                        <h3>{displayStyleName(style.title)}</h3>
                         <p>{count} {count === 1 ? 'Track' : 'Tracks'}</p>
                       </div>
                     </div>
@@ -523,7 +524,7 @@ export default function Home() {
                         <Music2 size={24} color={style.color} />
                       </div>
                       <div className="style-info">
-                        <h3>{style.title}</h3>
+                        <h3>{displayStyleName(style.title)}</h3>
                         <p>{count} {count === 1 ? 'Track' : 'Tracks'}</p>
                       </div>
                     </div>

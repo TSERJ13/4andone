@@ -23,9 +23,9 @@ import {
   ChevronsUp,
   Share2,
   CheckCircle2,
-  Square
 } from 'lucide-react';
 import { useAudio } from '@/components/audio/AudioProvider';
+import { FinalStopButton } from '@/components/audio/FinalStopButton';
 import SpeedSelector from '@/components/audio/SpeedSelector';
 import { useStudio, Track } from '@/components/admin/StudioProvider';
 import { useAuth } from '@/context/AuthContext';
@@ -380,15 +380,7 @@ const PlayerBar = ({ onExpand }: { onExpand?: () => void }) => {
 
             {/* 3. Right Button 1: Offline Download — in Final Mode: STOP Final Mode */}
             {isFinalMode ? (
-              <button
-                className="feature-btn glass final-stop-btn"
-                style={{ marginLeft: '24px', padding: '8px 12px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
-                onClick={() => stop()}
-                aria-label="Stop Final Mode"
-                title="Stop Final Mode"
-              >
-                <Square size={16} fill="currentColor" />
-              </button>
+              <FinalStopButton onStop={() => stop()} size={36} style={{ marginLeft: '24px' }} />
             ) : (
               <div
                 className="feature-btn glass"
@@ -832,7 +824,6 @@ const PlayerBar = ({ onExpand }: { onExpand?: () => void }) => {
         }
         /* FINAL MODE: speed + stop buttons red */
         .action-btn-speed.final-speed { color: #ef4444 !important; }
-        .final-stop-btn { color: #ef4444; }
         /* FINAL MODE: the timer is red everywhere (programs and single tracks) */
         .progress-container.is-final .progress-bar-fill {
           background: #ef4444;

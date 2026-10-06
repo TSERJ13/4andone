@@ -6,6 +6,7 @@ import { useStudio } from '@/components/admin/StudioProvider';
 import { useAudioControls } from '@/components/audio/AudioProvider';
 import { useAuth } from '@/context/AuthContext';
 import { useDownloadedTracks } from '@/hooks/useDownloadedTracks';
+import { displayStyleName } from '@/utils/styleNames';
 import Link from 'next/link';
 import ConfirmModal from '@/components/admin/ConfirmModal';
 import { TrackRow } from '@/components/tracks/TrackRow';
@@ -102,7 +103,7 @@ const SearchPage = () => {
                   } as React.CSSProperties}
                 >
                   <div className="genre-info">
-                    <h3>{style.title}</h3>
+                    <h3>{displayStyleName(style.title)}</h3>
                     <p className="track-count">{getStyleTrackCount(style.title)} Tracks</p>
                   </div>
                   <div className="card-decoration">
@@ -163,12 +164,14 @@ const SearchPage = () => {
       <style jsx>{`
         .search-page { padding: 40px; padding-bottom: 120px; }
         
+        /* Solid bar: cards scrolling underneath are hidden, not smeared */
         .search-header-container {
           position: sticky; top: 0; z-index: 100;
-          padding: 20px 0 32px;
-          background: transparent !important;
-          backdrop-filter: blur(20px);
-          margin-bottom: 0;
+          padding: 20px 0 24px;
+          background: linear-gradient(to bottom, var(--background, #121212) 88%, rgba(18, 18, 18, 0));
+          /* also cover the scroll area's top padding above the bar */
+          box-shadow: 0 -48px 0 var(--background, #121212);
+          margin-bottom: 8px;
           display: flex;
           justify-content: center;
         }
@@ -177,14 +180,16 @@ const SearchPage = () => {
           display: flex; align-items: center; gap: 16px;
           padding: 14px 28px; border-radius: 50px;
           width: 100%; max-width: 600px;
-          background: rgba(255, 255, 255, 0.05) !important;
-          border: 1px solid rgba(255,255,255,0.05) !important;
+          background: #1c1c1e !important;
+          border: 1px solid rgba(255,255,255,0.08) !important;
+          backdrop-filter: none !important;
+          -webkit-backdrop-filter: none !important;
           transition: all 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
         }
         
         .search-header:focus-within {
-          background: rgba(255, 255, 255, 0.08);
-          border-color: rgba(255,255,255,0.2);
+          background: #232326 !important;
+          border-color: rgba(29, 185, 84, 0.45) !important;
           transform: translateY(-2px);
           max-width: 640px;
         }
@@ -258,7 +263,7 @@ const SearchPage = () => {
 
         @media (max-width: 768px) {
           .search-page { padding: 16px 0 120px; }
-          .search-header-container { padding: 10px 0 20px; }
+          .search-header-container { padding: 10px 12px 16px; margin: 0 -12px 4px; }
           .search-header { 
             max-width: 100%; 
             margin-bottom: 0; 

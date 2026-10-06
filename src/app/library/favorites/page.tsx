@@ -27,6 +27,8 @@ const FavoritesPage = () => {
     action();
   };
 
+  const totalMinutes = Math.round(likedTracks.reduce((sum, t) => sum + (Number(t.duration) || 0), 0) / 60);
+
   const handlePlayAll = () => {
     if (likedTracks.length > 0) {
       loadTrack(likedTracks[0]);
@@ -35,22 +37,28 @@ const FavoritesPage = () => {
 
   return (
     <div className="favorites-page animate-in">
-      <header className="page-header">
-        <div className="icon-large glass">
-          <Heart size={64} fill="white" />
+      <header className="liked-hero">
+        <div className="liked-glow" aria-hidden="true" />
+        <div className="liked-cover">
+          <Heart size={34} fill="currentColor" strokeWidth={0} />
         </div>
-        <div className="head-content">
-          <span className="label">Playlist</span>
-          <h1 className="title">Liked Songs</h1>
-          <p className="stats">
-            <span className="text-primary">4and.one User</span> • {likedTracks.length} Tracks
+        <div className="liked-info">
+          <span className="liked-label">Playlist</span>
+          <h1 className="liked-title">Liked Songs</h1>
+          <p className="liked-stats">
+            {likedTracks.length} {likedTracks.length === 1 ? 'track' : 'tracks'}
+            {totalMinutes > 0 && <> · {totalMinutes} min</>}
           </p>
         </div>
-        <div className="header-actions">
-          <button className="play-btn-large main-play-trigger" onClick={handlePlayAll}>
-            <Play fill="currentColor" size={24} />
-          </button>
-        </div>
+        <button
+          className="liked-play"
+          onClick={handlePlayAll}
+          disabled={likedTracks.length === 0}
+          aria-label="Play liked songs"
+        >
+          <Play fill="currentColor" size={20} />
+          <span>Play</span>
+        </button>
       </header>
 
       {likedTracks.length > 0 ? (
@@ -98,28 +106,58 @@ const FavoritesPage = () => {
 
       <style jsx>{`
         .favorites-page { padding: 40px; padding-bottom: 120px; }
-        .page-header { display: flex; align-items: flex-end; gap: 32px; margin-bottom: 40px; }
-        .head-content { display: flex; flex-direction: column; gap: 8px; flex: 1; }
-        .icon-large { 
-          width: 180px; height: 180px; border-radius: 20px; 
-          background: linear-gradient(135deg, var(--primary, #1db954), #191414);
-          display: flex; align-items: center; justify-content: center;
-          flex-shrink: 0;
-          box-shadow: 0 12px 32px rgba(0,0,0,0.5);
-          border: 1px solid rgba(255,255,255,0.05);
-        }
-        .head-content { display: flex; flex-direction: column; gap: 8px; }
-        .label { text-transform: uppercase; font-size: 11px; font-weight: 800; letter-spacing: 1px; color: #71717a; }
-        .title { font-size: 5rem; font-weight: 950; margin: 0; letter-spacing: -2px; line-height: 1; }
-        .stats { font-size: 14px; font-weight: 600; color: #71717a; }
-        
 
-        .play-btn-large { 
-          width: 56px; height: 56px; border-radius: 50%; background: var(--primary, #1db954); 
-          color: black; display: flex; align-items: center; justify-content: center; 
-          transition: transform 0.2s;
+        /* Hero card — same family as the home album cards */
+        .liked-hero {
+          position: relative;
+          overflow: hidden;
+          display: flex;
+          align-items: center;
+          gap: 20px;
+          padding: 24px;
+          margin-bottom: 28px;
+          border-radius: 20px;
+          background: linear-gradient(135deg, rgba(244, 63, 94, 0.16), rgba(29, 185, 84, 0.08) 60%, rgba(255, 255, 255, 0.02));
+          border: 1px solid rgba(255, 255, 255, 0.08);
         }
-        .play-btn-large:hover { transform: scale(1.05); }
+        .liked-glow {
+          position: absolute;
+          width: 260px; height: 260px;
+          left: -80px; top: -120px;
+          background: radial-gradient(circle, rgba(244, 63, 94, 0.35), transparent 70%);
+          pointer-events: none;
+        }
+        .liked-cover {
+          position: relative;
+          width: 96px; height: 96px;
+          flex-shrink: 0;
+          border-radius: 18px;
+          display: flex; align-items: center; justify-content: center;
+          color: #fff;
+          background: linear-gradient(135deg, #f43f5e, #be123c);
+          box-shadow: 0 10px 28px rgba(244, 63, 94, 0.35);
+        }
+        .liked-info { position: relative; display: flex; flex-direction: column; gap: 4px; flex: 1; min-width: 0; }
+        .liked-label {
+          font-size: 10px; font-weight: 800; letter-spacing: 1.5px;
+          text-transform: uppercase; color: #fb7185;
+        }
+        .liked-title { margin: 0; font-size: 2.4rem; font-weight: 900; letter-spacing: -1px; line-height: 1.05; color: #fff; }
+        .liked-stats { margin: 2px 0 0; font-size: 13px; font-weight: 600; color: #a1a1aa; }
+        .liked-play {
+          position: relative;
+          display: inline-flex; align-items: center; gap: 8px;
+          padding: 12px 22px;
+          border: none; border-radius: 999px;
+          background: var(--primary, #1db954);
+          color: #000; font-weight: 800; font-size: 14px;
+          cursor: pointer;
+          box-shadow: 0 8px 22px rgba(29, 185, 84, 0.3);
+          transition: transform 0.15s, background-color 0.15s;
+        }
+        .liked-play:hover { background: var(--primary-hover, #1ed760); }
+        .liked-play:active { transform: scale(0.95); }
+        .liked-play:disabled { opacity: 0.4; cursor: default; box-shadow: none; }
 
         .track-only-fav { display: flex; align-items: center; justify-content: flex-end; }
         .fav-action { opacity: 0.8; transition: all 0.2s; background: none; border: none; cursor: pointer; color: #555; padding: 10px; }
@@ -139,15 +177,13 @@ const FavoritesPage = () => {
 
         @media (max-width: 768px) {
           .favorites-page { padding: 12px 0 20px; }
-          .page-header { flex-direction: row; align-items: center; text-align: left; gap: 12px; margin-top: 20px; margin-bottom: 24px; position: relative; }
-          .icon-large { width: 80px; height: 80px; border-radius: 12px; }
-          .title { font-size: 20px; font-weight: 950; letter-spacing: -0.5px; }
-          .head-content { gap: 1px; min-width: 0; }
-          .head-content .label { font-size: 8px; }
-          .head-content .stats { font-size: 10px; }
-          .header-actions { padding-bottom: 0; margin-left: 10px; }
-          .play-btn-large { width: 44px; height: 44px; }
-          .play-btn-large svg { width: 18px; height: 18px; }
+          .liked-hero { gap: 14px; padding: 16px; margin: 8px 0 18px; border-radius: 18px; }
+          .liked-cover { width: 64px; height: 64px; border-radius: 14px; }
+          .liked-cover :global(svg) { width: 26px; height: 26px; }
+          .liked-title { font-size: 22px; letter-spacing: -0.5px; }
+          .liked-stats { font-size: 12px; }
+          .liked-play { padding: 0; width: 46px; height: 46px; justify-content: center; }
+          .liked-play span { display: none; }
         }
       `}</style>
     </div>

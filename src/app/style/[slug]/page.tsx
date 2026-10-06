@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState } from 'react';
+import React, { useState, Fragment } from 'react';
 import { useParams } from 'next/navigation';
 import { Play, Music2, MoreHorizontal, Heart, Filter } from 'lucide-react';
 import { useStudio } from '@/components/admin/StudioProvider';
@@ -10,6 +10,7 @@ import { useDownloadedTracks } from '@/hooks/useDownloadedTracks';
 import ConfirmModal from '@/components/admin/ConfirmModal';
 import { canonicalStyle } from '@/utils/audio';
 import { TrackRow } from '@/components/tracks/TrackRow';
+import { ListAd, shouldShowListAdAfter } from '@/components/ads/ListAd';
 
 const StylePage = () => {
   const { slug } = useParams();
@@ -105,15 +106,17 @@ const StylePage = () => {
           const isTrackActive = isPlaying && (playingTrackId ? playingTrackId === track.id : (playingTitle === track.title || playingTitle === track.id));
 
           return (
-          <TrackRow
-            key={track.id}
-            track={track}
-            isActive={isTrackActive}
-            onPlay={() => loadTrack(track)}
-            onToggleFavorite={() => checkAuthAndExecute(() => toggleFavorite?.(track.id), 'favorite tracks')}
-            badge="duration"
-            isDownloaded={downloadedIds.includes(track.id)}
-          />
+          <Fragment key={track.id}>
+            <TrackRow
+              track={track}
+              isActive={isTrackActive}
+              onPlay={() => loadTrack(track)}
+              onToggleFavorite={() => checkAuthAndExecute(() => toggleFavorite?.(track.id), 'favorite tracks')}
+              badge="duration"
+              isDownloaded={downloadedIds.includes(track.id)}
+            />
+            {shouldShowListAdAfter(i, filteredTracks.length) && <ListAd />}
+          </Fragment>
           );
         }) : (
           <div className="empty-style-state glass">

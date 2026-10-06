@@ -45,6 +45,8 @@ interface AudioContextType {
   setFitnessTargetTime: (sec: number) => void;
   isAdModalOpen: boolean;
   setIsAdModalOpen: (open: boolean) => void;
+  /** Ad break moved on to the Premium popup: pause music (resumes on close). */
+  pauseForBreak: () => void;
   songsPlayedCount: number;
 }
 
@@ -142,7 +144,8 @@ export const AudioProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   useEffect(() => { isPremiumRef.current = isPremium; }, [isPremium]);
   // AD BREAK STATE
   const adOpenRef = useRef(false);          // ad break currently on screen
-  const pendingAdRef = useRef(false);       // ad earned during a Final session → show when it ends
+  const breakPausedRef = useRef(false);     // break reached its Premium popup → music paused
+  const pendingAdRef = useRef(false);       // break earned → shown when the user taps the next track
   const resumeAfterAdRef = useRef(false);   // music was playing when the ad opened → resume on close
 
 
@@ -612,18 +615,29 @@ export const AudioProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     if (adOpenRef.current || isPremiumRef.current) return;
     pendingAdRef.current = false;
     adOpenRef.current = true;
+    breakPausedRef.current = false;
+    resumeAfterAdRef.current = false;
+    // The sponsored strip does NOT stop the music (AdSense: an ad must never
+    // block the site or make people wait). Music pauses only for our own
+    // Premium popup that follows — see pauseForBreak().
+    setIsAdModalOpen(true);
+  };
+
+  const pauseForBreak = useCallback(() => {
+    if (!adOpenRef.current || breakPausedRef.current) return;
+    breakPausedRef.current = true;
     const audio = nativePlayerRef.current;
     resumeAfterAdRef.current = !!audio && !audio.paused;
     if (audio && !audio.paused) audio.pause();
-    setIsAdModalOpen(true);
-  };
+  }, []);
 
   const registerQualifiedTrack = () => {
     songsPlayedRef.current += 1;
     if (songsPlayedRef.current >= AD_EVERY_TRACKS) {
       songsPlayedRef.current = 0;
-      if (isInFinalSession()) pendingAdRef.current = true;
-      else openAdBreak();
+      // Not now: the break opens when the user taps the NEXT track — that
+      // track waits until the break is closed (see loadTrack).
+      pendingAdRef.current = true;
     }
     setSongsPlayedCount(songsPlayedRef.current);
     try { localStorage.setItem(AD_COUNT_KEY, String(songsPlayedRef.current)); } catch { /* ignore */ }
@@ -631,6 +645,7 @@ export const AudioProvider: React.FC<{ children: React.ReactNode }> = ({ childre
 
   const closeAdBreak = useCallback(() => {
     adOpenRef.current = false;
+    breakPausedRef.current = false;
     setIsAdModalOpen(false);
     const audio = nativePlayerRef.current;
     if (resumeAfterAdRef.current && audio && audio.src) {
@@ -682,10 +697,14 @@ export const AudioProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       }
       finalEndHandledRef.current = false;
 
-      // Held-back ad break (earned during a Final program) → show it now,
-      // before the next normal track starts; it plays once the break closes.
-      if (pendingAdRef.current && !isInFinalSession() && !isPremiumRef.current) {
+      // AD BREAK ON TAP: after 8 tracks the next track the user picks does
+      // not start yet — the sponsored strip shows (site stays visible), then
+      // the Premium popup, and the picked track starts when it is closed.
+      // Never inside a Final program (its dances advance on their own).
+      if (pendingAdRef.current && !isInFinalSession() && !isPremiumRef.current && !isRetry && !startAt) {
         openAdBreak();
+        breakPausedRef.current = true;   // hold this track's autoplay
+        resumeAfterAdRef.current = true; // …and start it when the break closes
       }
 
       // ELEMENT SWAP: pick the right output path for this track.
@@ -1210,8 +1229,8 @@ export const AudioProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         if (opts?.paused) {
           // Element swap of a paused track: stay paused at the same spot
           setIsPlaying(false);
-        } else if (adOpenRef.current) {
-          // Ad break on screen: keep the track ready and start it when it closes
+        } else if (breakPausedRef.current) {
+          // Premium popup on screen: keep the track ready and start it when it closes
           resumeAfterAdRef.current = true;
           setIsPlaying(false);
         } else {
@@ -1759,10 +1778,6 @@ export const AudioProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     setError(null);
     trackIdRef.current = null;
     playingTrackRef.current = null;
-    // An ad break earned during the Final program is shown now that it ended.
-    if (pendingAdRef.current && !isPremiumRef.current) {
-      openAdBreak();
-    }
     // Clear OS media-session metadata so lock-screen controls also disappear.
     if ('mediaSession' in navigator) {
       try {
@@ -1891,13 +1906,14 @@ export const AudioProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     setFitnessTargetTime,
     isAdModalOpen,
     setIsAdModalOpen: setAdModalOpen,
+    pauseForBreak,
     songsPlayedCount
   }), [
     isPlaying, isLoaded, bpm, isFinalMode, duration, title, artist, trackId, currentTrack,
     error, volume, isRepeat, isShuffle, isLoading, isPauseCountdown, isFitness, togglePlay,
     loadTrackStable, setBpm, setVolume, toggleRepeat, toggleShuffle, toggleFinalMode, seek,
     seekRelative, playNext, playPrevious, stop, activeMode, sessionTracks, fitnessTargetTime,
-    isAdModalOpen, setAdModalOpen, songsPlayedCount
+    isAdModalOpen, setAdModalOpen, pauseForBreak, songsPlayedCount
   ]);
 
   const timeValue = useMemo<AudioTimeType>(() => ({

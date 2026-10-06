@@ -9,7 +9,8 @@ import { AdBanner } from '@/components/ads/AdBanner';
 // clearly labelled, never blocks the screen and never makes anyone wait.
 // Premium users never see it.
 
-const LIST_AD_SLOT = process.env.NEXT_PUBLIC_ADSENSE_LIST_SLOT || '7693569362';
+// "სიის რეკლამა" (Responsive) — its own unit so Reports show list revenue separately.
+const LIST_AD_SLOT = process.env.NEXT_PUBLIC_ADSENSE_LIST_SLOT || '4624552899';
 export const LIST_AD_EVERY = 5; // one ad after every 5 tracks
 const MAX_ADS_PER_LIST = 10;
 

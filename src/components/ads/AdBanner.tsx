@@ -21,6 +21,8 @@ interface AdBannerProps {
   fillHeight?: string;
   /** Reports AdSense's fill result (from the data-ad-status attribute). */
   onStatusChange?: (status: 'filled' | 'unfilled') => void;
+  /** Called once the ad has actually been requested from AdSense (push). */
+  onRequested?: () => void;
 }
 
 const AD_CONFIGS = {
@@ -61,7 +63,8 @@ export function AdBanner({
   style,
   responsive = false,
   fillHeight,
-  onStatusChange
+  onStatusChange,
+  onRequested
 }: AdBannerProps) {
   const [deviceType, setDeviceType] = useState<AdDeviceType>('desktop');
   const containerRef = useRef<HTMLDivElement | null>(null);
@@ -121,6 +124,7 @@ export function AdBanner({
           if (!isDone && !pushedRef.current) {
             ((window as any).adsbygoogle = (window as any).adsbygoogle || []).push({});
             pushedRef.current = true;
+            onRequestedRef.current?.();
           }
         }
       } catch (err) {
@@ -148,6 +152,8 @@ export function AdBanner({
   }, [slotToUse, activeType]);
 
   // AdSense marks the <ins> with data-ad-status="filled" | "unfilled".
+  const onRequestedRef = useRef(onRequested);
+  useEffect(() => { onRequestedRef.current = onRequested; }, [onRequested]);
   const onStatusRef = useRef(onStatusChange);
   useEffect(() => { onStatusRef.current = onStatusChange; }, [onStatusChange]);
   useEffect(() => {

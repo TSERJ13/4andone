@@ -38,7 +38,6 @@ const FavoritesPage = () => {
   return (
     <div className="favorites-page animate-in">
       <header className="liked-hero">
-        <div className="liked-glow" aria-hidden="true" />
         <div className="liked-cover">
           <Heart size={34} fill="currentColor" strokeWidth={0} />
         </div>
@@ -117,15 +116,8 @@ const FavoritesPage = () => {
           padding: 24px;
           margin-bottom: 28px;
           border-radius: 20px;
-          background: linear-gradient(135deg, rgba(244, 63, 94, 0.16), rgba(29, 185, 84, 0.08) 60%, rgba(255, 255, 255, 0.02));
+          background: rgba(255, 255, 255, 0.03);
           border: 1px solid rgba(255, 255, 255, 0.08);
-        }
-        .liked-glow {
-          position: absolute;
-          width: 260px; height: 260px;
-          left: -80px; top: -120px;
-          background: radial-gradient(circle, rgba(244, 63, 94, 0.35), transparent 70%);
-          pointer-events: none;
         }
         .liked-cover {
           position: relative;
@@ -134,13 +126,13 @@ const FavoritesPage = () => {
           border-radius: 18px;
           display: flex; align-items: center; justify-content: center;
           color: #fff;
-          background: linear-gradient(135deg, #f43f5e, #be123c);
-          box-shadow: 0 10px 28px rgba(244, 63, 94, 0.35);
+          background: linear-gradient(135deg, var(--primary, #1db954), #191414);
+          border: 1px solid rgba(255, 255, 255, 0.06);
         }
         .liked-info { position: relative; display: flex; flex-direction: column; gap: 4px; flex: 1; min-width: 0; }
         .liked-label {
           font-size: 10px; font-weight: 800; letter-spacing: 1.5px;
-          text-transform: uppercase; color: #fb7185;
+          text-transform: uppercase; color: #71717a;
         }
         .liked-title { margin: 0; font-size: 2.4rem; font-weight: 900; letter-spacing: -1px; line-height: 1.05; color: #fff; }
         .liked-stats { margin: 2px 0 0; font-size: 13px; font-weight: 600; color: #a1a1aa; }
@@ -152,7 +144,6 @@ const FavoritesPage = () => {
           background: var(--primary, #1db954);
           color: #000; font-weight: 800; font-size: 14px;
           cursor: pointer;
-          box-shadow: 0 8px 22px rgba(29, 185, 84, 0.3);
           transition: transform 0.15s, background-color 0.15s;
         }
         .liked-play:hover { background: var(--primary-hover, #1ed760); }

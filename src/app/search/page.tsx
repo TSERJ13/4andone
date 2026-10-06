@@ -164,24 +164,25 @@ const SearchPage = () => {
       <style jsx>{`
         .search-page { padding: 40px; padding-bottom: 120px; }
         
-        /* Solid bar: cards scrolling underneath are hidden, not smeared */
+        /* Floating search pill: no background block behind it, the pill
+           itself is opaque so cards scrolling under it never show through */
         .search-header-container {
-          position: sticky; top: 0; z-index: 100;
-          padding: 20px 0 24px;
-          background: linear-gradient(to bottom, var(--background, #121212) 88%, rgba(18, 18, 18, 0));
-          /* also cover the scroll area's top padding above the bar */
-          box-shadow: 0 -48px 0 var(--background, #121212);
+          position: sticky; top: 12px; z-index: 100;
+          padding: 8px 0 24px;
           margin-bottom: 8px;
           display: flex;
           justify-content: center;
+          pointer-events: none;
         }
 
         .search-header {
           display: flex; align-items: center; gap: 16px;
           padding: 14px 28px; border-radius: 50px;
           width: 100%; max-width: 600px;
-          background: #1c1c1e !important;
-          border: 1px solid rgba(255,255,255,0.08) !important;
+          pointer-events: auto;
+          background: #1f1f22 !important;
+          border: 1px solid rgba(255,255,255,0.1) !important;
+          box-shadow: 0 10px 30px rgba(0, 0, 0, 0.55);
           backdrop-filter: none !important;
           -webkit-backdrop-filter: none !important;
           transition: all 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
@@ -263,7 +264,7 @@ const SearchPage = () => {
 
         @media (max-width: 768px) {
           .search-page { padding: 16px 0 120px; }
-          .search-header-container { padding: 10px 12px 16px; margin: 0 -12px 4px; }
+          .search-header-container { top: 8px; padding: 4px 0 16px; }
           .search-header { 
             max-width: 100%; 
             margin-bottom: 0; 

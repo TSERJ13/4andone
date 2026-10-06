@@ -195,7 +195,7 @@ export default function GocAlbumPage() {
               onClick={() => startGocFinalMode(activeTab)}
             >
               <Play size={20} fill="currentColor" />
-              <span>Start GOC {activeTab} Final</span>
+              <span>Start Final</span>
             </button>
 
             {activeTab === 'Latin' && (

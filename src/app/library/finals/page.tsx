@@ -1,5 +1,6 @@
 "use client";
 
+import { FINAL_USER_STOP_EVENT } from '@/components/audio/FinalStopButton';
 import React, { useState, useRef, useEffect } from 'react';
 import { Play, Music2, Disc, Zap, Activity, MicOff, Dumbbell, Info, ArrowRight, Heart, Settings, X } from 'lucide-react';
 import Link from 'next/link';
@@ -170,6 +171,13 @@ const FinalsPage = () => {
       lastSessionTracksRef.current = sessionTracks;
     }
   }, [activeMode, sessionTracks]);
+
+  // Stop button in the players → the user ended it, no "is over" popup.
+  useEffect(() => {
+    const onUserStop = () => { userManuallyStoppedRef.current = true; };
+    window.addEventListener(FINAL_USER_STOP_EVENT, onUserStop);
+    return () => window.removeEventListener(FINAL_USER_STOP_EVENT, onUserStop);
+  }, []);
 
   // Detect natural session end: isFinalMode flips false when AudioProvider's stop() fires.
   useEffect(() => {

@@ -179,7 +179,7 @@ export default function GeorgieMusheevPage() {
               onClick={startFinalMode}
             >
               <Play size={20} fill="currentColor" />
-              <span>Start Latin Final</span>
+              <span>Start Final</span>
             </button>
 
             <button

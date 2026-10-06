@@ -10,9 +10,9 @@ interface TrackLimitAdModalProps {
   onClose: () => void;
 }
 
-// Responsive display unit for the ad break. Create a "Display ad → Responsive"
-// unit in AdSense and put its slot ID in NEXT_PUBLIC_ADSENSE_BREAK_SLOT.
-const BREAK_AD_SLOT = process.env.NEXT_PUBLIC_ADSENSE_BREAK_SLOT || '9997722559';
+// Responsive display unit for the ad break ("მთავარი რეკლამა", Responsive).
+// Can be overridden with NEXT_PUBLIC_ADSENSE_BREAK_SLOT.
+const BREAK_AD_SLOT = process.env.NEXT_PUBLIC_ADSENSE_BREAK_SLOT || '7693569362';
 const SKIP_AFTER_SECONDS = 5;   // "Skip" appears after 5s
 const AD_SECONDS = 15;          // the ad closes by itself after 15s
 

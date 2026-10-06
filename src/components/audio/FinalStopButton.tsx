@@ -3,6 +3,10 @@
 import React from 'react';
 import { X } from 'lucide-react';
 
+// Fired before stopping so the Final page knows the user ended the session
+// (no "Final Mode is Over / Replay" popup in that case).
+export const FINAL_USER_STOP_EVENT = 'final-mode-user-stop';
+
 /**
  * "Stop Final Mode" — replaces the download button while Final Mode runs.
  * Red ring with an ✕ so it reads as "exit", not as a media stop square.
@@ -15,7 +19,10 @@ export const FinalStopButton: React.FC<{ onStop: () => void; size?: number; styl
   <button
     type="button"
     className="final-exit-btn"
-    onClick={onStop}
+    onClick={() => {
+      window.dispatchEvent(new Event(FINAL_USER_STOP_EVENT));
+      onStop();
+    }}
     title="Stop Final Mode"
     aria-label="Stop Final Mode"
     style={{ width: size, height: size, ...style }}

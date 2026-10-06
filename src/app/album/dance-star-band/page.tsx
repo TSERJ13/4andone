@@ -200,7 +200,7 @@ export default function DanceStarBandPage() {
               onClick={() => startFinalMode(activeTab)}
             >
               <Play size={20} fill="currentColor" />
-              <span>Start {activeTab} Final</span>
+              <span>Start Final</span>
             </button>
 
             {activeTab === 'Latin' && (

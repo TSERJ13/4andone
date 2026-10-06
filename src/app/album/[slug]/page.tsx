@@ -331,7 +331,7 @@ export default function DynamicAlbumPage() {
               onClick={() => startFinalMode(isBoth ? activeTab : (isLatinOnly ? 'Latin' : 'Standard'))}
             >
               <Play size={20} fill="currentColor" />
-              <span>Start {isBoth ? activeTab : (isLatinOnly ? 'Latin' : 'Standard')} Final</span>
+              <span>Start Final</span>
             </button>
 
             {(!isStandardOnly || activeTab === 'Latin') && (

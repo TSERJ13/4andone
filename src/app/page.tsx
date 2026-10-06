@@ -453,7 +453,7 @@ export default function Home() {
               <button 
                 key={alb.id || alb.slug}
                 className={`carousel-dot ${currentSlide === idx ? 'active' : ''}`}
-                style={currentSlide === idx ? { background: alb.themeColor || '#e11d48', borderColor: alb.themeColor || '#e11d48', boxShadow: `0 0 10px ${alb.themeColor || '#e11d48'}` } : undefined}
+                style={currentSlide === idx ? { background: alb.themeColor || '#e11d48' } : undefined}
                 onClick={() => setCurrentSlide(idx)}
                 title={alb.title}
               />
@@ -597,23 +597,25 @@ export default function Home() {
       />
 
       <style jsx>{`
+        /* Login + share sit INSIDE the banner's top-right corner (no empty
+           row above the banner). Zero-height row so nothing is clipped by
+           the banner's overflow:hidden. */
         .home-top-header {
-          display: flex;
-          align-items: center;
-          justify-content: flex-end;
-          margin-bottom: 16px;
-          padding: 4px 8px;
           position: relative;
-          z-index: 20;
+          height: 0;
+          margin: 0;
+          z-index: 40;
           width: 100%;
         }
 
         .header-right-group {
+          position: absolute;
+          top: 14px;
+          right: 14px;
           display: flex;
           align-items: center;
           justify-content: flex-end;
-          gap: 12px;
-          position: relative;
+          gap: 10px;
           z-index: 100;
         }
 
@@ -661,63 +663,51 @@ export default function Home() {
 
         .carousel-dots-container {
           position: absolute;
-          bottom: 12px;
+          bottom: 14px;
           left: 50%;
           transform: translateX(-50%);
           display: flex;
           align-items: center;
-          gap: 10px;
+          gap: 6px;
           z-index: 15;
         }
 
+        /* Slim bars instead of round dots; the active one is longer */
         .carousel-dot {
-          width: 12px;
-          height: 12px;
-          border-radius: 50%;
+          width: 16px;
+          height: 4px;
+          padding: 0;
+          border-radius: 4px;
           background: rgba(255, 255, 255, 0.25);
-          border: 1px solid rgba(255, 255, 255, 0.4);
+          border: none;
           cursor: pointer;
-          transition: all 0.3s ease;
+          transition: width 0.3s ease, background-color 0.3s ease;
         }
+        .carousel-dot.active { width: 32px; }
 
         .carousel-dot.active.borismyagkov {
           width: 32px;
-          border-radius: 12px;
           background: linear-gradient(90deg, #f59e0b, #d97706);
-          border-color: #f59e0b;
-          box-shadow: 0 0 12px rgba(245, 158, 11, 0.6);
         }
 
         .carousel-dot.active.musheev {
           width: 32px;
-          border-radius: 12px;
           background: linear-gradient(90deg, #e11d48, #be123c);
-          border-color: #e11d48;
-          box-shadow: 0 0 12px rgba(225, 29, 72, 0.6);
         }
 
         .carousel-dot.active.rosesband {
           width: 32px;
-          border-radius: 12px;
           background: linear-gradient(90deg, #22c55e, #10b981);
-          border-color: #22c55e;
-          box-shadow: 0 0 12px rgba(34, 197, 94, 0.6);
         }
 
         .carousel-dot.active.dancestar {
           width: 32px;
-          border-radius: 12px;
           background: linear-gradient(90deg, #d946ef, #8b5cf6);
-          border-color: #d946ef;
-          box-shadow: 0 0 12px rgba(217, 70, 239, 0.6);
         }
 
         .carousel-dot.active.goc {
           width: 32px;
-          border-radius: 12px;
           background: linear-gradient(90deg, #ff4b2b, #ff416c);
-          border-color: #ff416c;
-          box-shadow: 0 0 12px rgba(255, 65, 108, 0.6);
         }
 
         .animate-fade-in {
@@ -1107,11 +1097,13 @@ export default function Home() {
             bottom: 10px;
           }
 
+          .header-right-group { top: 12px; right: 12px; gap: 8px; }
+
           .hero-section {
             height: auto;
             min-height: 250px;
             flex-direction: column;
-            padding: 16px 14px 40px 14px !important;
+            padding: 58px 14px 40px 14px !important; /* room for login + share in the corner */
             text-align: left;
             align-items: stretch;
             gap: 14px;

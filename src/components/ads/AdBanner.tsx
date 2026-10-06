@@ -25,19 +25,19 @@ interface AdBannerProps {
 
 const AD_CONFIGS = {
   desktop: {
-    slot: '9997722559',
+    slot: '7693569362',
     width: 468,
     height: 60,
     style: { display: 'inline-block', width: '468px', height: '60px' } as React.CSSProperties,
   },
   tablet: {
-    slot: '9997722559',
+    slot: '7693569362',
     width: 468,
     height: 60,
     style: { display: 'inline-block', width: '468px', height: '60px' } as React.CSSProperties,
   },
   mobile: {
-    slot: '3269671833',
+    slot: '7693569362',
     width: 320,
     height: 50,
     style: { display: 'inline-block', width: '320px', height: '50px' } as React.CSSProperties,

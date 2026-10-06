@@ -254,7 +254,7 @@ const PlaylistPage = () => {
         .empty-state { padding: 40px; text-align: center; opacity: 0.4; }
 
         @media (max-width: 768px) {
-          .playlist-page { padding: 20px; padding-bottom: 120px; }
+          .playlist-page { padding: 20px 0 120px; }
           .page-header { flex-direction: column; align-items: center; text-align: center; gap: 24px; margin-top: 20px; }
           .icon-large { width: 140px; height: 140px; border-radius: 20px; }
           .title { font-size: 2.2rem; letter-spacing: -1px; }

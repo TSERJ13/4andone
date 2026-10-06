@@ -24,7 +24,8 @@ import {
   ListMusic,
   Music2,
   Share2,
-  Plus
+  Plus,
+  Square
 } from 'lucide-react';
 import { Marquee } from '@/components/layout/Marquee';
 import { useAudio } from '@/components/audio/AudioProvider';
@@ -114,7 +115,8 @@ export default function DesktopFullPlayer({ onClose }: { onClose: () => void }) 
     sessionDuration,
     isLoaded,
     activeMode,
-    sessionTracks
+    sessionTracks,
+    stop
   } = useAudio();
 
   const { tracks, styles, toggleFavorite } = useStudio();
@@ -350,15 +352,28 @@ export default function DesktopFullPlayer({ onClose }: { onClose: () => void }) 
                      </button>
                    )}
 
-                   {/* 4. Download */}
-                   <div className="console-action-btn-v13">
-                     <OfflineDownloadButton track={currentTrack} iconSize={28} />
-                   </div>
+                   {/* 4. Download — in Final Mode: STOP Final Mode */}
+                   {isFinalMode ? (
+                     <button
+                       className="console-action-btn-v13"
+                       onClick={() => stop()}
+                       title="Stop Final Mode"
+                       aria-label="Stop Final Mode"
+                       style={{ color: '#ef4444' }}
+                     >
+                       <Square size={26} fill="currentColor" />
+                     </button>
+                   ) : (
+                     <div className="console-action-btn-v13">
+                       <OfflineDownloadButton track={currentTrack} iconSize={28} />
+                     </div>
+                   )}
 
                    {/* 5. BPM Changer / Speed Selector */}
                    <div className="relative">
                       <button 
-                        className={`console-action-btn-v13 gauge-trigger-v19 ${showSpeed ? 'active' : ''}`} 
+                        className={`console-action-btn-v13 gauge-trigger-v19 ${showSpeed ? 'active' : ''}`}
+                        style={isFinalMode ? { color: '#ef4444' } : undefined}
                         onClick={(e) => {
                           e.stopPropagation();
                           setShowSpeed(!showSpeed);
@@ -848,9 +863,10 @@ export default function DesktopFullPlayer({ onClose }: { onClose: () => void }) 
           justify-content: center;
           z-index: 10;
           backdrop-filter: blur(30px);
-          border: 2px solid var(--accent);
+          border: 2px solid #ef4444; /* Final Mode rest ring: red */
+          box-shadow: 0 0 30px rgba(239, 68, 68, 0.35);
         }
-        .countdown-ring .count { font-size: 80px; font-weight: 900; color: var(--accent); }
+        .countdown-ring .count { font-size: 80px; font-weight: 900; color: #ef4444; }
         .countdown-ring .label { font-size: 10px; font-weight: 900; text-transform: uppercase; letter-spacing: 5px; opacity: 0.2; }
 
         .metadata-stage { width: 100%; max-width: 900px; display: flex; flex-direction: column; align-items: center; position: relative; z-index: 1000; }

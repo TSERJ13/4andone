@@ -18,7 +18,8 @@ import {
   Tally3,
   Share2,
   Plus,
-  CheckCircle2
+  CheckCircle2,
+  Square
 } from 'lucide-react';
 import { useAudio } from '@/components/audio/AudioProvider';
 import { useStudio } from '@/components/admin/StudioProvider';
@@ -66,7 +67,8 @@ const MobileFullPlayer = ({ isOpen, onClose }: MobileFullPlayerProps) => {
     isPauseCountdown,
     pauseTime,
     loadTrack,
-    activeMode
+    activeMode,
+    stop
   } = useAudio();
 
   const { tracks, styles, toggleFavorite, finalTracks } = useStudio();
@@ -313,14 +315,25 @@ const MobileFullPlayer = ({ isOpen, onClose }: MobileFullPlayerProps) => {
               <Plus size={28} />
             </button>
 
-            {/* 3. Offline Download */}
-            <div className="mfp-meta-btn" title="Offline Download">
-              <OfflineDownloadButton track={currentTrack} iconSize={28} />
-            </div>
+            {/* 3. Offline Download — in Final Mode: STOP Final Mode instead */}
+            {isFinalMode ? (
+              <button
+                className="mfp-meta-btn mfp-final-stop"
+                onClick={() => stop()}
+                title="Stop Final Mode"
+                aria-label="Stop Final Mode"
+              >
+                <Square size={26} fill="currentColor" />
+              </button>
+            ) : (
+              <div className="mfp-meta-btn" title="Offline Download">
+                <OfflineDownloadButton track={currentTrack} iconSize={28} />
+              </div>
+            )}
 
             {/* 4. BPM Changer (Speed) */}
             <button
-              className={`mfp-meta-btn ${bpm !== 100 ? 'active-speed' : ''}`}
+              className={`mfp-meta-btn ${bpm !== 100 ? 'active-speed' : ''} ${isFinalMode ? 'final-speed' : ''}`}
               onClick={handleToggleSpeed}
               title="BPM Speed"
               aria-label="BPM Speed"
@@ -651,6 +664,11 @@ const MobileFullPlayer = ({ isOpen, onClose }: MobileFullPlayerProps) => {
           transform: translateX(-50%);
         }
         .countdown-ring-mobile .count { font-size: 80px; font-weight: 900; color: #ef4444; }
+        /* Final Mode: the rest-countdown ring is red */
+        .countdown-ring-mobile { border-color: #ef4444 !important; box-shadow: 0 0 30px rgba(239, 68, 68, 0.35); }
+        /* Final Mode: speed button red, Stop button red */
+        .mfp-meta-btn.final-speed, .mfp-meta-btn.final-speed.active-speed { color: #ef4444 !important; opacity: 1; }
+        .mfp-meta-btn.mfp-final-stop { color: #ef4444; opacity: 1; }
 
         .countdown-ring-mobile .label { font-size: 10px; font-weight: 900; text-transform: uppercase; letter-spacing: 5px; opacity: 0.3; }
 

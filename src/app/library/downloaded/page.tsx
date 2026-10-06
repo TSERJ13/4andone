@@ -159,7 +159,7 @@ const DownloadedPage = () => {
         .empty-state p { max-width: 300px; line-height: 1.5; font-size: 14px; }
 
         @media (max-width: 768px) {
-          .downloaded-page { padding: 12px; padding-bottom: 20px; }
+          .downloaded-page { padding: 12px 0 20px; }
           .page-header { flex-direction: row; align-items: center; text-align: left; gap: 12px; margin-top: 20px; margin-bottom: 24px; position: relative; }
           .icon-large { width: 80px; height: 80px; border-radius: 12px; }
           .title { font-size: 20px; font-weight: 950; letter-spacing: -0.5px; }

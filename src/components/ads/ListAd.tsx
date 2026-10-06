@@ -1,6 +1,6 @@
 "use client";
 
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import { useAuth } from '@/context/AuthContext';
 import { AdBanner } from '@/components/ads/AdBanner';
 
@@ -22,23 +22,53 @@ export const shouldShowListAdAfter = (index: number, total: number) => {
     && position / LIST_AD_EVERY <= MAX_ADS_PER_LIST;
 };
 
+// How long to wait for AdSense's answer before treating the slot as blocked
+// (ad blockers never answer). Then the block disappears.
+const NO_ANSWER_MS = 8000;
+
 export const ListAd: React.FC = () => {
   const { isPremium } = useAuth();
-  if (isPremium) return null;
+  // pending → slot visible while AdSense decides (hidden slots are not allowed)
+  // filled  → shown with the "Sponsored" label
+  // empty   → no ad / blocked: the block disappears, tracks close up
+  const [status, setStatus] = useState<'pending' | 'filled' | 'empty'>('pending');
+  // The wait starts when the ad is actually requested (ads further down the
+  // list are only requested when the user scrolls near them).
+  const [requested, setRequested] = useState(false);
+
+  useEffect(() => {
+    if (status !== 'pending' || !requested) return;
+    const t = setTimeout(() => setStatus((s) => (s === 'pending' ? 'empty' : s)), NO_ANSWER_MS);
+    return () => clearTimeout(t);
+  }, [status, requested]);
+
+  if (isPremium || status === 'empty') return null;
   return (
-    <div className="list-ad" aria-label="Advertisement">
-      <span className="list-ad-label">Sponsored</span>
-      <AdBanner slot={LIST_AD_SLOT} responsive height={100} />
+    <div className={`list-ad ${status}`} aria-label="Advertisement">
+      {status === 'filled' && <span className="list-ad-label">Sponsored</span>}
+      <AdBanner
+        slot={LIST_AD_SLOT}
+        responsive
+        height={100}
+        onStatusChange={(s) => setStatus(s === 'filled' ? 'filled' : 'empty')}
+        onRequested={() => setRequested(true)}
+      />
       <style jsx>{`
         .list-ad {
           margin: 6px 0 10px;
           padding: 8px 0 4px;
           border-radius: 16px;
           background: rgba(255, 255, 255, 0.02);
-          border: 1px dashed rgba(255, 255, 255, 0.06);
+          border: 1px solid rgba(255, 255, 255, 0.06);
           overflow: hidden;
-          content-visibility: auto;
-          contain-intrinsic-size: auto 140px;
+        }
+        /* While AdSense decides: a quiet slot, no frame or label */
+        .list-ad.pending {
+          background: transparent;
+          border-color: transparent;
+          padding: 0;
+          /* NO content-visibility here: off-screen it gives the ad slot width 0,
+             and AdSense then never fills it ("availableWidth=0"). */
         }
         .list-ad-label {
           display: block;

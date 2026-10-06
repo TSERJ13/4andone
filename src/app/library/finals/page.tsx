@@ -867,6 +867,8 @@ const FinalsPage = () => {
         }
 
         .prog-card-wrapper { position: relative; }
+        /* Running program: red frame, like the red Final timer */
+        .prog-card.active { border-color: rgba(239, 68, 68, 0.6) !important; box-shadow: 0 0 18px rgba(239, 68, 68, 0.18); }
 
         .rectangular-timer-border {
           position: absolute;
@@ -882,7 +884,10 @@ const FinalsPage = () => {
           overflow: visible;
         }
 
-        .border-rect-progress {
+        /* :global — these are rendered by SessionProgressPath / RestCountdown /
+           SessionClock (small components outside this one), so scoped styles
+           don't reach them; without this the SVG path filled black. */
+        :global(.border-rect-progress) {
           fill: none;
           stroke-width: 4px;
           stroke-linecap: round;
@@ -890,12 +895,12 @@ const FinalsPage = () => {
         }
 
         /* Final timer ring is red while dancing too (not only while resting) */
-        .border-rect-progress.playing {
+        :global(.border-rect-progress.playing) {
           stroke: #ef4444;
           filter: drop-shadow(0 0 8px rgba(239, 68, 68, 0.45));
         }
 
-        .border-rect-progress.resting {
+        :global(.border-rect-progress.resting) {
           stroke: #f44336;
           filter: drop-shadow(0 0 12px rgba(244, 67, 54, 0.6));
         }
@@ -906,7 +911,7 @@ const FinalsPage = () => {
           100% { transform: scale(1); opacity: 0.8; }
         }
 
-        .rest-timer-overlay {
+        :global(.rest-timer-overlay) {
           position: absolute;
           inset: 0;
           display: flex;
@@ -951,7 +956,7 @@ const FinalsPage = () => {
 
         .card-info h4 { font-size: 14px; font-weight: 800; margin-bottom: 2px; }
         .card-info p { font-size: 11px; opacity: 0.5; font-weight: 600; }
-        .session-timer { 
+        :global(.session-timer) { 
           font-size: 12px !important; 
           color: #ef4444 !important; 
           opacity: 1 !important; 
@@ -968,7 +973,7 @@ const FinalsPage = () => {
         
 
         @media (max-width: 768px) {
-          .finals-container { padding: 16px; gap: 24px; }
+          .finals-container { padding: 16px 0 140px; gap: 24px; } /* side spacing = home page */
           .page-header-unified h1 { font-size: 24px !important; letter-spacing: 0px !important; }
           .learn-finals-btn { 
             padding: 8px 12px !important; 

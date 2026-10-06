@@ -21,6 +21,8 @@ interface AdBannerProps {
   fillHeight?: string;
   /** Reports AdSense's fill result (from the data-ad-status attribute). */
   onStatusChange?: (status: 'filled' | 'unfilled') => void;
+  /** Called once the ad has actually been requested from AdSense (push). */
+  onRequested?: () => void;
 }
 
 const AD_CONFIGS = {
@@ -61,7 +63,8 @@ export function AdBanner({
   style,
   responsive = false,
   fillHeight,
-  onStatusChange
+  onStatusChange,
+  onRequested
 }: AdBannerProps) {
   const [deviceType, setDeviceType] = useState<AdDeviceType>('desktop');
   const containerRef = useRef<HTMLDivElement | null>(null);
@@ -114,10 +117,14 @@ export function AdBanner({
         if (typeof window !== 'undefined' && adRef.current) {
           // If the element is hidden (display: none), offsetParent is null; do not push
           if (adRef.current.offsetParent === null) return;
+          // AdSense needs a real width when push() runs — with width 0 it logs
+          // "No slot size for availableWidth=0" and never fills the slot.
+          if (adRef.current.offsetWidth === 0) return;
           const isDone = adRef.current.getAttribute('data-adsbygoogle-status') === 'done';
           if (!isDone && !pushedRef.current) {
             ((window as any).adsbygoogle = (window as any).adsbygoogle || []).push({});
             pushedRef.current = true;
+            onRequestedRef.current?.();
           }
         }
       } catch (err) {
@@ -127,14 +134,26 @@ export function AdBanner({
 
     const timer = setTimeout(tryPush, 100);
     window.addEventListener('resize', tryPush);
+    // Ads further down a list: request them when they come near the screen
+    // (they have their full size then), not while they are far off-screen.
+    let io: IntersectionObserver | null = null;
+    if (typeof IntersectionObserver !== 'undefined' && containerRef.current) {
+      io = new IntersectionObserver((entries) => {
+        if (entries.some((e) => e.isIntersecting)) tryPush();
+      }, { rootMargin: '400px 0px' });
+      io.observe(containerRef.current);
+    }
 
     return () => {
       clearTimeout(timer);
       window.removeEventListener('resize', tryPush);
+      io?.disconnect();
     };
   }, [slotToUse, activeType]);
 
   // AdSense marks the <ins> with data-ad-status="filled" | "unfilled".
+  const onRequestedRef = useRef(onRequested);
+  useEffect(() => { onRequestedRef.current = onRequested; }, [onRequested]);
   const onStatusRef = useRef(onStatusChange);
   useEffect(() => { onStatusRef.current = onStatusChange; }, [onStatusChange]);
   useEffect(() => {

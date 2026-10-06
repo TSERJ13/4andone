@@ -1,58 +1,24 @@
 "use client";
 
-import React, { useState, useEffect } from 'react';
+import React from 'react';
 import { X, Sparkles, Play } from 'lucide-react';
 import { useAuth } from '@/context/AuthContext';
-import { AdBanner } from '@/components/ads/AdBanner';
 
 interface TrackLimitAdModalProps {
   isOpen: boolean;
   onClose: () => void;
 }
 
-// Responsive display unit for the ad break ("მთავარი რეკლამა", Responsive).
-// Can be overridden with NEXT_PUBLIC_ADSENSE_BREAK_SLOT.
-const BREAK_AD_SLOT = process.env.NEXT_PUBLIC_ADSENSE_BREAK_SLOT || '7693569362';
-const SKIP_AFTER_SECONDS = 5;   // "Skip" appears after 5s
-const AD_SECONDS = 15;          // the ad closes by itself after 15s
-
-type Step = 'ad' | 'promo';
-
 /**
- * Ad break shown to free users every 8 tracks (music is paused by AudioProvider).
- * Step 1: the advertisement on its own full screen (no popup around it). It
- *         closes by itself after 15s; "Skip" is available after 5s.
- * Step 2: the separate popup — "that was a sponsored ad; go Ad-Free Premium".
- * If AdSense has no ad to show, step 1 is skipped automatically.
+ * Break shown to free users every 8 tracks (music is paused by AudioProvider
+ * and resumes on close). It is OUR OWN message — no AdSense unit inside.
+ * AdSense forbids ads in pop-ups / screens without site content and forcing
+ * people to wait on an ad, so the ads live in the track lists (ListAd)
+ * instead, and this popup only promotes Ad-Free Premium.
  */
 export const TrackLimitAdModal: React.FC<TrackLimitAdModalProps> = ({ isOpen, onClose }) => {
-  // Mounted fresh on every open, so each break starts at the ad step.
-  if (!isOpen) return null;
-  return <AdBreak onClose={onClose} />;
-};
-
-const AdBreak: React.FC<{ onClose: () => void }> = ({ onClose }) => {
   const { setIsSubscriptionModalOpen } = useAuth();
-  const [step, setStep] = useState<Step>('ad');
-  const [elapsed, setElapsed] = useState(0);
-
-  useEffect(() => {
-    if (step !== 'ad') return;
-    const timer = setInterval(() => {
-      setElapsed((prev) => {
-        const next = prev + 1;
-        if (next >= AD_SECONDS) {
-          clearInterval(timer);
-          setStep('promo'); // ad finished → it closes, the popup follows
-        }
-        return next;
-      });
-    }, 1000);
-    return () => clearInterval(timer);
-  }, [step]);
-
-  const skipIn = Math.max(0, SKIP_AFTER_SECONDS - elapsed);
-  const adLeft = Math.max(0, AD_SECONDS - elapsed);
+  if (!isOpen) return null;
 
   const handleOpenSubscription = () => {
     onClose();
@@ -61,71 +27,42 @@ const AdBreak: React.FC<{ onClose: () => void }> = ({ onClose }) => {
 
   return (
     <>
-      {step === 'ad' ? (
-        // STEP 1 — THE AD ITSELF: its own full screen, no popup around it.
-        <div className="track-ad-fullscreen" role="dialog" aria-modal="true" aria-label="Advertisement">
-          <div className="track-ad-top track-ad-top--bar">
-            <span className="track-ad-badge">Ad · {adLeft}s</span>
-            {skipIn > 0 ? (
-              <span className="track-ad-timer">Skip in {skipIn}s</span>
-            ) : (
-              <button className="track-ad-skip-btn" onClick={() => setStep('promo')}>
-                <span>Skip</span>
-                <X size={16} />
-              </button>
-            )}
-          </div>
-
-          <div className="track-ad-fullscreen-slot">
-            <AdBanner
-              slot={BREAK_AD_SLOT}
-              responsive
-              fillHeight="calc(100dvh - 88px)"
-              height={250}
-              onStatusChange={(status) => {
-                if (status === 'unfilled') setStep('promo');
-              }}
-            />
-          </div>
-        </div>
-      ) : (
-        // STEP 2 — YOUR POPUP, shown after the ad has closed.
-        <div className="track-ad-modal-overlay" role="dialog" aria-modal="true">
-          <div className="track-ad-card animate-in-popup">
-            <div className="track-ad-top">
-              <span className="track-ad-badge">Sponsored intermission</span>
-              <button className="track-ad-skip-btn" onClick={onClose} aria-label="Close">
-                <X size={16} />
-              </button>
-            </div>
-
-            <div className="track-ad-heading">
-              <h3>That was a sponsored ad</h3>
-              <p>
-                Want to listen without ads? Get the Ad-Free Premium subscription.
-              </p>
-            </div>
-
-            <div className="track-ad-premium-cta" onClick={handleOpenSubscription}>
-              <div className="cta-left">
-                <div className="cta-icon">
-                  <Sparkles size={18} className="text-emerald" />
-                </div>
-                <div className="cta-text">
-                  <strong>Ad-Free Premium</strong>
-                  <span>Only $1.99/mo • Instant activation</span>
-                </div>
-              </div>
-              <button className="cta-btn" type="button">Upgrade</button>
-            </div>
-
-            <button className="track-ad-continue-btn" type="button" onClick={onClose}>
-              <Play size={16} />
-              <span>Continue listening</span>
+      <div className="track-ad-modal-overlay" role="dialog" aria-modal="true">
+        <div className="track-ad-card animate-in-popup">
+          <div className="track-ad-top">
+            <span className="track-ad-badge">Sponsored intermission</span>
+            <button className="track-ad-skip-btn" onClick={onClose} aria-label="Close">
+              <X size={16} />
             </button>
           </div>
+
+          <div className="track-ad-heading">
+            <h3>4and.one is free thanks to ads</h3>
+            <p>
+              Want to listen without ads and interruptions? Log in and get the
+              Ad-Free Premium subscription.
+            </p>
+          </div>
+
+          <div className="track-ad-premium-cta" onClick={handleOpenSubscription}>
+            <div className="cta-left">
+              <div className="cta-icon">
+                <Sparkles size={18} className="text-emerald" />
+              </div>
+              <div className="cta-text">
+                <strong>Ad-Free Premium</strong>
+                <span>Only $1.99/mo • Instant activation</span>
+              </div>
+            </div>
+            <button className="cta-btn" type="button">Upgrade</button>
+          </div>
+
+          <button className="track-ad-continue-btn" type="button" onClick={onClose}>
+            <Play size={16} />
+            <span>Continue listening</span>
+          </button>
         </div>
-      )}
+      </div>
 
       <style jsx>{`
         .track-ad-modal-overlay {

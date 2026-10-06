@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState } from 'react';
+import React, { useState, Fragment } from 'react';
 import { Search, Music2 } from 'lucide-react';
 import { useStudio } from '@/components/admin/StudioProvider';
 import { useAudioControls } from '@/components/audio/AudioProvider';
@@ -9,6 +9,7 @@ import { useDownloadedTracks } from '@/hooks/useDownloadedTracks';
 import Link from 'next/link';
 import ConfirmModal from '@/components/admin/ConfirmModal';
 import { TrackRow } from '@/components/tracks/TrackRow';
+import { ListAd, shouldShowListAdAfter } from '@/components/ads/ListAd';
 
 const SearchPage = () => {
   const [query, setQuery] = useState('');
@@ -125,16 +126,18 @@ const SearchPage = () => {
                   const isTrackActive = isPlaying && (playingTrackId ? playingTrackId === track.id : (playingTitle === track.title || playingTitle === track.id));
 
                   return (
-                  <TrackRow
-                    key={track.id}
-                    track={track}
-                    isActive={isTrackActive}
-                    onPlay={() => loadTrack(track)}
-                    onToggleFavorite={() => checkAuthAndExecute(() => toggleFavorite?.(track.id), 'favorite tracks')}
-                    badge="style"
-                    styleColor={styles.find(s => s.title.toLowerCase() === track.style?.toLowerCase())?.color}
-                    isDownloaded={downloadedIds.includes(track.id)}
-                  />
+                  <Fragment key={track.id}>
+                    <TrackRow
+                      track={track}
+                      isActive={isTrackActive}
+                      onPlay={() => loadTrack(track)}
+                      onToggleFavorite={() => checkAuthAndExecute(() => toggleFavorite?.(track.id), 'favorite tracks')}
+                      badge="style"
+                      styleColor={styles.find(s => s.title.toLowerCase() === track.style?.toLowerCase())?.color}
+                      isDownloaded={downloadedIds.includes(track.id)}
+                    />
+                    {shouldShowListAdAfter(i, searchResults.length) && <ListAd />}
+                  </Fragment>
                   );
                 })
               ) : (

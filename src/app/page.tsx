@@ -1,6 +1,6 @@
 "use client";
 
-import React from 'react';
+import React, { Fragment } from 'react';
 import Link from 'next/link';
 import { Play, Music2, ChevronLeft, ChevronRight } from 'lucide-react';
 import { useAudioControls } from '@/components/audio/AudioProvider';
@@ -16,6 +16,7 @@ import { TopSocialMenu } from '@/components/kofi/TopSocialMenu';
 import AdBanner from '@/components/ads/AdBanner';
 import { useRouter } from 'next/navigation';
 import { TrackRow } from '@/components/tracks/TrackRow';
+import { ListAd, shouldShowListAdAfter } from '@/components/ads/ListAd';
 
 export default function Home() {
   const {
@@ -547,16 +548,18 @@ export default function Home() {
                   const isTrackActive = isPlaying && (playingTrackId ? playingTrackId === track.id : playingTitle === track.title);
 
                   return (
-                    <TrackRow
-                      key={track.id}
-                      track={track}
-                      isActive={isTrackActive}
-                      onPlay={() => handlePlay(track)}
-                      onToggleFavorite={() => checkAuthAndExecute(() => toggleFavorite?.(track.id), 'favorite tracks')}
-                      badge="style"
-                      styleColor={styles.find(s => s.title.toLowerCase() === track.style?.toLowerCase())?.color}
-                      isDownloaded={downloadedIds.includes(track.id)}
-                    />
+                    <Fragment key={track.id}>
+                      <TrackRow
+                        track={track}
+                        isActive={isTrackActive}
+                        onPlay={() => handlePlay(track)}
+                        onToggleFavorite={() => checkAuthAndExecute(() => toggleFavorite?.(track.id), 'favorite tracks')}
+                        badge="style"
+                        styleColor={styles.find(s => s.title.toLowerCase() === track.style?.toLowerCase())?.color}
+                        isDownloaded={downloadedIds.includes(track.id)}
+                      />
+                      {shouldShowListAdAfter(i, Math.min(visibleTrackCount, newArrivals.length)) && <ListAd />}
+                    </Fragment>
                   );
                 })}
 

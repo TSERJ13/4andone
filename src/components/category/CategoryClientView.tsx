@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState } from 'react';
+import React, { useState, Fragment } from 'react';
 import Link from 'next/link';
 import { Play, Pause, Music2 } from 'lucide-react';
 import { useAudioControls } from '@/components/audio/AudioProvider';
@@ -9,6 +9,7 @@ import { useAuth } from '@/context/AuthContext';
 import { SeoTrack } from '@/lib/seo-data';
 import { SeoDanceCategory } from '@/utils/seo';
 import { TrackRow } from '@/components/tracks/TrackRow';
+import { ListAd, shouldShowListAdAfter } from '@/components/ads/ListAd';
 
 interface Props {
   category: SeoDanceCategory;
@@ -123,26 +124,28 @@ export default function CategoryClientView({ category, initialTracks }: Props) {
 
       {/* Crawlable Tracks List */}
       <div className="tracks-list">
-        {filtered.map(({ track, slug }) => {
+        {filtered.map(({ track, slug }, i) => {
           const liveTrack = tracks.find((t) => t.id === track.id) || track;
           const isRowActive = isPlaying && (playingTrackId ? playingTrackId === track.id : playingTitle === track.title);
 
           return (
-            <TrackRow
-              key={track.id}
-              track={liveTrack}
-              isActive={isRowActive}
-              onPlay={() => playOrToggle(liveTrack, isRowActive)}
-              onToggleFavorite={() => {
-                if (!isAuthenticated) {
-                  setIsAuthModalOpen(true);
-                  return;
-                }
-                toggleFavorite?.(track.id);
-              }}
-              badge="duration"
-              href={`/music/${slug}`}
-            />
+            <Fragment key={track.id}>
+              <TrackRow
+                track={liveTrack}
+                isActive={isRowActive}
+                onPlay={() => playOrToggle(liveTrack, isRowActive)}
+                onToggleFavorite={() => {
+                  if (!isAuthenticated) {
+                    setIsAuthModalOpen(true);
+                    return;
+                  }
+                  toggleFavorite?.(track.id);
+                }}
+                badge="duration"
+                href={`/music/${slug}`}
+              />
+              {shouldShowListAdAfter(i, filtered.length) && <ListAd />}
+            </Fragment>
           );
         })}
       </div>

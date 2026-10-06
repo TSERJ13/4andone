@@ -5,6 +5,7 @@ import { createPortal } from 'react-dom';
 import {
   Play,
   Pause,
+  SkipForward,
   Heart,
   Disc,
   CheckCircle2
@@ -23,6 +24,7 @@ const MobileMiniPlayer = ({ onExpand }: { onExpand: () => void }) => {
   const {
     isPlaying,
     togglePlay,
+    playNext,
     isLoaded,
     title,
     artist,
@@ -133,6 +135,17 @@ const MobileMiniPlayer = ({ onExpand }: { onExpand: () => void }) => {
                 >
                   {isPlaying ? <Pause size={24} fill="currentColor" /> : <Play size={24} fill="currentColor" />}
                 </button>
+                {/* Next track (hidden in Final Mode: the program decides the order) */}
+                {!isFinalMode && (
+                  <button
+                    className="next-btn"
+                    onClick={(e) => { e.stopPropagation(); playNext(); }}
+                    aria-label="Next track"
+                    title="Next track"
+                  >
+                    <SkipForward size={22} fill="currentColor" />
+                  </button>
+                )}
               </div>
 
               <div className="progress-bar">
@@ -231,7 +244,9 @@ const MobileMiniPlayer = ({ onExpand }: { onExpand: () => void }) => {
         .title, .artist { display: block; max-width: 100%; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
         .title > span { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 
-        .controls { display: flex; align-items: center; gap: 16px; }
+        .controls { display: flex; align-items: center; gap: 14px; }
+        .next-btn { color: white; display: flex; align-items: center; justify-content: center; padding: 4px; transition: transform 0.1s; -webkit-tap-highlight-color: transparent; }
+        .next-btn:active { transform: scale(0.9); }
         .favorite-btn { color: #555; transition: all 0.2s; }
         .favorite-btn.active { color: #f43f5e; transform: scale(1.1); }
         .play-btn { color: white; transition: transform 0.1s; }

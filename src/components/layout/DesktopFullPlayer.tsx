@@ -25,10 +25,10 @@ import {
   Music2,
   Share2,
   Plus,
-  Square
 } from 'lucide-react';
 import { Marquee } from '@/components/layout/Marquee';
 import { useAudio } from '@/components/audio/AudioProvider';
+import { FinalStopButton } from '@/components/audio/FinalStopButton';
 import { useStudio } from '@/components/admin/StudioProvider';
 import { useAuth } from '@/context/AuthContext';
 import SpeedSelector from '@/components/audio/SpeedSelector';
@@ -354,15 +354,7 @@ export default function DesktopFullPlayer({ onClose }: { onClose: () => void }) 
 
                    {/* 4. Download — in Final Mode: STOP Final Mode */}
                    {isFinalMode ? (
-                     <button
-                       className="console-action-btn-v13"
-                       onClick={() => stop()}
-                       title="Stop Final Mode"
-                       aria-label="Stop Final Mode"
-                       style={{ color: '#ef4444' }}
-                     >
-                       <Square size={26} fill="currentColor" />
-                     </button>
+                     <FinalStopButton onStop={() => stop()} size={44} />
                    ) : (
                      <div className="console-action-btn-v13">
                        <OfflineDownloadButton track={currentTrack} iconSize={28} />

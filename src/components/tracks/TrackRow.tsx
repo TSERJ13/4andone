@@ -5,6 +5,7 @@ import { Disc, Heart, Play, CheckCircle2 } from 'lucide-react';
 import { getTrackSlug } from '@/utils/seo';
 import { formatDuration } from '@/utils/format';
 import { getMPMFromBPM } from '@/utils/audio';
+import { displayStyleName } from '@/utils/styleNames';
 
 // ONE track row for every list in the app (home, dance pages, search,
 // library, playlists, liked, downloaded, finals, albums). It uses the global
@@ -100,7 +101,7 @@ export const TrackRow = React.memo(function TrackRow({
       <div className="track-badge-col">
         {showStyleBadge ? (
           <span className="style-badge-pill" style={{ backgroundColor: styleColor || '#e4e4e7' }}>
-            {track.style}
+            {displayStyleName(track.style)}
           </span>
         ) : badge === 'duration' && duration ? (
           <span className="track-duration-text">{duration}</span>

@@ -3,6 +3,7 @@
 import React from 'react';
 import { Coins, ExternalLink, Sparkles, TrendingUp, ShieldCheck } from 'lucide-react';
 import AdSenseStatsCard from "@/components/admin/AdSenseStatsCard";
+import SubscriptionManager from "@/components/admin/SubscriptionManager";
 
 export default function AdminEarnPage() {
   return (
@@ -36,8 +37,9 @@ export default function AdminEarnPage() {
         </div>
       </div>
 
-      {/* Main AdSense Stats Component */}
+      {/* Main Content */}
       <div className="earn-content">
+        <SubscriptionManager />
         <AdSenseStatsCard />
 
         {/* Monetization Insights & Tips */}

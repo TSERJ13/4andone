@@ -1,16 +1,14 @@
 "use client";
 
 import React, { useState } from 'react';
-import { Search, Music2, Disc, Play, Pause, Heart, Flag, CheckCircle2 } from 'lucide-react';
+import { Search, Music2 } from 'lucide-react';
 import { useStudio } from '@/components/admin/StudioProvider';
 import { useAudioControls } from '@/components/audio/AudioProvider';
 import { useAuth } from '@/context/AuthContext';
 import { useDownloadedTracks } from '@/hooks/useDownloadedTracks';
 import Link from 'next/link';
-import { getMPMFromBPM } from '@/utils/audio';
-import { formatDuration } from '@/utils/format';
 import ConfirmModal from '@/components/admin/ConfirmModal';
-import { Marquee } from '@/components/layout/Marquee';
+import { TrackRow } from '@/components/tracks/TrackRow';
 
 const SearchPage = () => {
   const [query, setQuery] = useState('');
@@ -127,69 +125,16 @@ const SearchPage = () => {
                   const isTrackActive = isPlaying && (playingTrackId ? playingTrackId === track.id : (playingTitle === track.title || playingTitle === track.id));
 
                   return (
-                  <div
+                  <TrackRow
                     key={track.id}
-                    className={`track-row ${isTrackActive ? 'is-active' : ''}`}
-                    onClick={() => loadTrack(track)}
-                  >
-                    <div className="track-icon-col">
-                      <Disc size={18} />
-                    </div>
-                    <div className="track-info-col">
-                      <div className="track-title-row">
-                        <div className="track-title-marquee-wrapper">
-                          <Marquee 
-                            text={track.title} 
-                            className="track-name" 
-                            isActive={isTrackActive}
-                          />
-                        </div>
-                        {downloadedIds.includes(track.id) && (
-                          <span className="track-downloaded-badge" title="Stored on device (Offline)">
-                            <CheckCircle2 size={13} />
-                          </span>
-                        )}
-                      </div>
-                      <p className="track-artist">
-                        {track.artist}
-                        {track.duration ? ` • ${formatDuration(track.duration)}` : ''}
-                      </p>
-                    </div>
-
-                    <div className="track-badge-col">
-                      {styles.find(s => s.title.toLowerCase() === track.style?.toLowerCase()) && (
-                        <span 
-                          className="style-badge-pill" 
-                          style={{ backgroundColor: styles.find(s => s.title.toLowerCase() === track.style?.toLowerCase())?.color }}
-                        >
-                          {track.style}
-                        </span>
-                      )}
-                    </div>
-                    
-                    <div className="track-meta-col">
-                      {track.bpm ? `${getMPMFromBPM(Number(track.bpm), track.style)} BPM` : formatDuration(track.duration)}
-                    </div>
-
-                    <div className="track-actions-col">
-                      <button
-                        className={`fav-action ${track.isFavorite ? 'active-heart' : ''}`}
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          checkAuthAndExecute(() => toggleFavorite?.(track.id), 'favorite tracks');
-                        }}
-                      >
-                        <Heart size={16} fill={track.isFavorite ? "#ff4b2b" : "none"} color={track.isFavorite ? "#ff4b2b" : "currentColor"} />
-                      </button>
-                      <div className="play-action">
-                        {isTrackActive ? (
-                          <div className="playing-bars"><span></span><span></span><span></span></div>
-                        ) : (
-                          <Play size={18} fill="currentColor" />
-                        )}
-                      </div>
-                    </div>
-                  </div>
+                    track={track}
+                    isActive={isTrackActive}
+                    onPlay={() => loadTrack(track)}
+                    onToggleFavorite={() => checkAuthAndExecute(() => toggleFavorite?.(track.id), 'favorite tracks')}
+                    badge="style"
+                    styleColor={styles.find(s => s.title.toLowerCase() === track.style?.toLowerCase())?.color}
+                    isDownloaded={downloadedIds.includes(track.id)}
+                  />
                   );
                 })
               ) : (

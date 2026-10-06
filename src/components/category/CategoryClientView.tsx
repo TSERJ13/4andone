@@ -2,13 +2,13 @@
 
 import React, { useState } from 'react';
 import Link from 'next/link';
-import { Play, Pause, Disc, Heart, Clock, Music2 } from 'lucide-react';
+import { Play, Pause, Music2 } from 'lucide-react';
 import { useAudioControls } from '@/components/audio/AudioProvider';
 import { useStudio } from '@/components/admin/StudioProvider';
 import { useAuth } from '@/context/AuthContext';
 import { SeoTrack } from '@/lib/seo-data';
 import { SeoDanceCategory } from '@/utils/seo';
-import { formatDuration } from '@/utils/format';
+import { TrackRow } from '@/components/tracks/TrackRow';
 
 interface Props {
   category: SeoDanceCategory;
@@ -20,6 +20,13 @@ export default function CategoryClientView({ category, initialTracks }: Props) {
   const { tracks, toggleFavorite } = useStudio();
   const { isAuthenticated, setIsAuthModalOpen } = useAuth();
   const [searchQuery, setSearchQuery] = useState('');
+
+  // Tap a track: play it, or pause/resume when it is already the current one.
+  const playOrToggle = (track: Parameters<typeof loadTrack>[0], isRowActive: boolean) => {
+    const isCurrent = playingTrackId ? playingTrackId === track.id : playingTitle === track.title;
+    if (isRowActive || isCurrent) togglePlay();
+    else loadTrack(track);
+  };
 
   const filtered = initialTracks.filter(({ track }) => {
     if (!searchQuery) return true;
@@ -115,78 +122,27 @@ export default function CategoryClientView({ category, initialTracks }: Props) {
       </div>
 
       {/* Crawlable Tracks List */}
-      <div className="cat-tracks-list">
-        {filtered.map(({ track, slug }, index) => {
+      <div className="tracks-list">
+        {filtered.map(({ track, slug }) => {
           const liveTrack = tracks.find((t) => t.id === track.id) || track;
           const isRowActive = isPlaying && (playingTrackId ? playingTrackId === track.id : playingTitle === track.title);
 
           return (
-            <div
+            <TrackRow
               key={track.id}
-              className={`cat-track-row glass ${isRowActive ? 'is-active' : ''}`}
-              onClick={() => loadTrack(liveTrack)}
-            >
-              <div className="cat-row-num">{index + 1}</div>
-
-              <button
-                type="button"
-                className="cat-row-play"
-                onClick={(e) => {
-                  e.stopPropagation();
-                  if (isRowActive) {
-                    togglePlay();
-                  } else {
-                    loadTrack(liveTrack);
-                  }
-                }}
-                aria-label={`Play ${track.title}`}
-              >
-                {isRowActive ? <Pause size={16} /> : <Play size={16} fill="currentColor" />}
-              </button>
-
-              <div className="cat-row-info">
-                {/* Real crawlable HTML link for search engine discovery */}
-                <Link
-                  href={`/music/${slug}`}
-                  className="cat-row-title"
-                  onClick={(e) => {
-                    if (!e.metaKey && !e.ctrlKey && !e.shiftKey) {
-                      loadTrack(liveTrack);
-                    }
-                  }}
-                >
-                  {track.title}
-                </Link>
-                <span className="cat-row-artist">{track.artist || '4and.one Music'}</span>
-              </div>
-
-              <div className="cat-row-meta">
-                {track.bpm && <span className="cat-row-bpm">{track.bpm} BPM</span>}
-                {track.duration ? (
-                  <span className="cat-row-duration">
-                    <Clock size={12} className="inline mr-1 opacity-60" />
-                    {formatDuration(track.duration)}
-                  </span>
-                ) : null}
-              </div>
-
-              <div className="cat-row-actions" onClick={(e) => e.stopPropagation()}>
-                <button
-                  type="button"
-                  className={`cat-fav-btn ${liveTrack.isFavorite ? 'is-fav' : ''}`}
-                  onClick={() => {
-                    if (!isAuthenticated) {
-                      setIsAuthModalOpen(true);
-                      return;
-                    }
-                    toggleFavorite?.(track.id);
-                  }}
-                  aria-label="Add to favorites"
-                >
-                  <Heart size={16} fill={liveTrack.isFavorite ? 'currentColor' : 'none'} />
-                </button>
-              </div>
-            </div>
+              track={liveTrack}
+              isActive={isRowActive}
+              onPlay={() => playOrToggle(liveTrack, isRowActive)}
+              onToggleFavorite={() => {
+                if (!isAuthenticated) {
+                  setIsAuthModalOpen(true);
+                  return;
+                }
+                toggleFavorite?.(track.id);
+              }}
+              badge="duration"
+              href={`/music/${slug}`}
+            />
           );
         })}
       </div>
@@ -517,24 +473,67 @@ export default function CategoryClientView({ category, initialTracks }: Props) {
           color: #f43f5e;
         }
 
+        /* ---------- PHONE / TABLET ---------- */
         @media (max-width: 768px) {
+          /* The app shell already adds 12–16px side padding — don't double it */
           .cat-page-wrapper {
-            padding: 20px 16px 140px 16px;
+            padding: 8px 0 160px 0;
+          }
+
+          .cat-breadcrumb {
+            margin-bottom: 14px;
+            flex-wrap: wrap;
+            row-gap: 4px;
           }
 
           .cat-header {
-            flex-direction: column;
-            text-align: center;
-            padding: 24px 16px;
-            gap: 18px;
+            flex-direction: row;
+            align-items: center;
+            text-align: left;
+            padding: 16px;
+            gap: 14px;
+            border-radius: 18px;
+            margin-bottom: 16px;
+          }
+
+          .cat-header-icon {
+            width: 56px;
+            height: 56px;
+            border-radius: 14px;
           }
 
           .cat-header-tags {
-            justify-content: center;
+            flex-wrap: wrap;
+            gap: 6px;
+            margin-bottom: 6px;
           }
 
           .cat-title {
-            font-size: 26px;
+            font-size: 22px;
+            margin-bottom: 4px;
+          }
+
+          .cat-description {
+            font-size: 13px;
+            display: -webkit-box;
+            -webkit-line-clamp: 2;
+            -webkit-box-orient: vertical;
+            overflow: hidden;
+          }
+
+          .cat-actions-bar {
+            gap: 8px;
+            margin-bottom: 14px;
+          }
+
+          .cat-play-all-btn {
+            padding: 10px 20px;
+          }
+
+          .cat-count-pill,
+          .cat-bpm-pill {
+            font-size: 12px;
+            padding: 6px 12px;
           }
 
           .cat-search-box {
@@ -542,17 +541,67 @@ export default function CategoryClientView({ category, initialTracks }: Props) {
             width: 100%;
           }
 
-          .cat-search-input {
+          .cat-search-input,
+          .cat-search-input:focus {
             width: 100%;
+            padding: 11px 16px;
+            font-size: 14px;
           }
 
-          .cat-row-bpm {
-            display: none;
+          /* Track rows: full width, roomy, easy to tap */
+          .cat-tracks-list {
+            gap: 8px;
           }
 
           .cat-track-row {
-            padding: 8px 12px;
+            padding: 10px 12px;
             gap: 12px;
+            min-height: 64px;
+            border-radius: 14px;
+          }
+
+          .cat-track-row:hover {
+            transform: none;
+          }
+
+          .cat-row-num {
+            display: none;
+          }
+
+          .cat-row-play {
+            width: 42px;
+            height: 42px;
+            background: rgba(29, 185, 84, 0.15);
+            color: #1ed760;
+          }
+
+          .cat-row-title {
+            font-size: 15px;
+          }
+
+          .cat-row-artist {
+            font-size: 12px;
+            margin-top: 2px;
+          }
+
+          .cat-row-meta {
+            flex-direction: column;
+            align-items: flex-end;
+            gap: 4px;
+          }
+
+          .cat-row-bpm {
+            font-size: 10px;
+            padding: 2px 6px;
+          }
+
+          .cat-row-duration {
+            min-width: 0;
+            font-size: 12px;
+          }
+
+          .cat-fav-btn {
+            padding: 8px;
           }
         }
       `}</style>

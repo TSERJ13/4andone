@@ -34,7 +34,9 @@ const MobileMiniPlayer = ({ onExpand }: { onExpand: () => void }) => {
     sessionTracks,
     isFinalMode,
     bpm,
-    isLoading
+    isLoading,
+    isPauseCountdown,
+    pauseTime
   } = useAudio();
 
   const { tracks, finalTracks, toggleFavorite } = useStudio();
@@ -99,16 +101,22 @@ const MobileMiniPlayer = ({ onExpand }: { onExpand: () => void }) => {
                       </span>
                     )}
                   </div>
+                  {isPauseCountdown ? (
+                    // FINAL MODE REST: red countdown to the next dance
+                    <span className="artist truncate text-xs mini-rest-count">Rest · next dance in {pauseTime}s</span>
+                  ) : (
                   <span className="artist truncate text-xs text-white/50">
                     {artist}
+                    {currentTrack && ' '}
                     {currentTrack && (
                       <span className="text-primary font-bold ml-1">
                         {currentTrack.style?.toLowerCase() === 'fitness'
                           ? (currentTrack.duration ? `(${formatDuration(currentTrack.duration)})` : '')
-                          : `(${currentTrack.duration ? `${formatDuration(currentTrack.duration)}${currentTrack.bpm ? ' • ' : ''}` : ''}${currentTrack.bpm ? `${getMPMFromBPM(Number(currentTrack.bpm), currentTrack.style)} BPM` : ''})`}
+                          : `(${currentTrack.duration ? `${formatDuration(currentTrack.duration)}${currentTrack.bpm ? ' • ' : ''}` : ''}${currentTrack.bpm ? `${getMPMFromBPM(Number(currentTrack.bpm), currentTrack.style)} MPM` : ''})`}
                       </span>
                     )}
                   </span>
+                  )}
                 </div>
               </div>
 
@@ -150,6 +158,15 @@ const MobileMiniPlayer = ({ onExpand }: { onExpand: () => void }) => {
       />
 
       <style jsx>{`
+        .mini-rest-count {
+          color: #ef4444;
+          font-weight: 800;
+          animation: mini-rest-pulse 1s ease-in-out infinite;
+        }
+        @keyframes mini-rest-pulse {
+          0%, 100% { opacity: 1; }
+          50% { opacity: 0.55; }
+        }
         .mini-player-outer-wrapper {
           position: fixed;
           bottom: calc(96px + 12px + env(safe-area-inset-bottom, 0px));

@@ -304,7 +304,7 @@ const PlayerBar = ({ onExpand }: { onExpand?: () => void }) => {
                 <span className="track-tempo-inline text-primary font-bold">
                   {currentTrack.style?.toLowerCase() === 'fitness'
                     ? (currentTrack.duration ? ` • ${formatDuration(currentTrack.duration)}` : '')
-                    : ` • ${currentTrack.duration ? `${formatDuration(currentTrack.duration)}${currentTrack.bpm ? ' • ' : ''}` : ''}${currentTrack.bpm ? `${getMPMFromBPM(Number(currentTrack.bpm), currentTrack.style)} BPM` : ''}`}
+                    : ` • ${currentTrack.duration ? `${formatDuration(currentTrack.duration)}${currentTrack.bpm ? ' • ' : ''}` : ''}${currentTrack.bpm ? `${getMPMFromBPM(Number(currentTrack.bpm), currentTrack.style)} MPM` : ''}`}
                 </span>
               )}
             </div>
@@ -396,8 +396,13 @@ const PlayerBar = ({ onExpand }: { onExpand?: () => void }) => {
             </button>
           </div>
 
-          <div className="progress-container">
-            <span className="time-text">{formatTime(isDragging ? (dragProgress / 100) * (totalDur || 0) : currentTime)}</span>
+          <div className={`progress-container ${isFinalMode ? 'is-final' : ''}`}>
+            {isPauseCountdown ? (
+              // FINAL MODE REST: red countdown between dances
+              <span className="time-text final-rest-count" aria-live="polite">Rest {pauseTime}s</span>
+            ) : (
+              <span className="time-text">{formatTime(isDragging ? (dragProgress / 100) * (totalDur || 0) : currentTime)}</span>
+            )}
             <div
               className={`progress-bar-bg ${isDragging ? 'is-dragging' : ''}`}
               ref={progressRef}
@@ -810,6 +815,25 @@ const PlayerBar = ({ onExpand }: { onExpand?: () => void }) => {
         }
         .progress-bar-fill.error {
           background: #ef4444;
+        }
+        /* FINAL MODE: the timer is red everywhere (programs and single tracks) */
+        .progress-container.is-final .progress-bar-fill {
+          background: #ef4444;
+        }
+        .progress-container.is-final .progress-knob {
+          background: #ef4444;
+        }
+        .progress-container.is-final .time-text {
+          color: #ef4444;
+        }
+        .final-rest-count {
+          font-weight: 800;
+          min-width: 64px;
+          animation: final-rest-pulse 1s ease-in-out infinite;
+        }
+        @keyframes final-rest-pulse {
+          0%, 100% { opacity: 1; }
+          50% { opacity: 0.55; }
         }
         .progress-knob {
           width: 12px;

@@ -1,15 +1,13 @@
 "use client";
 
 import React from 'react';
-import { Heart, Play, Clock, MoreHorizontal, Disc, Flag, CheckCircle2 } from 'lucide-react';
+import { Heart, Play } from 'lucide-react';
 import { useAudioControls } from '@/components/audio/AudioProvider';
 import { useStudio } from '@/components/admin/StudioProvider';
 import { useAuth } from '@/context/AuthContext';
 import { useDownloadedTracks } from '@/hooks/useDownloadedTracks';
 import ConfirmModal from '@/components/admin/ConfirmModal';
-import { formatDuration } from '@/utils/format';
-import { getMPMFromBPM } from '@/utils/audio';
-import { Marquee } from '@/components/layout/Marquee';
+import { TrackRow } from '@/components/tracks/TrackRow';
 
 const FavoritesPage = () => {
   const { togglePlay, isPlaying, title: playingTitle, trackId: playingTrackId, loadTrack } = useAudioControls();
@@ -63,65 +61,16 @@ const FavoritesPage = () => {
               const isTrackActive = isPlaying && (playingTrackId ? playingTrackId === track.id : (playingTitle === track.title || playingTitle === track.id));
 
               return (
-              <div
+              <TrackRow
                 key={track.id}
-                className={`track-row ${isTrackActive ? 'is-active' : ''}`}
-                onClick={() => loadTrack(track)}
-              >
-                <div className="track-icon-col">
-                  <Disc size={18} />
-                </div>
-                <div className="track-info-col">
-                  <div className="track-title-row">
-                    <div className="track-title-marquee-wrapper">
-                      <Marquee 
-                        text={track.title} 
-                        className="track-name" 
-                        isActive={isTrackActive}
-                      />
-                    </div>
-                    {downloadedIds.includes(track.id) && (
-                      <span className="track-downloaded-badge" title="Stored on device (Offline)">
-                        <CheckCircle2 size={13} />
-                      </span>
-                    )}
-                  </div>
-                  <p className="track-artist">
-                    {track.artist}
-                    {track.duration ? ` • ${formatDuration(track.duration)}` : ''}
-                  </p>
-                </div>
-
-                <div className="track-badge-col">
-                  {styles.find(s => s.title.toLowerCase() === track.style?.toLowerCase()) && (
-                    <span 
-                      className="style-badge-pill" 
-                      style={{ backgroundColor: styles.find(s => s.title.toLowerCase() === track.style?.toLowerCase())?.color }}
-                    >
-                      {track.style}
-                    </span>
-                  )}
-                </div>
-                
-                <div className="track-meta-col">
-                  {track.style?.toLowerCase() === 'fitness'
-                    ? (track.duration ? formatDuration(track.duration) : '')
-                    : (track.bpm ? `${getMPMFromBPM(Number(track.bpm), track.style)} MPM` : formatDuration(track.duration))}
-                </div>
-
-                  <div className="track-only-fav">
-                    <button
-                      className={`fav-action active-heart`}
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        checkAuthAndExecute(() => toggleFavorite(track.id), 'favorite tracks');
-                      }}
-                      title="Unlike"
-                    >
-                      <Heart size={18} fill="#ff4b2b" color="#ff4b2b" />
-                    </button>
-                  </div>
-              </div>
+                track={track}
+                isActive={isTrackActive}
+                onPlay={() => loadTrack(track)}
+                onToggleFavorite={() => checkAuthAndExecute(() => toggleFavorite(track.id), 'favorite tracks')}
+                badge="style"
+                styleColor={styles.find(s => s.title.toLowerCase() === track.style?.toLowerCase())?.color}
+                isDownloaded={downloadedIds.includes(track.id)}
+              />
               );
             })}
           </div>

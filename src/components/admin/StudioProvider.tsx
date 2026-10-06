@@ -2,6 +2,7 @@
 
 import React, { createContext, useContext, useState, useEffect, useMemo } from 'react';
 import { supabase } from '@/utils/supabase';
+import { adminDb } from '@/lib/admin-db';
 import { useAuth } from '@/context/AuthContext';
 import { Album, DEFAULT_ALBUMS } from '@/types/album';
 
@@ -138,6 +139,30 @@ const DANCE_ORDER: Record<string, number> = {
 
 const StudioContext = createContext<StudioContextType | undefined>(undefined);
 
+// Supabase returns at most 1000 rows per request (PostgREST max-rows), so the
+// old `.limit(10000)` silently cut the library at 1000 tracks. Page through it.
+const TRACKS_PAGE_SIZE = 1000;
+const fetchAllTracks = async () => {
+  const all: any[] = [];
+  for (let from = 0; ; from += TRACKS_PAGE_SIZE) {
+    const { data, error } = await supabase
+      .from('tracks')
+      .select('*')
+      .order('global_order', { ascending: true })
+      .order('created_at', { ascending: false })
+      .order('id', { ascending: true })
+      .range(from, from + TRACKS_PAGE_SIZE - 1);
+    if (error) {
+      console.error('[STUDIO-ERROR] tracks fetch failed:', error.message);
+      return all.length > 0 ? all : null; // null → keep what is already on screen
+    }
+    if (!data || data.length === 0) break;
+    all.push(...data);
+    if (data.length < TRACKS_PAGE_SIZE) break;
+  }
+  return all;
+};
+
 export const StudioProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const { user, isAuthenticated } = useAuth();
   const [tracks, setTracks] = useState<Track[]>([]);
@@ -156,13 +181,17 @@ export const StudioProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       setIsLoading(true);
     }
     try {
-      // 1. Fetch Global Tracks
-      const { data: tracksData } = await supabase
-        .from('tracks')
-        .select('*')
-        .order('global_order', { ascending: true })
-        .order('created_at', { ascending: false })
-        .limit(10000);
+      // 1. Fetch Global Tracks — in parallel with the shared lists that don't
+      // depend on them (styles, tags, albums). These used to run one after
+      // another, so the first screen waited for every request in sequence.
+      const sharedPromise = Promise.all([
+        supabase.from('styles').select('*').order('order'),
+        supabase.from('tags').select('*').order('name'),
+        fetch('/api/albums')
+          .then(r => (r.ok ? r.json() : null))
+          .catch((e) => { console.warn('Failed to load albums:', e); return null; }),
+      ]);
+      const tracksData = await fetchAllTracks();
       
       // 2. Fetch User Specific Collections
       let foldersData: Folder[] = [];
@@ -277,22 +306,11 @@ export const StudioProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       setFolders(foldersData);
       setFinalFolders(finalFoldersData);
 
-      const { data: stylesData } = await supabase.from('styles').select('*').order('order');
+      const [{ data: stylesData }, { data: tagsData }, aData] = await sharedPromise;
       if (stylesData) setStyles(stylesData);
-
-      const { data: tagsData } = await supabase.from('tags').select('*').order('name');
       if (tagsData) setTags(tagsData);
-
-      // Fetch Albums (Dynamic Album Builder)
-      try {
-        const aRes = await fetch('/api/albums');
-        if (aRes.ok) {
-          const aData = await aRes.json();
-          if (aData.albums) setAlbums(aData.albums);
-        }
-      } catch (e) {
-        console.warn('Failed to load albums:', e);
-      }
+      // Albums (Dynamic Album Builder)
+      if (aData?.albums) setAlbums(aData.albums);
     } finally {
       setIsLoading(false);
     }
@@ -429,7 +447,7 @@ export const StudioProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       initialOrder = minO - 10;
     }
 
-    const { data, error } = await supabase
+    const { data, error } = await adminDb
       .from('tracks')
       .insert([{
         title: trackData.title || 'Unknown',
@@ -497,7 +515,7 @@ export const StudioProvider: React.FC<{ children: React.ReactNode }> = ({ childr
   };
 
   const removeTrack = async (id: string) => {
-    const { error } = await supabase.from('tracks').delete().eq('id', id);
+    const { error } = await adminDb.from('tracks').delete().eq('id', id);
     if (error) {
       console.error("[STUDIO-ERROR] removeTrack failed:", JSON.stringify(error, null, 2));
       throw error;
@@ -542,7 +560,7 @@ export const StudioProvider: React.FC<{ children: React.ReactNode }> = ({ childr
 
     if (Object.keys(payload).length === 0) return; // nothing to update
 
-    const { error } = await supabase
+    const { error } = await adminDb
       .from('tracks')
       .update(payload)
       .eq('id', id);
@@ -659,7 +677,7 @@ export const StudioProvider: React.FC<{ children: React.ReactNode }> = ({ childr
   };
 
   const assignToFolder = async (trackId: string, folderId: string | undefined) => {
-    await supabase.from('tracks').update({ folder_id: folderId }).eq('id', trackId);
+    await adminDb.from('tracks').update({ folder_id: folderId }).eq('id', trackId);
     setTracks(prev => prev.map(t => t.id === trackId ? { ...t, folderId } : t));
   };
 
@@ -694,37 +712,37 @@ export const StudioProvider: React.FC<{ children: React.ReactNode }> = ({ childr
   };
 
   const addStyle = async (styleData: Partial<Style>) => {
-    const { data, error } = await supabase.from('styles').insert([styleData]).select();
+    const { data, error } = await adminDb.from('styles').insert([styleData]).select();
     if (error) alert("Error adding style: " + error.message);
     if (data) setStyles(prev => [...prev, data[0]]);
   };
 
   const updateStyle = async (id: string, updates: Partial<Style>) => {
-    const { error } = await supabase.from('styles').update(updates).eq('id', id);
+    const { error } = await adminDb.from('styles').update(updates).eq('id', id);
     if (error) alert("Error updating style: " + error.message);
     setStyles(prev => prev.map(s => s.id === id ? { ...s, ...updates } : s));
   };
 
   const removeStyle = async (id: string) => {
-    const { error } = await supabase.from('styles').delete().eq('id', id);
+    const { error } = await adminDb.from('styles').delete().eq('id', id);
     if (error) alert("Error deleting style: " + error.message);
     setStyles(prev => prev.filter(s => s.id !== id));
   };
 
   const addTag = async (tagData: Partial<Tag>) => {
-    const { data, error } = await supabase.from('tags').insert([tagData]).select();
+    const { data, error } = await adminDb.from('tags').insert([tagData]).select();
     if (error) alert("Error adding tag: " + error.message);
     if (data) setTags(prev => [...prev, data[0]]);
   };
 
   const updateTag = async (id: string, updates: Partial<Tag>) => {
-    const { error } = await supabase.from('tags').update(updates).eq('id', id);
+    const { error } = await adminDb.from('tags').update(updates).eq('id', id);
     if (error) alert("Error updating tag: " + error.message);
     setTags(prev => prev.map(t => t.id === id ? { ...t, ...updates } : t));
   };
 
   const removeTag = async (id: string) => {
-    const { error } = await supabase.from('tags').delete().eq('id', id);
+    const { error } = await adminDb.from('tags').delete().eq('id', id);
     if (error) alert("Error deleting tag: " + error.message);
     setTags(prev => prev.filter(t => t.id !== id));
   };
@@ -912,7 +930,7 @@ export const StudioProvider: React.FC<{ children: React.ReactNode }> = ({ childr
 
     // 2. Persist to Supabase
     try {
-      const { error } = await supabase
+      const { error } = await adminDb
         .from('tracks')
         .update({ global_order: newOrder })
         .eq('id', movedTrack.id);

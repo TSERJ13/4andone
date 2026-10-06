@@ -3,7 +3,7 @@
 import React, { useState, useMemo } from 'react';
 import Link from 'next/link';
 import { Play, Disc, Flame, Music2, Heart, Zap, Activity, Settings, CheckCircle2 } from 'lucide-react';
-import { useAudio } from '@/components/audio/AudioProvider';
+import { useAudioControls } from '@/components/audio/AudioProvider';
 import { useStudio, Track } from '@/components/admin/StudioProvider';
 import { useAuth } from '@/context/AuthContext';
 import { useDownloadedTracks } from '@/hooks/useDownloadedTracks';
@@ -16,7 +16,7 @@ const LATIN_STYLES = ['Samba', 'Cha-Cha-Cha', 'Rumba', 'Paso Doble', 'Jive'];
 const STANDARD_STYLES = ['Slow Waltz', 'Tango', 'Viennese Waltz', 'Slow Foxtrot', 'Quickstep'];
 
 export default function GocAlbumPage() {
-  const { loadTrack, isPlaying, title: playingTitle, trackId: playingTrackId, setActiveMode, setSessionTracks, isFinalMode, stop } = useAudio();
+  const { loadTrack, isPlaying, title: playingTitle, trackId: playingTrackId, setActiveMode, setSessionTracks, isFinalMode, stop } = useAudioControls();
   const { tracks, styles, toggleFavorite, isLoading } = useStudio();
   const { isAuthenticated, setIsAuthModalOpen } = useAuth();
   const downloadedIds = useDownloadedTracks();

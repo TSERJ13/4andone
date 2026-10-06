@@ -5,7 +5,7 @@ import Link from 'next/link';
 import { useParams } from 'next/navigation';
 import { Play, Clock, Music2, MoreHorizontal, Heart, Disc, Filter, Flag, CheckCircle2 } from 'lucide-react';
 import { useStudio } from '@/components/admin/StudioProvider';
-import { useAudio } from '@/components/audio/AudioProvider';
+import { useAudioControls } from '@/components/audio/AudioProvider';
 import { useAuth } from '@/context/AuthContext';
 import { useDownloadedTracks } from '@/hooks/useDownloadedTracks';
 import ConfirmModal from '@/components/admin/ConfirmModal';
@@ -17,7 +17,7 @@ import { Marquee } from '@/components/layout/Marquee';
 const StylePage = () => {
   const { slug } = useParams();
   const { tracks, tags, styles, toggleFavorite, finalTracks, addToFinal, removeFromFinal } = useStudio();
-  const { isPlaying, title: playingTitle, trackId: playingTrackId, loadTrack } = useAudio();
+  const { isPlaying, title: playingTitle, trackId: playingTrackId, loadTrack } = useAudioControls();
   const { isAuthenticated, setIsAuthModalOpen } = useAuth();
   const [activeTag, setActiveTag] = useState<string | null>(null);
   const downloadedIds = useDownloadedTracks();

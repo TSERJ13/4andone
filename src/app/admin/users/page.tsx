@@ -3,6 +3,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { Users, Globe, Clock, TrendingUp, RefreshCw, Calendar, MessageCircle } from 'lucide-react';
 import { supabase } from '@/utils/supabase';
+import { adminDb } from '@/lib/admin-db';
 
 interface TelegramUser {
   telegram_id: number;
@@ -65,7 +66,7 @@ export default function AdminUsersPage() {
     setLoading(true);
     try {
       const [usersRes, visitsRes, durRes, recentVisitsRes] = await Promise.all([
-        supabase.from('telegram_users').select('*').order('visit_count', { ascending: false }),
+        adminDb.from('telegram_users').select('*').order('visit_count', { ascending: false }),
         supabase.from('page_visits').select('id', { count: 'exact', head: true }),
         supabase.from('page_visits').select('duration_seconds').gt('duration_seconds', 0),
         supabase.from('page_visits').select('id, created_at, session_id, user_ref, duration_seconds, country_code, country_name').order('created_at', { ascending: false }).limit(2000),

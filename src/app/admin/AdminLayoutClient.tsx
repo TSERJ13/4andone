@@ -21,13 +21,19 @@ export default function AdminLayoutClient({
   const isLoginPage = pathname === '/sa-login';
 
   useEffect(() => {
-    const auth = localStorage.getItem('studio_auth');
-    if (!auth && !isLoginPage) {
-      router.push('/sa-login');
-    } else {
-      setIsAuthChecking(false);
-    }
-  }, [pathname, isLoginPage, router]);
+    if (isLoginPage) return; // the login page renders without the check
+    // Server-verified admin session (httpOnly cookie)
+    let cancelled = false;
+    fetch('/api/admin/session', { credentials: 'same-origin', cache: 'no-store' })
+      .then((r) => r.json())
+      .then((data) => {
+        if (cancelled) return;
+        if (data?.admin) setIsAuthChecking(false);
+        else router.push('/sa-login');
+      })
+      .catch(() => { if (!cancelled) router.push('/sa-login'); });
+    return () => { cancelled = true; };
+  }, [isLoginPage, router]);
 
   const pathParts = pathname.split('/').filter(Boolean);
   const breadcrumbs = pathParts.map((part: string, index: number) => {

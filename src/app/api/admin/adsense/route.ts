@@ -1,3 +1,4 @@
+import { requireAdmin } from '@/lib/admin-auth';
 import { NextResponse } from 'next/server';
 import { google } from 'googleapis';
 import { getAdSenseRefreshToken, getGoogleOAuthCredentials } from '@/lib/adsense-token';
@@ -34,6 +35,8 @@ async function getAuthClient() {
 }
 
 export async function GET() {
+  const denied = await requireAdmin();
+  if (denied) return denied;
   const auth = await getAuthClient();
 
   if (!auth) {

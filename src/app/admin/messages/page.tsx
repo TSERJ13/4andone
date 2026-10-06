@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect, useCallback } from 'react';
 import { supabase } from '@/utils/supabase';
+import { adminDb } from '@/lib/admin-db';
 import { 
   Mail, MessageSquare, Trash2, Reply, RefreshCw, 
   Search, Calendar, User, Clock, CheckCircle2, AlertTriangle, Filter
@@ -37,7 +38,7 @@ export default function AdminMessagesPage() {
     setLoading(true);
     try {
       const [{ data, error }, { data: delRows }] = await Promise.all([
-        supabase
+        adminDb
           .from('track_plays')
           .select('id, created_at, style, bpm, user_ref, session_id')
           .eq('event_type', 'contact_message')

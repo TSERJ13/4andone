@@ -14,12 +14,13 @@ import {
   Coffee
 } from 'lucide-react';
 import BulkUpload from "../../../components/admin/BulkUpload";
-import { useAudio } from '@/components/audio/AudioProvider';
+import { useAudioControls } from '@/components/audio/AudioProvider';
 import { useStudio } from '@/components/admin/StudioProvider';
 import { supabase } from '@/utils/supabase';
+import { adminDb } from '@/lib/admin-db';
 
 export default function AdminDashboard() {
-  const { togglePlay, isPlaying } = useAudio();
+  const { togglePlay, isPlaying } = useAudioControls();
   const { tracks, folders, finalFolders } = useStudio();
   
   // New Analytics Stats
@@ -36,9 +37,9 @@ export default function AdminDashboard() {
       try {
         const [peopleRes, returningRes, playsRes, coffeeRes] = await Promise.all([
           // Total People (Unique telegram users or unique session IDs if anon)
-          supabase.from('telegram_users').select('telegram_id', { count: 'exact', head: true }),
+          adminDb.from('telegram_users').select('telegram_id', { count: 'exact', head: true }),
           // Returning Users (visit_count > 1)
-          supabase.from('telegram_users').select('telegram_id', { count: 'exact', head: true }).gt('visit_count', 1),
+          adminDb.from('telegram_users').select('telegram_id', { count: 'exact', head: true }).gt('visit_count', 1),
           // Total Plays & Summed Duration (excluding button click events)
           supabase.from('track_plays').select('duration_seconds').neq('event_type', 'kofi_click'),
           // Buy Me Coffee Clicks and Visitors

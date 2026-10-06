@@ -1,6 +1,6 @@
 "use client";
 
-import React, { createContext, useContext, useState, useEffect, useRef } from 'react';
+import React, { createContext, useContext, useState, useEffect, useRef, useMemo, useCallback } from 'react';
 import { getAudioFile } from '@/utils/storage';
 
 interface AudioContextType {
@@ -48,7 +48,64 @@ interface AudioContextType {
   songsPlayedCount: number;
 }
 
-const PlayerContext = createContext<AudioContextType | undefined>(undefined);
+// PERFORMANCE: the fast-changing playback clock lives in its own context.
+// Before, every progress tick (~5x/sec) re-rendered EVERY component using
+// useAudio() — home page, track lists, albums… — which made phones lag/freeze
+// while music played. Components that don't show the clock use
+// useAudioControls() and no longer re-render on each tick.
+type TimeKeys = 'currentTime' | 'trackCurrentTime' | 'pauseTime' | 'sessionDuration';
+type AudioControlsType = Omit<AudioContextType, TimeKeys>;
+type AudioTimeType = Pick<AudioContextType, TimeKeys>;
+
+const PlayerContext = createContext<AudioControlsType | undefined>(undefined);
+const PlayerTimeContext = createContext<AudioTimeType | undefined>(undefined);
+
+// Every 8 qualified tracks (30s+ of real listening) a free user gets an ad break.
+const AD_EVERY_TRACKS = 8;
+const AD_COUNT_KEY = '4andone-ad-track-count';
+
+// SIGNED-URL CACHE: re-using the same signed URL for a track lets the browser
+// HTTP cache serve replays instantly instead of re-downloading the whole file,
+// and removes the /api/upload round-trip before every play. Entries are reused
+// only while they still have plenty of validity left (server signs for 6h).
+const R2_PUBLIC_FALLBACK = process.env.NEXT_PUBLIC_R2_PUBLIC_URL || 'https://pub-c41b1121b311f676bdc114d143278d18.r2.dev';
+const SIGNED_URL_REUSE_MS = 2 * 60 * 60 * 1000;
+const signedUrlCache = new Map<string, { url: string; signedAt: number }>();
+
+const getStorageKey = (url: string): string => {
+  const domainNormalized = R2_PUBLIC_FALLBACK.replace(/\/$/, '');
+  if (url.includes(domainNormalized)) return url.split(`${domainNormalized}/`)[1] || '';
+  return url.split('/').slice(3).join('/');
+};
+
+const resolvePlaybackUrl = async (rawUrl: string, forceFresh = false): Promise<string> => {
+  let url = rawUrl;
+  // AUTO-HEALING: tracks saved with "undefined/" due to missing env vars
+  if (url.startsWith('undefined/')) url = url.replace('undefined/', `${R2_PUBLIC_FALLBACK}/`);
+  if (!url.startsWith('http')) return url;
+
+  const storageKey = getStorageKey(url);
+  if (!storageKey) return url;
+
+  const cached = signedUrlCache.get(storageKey);
+  if (!forceFresh && cached && Date.now() - cached.signedAt < SIGNED_URL_REUSE_MS) {
+    return cached.url;
+  }
+  try {
+    const signRes = await fetch(`/api/upload?key=${encodeURIComponent(storageKey)}`, { cache: 'no-store' });
+    if (signRes.ok) {
+      const { url: signed } = await signRes.json();
+      if (signed) {
+        signedUrlCache.set(storageKey, { url: signed, signedAt: Date.now() });
+        return signed;
+      }
+    }
+  } catch (e) {
+    console.error('[AUDIO-ENGINE] Playback signing failed:', e);
+  }
+  // FALLBACK: public R2 URL with the full key
+  return `${R2_PUBLIC_FALLBACK.replace(/\/$/, '')}/${storageKey}`;
+};
 
 import { useStudio, Track } from '@/components/admin/StudioProvider';
 import { useAuth } from '@/context/AuthContext';
@@ -68,6 +125,12 @@ export const AudioProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   const [isAdModalOpen, setIsAdModalOpen] = useState(false);
   const songsPlayedRef = useRef(0);
   const currentTrackQualifiedRef = useRef(false);
+  const isPremiumRef = useRef(isPremium);
+  useEffect(() => { isPremiumRef.current = isPremium; }, [isPremium]);
+  // AD BREAK STATE
+  const adOpenRef = useRef(false);          // ad break currently on screen
+  const pendingAdRef = useRef(false);       // ad earned during a Final session → show when it ends
+  const resumeAfterAdRef = useRef(false);   // music was playing when the ad opened → resume on close
 
 
   const [title, setTitle] = useState("No Track Selected");
@@ -199,6 +262,23 @@ export const AudioProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       webAudioStateRef.current = 'failed';
     }
   }, []);
+
+  // Can this browser change HTMLMediaElement.volume? (false on iPhone/iPad,
+  // where volume is read-only). Only those devices need the WebAudio gain
+  // chain for the Final-Mode fade; everyone else fades the plain element.
+  const volumeWritableRef = useRef<boolean | null>(null);
+  const isVolumeWritable = () => {
+    if (volumeWritableRef.current === null) {
+      try {
+        const probe = new Audio();
+        probe.volume = 0.5;
+        volumeWritableRef.current = Math.abs(probe.volume - 0.5) < 0.01;
+      } catch {
+        volumeWritableRef.current = true;
+      }
+    }
+    return volumeWritableRef.current;
+  };
 
   // True when the CURRENTLY ACTIVE element is the gain-routed Final one.
   const isGainActive = () =>
@@ -476,9 +556,9 @@ export const AudioProvider: React.FC<{ children: React.ReactNode }> = ({ childre
               const nextIndex = currentIndex + 1;
               sessionIndexRef.current = nextIndex;
               cancelFadeAndRestore();
-              loadTrack(tracksList[nextIndex], false, true);
+              loadTrackRef.current(tracksList[nextIndex], false, true);
             } else {
-              stop();
+              stopRef.current();
             }
           } else {
             // Still counting — sync the visible number to the real remaining time
@@ -500,9 +580,66 @@ export const AudioProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     };
   }, []);
 
+  // ---------------------------------------------------------------------------
+  // AD BREAK (free users): every AD_EVERY_TRACKS qualified tracks the music is
+  // paused and the ad break is shown; after it closes the music resumes. The
+  // counter survives reloads. A Final Mode program is never interrupted — the
+  // break is held back until the program ends or the next normal track starts.
+  // ---------------------------------------------------------------------------
+  useEffect(() => {
+    try {
+      const saved = parseInt(localStorage.getItem(AD_COUNT_KEY) || '0', 10);
+      if (Number.isFinite(saved) && saved > 0) {
+        songsPlayedRef.current = Math.min(saved, AD_EVERY_TRACKS);
+        setSongsPlayedCount(songsPlayedRef.current);
+      }
+    } catch { /* storage unavailable */ }
+  }, []);
+
+  const isInFinalSession = () => isFinalModeRef.current && sessionTracksRef.current.length > 0;
+
+  const openAdBreak = () => {
+    if (adOpenRef.current || isPremiumRef.current) return;
+    pendingAdRef.current = false;
+    adOpenRef.current = true;
+    const audio = nativePlayerRef.current;
+    resumeAfterAdRef.current = !!audio && !audio.paused;
+    if (audio && !audio.paused) audio.pause();
+    setIsAdModalOpen(true);
+  };
+
+  const registerQualifiedTrack = () => {
+    songsPlayedRef.current += 1;
+    if (songsPlayedRef.current >= AD_EVERY_TRACKS) {
+      songsPlayedRef.current = 0;
+      if (isInFinalSession()) pendingAdRef.current = true;
+      else openAdBreak();
+    }
+    setSongsPlayedCount(songsPlayedRef.current);
+    try { localStorage.setItem(AD_COUNT_KEY, String(songsPlayedRef.current)); } catch { /* ignore */ }
+  };
+
+  const closeAdBreak = useCallback(() => {
+    adOpenRef.current = false;
+    setIsAdModalOpen(false);
+    const audio = nativePlayerRef.current;
+    if (resumeAfterAdRef.current && audio && audio.src) {
+      resumeAfterAdRef.current = false;
+      playAudioRef.current();
+    }
+    resumeAfterAdRef.current = false;
+  }, []);
+
+  const setAdModalOpen = useCallback((open: boolean) => {
+    if (open) openAdBreak();
+    else closeAdBreak();
+  }, [closeAdBreak]);
+
+  const playAudioRef = useRef<() => Promise<void> | void>(() => {});
+
   const loadTrack = async (track: any, isRetry = false, forceFinalMode?: boolean) => {
     // If the same track is clicked and it's already loaded, toggle play/pause instead of reloading
-    if (trackIdRef.current === track.id && isLoaded) {
+    if (!isRetry && trackIdRef.current === track.id && isLoaded) {
       togglePlay();
       return;
     }
@@ -532,16 +669,26 @@ export const AudioProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       }
       finalEndHandledRef.current = false;
 
+      // Held-back ad break (earned during a Final program) → show it now,
+      // before the next normal track starts; it plays once the break closes.
+      if (pendingAdRef.current && !isInFinalSession() && !isPremiumRef.current) {
+        openAdBreak();
+      }
+
       // ELEMENT SWAP: pick the right output path for this track.
       // Final Mode → gain-routed element (iOS fade works). Normal → plain
       // element (pristine native quality + native speed). Pause the inactive
       // element so two tracks never play at once.
-      if (isFinalModeRef.current) {
-        // Final Mode ALWAYS uses the gain element so the fade works at every
-        // speed on iOS. The WebKit garble was caused by the PITCH-CORRECTION
-        // algorithm running inside the graph, so pitch correction is disabled
-        // on this element only (see ensureFinalGraph): speed changes shift the
-        // pitch slightly, like a turntable, but the sound stays clean.
+      // The gain element is used ONLY when it is really needed: Final Mode on a
+      // device whose element volume is read-only (iPhone/iPad) AND at 100% speed.
+      // Its pitch correction is off (WebKit garbles rate-changed audio inside a
+      // graph), so at any other speed it would play slowed tracks pitched down
+      // ("blown"/distorted sound in Final Mode). Desktop and Android always use
+      // the plain element: native pitch-corrected speed + element-volume fade.
+      const needsGainElement = isFinalModeRef.current
+        && !isVolumeWritable()
+        && Math.abs(bpmRef.current - 100) < 0.5;
+      if (needsGainElement) {
         ensureFinalGraph();
         if (webAudioStateRef.current === 'ready' && finalPlayerRef.current) {
           if (plainPlayerRef.current && !plainPlayerRef.current.paused) plainPlayerRef.current.pause();
@@ -550,7 +697,7 @@ export const AudioProvider: React.FC<{ children: React.ReactNode }> = ({ childre
           nativePlayerRef.current = plainPlayerRef.current; // graph failed → fallback
         }
       } else if (plainPlayerRef.current) {
-        // Normal mode OR Final Mode at non-100% speed → plain element.
+        // Normal mode, or Final Mode where the plain element can do the fade.
         if (finalPlayerRef.current && !finalPlayerRef.current.paused) finalPlayerRef.current.pause();
         nativePlayerRef.current = plainPlayerRef.current;
       }
@@ -646,46 +793,11 @@ export const AudioProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         }
       }
 
-      // 1. If not available offline, fetch from Cloudflare R2 / Network
-      if (!isLocalAvailable) {
-        // AUTO-HEALING: If track was saved with "undefined/" due to missing env vars
-        if (finalUrl?.startsWith('undefined/')) {
-          const R2_FALLBACK = process.env.NEXT_PUBLIC_R2_PUBLIC_URL || 'https://pub-c41b1121b311f676bdc114d143278d18.r2.dev';
-          finalUrl = finalUrl.replace('undefined/', `${R2_FALLBACK}/`);
-        }
-
-        const isRemote = finalUrl?.startsWith('http');
-
-        if (isRemote && finalUrl) {
-          try {
-            const R2_DOMAIN = process.env.NEXT_PUBLIC_R2_PUBLIC_URL || 'https://pub-c41b1121b311f676bdc114d143278d18.r2.dev';
-            const domainNormalized = R2_DOMAIN.replace(/\/$/, '');
-            
-            // EXTRACT FULL KEY: Take everything after the domain to handle nested paths
-            let storageKey = '';
-            if (finalUrl.includes(domainNormalized)) {
-              storageKey = finalUrl.split(`${domainNormalized}/`)[1];
-            } else {
-              // Fallback for custom or direct URLs
-              storageKey = finalUrl.split('/').slice(3).join('/');
-            }
-
-            if (!storageKey) throw new Error("Invalid remote URL storage key");
-
-            const signRes = await fetch(`/api/upload?key=${encodeURIComponent(storageKey)}`);
-
-            if (signRes.ok) {
-              const { url } = await signRes.json();
-              finalUrl = url;
-            } else {
-              // FALLBACK: Use environment Public R2 URL with the full gathered path
-              finalUrl = `${domainNormalized}/${storageKey}`;
-            }
-          } catch (e) {
-            console.error("[AUDIO-ENGINE] Playback signing failed:", e);
-          }
-        }
+      // 1. If not available offline, sign the Cloudflare R2 URL (cached)
+      if (!isLocalAvailable && finalUrl) {
+        finalUrl = await resolvePlaybackUrl(finalUrl);
       }
+      if (currentToken !== loadingTokenRef.current) return; // a newer track was picked meanwhile
 
       if (!finalUrl) {
         throw new Error("Missing Audio Source (File not found in storage)");
@@ -709,8 +821,16 @@ export const AudioProvider: React.FC<{ children: React.ReactNode }> = ({ childre
           // RESET VOLUME: Ensure any previous fade-out is reversed (works on iOS via gain)
           cancelFadeAndRestore();
 
+          // oncanplay fires again after every buffering stall / seek. Only the
+          // first one belongs to loading; re-running it mid-song re-applied the
+          // pitch settings and rate while playing (audible hiccup on Safari).
+          let readyOnce = false;
+          let recoveries = 0;
+
           audio.oncanplay = () => {
             if (currentToken !== loadingTokenRef.current) return;
+            if (readyOnce) return;
+            readyOnce = true;
             const realDuration = audio.duration || 0;
             setDuration(realDuration);
             setIsLoaded(true);
@@ -728,26 +848,52 @@ export const AudioProvider: React.FC<{ children: React.ReactNode }> = ({ childre
             resolve(audio);
           };
 
-          audio.onerror = (e) => {
+          audio.onerror = () => {
+            if (currentToken !== loadingTokenRef.current) return;
             const err = audio.error;
+            const isRemoteSource = url.startsWith('http');
+
+            // MID-PLAYBACK RECOVERY: a network drop or an expired signed URL used
+            // to kill the song ("music stops / won't play"). Re-sign and continue
+            // from the same position instead (up to 3 times per track).
+            if (readyOnce && isRemoteSource && recoveries < 3) {
+              recoveries += 1;
+              const resumeAt = audio.currentTime || trackCurrentTimeRef.current || 0;
+              const wasPlaying = isPlayingRef.current;
+              resolvePlaybackUrl(track.audioUrl, true).then((freshUrl) => {
+                if (currentToken !== loadingTokenRef.current) return;
+                const onMeta = () => {
+                  audio.removeEventListener('loadedmetadata', onMeta);
+                  if (currentToken !== loadingTokenRef.current) return;
+                  try { audio.currentTime = resumeAt; } catch { /* ignore */ }
+                  audio.playbackRate = bpmRef.current / 100;
+                  if (wasPlaying) audio.play().catch(() => {});
+                };
+                audio.addEventListener('loadedmetadata', onMeta);
+                audio.src = freshUrl;
+                audio.load();
+              });
+              return;
+            }
+
+            // FIRST-LOAD FAILURE: retry once with a freshly signed URL (the old
+            // one may have expired or been served from a stale cache).
+            if (!readyOnce && isRemoteSource && !isRetry) {
+              const key = track.audioUrl ? getStorageKey(String(track.audioUrl)) : '';
+              if (key) signedUrlCache.delete(key);
+              loadTrackRef.current(track, true, isFinalModeRef.current);
+              return;
+            }
+
             let msg = `Stream error: ${track.title}`;
-            if (err) {
-              if (err.code === 3 || err.code === 4) {
-                msg = `Format Error: ${track.title} (.mpa / unsupported codec). Convert to MP3 and re-upload.`;
-              } else if (!isRetry) {
-                try {
-                  const urlObj = new URL(url);
-                  const fileName = urlObj.pathname.split('/').pop();
-                  if (fileName) {
-                    const R2_PUBLIC = process.env.NEXT_PUBLIC_R2_PUBLIC_URL || 'https://pub-c41b1121b311f676bdc114d143278d18.r2.dev';
-                    const fallbackUrl = `${R2_PUBLIC}/${fileName}`;
-                    loadTrack({ ...track, audioUrl: fallbackUrl }, true, isFinalModeRef.current);
-                    return;
-                  }
-                } catch (e) {
-                  // Fallthrough
-                }
-              }
+            if (err && (err.code === 3 || err.code === 4)) {
+              msg = `Format Error: ${track.title} (.mpa / unsupported codec). Convert to MP3 and re-upload.`;
+            }
+            if (readyOnce) {
+              // Was already playing — surface the error instead of a dead promise
+              setError(msg);
+              setIsPlaying(false);
+              isPlayingRef.current = false;
             }
             reject(new Error(msg));
           };
@@ -773,7 +919,7 @@ export const AudioProvider: React.FC<{ children: React.ReactNode }> = ({ childre
               // In both cases we must advance the session (or finish it).
               advanceFinalSession();
             } else {
-              if (!isRepeat) {
+              if (!isRepeatRef.current) {
                 audio.pause();
                 setIsPlaying(false);
                 setCurrentTime(0);
@@ -846,17 +992,12 @@ export const AudioProvider: React.FC<{ children: React.ReactNode }> = ({ childre
             if (currentToken !== loadingTokenRef.current) return;
             const currentTimeVal = audio.currentTime;
 
-            // 0. 30-SECOND REAL PLAYBACK QUALIFICATION (FOR 10-TRACK AD INTERMISSION)
-            if (!isPremium && !currentTrackQualifiedRef.current && currentTimeVal >= 30) {
+            // 0. 30-SECOND REAL PLAYBACK QUALIFICATION (FOR THE 8-TRACK AD BREAK)
+            // isPremiumRef (not the closure value) so a login/subscription made
+            // while a track is loaded is respected immediately.
+            if (!isPremiumRef.current && !currentTrackQualifiedRef.current && currentTimeVal >= 30) {
               currentTrackQualifiedRef.current = true;
-              songsPlayedRef.current += 1;
-              setSongsPlayedCount(songsPlayedRef.current);
-
-              if (songsPlayedRef.current >= 10) {
-                songsPlayedRef.current = 0;
-                setSongsPlayedCount(0);
-                setIsAdModalOpen(true);
-              }
+              registerQualifiedTrack();
             }
             
             // 1. FITNESS TARGET DURATION OVERALL CUTOFF & FADE-OUT
@@ -898,7 +1039,7 @@ export const AudioProvider: React.FC<{ children: React.ReactNode }> = ({ childre
                 audio.pause();
                 setIsPlaying(false);
                 isPlayingRef.current = false;
-                stop();
+                stopRef.current();
                 return;
               }
             }
@@ -1041,18 +1182,28 @@ export const AudioProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         if (audioCtxRef.current && audioCtxRef.current.state === 'suspended') {
           try { await audioCtxRef.current.resume(); } catch { /* ignore */ }
         }
-        playPromiseRef.current = audio.play();
-        
-        // Ensure heartbeat is paused when regular audio is playing
-        if (heartbeatRef.current && !heartbeatRef.current.paused) {
-          heartbeatRef.current.pause();
-        }
+        if (adOpenRef.current) {
+          // Ad break on screen: keep the track ready and start it when it closes
+          resumeAfterAdRef.current = true;
+          setIsPlaying(false);
+        } else {
+          playPromiseRef.current = audio.play();
 
-        playPromiseRef.current.catch(e => {
-        }).finally(() => {
-          playPromiseRef.current = null;
-        });
-        setIsPlaying(true);
+          // Ensure heartbeat is paused when regular audio is playing
+          if (heartbeatRef.current && !heartbeatRef.current.paused) {
+            heartbeatRef.current.pause();
+          }
+
+          playPromiseRef.current.catch(() => {
+            // Autoplay refused (e.g. no user gesture) — show the real state
+            if (currentToken !== loadingTokenRef.current) return;
+            setIsPlaying(false);
+            isPlayingRef.current = false;
+          }).finally(() => {
+            playPromiseRef.current = null;
+          });
+          setIsPlaying(true);
+        }
       } catch (e: any) {
         if (e.message === "Loading cancelled by new request") return;
         setError(e.message || "File Unreachable");
@@ -1169,10 +1320,10 @@ export const AudioProvider: React.FC<{ children: React.ReactNode }> = ({ childre
               const nextTrack = tracksList[nextIndex];
               // Restore volume before loading next track
               cancelFadeAndRestore();
-              loadTrack(nextTrack, false, true);
+              loadTrackRef.current(nextTrack, false, true);
             } else {
               // No more tracks - stop
-              stop();
+              stopRef.current();
             }
           }
           return;
@@ -1504,8 +1655,8 @@ export const AudioProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     // Pass forceFinalMode so navigating inside a Final Mode session stays in it,
     // and a normal next-track stays normal. (Without this, a plain loadTrack call
     // would now always drop out of Final Mode.)
-    loadTrack(list[nextIndex], false, isFinalModeRef.current);
-  }, [tracks, loadTrack]);
+    loadTrackRef.current(list[nextIndex], false, isFinalModeRef.current);
+  }, [tracks]);
 
   const playPrevious = React.useCallback(() => {
     const list = isFinalModeRef.current ? sessionTracksRef.current : tracks;
@@ -1513,8 +1664,8 @@ export const AudioProvider: React.FC<{ children: React.ReactNode }> = ({ childre
 
     const currentIndex = list.findIndex(t => t.id === trackIdRef.current || t.title === playingTrackRef.current?.title);
     const prevIndex = currentIndex <= 0 ? list.length - 1 : currentIndex - 1;
-    loadTrack(list[prevIndex], false, isFinalModeRef.current);
-  }, [tracks, loadTrack]);
+    loadTrackRef.current(list[prevIndex], false, isFinalModeRef.current);
+  }, [tracks]);
 
   const stop = React.useCallback(() => {
     loadingTokenRef.current += 1; // Invalidate any pending async callbacks like onerror
@@ -1570,6 +1721,10 @@ export const AudioProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     setError(null);
     trackIdRef.current = null;
     playingTrackRef.current = null;
+    // An ad break earned during the Final program is shown now that it ended.
+    if (pendingAdRef.current && !isPremiumRef.current) {
+      openAdBreak();
+    }
     // Clear OS media-session metadata so lock-screen controls also disappear.
     if ('mediaSession' in navigator) {
       try {
@@ -1584,6 +1739,7 @@ export const AudioProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   useEffect(() => {
     loadTrackRef.current = loadTrack;
     stopRef.current = stop;
+    playAudioRef.current = playAudio;
   });
 
   // REGISTER MEDIA SESSION ACTIONS
@@ -1653,58 +1809,86 @@ export const AudioProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [togglePlay, seekRelative, setVolume, playNext, playPrevious, toggleFinalMode]);
 
+  // Stable entry point: loadTrack itself is re-created every render.
+  const loadTrackStable = useCallback(
+    (track: any, isRetry?: boolean, forceFinalMode?: boolean) => loadTrackRef.current(track, isRetry, forceFinalMode),
+    []
+  );
+
+  const controlsValue = useMemo<AudioControlsType>(() => ({
+    isPlaying,
+    isLoaded,
+    bpm,
+    isFinalMode,
+    duration,
+    title,
+    artist,
+    trackId,
+    currentTrack,
+    error,
+    volume,
+    isRepeat,
+    isShuffle,
+    isLoading,
+    isPauseCountdown,
+    isFitness,
+    togglePlay,
+    loadTrack: loadTrackStable,
+    setIsFitness,
+    setBpm,
+    setVolume,
+    toggleRepeat,
+    toggleShuffle,
+    toggleFinalMode,
+    seek,
+    seekRelative,
+    playNext,
+    playPrevious,
+    stop,
+    activeMode,
+    setActiveMode,
+    sessionTracks,
+    setSessionTracks,
+    fitnessTargetTime,
+    setFitnessTargetTime,
+    isAdModalOpen,
+    setIsAdModalOpen: setAdModalOpen,
+    songsPlayedCount
+  }), [
+    isPlaying, isLoaded, bpm, isFinalMode, duration, title, artist, trackId, currentTrack,
+    error, volume, isRepeat, isShuffle, isLoading, isPauseCountdown, isFitness, togglePlay,
+    loadTrackStable, setBpm, setVolume, toggleRepeat, toggleShuffle, toggleFinalMode, seek,
+    seekRelative, playNext, playPrevious, stop, activeMode, sessionTracks, fitnessTargetTime,
+    isAdModalOpen, setAdModalOpen, songsPlayedCount
+  ]);
+
+  const timeValue = useMemo<AudioTimeType>(() => ({
+    currentTime,
+    trackCurrentTime,
+    pauseTime,
+    sessionDuration
+  }), [currentTime, trackCurrentTime, pauseTime, sessionDuration]);
+
   return (
-    <PlayerContext.Provider value={{
-      isPlaying,
-      isLoaded,
-      bpm,
-      isFinalMode,
-      currentTime,
-      trackCurrentTime,
-      duration,
-      title,
-      artist,
-      trackId,
-      currentTrack,
-      error,
-      volume,
-      isRepeat,
-      isShuffle,
-      isLoading,
-      isPauseCountdown,
-      isFitness,
-      pauseTime,
-      togglePlay,
-      loadTrack,
-      setIsFitness,
-      setBpm,
-      setVolume,
-      toggleRepeat,
-      toggleShuffle,
-      toggleFinalMode,
-      seek,
-      seekRelative,
-      playNext,
-      playPrevious,
-      stop,
-      sessionDuration,
-      activeMode,
-      setActiveMode,
-      sessionTracks,
-      setSessionTracks,
-      fitnessTargetTime,
-      setFitnessTargetTime,
-      isAdModalOpen,
-      setIsAdModalOpen,
-      songsPlayedCount
-    }}>
-      {children}
+    <PlayerContext.Provider value={controlsValue}>
+      <PlayerTimeContext.Provider value={timeValue}>
+        {children}
+      </PlayerTimeContext.Provider>
     </PlayerContext.Provider>
   );
 };
 
-export const useAudio = () => {
+/** Everything except the playback clock — use this when the component does not display time. */
+export const useAudioControls = () => {
   const context = useContext(PlayerContext);
-  if (!context) throw new Error('useAudio must be used within AudioProvider');
+  if (!context) throw new Error('useAudioControls must be used within AudioProvider');
   return context;
+};
+
+/** Full player state including the playback clock (re-renders on every progress tick). */
+export const useAudio = (): AudioContextType => {
+  const context = useContext(PlayerContext);
+  const time = useContext(PlayerTimeContext);
+  if (!context || !time) throw new Error('useAudio must be used within AudioProvider');
+  return { ...context, ...time };
 };

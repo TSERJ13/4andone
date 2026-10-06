@@ -1,3 +1,4 @@
+import { requireAdmin } from '@/lib/admin-auth';
 import { NextResponse } from 'next/server';
 import { google } from 'googleapis';
 import { getGoogleOAuthCredentials } from '@/lib/adsense-token';
@@ -5,6 +6,9 @@ import { getGoogleOAuthCredentials } from '@/lib/adsense-token';
 export const dynamic = 'force-dynamic';
 
 export async function GET(request: Request) {
+  // Only a logged-in admin may connect (or replace) the AdSense account.
+  const denied = await requireAdmin();
+  if (denied) return denied;
   const { clientId, clientSecret } = await getGoogleOAuthCredentials();
 
   if (!clientId || !clientSecret) {

@@ -4,7 +4,7 @@ import React, { useState, useMemo, useEffect } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { Play, Disc, Flame, Music2, Heart, Zap, Activity, Settings, Radio, CheckCircle2, ChevronLeft } from 'lucide-react';
-import { useAudio } from '@/components/audio/AudioProvider';
+import { useAudioControls } from '@/components/audio/AudioProvider';
 import { useStudio, Track } from '@/components/admin/StudioProvider';
 import { useAuth } from '@/context/AuthContext';
 import { useDownloadedTracks } from '@/hooks/useDownloadedTracks';
@@ -22,7 +22,7 @@ export default function DynamicAlbumPage() {
   const router = useRouter();
   const slug = (params?.slug as string) || '';
 
-  const { loadTrack, isPlaying, title: playingTitle, trackId: playingTrackId, setActiveMode, setSessionTracks, isFinalMode, stop } = useAudio();
+  const { loadTrack, isPlaying, title: playingTitle, trackId: playingTrackId, setActiveMode, setSessionTracks, isFinalMode, stop } = useAudioControls();
   const { albums, tracks, styles, toggleFavorite, isLoading } = useStudio();
   const { isAuthenticated, setIsAuthModalOpen } = useAuth();
   const downloadedIds = useDownloadedTracks();

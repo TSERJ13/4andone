@@ -29,13 +29,13 @@ import {
 import Link from 'next/link';
 import AddTrackModal from '@/components/admin/AddTrackModal';
 import ConfirmModal from '@/components/admin/ConfirmModal';
-import { useAudio } from '@/components/audio/AudioProvider';
+import { useAudioControls } from '@/components/audio/AudioProvider';
 import { useStudio, Track } from '@/components/admin/StudioProvider';
 import { formatDuration } from '@/utils/format';
 import { getMPMFromBPM } from '@/utils/audio';
 
 const AdminLibrary = () => {
-  const { togglePlay, isPlaying, title: playingTitle, trackId: playingTrackId, loadTrack } = useAudio();
+  const { togglePlay, isPlaying, title: playingTitle, trackId: playingTrackId, loadTrack } = useAudioControls();
   const { 
     tracks, folders, styles, tags, albums: studioAlbums,
     removeTrack, updateTrack, addTrack, assignToFolder, 

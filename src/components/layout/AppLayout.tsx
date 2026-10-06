@@ -6,7 +6,7 @@ import Sidebar from "@/components/layout/Sidebar";
 import MobileNav from "@/components/layout/MobileNav";
 import PlayerBar from "@/components/layout/PlayerBar";
 import { useAuth } from '@/context/AuthContext';
-import { useAudio } from '@/components/audio/AudioProvider';
+import { useAudioControls } from '@/components/audio/AudioProvider';
 import { useVisitTracker } from '@/hooks/useVisitTracker';
 import { AuthModal } from '@/components/auth/AuthModal';
 import { KofiModal } from '@/components/kofi/KofiModal';
@@ -25,7 +25,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
 
   // Hooks must ALWAYS be at the top level and in the same order
   useVisitTracker(); // Track one visit per session
-  const { title, isAdModalOpen, setIsAdModalOpen } = useAudio();
+  const { title, isAdModalOpen, setIsAdModalOpen } = useAudioControls();
   const { isAuthModalOpen, setIsAuthModalOpen, isSubscriptionModalOpen, setIsSubscriptionModalOpen } = useAuth();
   
   useEffect(() => {

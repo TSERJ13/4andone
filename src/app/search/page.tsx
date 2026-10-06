@@ -3,7 +3,7 @@
 import React, { useState } from 'react';
 import { Search, Music2, Disc, Play, Pause, Heart, Flag, CheckCircle2 } from 'lucide-react';
 import { useStudio } from '@/components/admin/StudioProvider';
-import { useAudio } from '@/components/audio/AudioProvider';
+import { useAudioControls } from '@/components/audio/AudioProvider';
 import { useAuth } from '@/context/AuthContext';
 import { useDownloadedTracks } from '@/hooks/useDownloadedTracks';
 import Link from 'next/link';
@@ -15,7 +15,7 @@ import { Marquee } from '@/components/layout/Marquee';
 const SearchPage = () => {
   const [query, setQuery] = useState('');
   const { tracks, styles, finalTracks, addToFinal, removeFromFinal, toggleFavorite } = useStudio();
-  const { isPlaying, title: playingTitle, trackId: playingTrackId, loadTrack } = useAudio();
+  const { isPlaying, title: playingTitle, trackId: playingTrackId, loadTrack } = useAudioControls();
   const { isAuthenticated, setIsAuthModalOpen } = useAuth();
   const downloadedIds = useDownloadedTracks();
 

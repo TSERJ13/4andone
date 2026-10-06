@@ -1,4 +1,8 @@
-import { supabase } from './supabase';
+import { supabase as publicClient } from './supabase';
+import { getSupabaseAdmin } from '@/lib/supabase-admin';
+
+// Runs on the server (cron) — use the service role so it can read telegram_users.
+const supabase = getSupabaseAdmin() ?? publicClient;
 
 export interface TopTrackItem {
   id: string;

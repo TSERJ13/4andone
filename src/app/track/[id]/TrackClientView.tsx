@@ -1,12 +1,12 @@
 "use client";
 
 import React, { useEffect, useRef } from 'react';
-import { useAudio } from '@/components/audio/AudioProvider';
+import { useAudioControls } from '@/components/audio/AudioProvider';
 import { useStudio } from '@/components/admin/StudioProvider';
 import Home from '@/app/page';
 
 export default function TrackClientView({ trackId, initialTrack }: { trackId: string; initialTrack?: any }) {
-  const { loadTrack } = useAudio();
+  const { loadTrack } = useAudioControls();
   const { tracks } = useStudio();
   const hasTriggeredRef = useRef(false);
 

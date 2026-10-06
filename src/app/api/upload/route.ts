@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { S3Client, PutObjectCommand, GetObjectCommand } from '@aws-sdk/client-s3';
 import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
+import { requireAdmin } from '@/lib/admin-auth';
 
 const R2_ACCESS_KEY_ID = process.env.R2_ACCESS_KEY_ID;
 const R2_SECRET_ACCESS_KEY = process.env.R2_SECRET_ACCESS_KEY;
@@ -41,8 +42,8 @@ export async function GET(request: NextRequest) {
       Key: key,
     });
 
-    // Generate a signed playback URL (valid for 1 hour)
-    const url = await getSignedUrl(s3Client, command, { expiresIn: 3600 });
+    // Generate a signed playback URL (valid for 6 hours — the client reuses it for 2h so replays hit the browser cache)
+    const url = await getSignedUrl(s3Client, command, { expiresIn: 6 * 3600 });
 
     return NextResponse.json({ url });
   } catch (error: any) {
@@ -56,6 +57,9 @@ export async function GET(request: NextRequest) {
  * Used by AddTrackModal for direct browser-to-cloud uploads.
  */
 export async function POST(request: NextRequest) {
+  // Only the admin panel may upload files to the music bucket.
+  const denied = await requireAdmin();
+  if (denied) return denied;
   try {
     const { fileName, fileType } = await request.json();
     if (!fileName) {

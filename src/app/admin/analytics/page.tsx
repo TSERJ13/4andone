@@ -7,6 +7,7 @@ import {
 } from 'lucide-react';
 import { useStudio } from '@/components/admin/StudioProvider';
 import { supabase } from '@/utils/supabase';
+import { adminDb } from '@/lib/admin-db';
 
 type Period = 'day' | 'week' | 'month' | 'year';
 
@@ -318,23 +319,23 @@ export default function AdminAnalytics() {
         topTracksRes, styleRes, referrerRes, kofiRes,
         todayVisitsRes, weekVisitsRes,
       ] = await Promise.all([
-        supabase.rpc('get_platform_metrics', {
+        adminDb.rpc('get_platform_metrics', {
           today_start: todayStart.toISOString(),
           week_start: weekStart.toISOString(),
           month_start: monthStart.toISOString(),
           year_start: yearStart.toISOString(),
         }),
-        supabase.rpc('get_country_stats', { start_time: yearStart.toISOString() }),
-        supabase.rpc('get_recent_activity', { limit_val: 15 }),
-        supabase.from('telegram_users').select('*').order('visit_count', { ascending: false }),
-        Promise.resolve(supabase.rpc('get_top_tracks_with_events', {
+        adminDb.rpc('get_country_stats', { start_time: yearStart.toISOString() }),
+        adminDb.rpc('get_recent_activity', { limit_val: 15 }),
+        adminDb.from('telegram_users').select('*').order('visit_count', { ascending: false }),
+        Promise.resolve(adminDb.rpc('get_top_tracks_with_events', {
           start_time: monthStart.toISOString(),
           limit_val: 10,
         })).catch(() => ({ data: null })),
-        Promise.resolve(supabase.rpc('get_style_chart_30d', {
+        Promise.resolve(adminDb.rpc('get_style_chart_30d', {
           start_time: monthStart.toISOString(),
         })).catch(() => ({ data: null })),
-        Promise.resolve(supabase.rpc('get_referrer_stats', {
+        Promise.resolve(adminDb.rpc('get_referrer_stats', {
           start_time: monthStart.toISOString(),
         })).catch(() => ({ data: null })),
         supabase.from('track_plays').select('id, created_at, style, bpm, user_ref, session_id, duration_seconds').eq('event_type', 'kofi_click').order('created_at', { ascending: false }),
@@ -492,7 +493,7 @@ export default function AdminAnalytics() {
       else if (tp === '30d') { start.setDate(start.getDate() - 30); }
       else { start = null; } // all time
 
-      const query = supabase.rpc('get_top_tracks_with_events', {
+      const query = adminDb.rpc('get_top_tracks_with_events', {
         start_time: (start || new Date('2020-01-01')).toISOString(),
         limit_val: 10,
       });

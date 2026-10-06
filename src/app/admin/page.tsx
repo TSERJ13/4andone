@@ -7,12 +7,10 @@ export default function AdminPage() {
   const router = useRouter();
 
   useEffect(() => {
-    const auth = localStorage.getItem('studio_auth');
-    if (auth) {
-      router.push('/admin/dashboard');
-    } else {
-      router.push('/sa-login');
-    }
+    fetch('/api/admin/session', { credentials: 'same-origin', cache: 'no-store' })
+      .then((r) => r.json())
+      .then((data) => router.push(data?.admin ? '/admin/dashboard' : '/sa-login'))
+      .catch(() => router.push('/sa-login'));
   }, [router]);
 
   return (

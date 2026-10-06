@@ -20,16 +20,28 @@ export default function SaLogin() {
     e.preventDefault();
     setIsLoading(true);
 
-    setTimeout(() => {
-      if (email === '4andonestudio@gmail.com' && password === '@Kjkszpj13') {
-        localStorage.setItem('studio_auth', 'true');
+    setError(null);
+    // Credentials are checked on the SERVER (ADMIN_PASSWORD env var); a
+    // signed httpOnly cookie is set on success.
+    try {
+      const res = await fetch('/api/admin/session', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        credentials: 'same-origin',
+        body: JSON.stringify({ email, password }),
+      });
+      if (res.ok) {
         router.push('/admin/library');
-      } else {
-        setError('Invalid admin credentials. Please try again.');
-        setPassword('');
+        return;
       }
+      const data = await res.json().catch(() => null);
+      setError(data?.error || 'Invalid admin credentials. Please try again.');
+      setPassword('');
+    } catch {
+      setError('Network error. Please try again.');
+    } finally {
       setIsLoading(false);
-    }, 800);
+    }
   };
 
   if (!mounted) return <div style={{ background: '#000', height: '100vh', width: '100vw' }} />;

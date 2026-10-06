@@ -17,7 +17,7 @@ import {
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useStudio, Track } from '@/components/admin/StudioProvider';
-import { useAudio } from '@/components/audio/AudioProvider';
+import { useAudioControls } from '@/components/audio/AudioProvider';
 import { useAuth } from '@/context/AuthContext';
 import { getMPMFromBPM } from '@/utils/audio';
 import { formatDuration } from '@/utils/format';
@@ -29,7 +29,7 @@ import { getDownloadedTrackIds, subscribeToOfflineUpdates } from '@/utils/offlin
 export default function LibraryPage() {
   const router = useRouter();
   const { tracks, folders, folderTracksMap, styles, finalTracks, addToFinal, removeFromFinal, toggleFavorite } = useStudio();
-  const { isPlaying, title: playingTitle, trackId: playingTrackId, loadTrack } = useAudio();
+  const { isPlaying, title: playingTitle, trackId: playingTrackId, loadTrack } = useAudioControls();
   const { isAuthenticated, setIsAuthModalOpen } = useAuth();
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
   const [downloadedIds, setDownloadedIds] = useState<string[]>([]);

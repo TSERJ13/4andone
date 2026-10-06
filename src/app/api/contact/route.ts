@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { supabase } from '@/utils/supabase';
+import { requireAdmin } from '@/lib/admin-auth';
+import { getSupabaseAdmin } from '@/lib/supabase-admin';
 import { sendNotificationEmail } from '@/utils/mailer';
 
 export async function POST(request: NextRequest) {
@@ -125,14 +127,18 @@ export async function POST(request: NextRequest) {
 }
 
 export async function GET() {
+  // Messages contain visitors' e-mails — admin only.
+  const denied = await requireAdmin();
+  if (denied) return denied;
+  const db = getSupabaseAdmin() ?? supabase;
   try {
     const [{ data: rawMessages, error: msgErr }, { data: delRows }] = await Promise.all([
-      supabase
+      db
         .from('track_plays')
         .select('id, created_at, style, bpm, user_ref, session_id')
         .eq('event_type', 'contact_message')
         .order('created_at', { ascending: false }),
-      supabase
+      db
         .from('folders')
         .select('color')
         .eq('name', '__deleted_msg__')
@@ -150,6 +156,9 @@ export async function GET() {
 }
 
 export async function DELETE(request: Request) {
+  const denied = await requireAdmin();
+  if (denied) return denied;
+  const db = getSupabaseAdmin() ?? supabase;
   try {
     const { searchParams } = new URL(request.url);
     const id = searchParams.get('id');
@@ -159,14 +168,14 @@ export async function DELETE(request: Request) {
     }
 
     // 1. Attempt direct delete on track_plays
-    await supabase
+    await db
       .from('track_plays')
       .delete()
       .eq('id', id)
       .eq('event_type', 'contact_message');
 
     // 2. Persist deletion marker in folders table so RLS never restores it
-    await supabase
+    await db
       .from('folders')
       .insert({
         name: '__deleted_msg__',

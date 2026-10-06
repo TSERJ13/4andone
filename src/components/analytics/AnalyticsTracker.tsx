@@ -168,20 +168,21 @@ export default function AnalyticsTracker() {
         if (tg) {
           userRef = tg.id.toString();
 
-          // Sync Telegram User
-          await supabase.from("telegram_users").upsert({
-            telegram_id: tg.id,
-            first_name: tg.first_name,
-            last_name: tg.last_name || null,
-            username: tg.username || null,
-            photo_url: tg.photo_url || null,
-            country_code: countryCode,
-            country_name: countryName,
-            last_seen: new Date().toISOString(),
-          }, { onConflict: "telegram_id" });
-
-          // Increment visit count via helper function
-          await supabase.rpc("increment_user_visit", { uid: tg.id });
+          // Sync Telegram User (server-side: telegram_users is not writable
+          // with the public key)
+          await fetch("/api/user/sync", {
+            method: "POST",
+            headers: { "content-type": "application/json" },
+            body: JSON.stringify({
+              telegram_id: tg.id,
+              first_name: tg.first_name,
+              last_name: tg.last_name || null,
+              username: tg.username || null,
+              photo_url: tg.photo_url || null,
+              country_code: countryCode,
+              country_name: countryName,
+            }),
+          }).catch(() => {});
         } else if (clientIp) {
           // Record IP for web visitor
           userRef = `ip:${clientIp}`;

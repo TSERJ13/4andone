@@ -3,6 +3,7 @@
 import React, { useState, useEffect } from 'react';
 import { Crown, Sparkles, DollarSign, Users, Calendar, Check, X, ShieldAlert, Search, RefreshCw, UserCheck } from 'lucide-react';
 import { supabase } from '@/utils/supabase';
+import { adminDb } from '@/lib/admin-db';
 
 interface Subscriber {
   telegram_id: number;
@@ -26,7 +27,7 @@ export default function SubscriptionManager() {
   const fetchSubscribers = async () => {
     setLoading(true);
     try {
-      const { data, error } = await supabase
+      const { data, error } = await adminDb
         .from('telegram_users')
         .select('*')
         .order('is_premium', { ascending: false });
@@ -58,7 +59,7 @@ export default function SubscriptionManager() {
     }
 
     try {
-      const { error } = await supabase
+      const { error } = await adminDb
         .from('telegram_users')
         .update({
           is_premium: newStatus,

@@ -69,23 +69,34 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   };
 
-  // Reads the subscription from the database. Respects premium_until (set by
-  // the admin SubscriptionManager): an expired subscription is NOT premium.
-  // Returns null when the status could not be read (offline etc.).
+  // Subscription status from the server (expiry-aware, auto-renews verified
+  // PayPal subscriptions). Returns null when it could not be read (offline,
+  // server not configured) — callers then keep what they have.
   const fetchPremiumStatus = async (telegramId: number): Promise<{ active: boolean; subscriptionId: string | null } | null> => {
     try {
-      const { data, error } = await supabase
-        .from('telegram_users')
-        .select('is_premium, subscription_id, premium_until')
-        .eq('telegram_id', telegramId)
-        .maybeSingle();
-      if (error) return null;
-      if (!data) return { active: false, subscriptionId: null };
-      const until = data.premium_until ? new Date(data.premium_until).getTime() : null;
-      const notExpired = until === null || Number.isNaN(until) || until > Date.now();
-      return { active: !!data.is_premium && notExpired, subscriptionId: data.subscription_id ?? null };
+      const res = await fetch(`/api/user/premium?tid=${encodeURIComponent(String(telegramId))}`, { cache: 'no-store' });
+      if (!res.ok) return null;
+      const data = await res.json();
+      return { active: !!data.active, subscriptionId: data.subscriptionId ?? null };
     } catch {
       return null;
+    }
+  };
+
+  // Server-side, PayPal-verified activation. 'unavailable' = the server can't
+  // verify right now (not configured / offline) → keep the local premium.
+  const activateOnServer = async (telegramId: number, subscriptionId: string): Promise<'active' | 'rejected' | 'unavailable'> => {
+    try {
+      const res = await fetch('/api/subscription/activate', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ telegramId, subscriptionId }),
+      });
+      if (res.ok) return 'active';
+      if (res.status === 402 || res.status === 400) return 'rejected';
+      return 'unavailable';
+    } catch {
+      return 'unavailable';
     }
   };
 
@@ -108,8 +119,15 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         // The saved copy can be stale (subscription expired, or granted from the
         // admin panel on another device) — re-check the real status quietly.
         if (!hasLifetime && parsedUser.id) {
-          fetchPremiumStatus(parsedUser.id).then((status) => {
+          fetchPremiumStatus(parsedUser.id).then(async (status) => {
             if (!status) return; // offline: keep the saved value
+            // Paid in this browser but not recorded on the server yet (e.g. the
+            // server could not verify at purchase time) → try to record it now.
+            if (!status.active && parsedUser.is_premium && typeof parsedUser.subscription_id === 'string'
+                && parsedUser.subscription_id.startsWith('I-')) {
+              const result = await activateOnServer(parsedUser.id, parsedUser.subscription_id);
+              if (result !== 'rejected') return; // active now, or can't tell → keep premium
+            }
             const refreshed = { ...parsedUser, is_premium: status.active, subscription_id: status.subscriptionId ?? undefined };
             setUser(refreshed);
             setIsPremium(status.active);
@@ -144,12 +162,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       userData.subscription_id = 'LIFETIME_OWNER';
     }
 
-    // Subscription status from the database (expiry-aware)
-    // premiumKnown=false (DB unreachable) → never overwrite the DB value below.
-    let premiumKnown = hasLifetime;
+    // Subscription status from the server (expiry-aware)
     if (!hasLifetime) {
       const status = await fetchPremiumStatus(userData.id);
-      premiumKnown = status !== null;
       userData.is_premium = !!status?.active;
       if (status?.subscriptionId) userData.subscription_id = status.subscriptionId;
     }
@@ -160,31 +175,25 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     setIsAuthModalOpen(false);
     await syncWithSupabase(userData);
 
-    // Upsert into telegram_users for analytics tracking
+    // Record the profile/visit (server-side; premium columns are not writable here)
     try {
       const country = await fetch('https://ipapi.co/json/', { signal: AbortSignal.timeout(3000) })
         .then(r => r.json())
         .catch(() => null);
 
-      await supabase.from('telegram_users').upsert({
-        telegram_id: userData.id,
-        first_name: userData.first_name,
-        last_name: userData.last_name ?? null,
-        username: userData.username ?? null,
-        photo_url: userData.photo_url ?? null,
-        last_seen: new Date().toISOString(),
-        country_code: country?.country_code ?? null,
-        country_name: country?.country_name ?? null,
-        ...(premiumKnown ? {
-          is_premium: !!userData.is_premium,
-          subscription_id: userData.subscription_id ?? null,
-        } : {}),
-      }, { onConflict: 'telegram_id', ignoreDuplicates: false });
-
-      // Increment visit count via RPC
-      try {
-        await supabase.rpc('increment_user_visit', { uid: userData.id });
-      } catch { /* non-critical */ }
+      await fetch('/api/user/sync', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({
+          telegram_id: userData.id,
+          first_name: userData.first_name,
+          last_name: userData.last_name ?? null,
+          username: userData.username ?? null,
+          photo_url: userData.photo_url ?? null,
+          country_code: country?.country_code ?? null,
+          country_name: country?.country_name ?? null,
+        }),
+      });
     } catch {
       // Non-critical — don't block login
     }
@@ -196,12 +205,12 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       const updatedUser = { ...user, is_premium: true, subscription_id: subscriptionId };
       setUser(updatedUser);
       localStorage.setItem('4andone-user', JSON.stringify(updatedUser));
-      try {
-        await supabase.from('telegram_users').update({
-          is_premium: true,
-          subscription_id: subscriptionId
-        }).eq('telegram_id', user.id);
-      } catch {}
+      // Verified with PayPal and saved on the server, so Premium follows the
+      // account to every device.
+      const result = await activateOnServer(user.id, subscriptionId);
+      if (result === 'rejected') {
+        console.warn('[PREMIUM] PayPal did not confirm the subscription yet; will retry on next visit.');
+      }
     } else {
       localStorage.setItem('4andone_guest_premium', subscriptionId);
     }

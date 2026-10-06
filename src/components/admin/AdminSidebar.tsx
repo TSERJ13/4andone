@@ -20,6 +20,7 @@ import {
 import { useStudio } from './StudioProvider';
 import { useRouter } from 'next/navigation';
 import { supabase } from '@/utils/supabase';
+import { adminDb } from '@/lib/admin-db';
 
 const AdminSidebar = ({ isCollapsed, onToggle }: { isCollapsed: boolean, onToggle: () => void }) => {
   const pathname = usePathname();
@@ -30,7 +31,7 @@ const AdminSidebar = ({ isCollapsed, onToggle }: { isCollapsed: boolean, onToggl
   const fetchUnreadMessagesCount = useCallback(async () => {
     try {
       const [{ data: rawMessages }, { data: delRows }] = await Promise.all([
-        supabase
+        adminDb
           .from('track_plays')
           .select('id')
           .eq('event_type', 'contact_message'),
@@ -41,7 +42,7 @@ const AdminSidebar = ({ isCollapsed, onToggle }: { isCollapsed: boolean, onToggl
       ]);
 
       const deletedIds = new Set((delRows || []).map(r => r.color));
-      const activeCount = (rawMessages || []).filter(m => !deletedIds.has(m.id)).length;
+      const activeCount = (rawMessages || []).filter((m: { id: string }) => !deletedIds.has(m.id)).length;
       setUnreadCount(activeCount);
     } catch (err) {
       console.error('Failed to fetch unread messages count:', err);
@@ -69,8 +70,9 @@ const AdminSidebar = ({ isCollapsed, onToggle }: { isCollapsed: boolean, onToggl
     };
   }, [fetchUnreadMessagesCount]);
 
-  const handleLogout = () => {
-    localStorage.removeItem('studio_auth');
+  const handleLogout = async () => {
+    localStorage.removeItem('studio_auth'); // legacy flag
+    try { await fetch('/api/admin/session', { method: 'DELETE', credentials: 'same-origin' }); } catch { /* ignore */ }
     router.push('/sa-login');
   };
 

@@ -2,6 +2,7 @@
 
 import React, { createContext, useContext, useState, useEffect, useMemo } from 'react';
 import { supabase } from '@/utils/supabase';
+import { adminDb } from '@/lib/admin-db';
 import { useAuth } from '@/context/AuthContext';
 import { Album, DEFAULT_ALBUMS } from '@/types/album';
 
@@ -446,7 +447,7 @@ export const StudioProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       initialOrder = minO - 10;
     }
 
-    const { data, error } = await supabase
+    const { data, error } = await adminDb
       .from('tracks')
       .insert([{
         title: trackData.title || 'Unknown',
@@ -514,7 +515,7 @@ export const StudioProvider: React.FC<{ children: React.ReactNode }> = ({ childr
   };
 
   const removeTrack = async (id: string) => {
-    const { error } = await supabase.from('tracks').delete().eq('id', id);
+    const { error } = await adminDb.from('tracks').delete().eq('id', id);
     if (error) {
       console.error("[STUDIO-ERROR] removeTrack failed:", JSON.stringify(error, null, 2));
       throw error;
@@ -559,7 +560,7 @@ export const StudioProvider: React.FC<{ children: React.ReactNode }> = ({ childr
 
     if (Object.keys(payload).length === 0) return; // nothing to update
 
-    const { error } = await supabase
+    const { error } = await adminDb
       .from('tracks')
       .update(payload)
       .eq('id', id);
@@ -676,7 +677,7 @@ export const StudioProvider: React.FC<{ children: React.ReactNode }> = ({ childr
   };
 
   const assignToFolder = async (trackId: string, folderId: string | undefined) => {
-    await supabase.from('tracks').update({ folder_id: folderId }).eq('id', trackId);
+    await adminDb.from('tracks').update({ folder_id: folderId }).eq('id', trackId);
     setTracks(prev => prev.map(t => t.id === trackId ? { ...t, folderId } : t));
   };
 
@@ -711,37 +712,37 @@ export const StudioProvider: React.FC<{ children: React.ReactNode }> = ({ childr
   };
 
   const addStyle = async (styleData: Partial<Style>) => {
-    const { data, error } = await supabase.from('styles').insert([styleData]).select();
+    const { data, error } = await adminDb.from('styles').insert([styleData]).select();
     if (error) alert("Error adding style: " + error.message);
     if (data) setStyles(prev => [...prev, data[0]]);
   };
 
   const updateStyle = async (id: string, updates: Partial<Style>) => {
-    const { error } = await supabase.from('styles').update(updates).eq('id', id);
+    const { error } = await adminDb.from('styles').update(updates).eq('id', id);
     if (error) alert("Error updating style: " + error.message);
     setStyles(prev => prev.map(s => s.id === id ? { ...s, ...updates } : s));
   };
 
   const removeStyle = async (id: string) => {
-    const { error } = await supabase.from('styles').delete().eq('id', id);
+    const { error } = await adminDb.from('styles').delete().eq('id', id);
     if (error) alert("Error deleting style: " + error.message);
     setStyles(prev => prev.filter(s => s.id !== id));
   };
 
   const addTag = async (tagData: Partial<Tag>) => {
-    const { data, error } = await supabase.from('tags').insert([tagData]).select();
+    const { data, error } = await adminDb.from('tags').insert([tagData]).select();
     if (error) alert("Error adding tag: " + error.message);
     if (data) setTags(prev => [...prev, data[0]]);
   };
 
   const updateTag = async (id: string, updates: Partial<Tag>) => {
-    const { error } = await supabase.from('tags').update(updates).eq('id', id);
+    const { error } = await adminDb.from('tags').update(updates).eq('id', id);
     if (error) alert("Error updating tag: " + error.message);
     setTags(prev => prev.map(t => t.id === id ? { ...t, ...updates } : t));
   };
 
   const removeTag = async (id: string) => {
-    const { error } = await supabase.from('tags').delete().eq('id', id);
+    const { error } = await adminDb.from('tags').delete().eq('id', id);
     if (error) alert("Error deleting tag: " + error.message);
     setTags(prev => prev.filter(t => t.id !== id));
   };
@@ -929,7 +930,7 @@ export const StudioProvider: React.FC<{ children: React.ReactNode }> = ({ childr
 
     // 2. Persist to Supabase
     try {
-      const { error } = await supabase
+      const { error } = await adminDb
         .from('tracks')
         .update({ global_order: newOrder })
         .eq('id', movedTrack.id);

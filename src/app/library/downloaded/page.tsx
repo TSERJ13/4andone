@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { ArrowDownToLine, Play, Disc, Heart, CheckCircle2 } from 'lucide-react';
-import { useAudio } from '@/components/audio/AudioProvider';
+import { useAudioControls } from '@/components/audio/AudioProvider';
 import { useStudio } from '@/components/admin/StudioProvider';
 import { useAuth } from '@/context/AuthContext';
 import ConfirmModal from '@/components/admin/ConfirmModal';
@@ -12,7 +12,7 @@ import { Marquee } from '@/components/layout/Marquee';
 import { getDownloadedTrackIds, subscribeToOfflineUpdates } from '@/utils/offline';
 
 const DownloadedPage = () => {
-  const { isPlaying, title: playingTitle, trackId: playingTrackId, loadTrack } = useAudio();
+  const { isPlaying, title: playingTitle, trackId: playingTrackId, loadTrack } = useAudioControls();
   const { tracks, styles, toggleFavorite } = useStudio();
   const { isAuthenticated, setIsAuthModalOpen } = useAuth();
   

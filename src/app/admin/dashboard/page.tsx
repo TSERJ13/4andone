@@ -14,12 +14,12 @@ import {
   Coffee
 } from 'lucide-react';
 import BulkUpload from "../../../components/admin/BulkUpload";
-import { useAudio } from '@/components/audio/AudioProvider';
+import { useAudioControls } from '@/components/audio/AudioProvider';
 import { useStudio } from '@/components/admin/StudioProvider';
 import { supabase } from '@/utils/supabase';
 
 export default function AdminDashboard() {
-  const { togglePlay, isPlaying } = useAudio();
+  const { togglePlay, isPlaying } = useAudioControls();
   const { tracks, folders, finalFolders } = useStudio();
   
   // New Analytics Stats

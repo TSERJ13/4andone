@@ -41,8 +41,8 @@ export async function GET(request: NextRequest) {
       Key: key,
     });
 
-    // Generate a signed playback URL (valid for 1 hour)
-    const url = await getSignedUrl(s3Client, command, { expiresIn: 3600 });
+    // Generate a signed playback URL (valid for 6 hours — the client reuses it for 2h so replays hit the browser cache)
+    const url = await getSignedUrl(s3Client, command, { expiresIn: 6 * 3600 });
 
     return NextResponse.json({ url });
   } catch (error: any) {

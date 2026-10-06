@@ -69,6 +69,26 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   };
 
+  // Reads the subscription from the database. Respects premium_until (set by
+  // the admin SubscriptionManager): an expired subscription is NOT premium.
+  // Returns null when the status could not be read (offline etc.).
+  const fetchPremiumStatus = async (telegramId: number): Promise<{ active: boolean; subscriptionId: string | null } | null> => {
+    try {
+      const { data, error } = await supabase
+        .from('telegram_users')
+        .select('is_premium, subscription_id, premium_until')
+        .eq('telegram_id', telegramId)
+        .maybeSingle();
+      if (error) return null;
+      if (!data) return { active: false, subscriptionId: null };
+      const until = data.premium_until ? new Date(data.premium_until).getTime() : null;
+      const notExpired = until === null || Number.isNaN(until) || until > Date.now();
+      return { active: !!data.is_premium && notExpired, subscriptionId: data.subscription_id ?? null };
+    } catch {
+      return null;
+    }
+  };
+
   const isOwnerOrAdmin = (u: TelegramUser | null) => {
     if (!u) return false;
     const handle = (u.username || '').toLowerCase();
@@ -85,6 +105,17 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         setUser(parsedUser);
         setIsPremium(hasLifetime || !!parsedUser.is_premium);
         syncWithSupabase(parsedUser);
+        // The saved copy can be stale (subscription expired, or granted from the
+        // admin panel on another device) — re-check the real status quietly.
+        if (!hasLifetime && parsedUser.id) {
+          fetchPremiumStatus(parsedUser.id).then((status) => {
+            if (!status) return; // offline: keep the saved value
+            const refreshed = { ...parsedUser, is_premium: status.active, subscription_id: status.subscriptionId ?? undefined };
+            setUser(refreshed);
+            setIsPremium(status.active);
+            try { localStorage.setItem('4andone-user', JSON.stringify(refreshed)); } catch { /* ignore */ }
+          });
+        }
       } catch {}
     } else if (typeof window !== 'undefined' && (window as any).Telegram?.WebApp?.initDataUnsafe?.user) {
       // Auto-detect & auto-login Telegram WebApp user seamlessly with zero clicks!
@@ -113,18 +144,15 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       userData.subscription_id = 'LIFETIME_OWNER';
     }
 
-    // Check if user record in DB has is_premium
-    try {
-      const { data: dbUser } = await supabase
-        .from('telegram_users')
-        .select('is_premium, subscription_id')
-        .eq('telegram_id', userData.id)
-        .single();
-      if (dbUser?.is_premium) {
-        userData.is_premium = true;
-        userData.subscription_id = dbUser.subscription_id;
-      }
-    } catch {}
+    // Subscription status from the database (expiry-aware)
+    // premiumKnown=false (DB unreachable) → never overwrite the DB value below.
+    let premiumKnown = hasLifetime;
+    if (!hasLifetime) {
+      const status = await fetchPremiumStatus(userData.id);
+      premiumKnown = status !== null;
+      userData.is_premium = !!status?.active;
+      if (status?.subscriptionId) userData.subscription_id = status.subscriptionId;
+    }
 
     setUser(userData);
     setIsPremium(!!userData.is_premium);
@@ -147,8 +175,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         last_seen: new Date().toISOString(),
         country_code: country?.country_code ?? null,
         country_name: country?.country_name ?? null,
-        is_premium: !!userData.is_premium,
-        subscription_id: userData.subscription_id ?? null,
+        ...(premiumKnown ? {
+          is_premium: !!userData.is_premium,
+          subscription_id: userData.subscription_id ?? null,
+        } : {}),
       }, { onConflict: 'telegram_id', ignoreDuplicates: false });
 
       // Increment visit count via RPC

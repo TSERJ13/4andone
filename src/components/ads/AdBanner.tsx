@@ -11,6 +11,10 @@ interface AdBannerProps {
   height?: number;
   className?: string;
   style?: React.CSSProperties;
+  /** Responsive unit: fills the container width (data-ad-format="auto"). */
+  responsive?: boolean;
+  /** Reports AdSense's fill result (from the data-ad-status attribute). */
+  onStatusChange?: (status: 'filled' | 'unfilled') => void;
 }
 
 const AD_CONFIGS = {
@@ -48,7 +52,9 @@ export function AdBanner({
   width,
   height,
   className = '',
-  style
+  style,
+  responsive = false,
+  onStatusChange
 }: AdBannerProps) {
   const [deviceType, setDeviceType] = useState<AdDeviceType>('desktop');
   const containerRef = useRef<HTMLDivElement | null>(null);
@@ -85,7 +91,9 @@ export function AdBanner({
   const slotToUse = slot || config.slot;
   const widthToUse = width || config.width;
   const heightToUse = height || config.height;
-  const styleToUse = (width && height)
+  const styleToUse = responsive
+    ? ({ display: 'block', width: '100%', minHeight: `${heightToUse}px` } as React.CSSProperties)
+    : (width && height)
     ? { display: 'inline-block', width: `${widthToUse}px`, height: `${heightToUse}px` }
     : config.style;
 
@@ -117,6 +125,22 @@ export function AdBanner({
     };
   }, [slotToUse, activeType]);
 
+  // AdSense marks the <ins> with data-ad-status="filled" | "unfilled".
+  const onStatusRef = useRef(onStatusChange);
+  useEffect(() => { onStatusRef.current = onStatusChange; }, [onStatusChange]);
+  useEffect(() => {
+    const el = adRef.current;
+    if (!el || typeof MutationObserver === 'undefined') return;
+    const report = () => {
+      const status = el.getAttribute('data-ad-status');
+      if (status === 'filled' || status === 'unfilled') onStatusRef.current?.(status);
+    };
+    const observer = new MutationObserver(report);
+    observer.observe(el, { attributes: true, attributeFilter: ['data-ad-status'] });
+    report();
+    return () => observer.disconnect();
+  }, [slotToUse, activeType]);
+
   const containerMinHeight = `${heightToUse}px`;
 
   return (
@@ -140,6 +164,7 @@ export function AdBanner({
         style={styleToUse}
         data-ad-client="ca-pub-2697205988789699"
         data-ad-slot={slotToUse}
+        {...(responsive ? { 'data-ad-format': 'auto', 'data-full-width-responsive': 'true' } : {})}
       />
     </div>
   );

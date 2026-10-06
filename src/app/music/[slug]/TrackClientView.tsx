@@ -3,7 +3,7 @@
 import React from 'react';
 import Link from 'next/link';
 import { Play, Pause, Heart, Share2, Disc, ArrowLeft, Clock, Music } from 'lucide-react';
-import { useAudio } from '@/components/audio/AudioProvider';
+import { useAudioControls } from '@/components/audio/AudioProvider';
 import { useStudio } from '@/components/admin/StudioProvider';
 import { useAuth } from '@/context/AuthContext';
 import { SeoTrack } from '@/lib/seo-data';
@@ -18,7 +18,7 @@ interface Props {
 }
 
 export default function TrackClientView({ track, slug, category, relatedTracks }: Props) {
-  const { isPlaying, title: playingTitle, trackId: playingTrackId, loadTrack, togglePlay } = useAudio();
+  const { isPlaying, title: playingTitle, trackId: playingTrackId, loadTrack, togglePlay } = useAudioControls();
   const { tracks, toggleFavorite } = useStudio();
   const { isAuthenticated, setIsAuthModalOpen } = useAuth();
 

@@ -3,7 +3,7 @@
 import React from 'react';
 import Link from 'next/link';
 import { Play, Mic2, Timer, Flame, Music2, Disc, Heart, ChevronLeft, ChevronRight, CheckCircle2 } from 'lucide-react';
-import { useAudio } from '@/components/audio/AudioProvider';
+import { useAudioControls } from '@/components/audio/AudioProvider';
 import { useStudio } from '@/components/admin/StudioProvider';
 import { useAuth } from '@/context/AuthContext';
 import { useDownloadedTracks } from '@/hooks/useDownloadedTracks';
@@ -25,7 +25,7 @@ export default function Home() {
     title: playingTitle,
     trackId: playingTrackId,
     loadTrack
-  } = useAudio();
+  } = useAudioControls();
   const {
     tracks,
     styles,

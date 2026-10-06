@@ -4,7 +4,7 @@ import React, { useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { Play, Pause, Clock, Music2, MoreHorizontal, Heart, Disc, ListMusic, GripVertical, Trash2, X, CheckCircle2 } from 'lucide-react';
 import { useStudio, Track } from '@/components/admin/StudioProvider';
-import { useAudio } from '@/components/audio/AudioProvider';
+import { useAudioControls } from '@/components/audio/AudioProvider';
 import { useAuth } from '@/context/AuthContext';
 import { useDownloadedTracks } from '@/hooks/useDownloadedTracks';
 import { formatDuration } from '@/utils/format';
@@ -16,7 +16,7 @@ const PlaylistPage = () => {
   const { id } = useParams();
   const router = useRouter();
   const { tracks, folders, folderTracksMap, styles, reorderGlobalTracks, reorderTracks, finalTracks, addToFinal, removeFromFinal, toggleFavorite, removeFolder, removeTrackFromFolder } = useStudio();
-  const { isPlaying, title: playingTitle, trackId: playingTrackId, loadTrack } = useAudio();
+  const { isPlaying, title: playingTitle, trackId: playingTrackId, loadTrack } = useAudioControls();
   const { isAuthenticated, setIsAuthModalOpen } = useAuth();
   const downloadedIds = useDownloadedTracks();
 

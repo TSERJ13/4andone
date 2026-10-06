@@ -21,7 +21,39 @@ import {
   X
 } from 'lucide-react';
 import Link from 'next/link';
-import { useAudio } from '@/components/audio/AudioProvider';
+import { useAudio, useAudioControls } from '@/components/audio/AudioProvider';
+
+// PERFORMANCE: only these tiny pieces read the playback clock, so the whole
+// Finals page no longer re-renders ~5x/sec while a program is playing.
+const formatClock = (seconds: number) => {
+  const mins = Math.floor(seconds / 60);
+  const secs = Math.floor(seconds % 60);
+  return `${mins}:${secs.toString().padStart(2, '0')}`;
+};
+
+const SessionProgressPath = ({ d, resting }: { d: string; resting: boolean }) => {
+  const { currentTime, sessionDuration } = useAudio();
+  const totalProgress = sessionDuration > 0 ? Math.min(currentTime / sessionDuration, 1) : 0;
+  return (
+    <path
+      d={d}
+      className={`border-rect-progress ${resting ? 'resting' : 'playing'}`}
+      vectorEffect="non-scaling-stroke"
+      pathLength="1"
+      style={{ strokeDasharray: `${totalProgress} 10`, strokeDashoffset: '0' }}
+    />
+  );
+};
+
+const RestCountdown = () => {
+  const { pauseTime } = useAudio();
+  return <div className="rest-timer-overlay pulse-intense">{pauseTime}</div>;
+};
+
+const SessionClock = () => {
+  const { currentTime, sessionDuration } = useAudio();
+  return <p className="session-timer">{formatClock(currentTime)} / {formatClock(sessionDuration)}</p>;
+};
 import { useStudio, Track } from '@/components/admin/StudioProvider';
 import { useAuth } from '@/context/AuthContext';
 import { useDownloadedTracks } from '@/hooks/useDownloadedTracks';
@@ -69,11 +101,11 @@ const FinalsPage = () => {
     toggleFavorite
   } = useStudio();
   const { 
-    loadTrack, isPlaying, title: playingTitle, trackId: playingTrackId, currentTime, trackCurrentTime, duration, 
-    isPauseCountdown, pauseTime, stop, isFitness, setIsFitness,
-    activeMode, setActiveMode, sessionTracks, setSessionTracks, sessionDuration,
+    loadTrack, isPlaying, title: playingTitle, trackId: playingTrackId, duration, 
+    isPauseCountdown, stop, isFitness, setIsFitness,
+    activeMode, setActiveMode, sessionTracks, setSessionTracks,
     isFinalMode, setFitnessTargetTime
-  } = useAudio();
+  } = useAudioControls();
   const { isAuthenticated, setIsAuthModalOpen } = useAuth();
   const downloadedIds = useDownloadedTracks();
   const [showStopConfirm, setShowStopConfirm] = useState(false);
@@ -186,27 +218,12 @@ const FinalsPage = () => {
             L ${w/2} ${inset}`;
   };
   
-  const getTrackLimit = (t: Track) => t.style?.toLowerCase().includes('paso') ? (t.duration || 240) : 105;
 
   // Use global sessionTracks instead of Studio's finalTracks for active session UI
   const sessionList = (activeMode && sessionTracks.length > 0) ? sessionTracks : finalTracks;
 
   const currentTrackIndex = sessionList.findIndex(t => playingTrackId ? t.id === playingTrackId : (t.id === playingTitle || t.title === playingTitle));
-  const currentTrack = currentTrackIndex !== -1 ? sessionList[currentTrackIndex] : null;
-  const currentTrackLimit = currentTrack ? getTrackLimit(currentTrack) : 100;
-  const currentLimit = isPauseCountdown ? 15 : currentTrackLimit;
-  const trackProgress = Math.min(trackCurrentTime / currentLimit, 1);
 
-  // Source of truth for session progress is the AudioProvider
-  const displayElapsedTime = currentTime;
-  const displayTotalDuration = sessionDuration;
-  const totalProgress = displayTotalDuration > 0 ? Math.min(displayElapsedTime / displayTotalDuration, 1) : 0;
-
-  const formatTime = (seconds: number) => {
-    const mins = Math.floor(seconds / 60);
-    const secs = Math.floor(seconds % 60);
-    return `${mins}:${secs.toString().padStart(2, '0')}`;
-  };
   
   const latinOrder = latinStartDance === 'Cha-Cha-Cha' || latinStartDance === 'Cha-cha-cha'
     ? ["Cha-Cha-Cha", "Samba", "Rumba", "Paso Doble", "Jive"]
@@ -583,22 +600,19 @@ const FinalsPage = () => {
                             viewBox={`0 0 ${cardDim.w} ${cardDim.h}`}
                             className="timer-svg"
                           >
-                            <path
+                            <SessionProgressPath
                               d={generateDynamicPath(cardDim.w, cardDim.h, 20)}
-                              className={`border-rect-progress ${isPauseCountdown ? 'resting' : 'playing'}`}
-                              vectorEffect="non-scaling-stroke"
-                              pathLength="1"
-                              style={{ strokeDasharray: `${totalProgress} 10`, strokeDashoffset: '0' }}
+                              resting={isPauseCountdown}
                             />
                           </svg>
                         </div>
-                        {isPauseCountdown && <div className="rest-timer-overlay pulse-intense">{pauseTime}</div>}
+                        {isPauseCountdown && <RestCountdown />}
                       </>
                     )}
                     <div className="card-icon">{icon}</div>
                     <div className="card-info">
                       <h4>{label}</h4>
-                      {isActive && <p className="session-timer">{formatTime(displayElapsedTime)} / {formatTime(displayTotalDuration)}</p>}
+                      {isActive && <SessionClock />}
                     </div>
                   </div>
                 </div>

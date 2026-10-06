@@ -236,9 +236,6 @@ const MobileFullPlayer = ({ isOpen, onClose }: MobileFullPlayerProps) => {
 
   return createPortal(
     <div className="mfp-overlay animate-slide-up" style={{ zIndex: 9999, background: '#121212' }}>
-      <div className="mfp-top-ad-wrapper" style={{ display: 'flex', justifyContent: 'center', marginBottom: '8px', flexShrink: 0 }}>
-        <AdBanner variant="mobile" className="mfp-top-ad" />
-      </div>
 
       <div className="mfp-header">
         <button onClick={onClose} className="mfp-header-btn"><ChevronDown size={32} /></button>

@@ -308,16 +308,8 @@ export default function Home() {
           </p>
         </div>
 
-        {/* Top Header Row: Dual AdSense Banners on Desktop, Single on Mobile/Tablet */}
+        {/* Top Header Row: Clean layout with User and Social Actions */}
         <div className="home-top-header">
-          <div className="header-dual-ads">
-            <div className="header-ad-primary">
-              <AdBanner variant="auto" />
-            </div>
-            <div className="header-ad-secondary">
-              <AdBanner slot="3539678305" width={468} height={60} />
-            </div>
-          </div>
           <div className="header-right-group">
             <TopSocialMenu />
             <UserBadge />
@@ -672,49 +664,20 @@ export default function Home() {
       <style jsx>{`
         .home-top-header {
           display: flex;
-          flex-direction: column;
           align-items: center;
-          gap: 10px;
-          margin-bottom: 12px;
-          padding: 0 4px;
+          justify-content: flex-end;
+          margin-bottom: 16px;
+          padding: 4px 8px;
           position: relative;
           z-index: 20;
           width: 100%;
         }
 
-        .header-dual-ads {
-          width: 100%;
-          display: flex;
-          justify-content: center;
-          align-items: center;
-          gap: 16px;
-          flex-wrap: nowrap;
-        }
-
-        .header-ad-primary {
-          display: flex;
-          justify-content: center;
-          align-items: center;
-        }
-
-        .header-ad-secondary {
-          display: flex;
-          justify-content: center;
-          align-items: center;
-        }
-
-        @media (max-width: 1024px) {
-          .header-ad-secondary {
-            display: none !important;
-          }
-        }
-
         .header-right-group {
-          width: 100%;
           display: flex;
           align-items: center;
           justify-content: flex-end;
-          gap: 10px;
+          gap: 12px;
           position: relative;
           z-index: 100;
         }

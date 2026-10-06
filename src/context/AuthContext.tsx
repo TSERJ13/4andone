@@ -11,24 +11,32 @@ export interface TelegramUser {
   photo_url?: string;
   auth_date: number;
   hash: string;
+  is_premium?: boolean;
+  subscription_id?: string | null;
 }
 
 interface AuthContextType {
   user: TelegramUser | null;
   isAuthenticated: boolean;
+  isPremium: boolean;
   login: (user: TelegramUser) => void;
   logout: () => void;
   isLoading: boolean;
   isAuthModalOpen: boolean;
   setIsAuthModalOpen: (open: boolean) => void;
+  isSubscriptionModalOpen: boolean;
+  setIsSubscriptionModalOpen: (open: boolean) => void;
+  activatePremium: (subscriptionId: string) => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [user, setUser] = useState<TelegramUser | null>(null);
+  const [isPremium, setIsPremium] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
+  const [isSubscriptionModalOpen, setIsSubscriptionModalOpen] = useState(false);
 
   const syncWithSupabase = async (userData: TelegramUser) => {
     try {
@@ -64,9 +72,12 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   useEffect(() => {
     const savedUser = localStorage.getItem('4andone-user');
     if (savedUser) {
-      const parsedUser = JSON.parse(savedUser);
-      setUser(parsedUser);
-      syncWithSupabase(parsedUser);
+      try {
+        const parsedUser = JSON.parse(savedUser);
+        setUser(parsedUser);
+        setIsPremium(!!parsedUser.is_premium);
+        syncWithSupabase(parsedUser);
+      } catch {}
     } else if (typeof window !== 'undefined' && (window as any).Telegram?.WebApp?.initDataUnsafe?.user) {
       // Auto-detect & auto-login Telegram WebApp user seamlessly with zero clicks!
       const tgUser = (window as any).Telegram.WebApp.initDataUnsafe.user;
@@ -78,7 +89,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           username: tgUser.username || '',
           photo_url: tgUser.photo_url || '',
           auth_date: Math.floor(Date.now() / 1000),
-          hash: 'telegram_webapp_auto'
+          hash: 'telegram_webapp_auto',
+          is_premium: false
         };
         login(autoUser);
       }
@@ -87,14 +99,27 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   }, []);
 
   const login = async (userData: TelegramUser) => {
+    // Check if user record in DB has is_premium
+    try {
+      const { data: dbUser } = await supabase
+        .from('telegram_users')
+        .select('is_premium, subscription_id')
+        .eq('telegram_id', userData.id)
+        .single();
+      if (dbUser?.is_premium) {
+        userData.is_premium = true;
+        userData.subscription_id = dbUser.subscription_id;
+      }
+    } catch {}
+
     setUser(userData);
+    setIsPremium(!!userData.is_premium);
     localStorage.setItem('4andone-user', JSON.stringify(userData));
     setIsAuthModalOpen(false);
     await syncWithSupabase(userData);
 
     // Upsert into telegram_users for analytics tracking
     try {
-      // Get country from cached visit data if available
       const country = await fetch('https://ipapi.co/json/', { signal: AbortSignal.timeout(3000) })
         .then(r => r.json())
         .catch(() => null);
@@ -108,6 +133,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         last_seen: new Date().toISOString(),
         country_code: country?.country_code ?? null,
         country_name: country?.country_name ?? null,
+        is_premium: !!userData.is_premium,
+        subscription_id: userData.subscription_id ?? null,
       }, { onConflict: 'telegram_id', ignoreDuplicates: false });
 
       // Increment visit count via RPC
@@ -119,8 +146,27 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   };
 
+  const activatePremium = async (subscriptionId: string) => {
+    setIsPremium(true);
+    if (user) {
+      const updatedUser = { ...user, is_premium: true, subscription_id: subscriptionId };
+      setUser(updatedUser);
+      localStorage.setItem('4andone-user', JSON.stringify(updatedUser));
+      try {
+        await supabase.from('telegram_users').update({
+          is_premium: true,
+          subscription_id: subscriptionId
+        }).eq('telegram_id', user.id);
+      } catch {}
+    } else {
+      localStorage.setItem('4andone_guest_premium', subscriptionId);
+    }
+    setIsSubscriptionModalOpen(false);
+  };
+
   const logout = () => {
     setUser(null);
+    setIsPremium(false);
     localStorage.removeItem('4andone-user');
   };
 
@@ -128,11 +174,15 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     <AuthContext.Provider value={{
       user,
       isAuthenticated: !!user,
+      isPremium,
       login,
       logout,
       isLoading,
       isAuthModalOpen,
-      setIsAuthModalOpen
+      setIsAuthModalOpen,
+      isSubscriptionModalOpen,
+      setIsSubscriptionModalOpen,
+      activatePremium
     }}>
       {children}
     </AuthContext.Provider>

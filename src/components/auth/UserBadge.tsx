@@ -6,7 +6,7 @@ import { useAuth } from '@/context/AuthContext';
 import { AuthModal } from '@/components/auth/AuthModal';
 
 export const UserBadge: React.FC<{ textColor?: string }> = ({ textColor = 'white' }) => {
-  const { user, logout, isAuthenticated, isAuthModalOpen, setIsAuthModalOpen } = useAuth();
+  const { user, logout, isAuthenticated, setIsAuthModalOpen, isPremium, setIsSubscriptionModalOpen } = useAuth();
   const [showPopup, setShowPopup] = useState(false);
   const popupRef = useRef<HTMLDivElement>(null);
 
@@ -46,20 +46,33 @@ export const UserBadge: React.FC<{ textColor?: string }> = ({ textColor = 'white
           {showPopup && (
             <div className="user-popup glass animate-in-popup" ref={popupRef}>
               <div className="popup-header">
-                  <div className="user-info">
-                    <p className="user-name">{user?.first_name} {user?.last_name}</p>
-                    <p className="user-meta">@{user?.username || 'user'}</p>
-                  </div>
-                  <ShieldCheck size={20} className="text-primary" />
+                <div className="user-info">
+                  <p className="user-name">{user?.first_name} {user?.last_name}</p>
+                  <p className="user-meta">@{user?.username || 'user'}</p>
                 </div>
-                <div className="popup-actions">
-                  <p className="sync-status">✓ Cloud Synced</p>
-                  <button className="logout-btn" onClick={logout}>
-                    <LogOut size={16} />
-                    <span>Logout</span>
-                  </button>
-                </div>
+                <ShieldCheck size={20} className="text-primary" />
               </div>
+              <div className="popup-actions">
+                {isPremium ? (
+                  <span className="premium-badge-tag">★ Premium Member</span>
+                ) : (
+                  <button 
+                    className="upgrade-btn-popup"
+                    onClick={() => {
+                      setShowPopup(false);
+                      setIsSubscriptionModalOpen(true);
+                    }}
+                  >
+                    ⚡ Upgrade to Premium ($1.99)
+                  </button>
+                )}
+                <p className="sync-status">✓ Cloud Synced</p>
+                <button className="logout-btn" onClick={logout}>
+                  <LogOut size={16} />
+                  <span>Logout</span>
+                </button>
+              </div>
+            </div>
           )}
         </div>
       )}
@@ -119,11 +132,36 @@ export const UserBadge: React.FC<{ textColor?: string }> = ({ textColor = 'white
         .user-name { font-weight: 900; font-size: 16px; margin-bottom: 2px; }
         .user-meta { font-size: 12px; opacity: 0.6; font-weight: 600; }
 
-        .popup-actions { display: flex; flex-direction: column; gap: 16px; }
+        .popup-actions { display: flex; flex-direction: column; gap: 12px; }
+        .premium-badge-tag {
+          background: linear-gradient(135deg, rgba(16, 185, 129, 0.2), rgba(16, 185, 129, 0.1));
+          border: 1px solid rgba(16, 185, 129, 0.4);
+          color: #10b981;
+          font-size: 12px;
+          font-weight: 700;
+          padding: 8px 12px;
+          border-radius: 12px;
+          text-align: center;
+        }
+        .upgrade-btn-popup {
+          background: linear-gradient(135deg, #10b981, #059669);
+          border: none;
+          color: black;
+          font-weight: 800;
+          font-size: 13px;
+          padding: 10px 14px;
+          border-radius: 14px;
+          cursor: pointer;
+          transition: all 0.2s;
+        }
+        .upgrade-btn-popup:hover {
+          transform: translateY(-1px);
+          filter: brightness(1.1);
+        }
         .sync-status { font-size: 11px; font-weight: 700; color: #1db954; opacity: 0.9; }
         .logout-btn {
           display: flex; align-items: center; justify-content: center; gap: 10px;
-          padding: 14px; border-radius: 14px; background: rgba(255, 75, 43, 0.1);
+          padding: 12px; border-radius: 14px; background: rgba(255, 75, 43, 0.1);
           color: #ff4b2b; border: 1px solid rgba(255, 75, 43, 0.2); 
           font-weight: 800; font-size: 13px; cursor: pointer;
           transition: all 0.2s;

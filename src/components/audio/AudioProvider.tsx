@@ -43,6 +43,9 @@ interface AudioContextType {
   setSessionTracks: (tracks: Track[]) => void;
   fitnessTargetTime: number;
   setFitnessTargetTime: (sec: number) => void;
+  isAdModalOpen: boolean;
+  setIsAdModalOpen: (open: boolean) => void;
+  songsPlayedCount: number;
 }
 
 const PlayerContext = createContext<AudioContextType | undefined>(undefined);
@@ -53,7 +56,7 @@ import { supabase } from '@/utils/supabase';
 
 export const AudioProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const { tracks, finalTracks } = useStudio();
-  const { user } = useAuth();
+  const { user, isPremium } = useAuth();
   const [isPlaying, setIsPlaying] = useState(false);
   const [bpm, setBpmState] = useState(100);
   const [isFinalMode, setIsFinalMode] = useState(false); // Default to Normal Mode
@@ -61,6 +64,9 @@ export const AudioProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   const [trackCurrentTime, setTrackCurrentTime] = useState(0); // For round-specific progress
   const [duration, setDuration] = useState(0);
   const [isLoaded, setIsLoaded] = useState(false);
+  const [songsPlayedCount, setSongsPlayedCount] = useState(0);
+  const [isAdModalOpen, setIsAdModalOpen] = useState(false);
+  const songsPlayedRef = useRef(0);
 
 
   const [title, setTitle] = useState("No Track Selected");
@@ -1075,9 +1081,19 @@ export const AudioProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         });
       }
 
+      // 5-TRACK AD TRIGGER (FOR NON-PREMIUM USERS)
+      if (!isPremium) {
+        songsPlayedRef.current += 1;
+        setSongsPlayedCount(songsPlayedRef.current);
+        if (songsPlayedRef.current >= 5) {
+          // Pause and show Ad modal
+          songsPlayedRef.current = 0;
+          setSongsPlayedCount(0);
+          setIsAdModalOpen(true);
+        }
+      }
+
       // ANALYTICS: Log track play event
-      // Previously this whole block was commented out, so track_plays never received
-      // any rows — that's why "Most Played" and "Style Popularity" stayed empty.
       try {
         const sessionId = typeof window !== 'undefined' ? sessionStorage.getItem('4andone_session_id') : null;
         const tgUser = typeof window !== 'undefined' ? (window as any).Telegram?.WebApp?.initDataUnsafe?.user : null;
@@ -1674,7 +1690,10 @@ export const AudioProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       sessionTracks,
       setSessionTracks,
       fitnessTargetTime,
-      setFitnessTargetTime
+      setFitnessTargetTime,
+      isAdModalOpen,
+      setIsAdModalOpen,
+      songsPlayedCount
     }}>
       {children}
     </PlayerContext.Provider>

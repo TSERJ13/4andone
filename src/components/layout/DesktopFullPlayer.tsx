@@ -271,10 +271,6 @@ export default function DesktopFullPlayer({ onClose }: { onClose: () => void }) 
       <div className="dp-console-wrapper">
         <main className="dp-player-console">
           <div className="dp-top-header-group">
-            <div className="dp-top-ads">
-              <AdBanner slot="9997722559" width={468} height={60} />
-              <AdBanner slot="3539678305" width={468} height={60} className="dp-secondary-ad" />
-            </div>
             <div className="dp-top-actions">
               <button 
                 onClick={handleShareTrack} 

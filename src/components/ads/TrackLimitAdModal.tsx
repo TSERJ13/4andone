@@ -13,14 +13,16 @@ interface TrackLimitAdModalProps {
 // Responsive display unit for the ad break. Create a "Display ad → Responsive"
 // unit in AdSense and put its slot ID in NEXT_PUBLIC_ADSENSE_BREAK_SLOT.
 const BREAK_AD_SLOT = process.env.NEXT_PUBLIC_ADSENSE_BREAK_SLOT || '9997722559';
-const SKIP_AFTER_SECONDS = 5;
+const SKIP_AFTER_SECONDS = 5;   // "Skip" appears after 5s
+const AD_SECONDS = 15;          // the ad closes by itself after 15s
 
 type Step = 'ad' | 'promo';
 
 /**
  * Ad break shown to free users every 8 tracks (music is paused by AudioProvider).
- * Step 1: the advertisement itself, skippable after 5 seconds.
- * Step 2: after closing the ad — "that was an ad; listen ad-free with Premium".
+ * Step 1: the advertisement on its own full screen (no popup around it). It
+ *         closes by itself after 15s; "Skip" is available after 5s.
+ * Step 2: the separate popup — "that was a sponsored ad; go Ad-Free Premium".
  * If AdSense has no ad to show, step 1 is skipped automatically.
  */
 export const TrackLimitAdModal: React.FC<TrackLimitAdModalProps> = ({ isOpen, onClose }) => {
@@ -32,20 +34,25 @@ export const TrackLimitAdModal: React.FC<TrackLimitAdModalProps> = ({ isOpen, on
 const AdBreak: React.FC<{ onClose: () => void }> = ({ onClose }) => {
   const { setIsSubscriptionModalOpen } = useAuth();
   const [step, setStep] = useState<Step>('ad');
-  const [countdown, setCountdown] = useState(SKIP_AFTER_SECONDS);
+  const [elapsed, setElapsed] = useState(0);
 
   useEffect(() => {
+    if (step !== 'ad') return;
     const timer = setInterval(() => {
-      setCountdown((prev) => {
-        if (prev <= 1) {
+      setElapsed((prev) => {
+        const next = prev + 1;
+        if (next >= AD_SECONDS) {
           clearInterval(timer);
-          return 0;
+          setStep('promo'); // ad finished → it closes, the popup follows
         }
-        return prev - 1;
+        return next;
       });
     }, 1000);
     return () => clearInterval(timer);
-  }, []);
+  }, [step]);
+
+  const skipIn = Math.max(0, SKIP_AFTER_SECONDS - elapsed);
+  const adLeft = Math.max(0, AD_SECONDS - elapsed);
 
   const handleOpenSubscription = () => {
     onClose();
@@ -53,14 +60,14 @@ const AdBreak: React.FC<{ onClose: () => void }> = ({ onClose }) => {
   };
 
   return (
-    <div className="track-ad-modal-overlay" role="dialog" aria-modal="true">
+    <>
       {step === 'ad' ? (
-        // FULL-SCREEN AD: the whole screen is the ad, with a slim bar on top.
-        <div className="track-ad-fullscreen">
+        // STEP 1 — THE AD ITSELF: its own full screen, no popup around it.
+        <div className="track-ad-fullscreen" role="dialog" aria-modal="true" aria-label="Advertisement">
           <div className="track-ad-top track-ad-top--bar">
-            <span className="track-ad-badge">Advertisement · music paused</span>
-            {countdown > 0 ? (
-              <span className="track-ad-timer">Skip in {countdown}s</span>
+            <span className="track-ad-badge">Ad · {adLeft}s</span>
+            {skipIn > 0 ? (
+              <span className="track-ad-timer">Skip in {skipIn}s</span>
             ) : (
               <button className="track-ad-skip-btn" onClick={() => setStep('promo')}>
                 <span>Skip</span>
@@ -82,33 +89,41 @@ const AdBreak: React.FC<{ onClose: () => void }> = ({ onClose }) => {
           </div>
         </div>
       ) : (
-        <div className="track-ad-card animate-in-popup">
-          <div className="track-ad-heading">
-            <span className="track-ad-badge">Sponsored break</span>
-            <h3>That was an advertisement</h3>
-            <p>
-              4and.one stays free thanks to ads. Want to listen without ads?
-              Log in and get Premium.
-            </p>
-          </div>
-
-          <div className="track-ad-premium-cta" onClick={handleOpenSubscription}>
-            <div className="cta-left">
-              <div className="cta-icon">
-                <Sparkles size={18} className="text-emerald" />
-              </div>
-              <div className="cta-text">
-                <strong>Remove all ads with Premium</strong>
-                <span>Only $1.99/mo • Instant activation</span>
-              </div>
+        // STEP 2 — YOUR POPUP, shown after the ad has closed.
+        <div className="track-ad-modal-overlay" role="dialog" aria-modal="true">
+          <div className="track-ad-card animate-in-popup">
+            <div className="track-ad-top">
+              <span className="track-ad-badge">Sponsored intermission</span>
+              <button className="track-ad-skip-btn" onClick={onClose} aria-label="Close">
+                <X size={16} />
+              </button>
             </div>
-            <button className="cta-btn" type="button">Go Ad-Free</button>
-          </div>
 
-          <button className="track-ad-continue-btn" type="button" onClick={onClose}>
-            <Play size={16} />
-            <span>Continue listening</span>
-          </button>
+            <div className="track-ad-heading">
+              <h3>That was a sponsored ad</h3>
+              <p>
+                Want to listen without ads? Get the Ad-Free Premium subscription.
+              </p>
+            </div>
+
+            <div className="track-ad-premium-cta" onClick={handleOpenSubscription}>
+              <div className="cta-left">
+                <div className="cta-icon">
+                  <Sparkles size={18} className="text-emerald" />
+                </div>
+                <div className="cta-text">
+                  <strong>Ad-Free Premium</strong>
+                  <span>Only $1.99/mo • Instant activation</span>
+                </div>
+              </div>
+              <button className="cta-btn" type="button">Upgrade</button>
+            </div>
+
+            <button className="track-ad-continue-btn" type="button" onClick={onClose}>
+              <Play size={16} />
+              <span>Continue listening</span>
+            </button>
+          </div>
         </div>
       )}
 
@@ -128,6 +143,7 @@ const AdBreak: React.FC<{ onClose: () => void }> = ({ onClose }) => {
         .track-ad-fullscreen {
           position: fixed;
           inset: 0;
+          z-index: 10000;
           display: flex;
           flex-direction: column;
           background: #000;
@@ -321,7 +337,7 @@ const AdBreak: React.FC<{ onClose: () => void }> = ({ onClose }) => {
           background: rgba(255, 255, 255, 0.12);
         }
       `}</style>
-    </div>
+    </>
   );
 };
 

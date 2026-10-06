@@ -394,8 +394,8 @@ export default function LibraryPage() {
           .desktop-only { display: none; }
           .mobile-only { display: flex; }
           .library-content {
-            padding: 16px;
-            padding-bottom: 120px;
+            /* same side spacing as the home page (the app shell adds 12px) */
+            padding: 16px 0 120px;
           }
           .collection-grid {
             display: grid;

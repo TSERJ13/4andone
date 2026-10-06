@@ -168,7 +168,7 @@ const StylePage = () => {
         @keyframes slideUp { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: translateY(0); } }
         @media (max-width: 1024px) { .style-title { font-size: 5rem; } }
         @media (max-width: 768px) {
-          .style-page { padding: 16px; padding-bottom: 120px; }
+          .style-page { padding: 16px 0 120px; }
           .style-header { flex-direction: column; align-items: center; text-align: center; gap: 20px; }
           .style-icon-large { width: 120px; height: 120px; }
           .style-title { font-size: 2.5rem; letter-spacing: -1px; }

@@ -227,6 +227,9 @@ const MobileMiniPlayer = ({ onExpand }: { onExpand: () => void }) => {
         .text-info { display: flex; flex-direction: column; min-width: 0; }
         .title { font-size: 13px; font-weight: 700; color: white; }
         .artist { font-size: 11px; color: #b3b3b3; }
+        /* One line each — long titles used to wrap onto 3 lines */
+        .title, .artist { display: block; max-width: 100%; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+        .title > span { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 
         .controls { display: flex; align-items: center; gap: 16px; }
         .favorite-btn { color: #555; transition: all 0.2s; }

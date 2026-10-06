@@ -257,7 +257,7 @@ const SearchPage = () => {
         .text-primary { color: var(--primary); }
 
         @media (max-width: 768px) {
-          .search-page { padding: 16px; padding-bottom: 120px; }
+          .search-page { padding: 16px 0 120px; }
           .search-header-container { padding: 10px 0 20px; }
           .search-header { 
             max-width: 100%; 

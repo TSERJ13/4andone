@@ -1351,6 +1351,26 @@ export const AudioProvider: React.FC<{ children: React.ReactNode }> = ({ childre
           pauseTimeRef.current = newPauseTime;
           setPauseTime(Math.ceil(newPauseTime));
 
+          // SESSION CLOCK KEEPS RUNNING during the 15s rest. It used to stay
+          // frozen at the end of the dance (e.g. 1:45) and then jump to 2:00
+          // when the next dance loaded — now it moves smoothly through the rest.
+          {
+            const list = sessionTracksRef.current;
+            let idx = sessionIndexRef.current;
+            if (idx < 0 || idx >= list.length || list[idx]?.id !== trackIdRef.current) {
+              idx = list.findIndex(t => t.id === trackIdRef.current);
+            }
+            if (idx !== -1) {
+              let elapsed = 0;
+              for (let k = 0; k < idx; k++) elapsed += finalLimitFor(list[k], false) + 15;
+              elapsed += finalLimitFor(list[idx], false) + (15 - newPauseTime);
+              if (Number.isFinite(elapsed) && Math.abs((currentTimeRef.current ?? -1) - elapsed) >= 0.2) {
+                currentTimeRef.current = elapsed;
+                setCurrentTime(elapsed);
+              }
+            }
+          }
+
           if (newPauseTime <= 0) {
             pauseDeadlineRef.current = 0;
             // CRITICAL: use the tracked session index (duplicate-safe), with a fallback search

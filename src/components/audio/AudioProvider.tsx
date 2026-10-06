@@ -60,6 +60,19 @@ type AudioTimeType = Pick<AudioContextType, TimeKeys>;
 const PlayerContext = createContext<AudioControlsType | undefined>(undefined);
 const PlayerTimeContext = createContext<AudioTimeType | undefined>(undefined);
 
+// How long one dance lasts inside a Final program (track-seconds). ONE rule
+// for both the session total and the running session clock — they used to
+// differ (Viennese 85s vs 105s, Paso 120s vs 210s), so the line jumped.
+const finalLimitFor = (track: { style?: string; duration?: number } | undefined, fitness: boolean): number => {
+  if (!track) return 105;
+  const dur = track.duration && track.duration > 0 ? track.duration : 0;
+  if (fitness) return dur || 180;
+  const style = track.style?.toLowerCase() || '';
+  if (style.includes('paso')) return dur || 120;            // Paso plays to its natural end
+  const limit = style.includes('viennese') || (style.includes('waltz') && style.includes('v')) ? 85 : 105;
+  return dur ? Math.min(limit, dur) : limit;                 // short tracks end early
+};
+
 // Every 8 qualified tracks (30s+ of real listening) a free user gets an ad break.
 const AD_EVERY_TRACKS = 8;
 const AD_COUNT_KEY = '4andone-ad-track-count';
@@ -339,11 +352,7 @@ export const AudioProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       setSessionDuration(fitnessTargetTime);
     } else if (isFinalMode) {
       if (sessionTracks.length > 0) {
-        const getLimitForTrack = (track: Track) => {
-          const style = track.style?.toLowerCase() || '';
-          if (style.includes('paso')) return track.duration || 210; 
-          return 105; // Standardized to 1:45 per user request
-        };
+        const getLimitForTrack = (track: Track) => finalLimitFor(track, false);
 
         const total = sessionTracks.reduce((acc, t, idx) => {
           if (!t) return acc;
@@ -357,9 +366,9 @@ export const AudioProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         setSessionDuration(safeTotal);
       } else {
         // Single track Final Mode logic
-        const style = playingTrackRef.current?.style?.toLowerCase() || '';
-        const limit = style.includes('paso') ? (duration || 210) : 105;
-        setSessionDuration(limit);
+        // Single-track Final Mode: same rule as programs (Viennese 1:25, others 1:45)
+        const t = playingTrackRef.current;
+        setSessionDuration(finalLimitFor({ style: t?.style, duration: duration || t?.duration }, false));
       }
     } else {
       const safeDur = Number.isFinite(duration) && duration >= 0 ? duration : 0;
@@ -407,7 +416,8 @@ export const AudioProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   //  3. Short tracks: this is reached via onended for tracks shorter than 1:45 too.
   // NOTE: loadTrack and stop are defined later in this component, so we call them
   // through refs to avoid the temporal-dead-zone / stale-closure problem.
-  const loadTrackRef = useRef<(track: any, isRetry?: boolean, forceFinalMode?: boolean) => void>(() => {});
+  type LoadOptions = { startAt?: number; paused?: boolean };
+  const loadTrackRef = useRef<(track: any, isRetry?: boolean, forceFinalMode?: boolean, opts?: LoadOptions) => void>(() => {});
   const stopRef = useRef<() => void>(() => {});
 
   const advanceFinalSession = React.useCallback(() => {
@@ -637,7 +647,10 @@ export const AudioProvider: React.FC<{ children: React.ReactNode }> = ({ childre
 
   const playAudioRef = useRef<() => Promise<void> | void>(() => {});
 
-  const loadTrack = async (track: any, isRetry = false, forceFinalMode?: boolean) => {
+  const loadTrack = async (track: any, isRetry = false, forceFinalMode?: boolean, opts?: LoadOptions) => {
+    // opts.startAt: continue the same track from this position (used when the
+    // output element has to be swapped mid-track — see setBpm).
+    const startAt = opts?.startAt && opts.startAt > 0 ? opts.startAt : 0;
     // If the same track is clicked and it's already loaded, toggle play/pause instead of reloading
     if (!isRetry && trackIdRef.current === track.id && isLoaded) {
       togglePlay();
@@ -754,6 +767,7 @@ export const AudioProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       };
 
       stopAndPrepare();
+      if (startAt >= 30) currentTrackQualifiedRef.current = true; // same play, already counted
 
       if (!isRetry && activeBlobUrlRef.current) {
         URL.revokeObjectURL(activeBlobUrlRef.current);
@@ -765,10 +779,18 @@ export const AudioProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       setIsLoaded(false);
       setIsLoading(true);
       setError(null);
-      setCurrentTime(0);
-      setTrackCurrentTime(0);
-      currentTimeRef.current = 0;
-      trackCurrentTimeRef.current = 0;
+      // In a Final program currentTime is the SESSION clock. Resetting it to 0
+      // here made the progress line jump back to the start for a moment at
+      // every dance change (the tick timer then restored it). Keep it.
+      const continuesFinalSession = isFinalModeRef.current
+        && sessionTracksRef.current.length > 0
+        && sessionIndexRef.current > 0;
+      if (!continuesFinalSession) {
+        setCurrentTime(0);
+        currentTimeRef.current = 0;
+      }
+      setTrackCurrentTime(startAt);
+      trackCurrentTimeRef.current = startAt;
       setTitle(track.title);
       setArtist(track.artist);
       setTrackId(track.id || null);
@@ -1175,6 +1197,9 @@ export const AudioProvider: React.FC<{ children: React.ReactNode }> = ({ childre
 
       try {
         const audio = await setupPlayer(finalUrl);
+        if (startAt > 0) {
+          try { audio.currentTime = startAt; } catch { /* ignore */ }
+        }
 
         // CRITICAL: if the AudioContext is suspended, everything routed through
         // it is SILENT even though the element "plays". This was the likely
@@ -1182,7 +1207,10 @@ export const AudioProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         if (audioCtxRef.current && audioCtxRef.current.state === 'suspended') {
           try { await audioCtxRef.current.resume(); } catch { /* ignore */ }
         }
-        if (adOpenRef.current) {
+        if (opts?.paused) {
+          // Element swap of a paused track: stay paused at the same spot
+          setIsPlaying(false);
+        } else if (adOpenRef.current) {
           // Ad break on screen: keep the track ready and start it when it closes
           resumeAfterAdRef.current = true;
           setIsPlaying(false);
@@ -1247,8 +1275,8 @@ export const AudioProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         });
       }
 
-      // ANALYTICS: Log track play event
-      try {
+      // ANALYTICS: Log track play event (not for a mid-track element swap)
+      if (!startAt) try {
         const sessionId = typeof window !== 'undefined' ? sessionStorage.getItem('4andone_session_id') : null;
         const tgUser = typeof window !== 'undefined' ? (window as any).Telegram?.WebApp?.initDataUnsafe?.user : null;
         const userRef = user?.id?.toString() || tgUser?.id?.toString() || null;
@@ -1344,14 +1372,7 @@ export const AudioProvider: React.FC<{ children: React.ReactNode }> = ({ childre
             // Calculate Session-wide metrics for display if in a program
             const currentIdx = sessionTracksRef.current.findIndex(t => t.id === trackIdRef.current || t.title === title);
             if (currentIdx !== -1) {
-              const getLimitForTrack = (track: Track) => {
-                if (!track) return 105;
-                if (isFitnessRef.current) return track.duration || 180;
-                const style = track.style?.toLowerCase() || '';
-                if (style.includes('paso')) return track.duration || 120;
-                if (style.includes('viennese')) return 85;
-                return 105;
-              };
+              const getLimitForTrack = (track: Track) => finalLimitFor(track, isFitnessRef.current);
 
               let sessionElapsed = 0;
               for (let i = 0; i < currentIdx; i++) {
@@ -1558,6 +1579,23 @@ export const AudioProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     if (persistent) {
       setBpmState(newBpm);
       localStorage.setItem('4andone-bpm', newBpm.toString());
+
+      // iPhone/iPad FINAL MODE: the gain element (needed for the fade) has
+      // pitch correction OFF, so slowing it down mid-track dropped the pitch —
+      // the "deep / hoarse voice" on slowed Final tracks. Hand the track over
+      // to the right element at the same position: plain (pitch-corrected)
+      // element for any speed ≠ 100%, gain element back at 100%.
+      const audio = nativePlayerRef.current;
+      if (isFinalModeRef.current && !isVolumeWritable() && audio && playingTrackRef.current
+          && !isPauseCountdownRef.current && audio.src) {
+        const wantGain = Math.abs(newBpm - 100) < 0.5;
+        const onGain = audio === finalPlayerRef.current;
+        if (wantGain !== onGain) {
+          const position = audio.currentTime || 0;
+          const wasPlaying = !audio.paused;
+          loadTrackRef.current(playingTrackRef.current, true, true, { startAt: position, paused: !wasPlaying });
+        }
+      }
     }
   }, []);
 

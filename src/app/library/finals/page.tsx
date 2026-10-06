@@ -1,25 +1,7 @@
 "use client";
 
 import React, { useState, useRef, useEffect } from 'react';
-import {
-  Play,
-  Pause,
-  Trash2,
-  GripVertical,
-  Music2,
-  Disc,
-  Zap,
-  Activity,
-  MicOff,
-  Dumbbell,
-  Info,
-  ArrowRight,
-  Heart,
-  MoreHorizontal,
-  Settings,
-  CheckCircle2,
-  X
-} from 'lucide-react';
+import { Play, Music2, Disc, Zap, Activity, MicOff, Dumbbell, Info, ArrowRight, Heart, Settings, X } from 'lucide-react';
 import Link from 'next/link';
 import { useAudio, useAudioControls } from '@/components/audio/AudioProvider';
 
@@ -57,10 +39,8 @@ const SessionClock = () => {
 import { useStudio, Track } from '@/components/admin/StudioProvider';
 import { useAuth } from '@/context/AuthContext';
 import { useDownloadedTracks } from '@/hooks/useDownloadedTracks';
-import { getMPMFromBPM } from '@/utils/audio';
 import ConfirmModal from '@/components/admin/ConfirmModal';
-import { formatDuration } from '@/utils/format';
-import { Marquee } from '@/components/layout/Marquee';
+import { TrackRow } from '@/components/tracks/TrackRow';
 
 // Program card definitions — single source of truth for the Final Mode grid.
 // Order here = display order on screen. To add/remove a program, edit this list.
@@ -627,62 +607,16 @@ const FinalsPage = () => {
               const isTrackActive = isPlaying && (playingTrackId ? playingTrackId === track.id : (playingTitle === track.title || playingTitle === track.id));
 
               return (
-              <div 
-                key={`${track.id}-${i}`} 
-                className={`track-row ${isTrackActive ? 'is-active' : ''}`}
-                onClick={() => loadTrack(track, false, true)}
-              >
-                <div className="track-icon-col">
-                  <Disc size={18} />
-                </div>
-                <div className="track-info-col">
-                  <div className="track-title-row">
-                    <div className="track-title-marquee-wrapper">
-                      <Marquee 
-                        text={track.title} 
-                        className="track-name" 
-                        isActive={isTrackActive} 
-                      />
-                    </div>
-                    {downloadedIds.includes(track.id) && (
-                      <span className="track-downloaded-badge" title="Stored on device (Offline)">
-                        <CheckCircle2 size={13} />
-                      </span>
-                    )}
-                  </div>
-                  <p className="track-artist">
-                    {track.artist}
-                    {track.duration ? ` • ${formatDuration(track.duration)}` : ''}
-                  </p>
-                </div>
-
-                <div className="track-badge-col">
-                  {styles.find(s => s.title.toLowerCase() === track.style?.toLowerCase()) && (
-                    <span 
-                      className="style-badge-pill" 
-                      style={{ backgroundColor: styles.find(s => s.title.toLowerCase() === track.style?.toLowerCase())?.color }}
-                    >
-                      {track.style}
-                    </span>
-                  )}
-                </div>
-                
-                <div className="track-meta-col">
-                  {track.style?.toLowerCase() === 'fitness'
-                    ? (track.duration ? formatDuration(track.duration) : '')
-                    : (track.bpm ? `${getMPMFromBPM(Number(track.bpm), track.style)} MPM` : track.style)}
-                </div>
-
-                <div className="track-actions-col">
-                  <div className="play-action">
-                    {isTrackActive ? (
-                      <div className="playing-bars"><span></span><span></span><span></span></div>
-                    ) : (
-                      <Play size={18} fill="currentColor" />
-                    )}
-                  </div>
-                </div>
-              </div>
+              <TrackRow
+                key={`${track.id}-${i}`}
+                track={track}
+                isActive={isTrackActive}
+                onPlay={() => loadTrack(track, false, true)}
+                onToggleFavorite={() => checkAuthAndExecute(() => toggleFavorite?.(track.id), 'favorite tracks')}
+                badge="style"
+                styleColor={styles.find(s => s.title.toLowerCase() === track.style?.toLowerCase())?.color}
+                isDownloaded={downloadedIds.includes(track.id)}
+              />
               );
             })}
           </div>
@@ -955,9 +889,10 @@ const FinalsPage = () => {
           transition: stroke-dasharray 0.3s ease-out;
         }
 
+        /* Final timer ring is red while dancing too (not only while resting) */
         .border-rect-progress.playing {
-          stroke: #1ed760;
-          filter: drop-shadow(0 0 8px rgba(30, 215, 96, 0.4));
+          stroke: #ef4444;
+          filter: drop-shadow(0 0 8px rgba(239, 68, 68, 0.45));
         }
 
         .border-rect-progress.resting {
@@ -1018,7 +953,7 @@ const FinalsPage = () => {
         .card-info p { font-size: 11px; opacity: 0.5; font-weight: 600; }
         .session-timer { 
           font-size: 12px !important; 
-          color: var(--primary) !important; 
+          color: #ef4444 !important; 
           opacity: 1 !important; 
           font-family: monospace;
           margin-top: 4px;

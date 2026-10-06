@@ -2,21 +2,20 @@
 
 import React from 'react';
 import Link from 'next/link';
-import { Play, Mic2, Timer, Flame, Music2, Disc, Heart, ChevronLeft, ChevronRight, CheckCircle2 } from 'lucide-react';
+import { Play, Music2, ChevronLeft, ChevronRight } from 'lucide-react';
 import { useAudioControls } from '@/components/audio/AudioProvider';
 import { useStudio } from '@/components/admin/StudioProvider';
 import { useAuth } from '@/context/AuthContext';
 import { useDownloadedTracks } from '@/hooks/useDownloadedTracks';
-import { formatDuration } from '@/utils/format';
-import { getMPMFromBPM, canonicalStyle } from '@/utils/audio';
-import { getTrackSlug, normalizeDanceSlug } from '@/utils/seo';
+import { canonicalStyle } from '@/utils/audio';
+import { normalizeDanceSlug } from '@/utils/seo';
 import ConfirmModal from '@/components/admin/ConfirmModal';
 import { useState, useEffect } from 'react';
 import { UserBadge } from '@/components/auth/UserBadge';
 import { TopSocialMenu } from '@/components/kofi/TopSocialMenu';
 import AdBanner from '@/components/ads/AdBanner';
 import { useRouter } from 'next/navigation';
-import { Marquee } from '@/components/layout/Marquee';
+import { TrackRow } from '@/components/tracks/TrackRow';
 
 export default function Home() {
   const {
@@ -548,84 +547,16 @@ export default function Home() {
                   const isTrackActive = isPlaying && (playingTrackId ? playingTrackId === track.id : playingTitle === track.title);
 
                   return (
-                    <div
+                    <TrackRow
                       key={track.id}
-                      className={`track-row ${isTrackActive ? 'is-active' : ''}`}
-                      onClick={() => handlePlay(track)}
-                    >
-                      <div className="track-icon-col">
-                        <Disc size={18} />
-                      </div>
-                      <div className="track-info-col">
-                        <div className="track-title-row">
-                          <div className="track-title-marquee-wrapper">
-                            <Link
-                              href={`/music/${getTrackSlug(track)}`}
-                              className="track-title-seo-link"
-                              onClick={(e) => {
-                                // If normal left-click without modifier keys, play track in existing player
-                                if (!e.metaKey && !e.ctrlKey && !e.shiftKey) {
-                                  e.preventDefault();
-                                  handlePlay(track);
-                                }
-                              }}
-                            >
-                              <Marquee 
-                                text={track.title} 
-                                className="track-name" 
-                                isActive={isTrackActive}
-                              />
-                            </Link>
-                          </div>
-                          {downloadedIds.includes(track.id) && (
-                            <span className="track-downloaded-badge" title="Stored on device (Offline)">
-                              <CheckCircle2 size={13} />
-                            </span>
-                          )}
-                        </div>
-                        <p className="track-artist">
-                          {track.artist}
-                          {track.duration ? ` • ${formatDuration(track.duration)}` : ''}
-                        </p>
-                      </div>
-
-                      <div className="track-badge-col">
-                        {styles.find(s => s.title.toLowerCase() === track.style?.toLowerCase()) && (
-                          <span 
-                            className="style-badge-pill" 
-                            style={{ backgroundColor: styles.find(s => s.title.toLowerCase() === track.style?.toLowerCase())?.color }}
-                          >
-                            {track.style}
-                          </span>
-                        )}
-                      </div>
-                      
-                      <div className="track-meta-col">
-                        {track.style?.toLowerCase() === 'fitness'
-                          ? (track.duration ? formatDuration(track.duration) : '')
-                          : (track.bpm ? `${getMPMFromBPM(Number(track.bpm), track.style)} MPM` : formatDuration(track.duration))}
-                      </div>
-
-                      <div className="track-actions-col">
-                        <button
-                          className={`fav-action ${track.isFavorite ? 'active-heart' : ''}`}
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            checkAuthAndExecute(() => toggleFavorite?.(track.id), 'favorite tracks');
-                          }}
-                          title="Like Song"
-                        >
-                          <Heart size={16} fill={track.isFavorite ? "#ff4b2b" : "none"} color={track.isFavorite ? "#ff4b2b" : "currentColor"} />
-                        </button>
-                        <div className="play-action">
-                          {isTrackActive ? (
-                            <div className="playing-bars"><span></span><span></span><span></span></div>
-                          ) : (
-                            <Play size={18} fill="currentColor" />
-                          )}
-                        </div>
-                      </div>
-                    </div>
+                      track={track}
+                      isActive={isTrackActive}
+                      onPlay={() => handlePlay(track)}
+                      onToggleFavorite={() => checkAuthAndExecute(() => toggleFavorite?.(track.id), 'favorite tracks')}
+                      badge="style"
+                      styleColor={styles.find(s => s.title.toLowerCase() === track.style?.toLowerCase())?.color}
+                      isDownloaded={downloadedIds.includes(track.id)}
+                    />
                   );
                 })}
 

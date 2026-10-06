@@ -2,13 +2,13 @@
 
 import React, { useState } from 'react';
 import Link from 'next/link';
-import { Play, Pause, Disc, Heart, Clock, Music2 } from 'lucide-react';
+import { Play, Pause, Music2 } from 'lucide-react';
 import { useAudioControls } from '@/components/audio/AudioProvider';
 import { useStudio } from '@/components/admin/StudioProvider';
 import { useAuth } from '@/context/AuthContext';
 import { SeoTrack } from '@/lib/seo-data';
 import { SeoDanceCategory } from '@/utils/seo';
-import { formatDuration } from '@/utils/format';
+import { TrackRow } from '@/components/tracks/TrackRow';
 
 interface Props {
   category: SeoDanceCategory;
@@ -122,81 +122,27 @@ export default function CategoryClientView({ category, initialTracks }: Props) {
       </div>
 
       {/* Crawlable Tracks List */}
-      <div className="cat-tracks-list">
-        {filtered.map(({ track, slug }, index) => {
+      <div className="tracks-list">
+        {filtered.map(({ track, slug }) => {
           const liveTrack = tracks.find((t) => t.id === track.id) || track;
           const isRowActive = isPlaying && (playingTrackId ? playingTrackId === track.id : playingTitle === track.title);
 
           return (
-            <div
+            <TrackRow
               key={track.id}
-              className={`cat-track-row glass ${isRowActive ? 'is-active' : ''}`}
-              onClick={() => playOrToggle(liveTrack, isRowActive)}
-            >
-              <div className="cat-row-num">{index + 1}</div>
-
-              <button
-                type="button"
-                className="cat-row-play"
-                onClick={(e) => {
-                  e.stopPropagation();
-                  playOrToggle(liveTrack, isRowActive);
-                }}
-                aria-label={`Play ${track.title}`}
-              >
-                {isRowActive ? <Pause size={16} /> : <Play size={16} fill="currentColor" />}
-              </button>
-
-              <div className="cat-row-info">
-                {/* Real crawlable link for search engines. A normal tap only plays
-                    the track (no page change, music keeps the user on the list);
-                    Cmd/Ctrl-click still opens the track page. A plain <a> (not
-                    next/link) so the scoped styles — ellipsis, size — apply. */}
-                <a
-                  href={`/music/${slug}`}
-                  className="cat-row-title"
-                  onClick={(e) => {
-                    if (e.metaKey || e.ctrlKey || e.shiftKey) {
-                      e.stopPropagation();
-                      return;
-                    }
-                    e.preventDefault();
-                    e.stopPropagation();
-                    playOrToggle(liveTrack, isRowActive);
-                  }}
-                >
-                  {track.title}
-                </a>
-                <span className="cat-row-artist">{track.artist || '4and.one Music'}</span>
-              </div>
-
-              <div className="cat-row-meta">
-                {track.bpm && <span className="cat-row-bpm">{track.bpm} BPM</span>}
-                {track.duration ? (
-                  <span className="cat-row-duration">
-                    <Clock size={12} className="inline mr-1 opacity-60" />
-                    {formatDuration(track.duration)}
-                  </span>
-                ) : null}
-              </div>
-
-              <div className="cat-row-actions" onClick={(e) => e.stopPropagation()}>
-                <button
-                  type="button"
-                  className={`cat-fav-btn ${liveTrack.isFavorite ? 'is-fav' : ''}`}
-                  onClick={() => {
-                    if (!isAuthenticated) {
-                      setIsAuthModalOpen(true);
-                      return;
-                    }
-                    toggleFavorite?.(track.id);
-                  }}
-                  aria-label="Add to favorites"
-                >
-                  <Heart size={16} fill={liveTrack.isFavorite ? 'currentColor' : 'none'} />
-                </button>
-              </div>
-            </div>
+              track={liveTrack}
+              isActive={isRowActive}
+              onPlay={() => playOrToggle(liveTrack, isRowActive)}
+              onToggleFavorite={() => {
+                if (!isAuthenticated) {
+                  setIsAuthModalOpen(true);
+                  return;
+                }
+                toggleFavorite?.(track.id);
+              }}
+              badge="duration"
+              href={`/music/${slug}`}
+            />
           );
         })}
       </div>

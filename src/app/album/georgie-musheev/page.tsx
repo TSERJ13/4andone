@@ -1,16 +1,14 @@
 "use client";
 
 import React, { useState, useMemo } from 'react';
-import Link from 'next/link';
-import { Play, Disc, Flame, Music2, Heart, Zap, Activity, Settings, Radio, CheckCircle2 } from 'lucide-react';
+import { Play, Flame, Music2, Settings } from 'lucide-react';
 import { useAudioControls } from '@/components/audio/AudioProvider';
 import { useStudio, Track } from '@/components/admin/StudioProvider';
 import { useAuth } from '@/context/AuthContext';
 import { useDownloadedTracks } from '@/hooks/useDownloadedTracks';
-import { formatDuration } from '@/utils/format';
-import { getMPMFromBPM, canonicalStyle } from '@/utils/audio';
-import { Marquee } from '@/components/layout/Marquee';
+import { canonicalStyle } from '@/utils/audio';
 import ConfirmModal from '@/components/admin/ConfirmModal';
+import { TrackRow } from '@/components/tracks/TrackRow';
 
 const LATIN_STYLES = ['Samba', 'Cha-Cha-Cha', 'Rumba', 'Paso Doble', 'Jive'];
 
@@ -228,72 +226,16 @@ export default function GeorgieMusheevPage() {
                       const isTrackActive = isPlaying && (playingTrackId ? playingTrackId === track.id : (playingTitle === track.title || playingTitle === track.id));
 
                       return (
-                        <div
+                        <TrackRow
                           key={track.id}
-                          className={`track-row ${isTrackActive ? 'is-active' : ''}`}
-                          onClick={() => handlePlaySingle(track)}
-                        >
-                          <div className="track-icon-col">
-                            <Disc size={18} />
-                          </div>
-                          <div className="track-info-col">
-                            <div className="track-title-row">
-                              <div className="track-title-marquee-wrapper">
-                                <Marquee
-                                  text={displayTitle}
-                                  className="track-name"
-                                  isActive={isTrackActive}
-                                />
-                              </div>
-                              {downloadedIds.includes(track.id) && (
-                                <span className="track-downloaded-badge" title="Stored on device (Offline)">
-                                  <CheckCircle2 size={13} />
-                                </span>
-                              )}
-                            </div>
-                            <p className="track-artist">
-                              {displayArtist}
-                              {track.duration ? ` • ${formatDuration(track.duration)}` : ''}
-                            </p>
-                          </div>
-
-                          <div className="track-badge-col">
-                            {trackStyleName && (
-                              <span 
-                                className="style-badge-pill" 
-                                style={{ backgroundColor: badgeColor }}
-                              >
-                                {trackStyleName.toUpperCase()}
-                              </span>
-                            )}
-                          </div>
-
-                          <div className="track-meta-col">
-                            {track.style?.toLowerCase() === 'fitness'
-                              ? (track.duration ? formatDuration(track.duration) : '')
-                              : (track.bpm ? `${getMPMFromBPM(Number(track.bpm), track.style)} MPM` : formatDuration(track.duration))}
-                          </div>
-
-                          <div className="track-actions-col">
-                            <button
-                              className={`fav-action ${track.isFavorite ? 'active-heart' : ''}`}
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                checkAuthAndExecute(() => toggleFavorite?.(track.id), 'favorite tracks');
-                              }}
-                              title="Like Song"
-                            >
-                              <Heart size={16} fill={track.isFavorite ? "#ff4b2b" : "none"} color={track.isFavorite ? "#ff4b2b" : "currentColor"} />
-                            </button>
-                            <div className="play-action">
-                              {isTrackActive ? (
-                                <div className="playing-bars"><span></span><span></span><span></span></div>
-                              ) : (
-                                <Play size={18} fill="currentColor" />
-                              )}
-                            </div>
-                          </div>
-                        </div>
+                          track={track.style ? track : { ...track, style: trackStyleName }}
+                          isActive={isTrackActive}
+                          onPlay={() => handlePlaySingle(track)}
+                          onToggleFavorite={() => checkAuthAndExecute(() => toggleFavorite?.(track.id), 'favorite tracks')}
+                          badge="style"
+                          styleColor={badgeColor}
+                          isDownloaded={downloadedIds.includes(track.id)}
+                        />
                       );
                     })}
                   </div>

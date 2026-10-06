@@ -2,7 +2,10 @@ import 'server-only';
 
 const PAYPAL_API = process.env.PAYPAL_API_BASE || 'https://api-m.paypal.com';
 const PLAN_ID = process.env.NEXT_PUBLIC_PAYPAL_PLAN_ID || 'P-2P321243C53094157NLCL5WI';
-const CLIENT_ID = process.env.PAYPAL_CLIENT_ID || process.env.NEXT_PUBLIC_PAYPAL_CLIENT_ID || '';
+// Same public Client ID the subscribe button uses (SubscriptionModal), so only
+// PAYPAL_CLIENT_SECRET has to be added to the server environment.
+const CLIENT_ID = process.env.PAYPAL_CLIENT_ID || process.env.NEXT_PUBLIC_PAYPAL_CLIENT_ID
+  || 'AR7DFDs4W3LqJNeFTELaFs06b8vuc3tcE6FZSmloQgAmtM05ZaR2_cRJosyOFGWF5ZEsXRAGNQVlFkDn';
 const CLIENT_SECRET = process.env.PAYPAL_CLIENT_SECRET || '';
 
 export const isPayPalConfigured = () => !!(CLIENT_ID && CLIENT_SECRET);

@@ -28,6 +28,33 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
   const { title, isAdModalOpen, setIsAdModalOpen } = useAudioControls();
   const { isAuthModalOpen, setIsAuthModalOpen, isSubscriptionModalOpen, setIsSubscriptionModalOpen } = useAuth();
   
+  // SCROLL GUARD: AdSense responsive ads set inline "height: auto !important"
+  // (and similar) on the elements above them. On this app the page scrolls
+  // inside .main-content while html/body are locked, so that inline height
+  // made the whole page impossible to scroll. Strip only those inline
+  // sizing rules from the app shell whenever they appear.
+  useEffect(() => {
+    if (!mounted) return; // the app shell isn't rendered before mount
+    const HEIGHT_PROPS = ['height', 'min-height', 'max-height'];
+    const SHELL_PROPS = [...HEIGHT_PROPS, 'overflow', 'overflow-y'];
+    const shell = [document.querySelector('.app-container'), document.querySelector('.main-content')]
+      .filter(Boolean) as HTMLElement[];
+    // html/body: only sizing (modals legitimately set body overflow)
+    const targets = [document.documentElement, document.body, ...shell];
+    const clean = (el: HTMLElement) => {
+      const props = shell.includes(el) ? SHELL_PROPS : HEIGHT_PROPS;
+      for (const prop of props) {
+        if (el.style.getPropertyValue(prop)) el.style.removeProperty(prop);
+      }
+    };
+    targets.forEach(clean);
+    const observer = new MutationObserver((mutations) => {
+      mutations.forEach((m) => clean(m.target as HTMLElement));
+    });
+    targets.forEach((el) => observer.observe(el, { attributes: true, attributeFilter: ['style'] }));
+    return () => observer.disconnect();
+  }, [mounted]);
+
   useEffect(() => {
     setMounted(true);
     // Detect PWA standalone mode (more reliable than CSS media query on iOS)

@@ -37,8 +37,8 @@ export const ListAd: React.FC = () => {
           background: rgba(255, 255, 255, 0.02);
           border: 1px dashed rgba(255, 255, 255, 0.06);
           overflow: hidden;
-          content-visibility: auto;
-          contain-intrinsic-size: auto 140px;
+          /* NO content-visibility here: off-screen it gives the ad slot width 0,
+             and AdSense then never fills it ("availableWidth=0"). */
         }
         .list-ad-label {
           display: block;

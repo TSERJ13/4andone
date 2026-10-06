@@ -114,6 +114,9 @@ export function AdBanner({
         if (typeof window !== 'undefined' && adRef.current) {
           // If the element is hidden (display: none), offsetParent is null; do not push
           if (adRef.current.offsetParent === null) return;
+          // AdSense needs a real width when push() runs — with width 0 it logs
+          // "No slot size for availableWidth=0" and never fills the slot.
+          if (adRef.current.offsetWidth === 0) return;
           const isDone = adRef.current.getAttribute('data-adsbygoogle-status') === 'done';
           if (!isDone && !pushedRef.current) {
             ((window as any).adsbygoogle = (window as any).adsbygoogle || []).push({});
@@ -127,10 +130,20 @@ export function AdBanner({
 
     const timer = setTimeout(tryPush, 100);
     window.addEventListener('resize', tryPush);
+    // Ads further down a list: request them when they come near the screen
+    // (they have their full size then), not while they are far off-screen.
+    let io: IntersectionObserver | null = null;
+    if (typeof IntersectionObserver !== 'undefined' && containerRef.current) {
+      io = new IntersectionObserver((entries) => {
+        if (entries.some((e) => e.isIntersecting)) tryPush();
+      }, { rootMargin: '400px 0px' });
+      io.observe(containerRef.current);
+    }
 
     return () => {
       clearTimeout(timer);
       window.removeEventListener('resize', tryPush);
+      io?.disconnect();
     };
   }, [slotToUse, activeType]);
 

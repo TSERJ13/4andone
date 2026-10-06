@@ -1,29 +1,132 @@
 "use client";
 
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { X, Sparkles, Play } from 'lucide-react';
 import { useAuth } from '@/context/AuthContext';
+import { useAudioControls } from '@/components/audio/AudioProvider';
+import { AdBanner } from '@/components/ads/AdBanner';
 
 interface TrackLimitAdModalProps {
   isOpen: boolean;
   onClose: () => void;
 }
 
+// Responsive AdSense unit for the sponsored strip.
+const BREAK_AD_SLOT = process.env.NEXT_PUBLIC_ADSENSE_BREAK_SLOT || '7693569362';
+const STRIP_SECONDS = 15; // the strip closes by itself after 15s
+
 /**
- * Break shown to free users every 8 tracks (music is paused by AudioProvider
- * and resumes on close). It is OUR OWN message — no AdSense unit inside.
- * AdSense forbids ads in pop-ups / screens without site content and forcing
- * people to wait on an ad, so the ads live in the track lists (ListAd)
- * instead, and this popup only promotes Ad-Free Premium.
+ * Break shown to free users every 8 tracks — two separate steps:
+ *
+ * 1. SPONSORED STRIP — an AdSense ad pinned to the top of the screen, at most
+ *    30% of the screen height (Better Ads / AdSense sticky-ad rule). The site
+ *    stays visible and usable underneath, the music keeps playing and the ✕
+ *    works immediately (no forced waiting). Closes by itself after 15s.
+ * 2. PREMIUM POPUP — our own message (no ad inside). Music pauses here and
+ *    resumes on "Continue listening".
  */
 export const TrackLimitAdModal: React.FC<TrackLimitAdModalProps> = ({ isOpen, onClose }) => {
-  const { setIsSubscriptionModalOpen } = useAuth();
+  // Mounted fresh on every open, so each break starts at the strip.
   if (!isOpen) return null;
+  return <AdBreak onClose={onClose} />;
+};
+
+const AdBreak: React.FC<{ onClose: () => void }> = ({ onClose }) => {
+  const { setIsSubscriptionModalOpen } = useAuth();
+  const { pauseForBreak } = useAudioControls();
+  const [step, setStep] = useState<'strip' | 'promo'>('strip');
+
+  // Strip closes by itself after 15s
+  useEffect(() => {
+    if (step !== 'strip') return;
+    const t = setTimeout(() => setStep('promo'), STRIP_SECONDS * 1000);
+    return () => clearTimeout(t);
+  }, [step]);
+
+  // Our popup pauses the music (the ad strip never does)
+  useEffect(() => {
+    if (step === 'promo') pauseForBreak();
+  }, [step, pauseForBreak]);
 
   const handleOpenSubscription = () => {
     onClose();
     setIsSubscriptionModalOpen(true);
   };
+
+  if (step === 'strip') {
+    return (
+      <div className="sponsored-strip" role="complementary" aria-label="Advertisement">
+        <div className="sponsored-strip-bar">
+          <span className="sponsored-strip-label">Sponsored</span>
+          <button className="sponsored-strip-close" onClick={() => setStep('promo')} aria-label="Close ad">
+            <X size={16} />
+          </button>
+        </div>
+        <div className="sponsored-strip-slot">
+          <AdBanner
+            slot={BREAK_AD_SLOT}
+            responsive
+            fillHeight="min(22vh, 180px)"
+            height={90}
+            onStatusChange={(status) => {
+              if (status === 'unfilled') setStep('promo');
+            }}
+          />
+        </div>
+        <style jsx>{`
+          .sponsored-strip {
+            position: fixed;
+            top: max(8px, env(safe-area-inset-top));
+            left: 50%;
+            transform: translateX(-50%);
+            width: min(728px, calc(100vw - 16px));
+            max-height: 30vh;          /* Better Ads: sticky ad ≤ 30% of the screen */
+            z-index: 9000;
+            background: #121214;
+            border: 1px solid rgba(255, 255, 255, 0.12);
+            border-radius: 14px;
+            box-shadow: 0 12px 30px rgba(0, 0, 0, 0.6);
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+            animation: strip-in 0.25s ease-out;
+          }
+          @keyframes strip-in {
+            from { opacity: 0; transform: translate(-50%, -12px); }
+            to { opacity: 1; transform: translate(-50%, 0); }
+          }
+          .sponsored-strip-bar {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 4px 6px 4px 12px;
+          }
+          .sponsored-strip-label {
+            font-size: 10px;
+            letter-spacing: 0.6px;
+            text-transform: uppercase;
+            color: #a1a1aa;
+          }
+          .sponsored-strip-close {
+            width: 30px;
+            height: 30px;
+            border-radius: 50%;
+            border: none;
+            background: rgba(255, 255, 255, 0.08);
+            color: #fff;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+          }
+          .sponsored-strip-slot {
+            overflow: hidden;
+            padding: 0 8px 8px;
+          }
+        `}</style>
+      </div>
+    );
+  }
 
   return (
     <>
@@ -37,10 +140,10 @@ export const TrackLimitAdModal: React.FC<TrackLimitAdModalProps> = ({ isOpen, on
           </div>
 
           <div className="track-ad-heading">
-            <h3>4and.one is free thanks to ads</h3>
+            <h3>That was a sponsored ad</h3>
             <p>
-              Want to listen without ads and interruptions? Log in and get the
-              Ad-Free Premium subscription.
+              4and.one is free thanks to ads. Want to listen without ads? Log in
+              and get the Ad-Free Premium subscription.
             </p>
           </div>
 

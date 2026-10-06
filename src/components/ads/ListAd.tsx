@@ -10,8 +10,8 @@ import { AdBanner } from '@/components/ads/AdBanner';
 // Premium users never see it.
 
 const LIST_AD_SLOT = process.env.NEXT_PUBLIC_ADSENSE_LIST_SLOT || '7693569362';
-export const LIST_AD_EVERY = 10; // one ad after every 10 tracks
-const MAX_ADS_PER_LIST = 4;
+export const LIST_AD_EVERY = 5; // one ad after every 5 tracks
+const MAX_ADS_PER_LIST = 10;
 
 /** True when an ad should follow the track at this (0-based) index. */
 export const shouldShowListAdAfter = (index: number, total: number) => {

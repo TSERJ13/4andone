@@ -55,8 +55,9 @@ const AdBreak: React.FC<{ onClose: () => void }> = ({ onClose }) => {
   return (
     <div className="track-ad-modal-overlay" role="dialog" aria-modal="true">
       {step === 'ad' ? (
-        <div className="track-ad-card track-ad-card--ad animate-in-popup">
-          <div className="track-ad-top">
+        // FULL-SCREEN AD: the whole screen is the ad, with a slim bar on top.
+        <div className="track-ad-fullscreen">
+          <div className="track-ad-top track-ad-top--bar">
             <span className="track-ad-badge">Advertisement · music paused</span>
             {countdown > 0 ? (
               <span className="track-ad-timer">Skip in {countdown}s</span>
@@ -68,10 +69,11 @@ const AdBreak: React.FC<{ onClose: () => void }> = ({ onClose }) => {
             )}
           </div>
 
-          <div className="track-ad-banner-box">
+          <div className="track-ad-fullscreen-slot">
             <AdBanner
               slot={BREAK_AD_SLOT}
               responsive
+              fillHeight="calc(100dvh - 88px)"
               height={250}
               onStatusChange={(status) => {
                 if (status === 'unfilled') setStep('promo');
@@ -121,6 +123,30 @@ const AdBreak: React.FC<{ onClose: () => void }> = ({ onClose }) => {
           justify-content: center;
           z-index: 10000;
           padding: 16px;
+        }
+
+        .track-ad-fullscreen {
+          position: fixed;
+          inset: 0;
+          display: flex;
+          flex-direction: column;
+          background: #000;
+          padding: max(12px, env(safe-area-inset-top)) 12px max(12px, env(safe-area-inset-bottom));
+          gap: 12px;
+        }
+        .track-ad-top--bar {
+          flex-shrink: 0;
+          min-height: 40px;
+        }
+        .track-ad-fullscreen-slot {
+          flex: 1;
+          width: 100%;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          overflow: hidden;
+          border-radius: 12px;
+          background: #0b0b0c;
         }
 
         .track-ad-card {

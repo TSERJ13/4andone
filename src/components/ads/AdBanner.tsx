@@ -13,6 +13,12 @@ interface AdBannerProps {
   style?: React.CSSProperties;
   /** Responsive unit: fills the container width (data-ad-format="auto"). */
   responsive?: boolean;
+  /**
+   * Exact CSS height for a responsive unit (e.g. "70vh"). AdSense then fills
+   * the whole box (width 100% × this height) — used for the full-screen ad
+   * break. Per AdSense rules data-ad-format is omitted in this mode.
+   */
+  fillHeight?: string;
   /** Reports AdSense's fill result (from the data-ad-status attribute). */
   onStatusChange?: (status: 'filled' | 'unfilled') => void;
 }
@@ -54,6 +60,7 @@ export function AdBanner({
   className = '',
   style,
   responsive = false,
+  fillHeight,
   onStatusChange
 }: AdBannerProps) {
   const [deviceType, setDeviceType] = useState<AdDeviceType>('desktop');
@@ -91,7 +98,9 @@ export function AdBanner({
   const slotToUse = slot || config.slot;
   const widthToUse = width || config.width;
   const heightToUse = height || config.height;
-  const styleToUse = responsive
+  const styleToUse = fillHeight
+    ? ({ display: 'block', width: '100%', height: fillHeight } as React.CSSProperties)
+    : responsive
     ? ({ display: 'block', width: '100%', minHeight: `${heightToUse}px` } as React.CSSProperties)
     : (width && height)
     ? { display: 'inline-block', width: `${widthToUse}px`, height: `${heightToUse}px` }
@@ -164,7 +173,7 @@ export function AdBanner({
         style={styleToUse}
         data-ad-client="ca-pub-2697205988789699"
         data-ad-slot={slotToUse}
-        {...(responsive ? { 'data-ad-format': 'auto', 'data-full-width-responsive': 'true' } : {})}
+        {...(responsive && !fillHeight ? { 'data-ad-format': 'auto', 'data-full-width-responsive': 'true' } : {})}
       />
     </div>
   );

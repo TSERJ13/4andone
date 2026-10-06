@@ -299,7 +299,7 @@ export default function RosesBandPage() {
                           <div className="track-meta-col">
                             {track.style?.toLowerCase() === 'fitness'
                               ? (track.duration ? formatDuration(track.duration) : '')
-                              : (track.bpm ? `${getMPMFromBPM(Number(track.bpm), track.style)} BPM` : formatDuration(track.duration))}
+                              : (track.bpm ? `${getMPMFromBPM(Number(track.bpm), track.style)} MPM` : formatDuration(track.duration))}
                           </div>
 
                           <div className="track-actions-col">

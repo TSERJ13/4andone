@@ -101,11 +101,12 @@ const MobileMiniPlayer = ({ onExpand }: { onExpand: () => void }) => {
                   </div>
                   <span className="artist truncate text-xs text-white/50">
                     {artist}
+                    {currentTrack && ' '}
                     {currentTrack && (
                       <span className="text-primary font-bold ml-1">
                         {currentTrack.style?.toLowerCase() === 'fitness'
                           ? (currentTrack.duration ? `(${formatDuration(currentTrack.duration)})` : '')
-                          : `(${currentTrack.duration ? `${formatDuration(currentTrack.duration)}${currentTrack.bpm ? ' • ' : ''}` : ''}${currentTrack.bpm ? `${getMPMFromBPM(Number(currentTrack.bpm), currentTrack.style)} BPM` : ''})`}
+                          : `(${currentTrack.duration ? `${formatDuration(currentTrack.duration)}${currentTrack.bpm ? ' • ' : ''}` : ''}${currentTrack.bpm ? `${getMPMFromBPM(Number(currentTrack.bpm), currentTrack.style)} MPM` : ''})`}
                       </span>
                     )}
                   </span>

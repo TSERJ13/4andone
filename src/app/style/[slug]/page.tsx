@@ -160,7 +160,7 @@ const StylePage = () => {
             </div>
             
             <div className="track-meta-col">
-              {track.bpm ? `${getMPMFromBPM(Number(track.bpm), track.style)} BPM` : formatDuration(track.duration)}
+              {track.bpm ? `${getMPMFromBPM(Number(track.bpm), track.style)} MPM` : formatDuration(track.duration)}
             </div>
 
             <div className="track-actions-col">

@@ -304,7 +304,7 @@ const PlayerBar = ({ onExpand }: { onExpand?: () => void }) => {
                 <span className="track-tempo-inline text-primary font-bold">
                   {currentTrack.style?.toLowerCase() === 'fitness'
                     ? (currentTrack.duration ? ` • ${formatDuration(currentTrack.duration)}` : '')
-                    : ` • ${currentTrack.duration ? `${formatDuration(currentTrack.duration)}${currentTrack.bpm ? ' • ' : ''}` : ''}${currentTrack.bpm ? `${getMPMFromBPM(Number(currentTrack.bpm), currentTrack.style)} BPM` : ''}`}
+                    : ` • ${currentTrack.duration ? `${formatDuration(currentTrack.duration)}${currentTrack.bpm ? ' • ' : ''}` : ''}${currentTrack.bpm ? `${getMPMFromBPM(Number(currentTrack.bpm), currentTrack.style)} MPM` : ''}`}
                 </span>
               )}
             </div>

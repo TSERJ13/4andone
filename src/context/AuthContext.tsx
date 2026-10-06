@@ -69,13 +69,21 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   };
 
+  const isOwnerOrAdmin = (u: TelegramUser | null) => {
+    if (!u) return false;
+    const handle = (u.username || '').toLowerCase();
+    return handle === 'stdancestudio' || handle === 'tserj13' || handle === 'sergitsivtsivadze';
+  };
+
   useEffect(() => {
     const savedUser = localStorage.getItem('4andone-user');
     if (savedUser) {
       try {
         const parsedUser = JSON.parse(savedUser);
+        const hasLifetime = isOwnerOrAdmin(parsedUser);
+        if (hasLifetime) parsedUser.is_premium = true;
         setUser(parsedUser);
-        setIsPremium(!!parsedUser.is_premium);
+        setIsPremium(hasLifetime || !!parsedUser.is_premium);
         syncWithSupabase(parsedUser);
       } catch {}
     } else if (typeof window !== 'undefined' && (window as any).Telegram?.WebApp?.initDataUnsafe?.user) {
@@ -99,6 +107,12 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   }, []);
 
   const login = async (userData: TelegramUser) => {
+    const hasLifetime = isOwnerOrAdmin(userData);
+    if (hasLifetime) {
+      userData.is_premium = true;
+      userData.subscription_id = 'LIFETIME_OWNER';
+    }
+
     // Check if user record in DB has is_premium
     try {
       const { data: dbUser } = await supabase

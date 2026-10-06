@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState, useRef, useEffect } from 'react';
-import { User, LogOut, ShieldCheck } from 'lucide-react';
+import { User, LogOut, ShieldCheck, Sparkles, Crown } from 'lucide-react';
 import { useAuth } from '@/context/AuthContext';
 import { AuthModal } from '@/components/auth/AuthModal';
 
@@ -54,7 +54,10 @@ export const UserBadge: React.FC<{ textColor?: string }> = ({ textColor = 'white
               </div>
               <div className="popup-actions">
                 {isPremium ? (
-                  <span className="premium-badge-tag">★ Premium Member</span>
+                  <div className="premium-badge-tag">
+                    <Crown size={14} className="text-emerald" />
+                    <span>Premium Member</span>
+                  </div>
                 ) : (
                   <button 
                     className="upgrade-btn-popup"
@@ -63,7 +66,8 @@ export const UserBadge: React.FC<{ textColor?: string }> = ({ textColor = 'white
                       setIsSubscriptionModalOpen(true);
                     }}
                   >
-                    ⚡ Upgrade to Premium ($1.99)
+                    <Sparkles size={15} />
+                    <span>Ad-Free Premium</span>
                   </button>
                 )}
                 <p className="sync-status">✓ Cloud Synced</p>
@@ -134,29 +138,40 @@ export const UserBadge: React.FC<{ textColor?: string }> = ({ textColor = 'white
 
         .popup-actions { display: flex; flex-direction: column; gap: 12px; }
         .premium-badge-tag {
-          background: linear-gradient(135deg, rgba(16, 185, 129, 0.2), rgba(16, 185, 129, 0.1));
-          border: 1px solid rgba(16, 185, 129, 0.4);
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          gap: 6px;
+          background: rgba(16, 185, 129, 0.12);
+          border: 1px solid rgba(16, 185, 129, 0.3);
           color: #10b981;
           font-size: 12px;
           font-weight: 700;
+          letter-spacing: 0.3px;
           padding: 8px 12px;
           border-radius: 12px;
           text-align: center;
         }
         .upgrade-btn-popup {
-          background: linear-gradient(135deg, #10b981, #059669);
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          gap: 8px;
+          background: #10b981;
           border: none;
-          color: black;
-          font-weight: 800;
+          color: #000;
+          font-weight: 700;
           font-size: 13px;
-          padding: 10px 14px;
-          border-radius: 14px;
+          letter-spacing: -0.2px;
+          padding: 10px 16px;
+          border-radius: 12px;
           cursor: pointer;
-          transition: all 0.2s;
+          transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
         }
         .upgrade-btn-popup:hover {
+          background: #34d399;
           transform: translateY(-1px);
-          filter: brightness(1.1);
+          box-shadow: 0 4px 14px rgba(16, 185, 129, 0.35);
         }
         .sync-status { font-size: 11px; font-weight: 700; color: #1db954; opacity: 0.9; }
         .logout-btn {

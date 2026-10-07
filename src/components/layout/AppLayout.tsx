@@ -18,6 +18,7 @@ import { SubscriptionModal } from '@/components/subscription/SubscriptionModal';
 import { TrackLimitAdModal } from '@/components/ads/TrackLimitAdModal';
 import AdSenseLoader from '@/components/ads/AdSenseLoader';
 import { ListAdAnchorTracker } from '@/components/ads/ListAd';
+import AdDebugPanel from '@/components/ads/AdDebugPanel';
 
 export default function AppLayout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
@@ -167,6 +168,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
     <>
       <AdSenseLoader />
       <ListAdAnchorTracker />
+      <AdDebugPanel />
       <div className={`app-container ${mounted && isPlayerActive ? 'player-active' : ''}`}>
         <OfflineBanner />
         <Sidebar />

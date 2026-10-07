@@ -46,6 +46,14 @@ const AD_CONFIGS = {
   },
 };
 
+/** Recent ad events, read by the hidden ?addebug=1 panel. */
+export function logAdEvent(slot: string, event: string) {
+  if (typeof window === 'undefined') return;
+  const w = window as unknown as { __adLog?: string[] };
+  const time = new Date().toTimeString().slice(0, 8);
+  w.__adLog = [...(w.__adLog || []), `${time} ${slot} ${event}`].slice(-8);
+}
+
 function resolveDeviceType(): AdDeviceType {
   if (typeof window === 'undefined') return 'desktop';
   const width = window.innerWidth;
@@ -110,7 +118,8 @@ export function AdBanner({
     : config.style;
 
   useEffect(() => {
-    pushedRef.current = false;
+    // pushedRef is NOT reset here: this effect re-runs when the device type is
+    // measured, and pushing the same <ins> twice makes AdSense reject it.
 
     const tryPush = () => {
       try {
@@ -124,11 +133,13 @@ export function AdBanner({
           if (!isDone && !pushedRef.current) {
             ((window as any).adsbygoogle = (window as any).adsbygoogle || []).push({});
             pushedRef.current = true;
+            logAdEvent(slotToUse, `requested (box ${adRef.current.offsetWidth}px wide)`);
             onRequestedRef.current?.();
           }
         }
       } catch (err) {
         // Silently catch adblock
+        logAdEvent(slotToUse, `push error: ${err instanceof Error ? err.message : String(err)}`);
       }
     };
 
@@ -161,7 +172,10 @@ export function AdBanner({
     if (!el || typeof MutationObserver === 'undefined') return;
     const report = () => {
       const status = el.getAttribute('data-ad-status');
-      if (status === 'filled' || status === 'unfilled') onStatusRef.current?.(status);
+      if (status === 'filled' || status === 'unfilled') {
+        logAdEvent(el.getAttribute('data-ad-slot') || '?', `google: ${status}`);
+        onStatusRef.current?.(status);
+      }
     };
     const observer = new MutationObserver(report);
     observer.observe(el, { attributes: true, attributeFilter: ['data-ad-status'] });

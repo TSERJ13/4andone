@@ -58,8 +58,13 @@ export const ListAd: React.FC = () => {
   const [requested, setRequested] = useState(false);
 
   useEffect(() => {
-    if (status !== 'pending' || !requested) return;
-    const t = setTimeout(() => setStatus((s) => (s === 'pending' ? 'empty' : s)), NO_ANSWER_MS);
+    if (status !== 'pending') return;
+    // Normally the wait starts at the request; but if the request never
+    // happens (or never gets an answer) the empty space must not stay forever.
+    const t = setTimeout(
+      () => setStatus((s) => (s === 'pending' ? 'empty' : s)),
+      requested ? NO_ANSWER_MS : NO_ANSWER_MS + 4000,
+    );
     return () => clearTimeout(t);
   }, [status, requested]);
 

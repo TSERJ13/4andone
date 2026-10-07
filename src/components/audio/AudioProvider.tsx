@@ -75,8 +75,10 @@ const finalLimitFor = (track: { style?: string; duration?: number } | undefined,
   return dur ? Math.min(limit, dur) : limit;                 // short tracks end early
 };
 
-// Every 8 qualified tracks (30s+ of real listening) a free user gets an ad break.
-const AD_EVERY_TRACKS = 8;
+// Every 5 qualified tracks (15s+ of real listening) a free user gets an ad break.
+const AD_EVERY_TRACKS = 5;
+// A track counts toward the ad break after this many seconds of real playback.
+const QUALIFY_SECONDS = 15;
 const AD_COUNT_KEY = '4andone-ad-track-count';
 
 // SIGNED-URL CACHE: re-using the same signed URL for a track lets the browser
@@ -697,7 +699,7 @@ export const AudioProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       }
       finalEndHandledRef.current = false;
 
-      // AD BREAK ON TAP: after 8 tracks the next track the user picks does
+      // AD BREAK ON TAP: after 5 tracks the next track the user picks does
       // not start yet — the sponsored strip shows (site stays visible), then
       // the Premium popup, and the picked track starts when it is closed.
       // Never inside a Final program (its dances advance on their own).
@@ -786,7 +788,7 @@ export const AudioProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       };
 
       stopAndPrepare();
-      if (startAt >= 30) currentTrackQualifiedRef.current = true; // same play, already counted
+      if (startAt >= QUALIFY_SECONDS) currentTrackQualifiedRef.current = true; // same play, already counted
 
       if (!isRetry && activeBlobUrlRef.current) {
         URL.revokeObjectURL(activeBlobUrlRef.current);
@@ -1033,10 +1035,10 @@ export const AudioProvider: React.FC<{ children: React.ReactNode }> = ({ childre
             if (currentToken !== loadingTokenRef.current) return;
             const currentTimeVal = audio.currentTime;
 
-            // 0. 30-SECOND REAL PLAYBACK QUALIFICATION (FOR THE 8-TRACK AD BREAK)
+            // 0. 15-SECOND REAL PLAYBACK QUALIFICATION (FOR THE 5-TRACK AD BREAK)
             // isPremiumRef (not the closure value) so a login/subscription made
             // while a track is loaded is respected immediately.
-            if (!isPremiumRef.current && !currentTrackQualifiedRef.current && currentTimeVal >= 30) {
+            if (!isPremiumRef.current && !currentTrackQualifiedRef.current && currentTimeVal >= QUALIFY_SECONDS) {
               currentTrackQualifiedRef.current = true;
               registerQualifiedTrack();
             }

@@ -11,7 +11,7 @@ import { AdBanner } from '@/components/ads/AdBanner';
 
 // "სიის რეკლამა" (Responsive) — its own unit so Reports show list revenue separately.
 const LIST_AD_SLOT = process.env.NEXT_PUBLIC_ADSENSE_LIST_SLOT || '4624552899';
-export const LIST_AD_EVERY = 5; // one ad after every 5 tracks
+export const LIST_AD_EVERY = 3; // one ad after every 3 tracks
 const MAX_ADS_PER_LIST = 10;
 
 /** True when an ad should follow the track at this (0-based) index. */

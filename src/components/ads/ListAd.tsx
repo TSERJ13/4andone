@@ -94,6 +94,7 @@ export const ListAd: React.FC = () => {
           setStatus(s === 'filled' ? 'filled' : 'empty');
         }}
         onRequested={() => { setRequested(true); recordAdEvent('list', 'requested'); }}
+        onAdClick={() => recordAdEvent('list', 'click')}
       />
       <style jsx>{`
         .list-ad {

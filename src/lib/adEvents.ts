@@ -3,7 +3,7 @@
 import { supabase } from '@/utils/supabase';
 
 export type AdPlacement = 'list' | 'strip';
-export type AdEvent = 'requested' | 'filled' | 'unfilled' | 'no_answer' | 'promo_click';
+export type AdEvent = 'requested' | 'filled' | 'unfilled' | 'no_answer' | 'promo_click' | 'click';
 
 /**
  * Saves one ad step to the database (table ad_events) for the admin

@@ -23,6 +23,8 @@ interface AdBannerProps {
   onStatusChange?: (status: 'filled' | 'unfilled') => void;
   /** Called once the ad has actually been requested from AdSense (push). */
   onRequested?: () => void;
+  /** Called (once) when the visitor taps/clicks the ad — approximate. */
+  onAdClick?: () => void;
 }
 
 const AD_CONFIGS = {
@@ -74,7 +76,8 @@ export function AdBanner({
   responsive = false,
   fillHeight,
   onStatusChange,
-  onRequested
+  onRequested,
+  onAdClick
 }: AdBannerProps) {
   const [deviceType, setDeviceType] = useState<AdDeviceType>('desktop');
   const containerRef = useRef<HTMLDivElement | null>(null);
@@ -169,12 +172,16 @@ export function AdBanner({
   useEffect(() => { onRequestedRef.current = onRequested; }, [onRequested]);
   const onStatusRef = useRef(onStatusChange);
   useEffect(() => { onStatusRef.current = onStatusChange; }, [onStatusChange]);
+  // Last answer already passed on: AdSense may touch the attribute again and
+  // this effect re-runs on resize — the same answer must be counted once.
+  const reportedStatusRef = useRef<string | null>(null);
   useEffect(() => {
     const el = adRef.current;
     if (!el || typeof MutationObserver === 'undefined') return;
     const report = () => {
       const status = el.getAttribute('data-ad-status');
-      if (status === 'filled' || status === 'unfilled') {
+      if ((status === 'filled' || status === 'unfilled') && status !== reportedStatusRef.current) {
+        reportedStatusRef.current = status;
         logAdEvent(el.getAttribute('data-ad-slot') || '?', `google: ${status}`);
         onStatusRef.current?.(status);
       }
@@ -184,6 +191,27 @@ export function AdBanner({
     report();
     return () => observer.disconnect();
   }, [slotToUse, activeType]);
+
+  // Ad clicks (approximate). The ad is a Google iframe, so the click itself
+  // can't be seen; when the page loses focus to OUR ad's iframe, the visitor
+  // tapped the ad. Counted once per ad. Exact clicks: AdSense reports.
+  const onAdClickRef = useRef(onAdClick);
+  useEffect(() => { onAdClickRef.current = onAdClick; }, [onAdClick]);
+  useEffect(() => {
+    let clicked = false;
+    const onBlur = () => {
+      setTimeout(() => {
+        const active = document.activeElement;
+        if (clicked || !active || active.tagName !== 'IFRAME') return;
+        if (!containerRef.current?.contains(active)) return;
+        clicked = true;
+        logAdEvent(slotToUse, 'ad clicked');
+        onAdClickRef.current?.();
+      }, 0);
+    };
+    window.addEventListener('blur', onBlur);
+    return () => window.removeEventListener('blur', onBlur);
+  }, [slotToUse]);
 
   const containerMinHeight = `${heightToUse}px`;
 

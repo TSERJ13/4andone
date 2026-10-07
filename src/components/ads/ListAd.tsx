@@ -1,25 +1,46 @@
 "use client";
 
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useRef, useState, useSyncExternalStore } from 'react';
+import { useAudioControls } from '@/components/audio/AudioProvider';
 import { useAuth } from '@/context/AuthContext';
 import { AdBanner } from '@/components/ads/AdBanner';
 
-// In-list ad, placed BETWEEN tracks (like Spotify's feed). This is the
-// AdSense-compliant placement: the ad sits next to real page content, is
-// clearly labelled, never blocks the screen and never makes anyone wait.
-// Premium users never see it.
+// ONE in-list ad, shown directly under the track the user starts as their
+// 3rd, 6th, 9th… track. Only one at a time: when the next one comes, the ad
+// moves under that track. It is a banner between tracks (no sound, nothing
+// blocks the screen), clearly labelled. Premium users never see it.
 
 // "სიის რეკლამა" (Responsive) — its own unit so Reports show list revenue separately.
 const LIST_AD_SLOT = process.env.NEXT_PUBLIC_ADSENSE_LIST_SLOT || '4624552899';
-export const LIST_AD_EVERY = 3; // one ad after every 3 tracks
-const MAX_ADS_PER_LIST = 10;
+export const LIST_AD_EVERY = 3; // every 3rd started track gets the ad under it
+const PLAY_COUNT_KEY = '4andone-list-ad-plays';
 
-/** True when an ad should follow the track at this (0-based) index. */
-export const shouldShowListAdAfter = (index: number, total: number) => {
-  const position = index + 1;
-  return position % LIST_AD_EVERY === 0
-    && position < total                       // never as the very last row
-    && position / LIST_AD_EVERY <= MAX_ADS_PER_LIST;
+// Tiny shared store: which track the ad sits under.
+let anchorTrackId: string | null = null;
+const listeners = new Set<() => void>();
+const subscribe = (fn: () => void) => { listeners.add(fn); return () => { listeners.delete(fn); }; };
+const setAnchor = (id: string | null) => { anchorTrackId = id; listeners.forEach((fn) => fn()); };
+
+/** Id of the track the single list ad is shown under (or null). */
+export const useListAdAnchor = () => useSyncExternalStore(subscribe, () => anchorTrackId, () => null);
+
+/** Mounted once (AppLayout): counts started tracks and moves the ad every 3rd one. */
+export const ListAdAnchorTracker: React.FC = () => {
+  const { trackId, isFinalMode } = useAudioControls();
+  const lastId = useRef<string | null>(null);
+
+  useEffect(() => {
+    if (!trackId || trackId === lastId.current) return;
+    lastId.current = trackId;
+    if (isFinalMode) return; // Final sessions don't count
+    let n = 0;
+    try { n = Number(sessionStorage.getItem(PLAY_COUNT_KEY) || 0); } catch { /* ignore */ }
+    n += 1;
+    try { sessionStorage.setItem(PLAY_COUNT_KEY, String(n)); } catch { /* ignore */ }
+    if (n % LIST_AD_EVERY === 0) setAnchor(trackId);
+  }, [trackId, isFinalMode]);
+
+  return null;
 };
 
 // How long to wait for AdSense's answer before treating the slot as blocked

@@ -10,12 +10,13 @@ import { useDownloadedTracks } from '@/hooks/useDownloadedTracks';
 import ConfirmModal from '@/components/admin/ConfirmModal';
 import { canonicalStyle } from '@/utils/audio';
 import { TrackRow } from '@/components/tracks/TrackRow';
-import { ListAd, shouldShowListAdAfter } from '@/components/ads/ListAd';
+import { ListAd, useListAdAnchor } from '@/components/ads/ListAd';
 
 const StylePage = () => {
   const { slug } = useParams();
   const { tracks, tags, styles, toggleFavorite, finalTracks, addToFinal, removeFromFinal } = useStudio();
   const { isPlaying, title: playingTitle, trackId: playingTrackId, loadTrack } = useAudioControls();
+  const listAdAnchor = useListAdAnchor(); // the single list ad sits under this track
   const { isAuthenticated, setIsAuthModalOpen } = useAuth();
   const [activeTag, setActiveTag] = useState<string | null>(null);
   const downloadedIds = useDownloadedTracks();
@@ -115,7 +116,7 @@ const StylePage = () => {
               badge="duration"
               isDownloaded={downloadedIds.includes(track.id)}
             />
-            {shouldShowListAdAfter(i, filteredTracks.length) && <ListAd />}
+            {track.id === listAdAnchor && <ListAd key={track.id} />}
           </Fragment>
           );
         }) : (

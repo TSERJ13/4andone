@@ -3,7 +3,7 @@
 import React, { useEffect, useRef, useState, useSyncExternalStore } from 'react';
 import { useAudioControls } from '@/components/audio/AudioProvider';
 import { useAuth } from '@/context/AuthContext';
-import { AdBanner } from '@/components/ads/AdBanner';
+import { AdBanner, logAdEvent } from '@/components/ads/AdBanner';
 
 // ONE in-list ad, shown directly under the track the user starts as their
 // 3rd, 6th, 9th… track. Only one at a time: when the next one comes, the ad
@@ -37,7 +37,10 @@ export const ListAdAnchorTracker: React.FC = () => {
     try { n = Number(sessionStorage.getItem(PLAY_COUNT_KEY) || 0); } catch { /* ignore */ }
     n += 1;
     try { sessionStorage.setItem(PLAY_COUNT_KEY, String(n)); } catch { /* ignore */ }
-    if (n % LIST_AD_EVERY === 0) setAnchor(trackId);
+    if (n % LIST_AD_EVERY === 0) {
+      logAdEvent(LIST_AD_SLOT, `play #${n} → list ad under this track`);
+      setAnchor(trackId);
+    }
   }, [trackId, isFinalMode]);
 
   return null;
@@ -62,7 +65,11 @@ export const ListAd: React.FC = () => {
     // Normally the wait starts at the request; but if the request never
     // happens (or never gets an answer) the empty space must not stay forever.
     const t = setTimeout(
-      () => setStatus((s) => (s === 'pending' ? 'empty' : s)),
+      () => setStatus((s) => {
+        if (s !== 'pending') return s;
+        logAdEvent(LIST_AD_SLOT, requested ? 'no answer from Google in 8s → hidden' : 'never requested → hidden');
+        return 'empty';
+      }),
       requested ? NO_ANSWER_MS : NO_ANSWER_MS + 4000,
     );
     return () => clearTimeout(t);

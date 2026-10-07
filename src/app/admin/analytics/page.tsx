@@ -8,6 +8,7 @@ import {
 import { useStudio } from '@/components/admin/StudioProvider';
 import { supabase } from '@/utils/supabase';
 import { adminDb } from '@/lib/admin-db';
+import AdStatsPanel from '@/components/admin/AdStatsPanel';
 
 type Period = 'day' | 'week' | 'month' | 'year';
 
@@ -630,6 +631,9 @@ export default function AdminAnalytics() {
           </button>
         </div>
       </div>
+
+      {/* Ads & real visitors (page visits vs listeners vs ads shown) */}
+      <AdStatsPanel />
 
       {/* Online Now Panel — collapsible */}
       <div className="online-now-panel glass">

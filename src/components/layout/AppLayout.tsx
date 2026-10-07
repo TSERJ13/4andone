@@ -7,7 +7,6 @@ import MobileNav from "@/components/layout/MobileNav";
 import PlayerBar from "@/components/layout/PlayerBar";
 import { useAuth } from '@/context/AuthContext';
 import { useAudioControls } from '@/components/audio/AudioProvider';
-import { useVisitTracker } from '@/hooks/useVisitTracker';
 import { AuthModal } from '@/components/auth/AuthModal';
 import { KofiModal } from '@/components/kofi/KofiModal';
 import { ContactModal } from '@/components/modals/ContactModal';
@@ -27,7 +26,8 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
   const [isDesktopExpanded, setIsDesktopExpanded] = useState(false);
 
   // Hooks must ALWAYS be at the top level and in the same order
-  useVisitTracker(); // Track one visit per session
+  // Page visits are recorded once by <AnalyticsTracker>. useVisitTracker() used to
+  // insert a second row for the same visit, so every visit was counted twice.
   const { title, isAdModalOpen, setIsAdModalOpen } = useAudioControls();
   const { isAuthModalOpen, setIsAuthModalOpen, isSubscriptionModalOpen, setIsSubscriptionModalOpen } = useAuth();
   

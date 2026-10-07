@@ -16,7 +16,7 @@ const OPS = new Set(['select', 'insert', 'update', 'upsert', 'delete', 'rpc']);
 // Analytics functions are no longer executable with the public key.
 const RPC_FUNCTIONS = new Set([
   'get_platform_metrics', 'get_country_stats', 'get_recent_activity', 'get_top_tracks_with_events',
-  'get_style_chart_30d', 'get_referrer_stats', 'get_traffic_buckets',
+  'get_style_chart_30d', 'get_referrer_stats', 'get_traffic_buckets', 'get_ad_stats',
 ]);
 const IDENT = /^[a-z_][a-z0-9_]*$/i;
 const SELECT_COLS = /^[a-z0-9_,*\s()!:.-]*$/i;

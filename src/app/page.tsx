@@ -355,14 +355,14 @@ export default function Home() {
             onClick={() => { resetArrowsTimer(); setCurrentSlide(prev => (prev === 0 ? totalSlides - 1 : prev - 1)); }}
             aria-label="Previous Banner"
           >
-            <ChevronLeft size={16} className="nav-arrow-icon" />
+            <ChevronLeft size={22} className="nav-arrow-icon" />
           </button>
           <button 
             className={`carousel-nav-btn next glass ${areArrowsVisible ? 'visible' : ''}`}
             onClick={() => { resetArrowsTimer(); setCurrentSlide(prev => (prev + 1) % totalSlides); }}
             aria-label="Next Banner"
           >
-            <ChevronRight size={16} className="nav-arrow-icon" />
+            <ChevronRight size={22} className="nav-arrow-icon" />
           </button>
 
           {/* Horizontal Slide Track */}
@@ -624,8 +624,8 @@ export default function Home() {
           top: 50%;
           transform: translateY(-50%);
           z-index: 15;
-          width: 32px;
-          height: 32px;
+          width: 42px;
+          height: 42px;
           border-radius: 50%;
           display: flex;
           align-items: center;
@@ -668,14 +668,14 @@ export default function Home() {
           transform: translateX(-50%);
           display: flex;
           align-items: center;
-          gap: 6px;
+          gap: 8px;
           z-index: 15;
         }
 
         /* Slim bars instead of round dots; the active one is longer */
         .carousel-dot {
-          width: 16px;
-          height: 4px;
+          width: 22px;
+          height: 6px;
           padding: 0;
           border-radius: 4px;
           background: rgba(255, 255, 255, 0.25);
@@ -683,30 +683,30 @@ export default function Home() {
           cursor: pointer;
           transition: width 0.3s ease, background-color 0.3s ease;
         }
-        .carousel-dot.active { width: 32px; }
+        .carousel-dot.active { width: 40px; }
 
         .carousel-dot.active.borismyagkov {
-          width: 32px;
+          width: 40px;
           background: linear-gradient(90deg, #f59e0b, #d97706);
         }
 
         .carousel-dot.active.musheev {
-          width: 32px;
+          width: 40px;
           background: linear-gradient(90deg, #e11d48, #be123c);
         }
 
         .carousel-dot.active.rosesband {
-          width: 32px;
+          width: 40px;
           background: linear-gradient(90deg, #22c55e, #10b981);
         }
 
         .carousel-dot.active.dancestar {
-          width: 32px;
+          width: 40px;
           background: linear-gradient(90deg, #d946ef, #8b5cf6);
         }
 
         .carousel-dot.active.goc {
-          width: 32px;
+          width: 40px;
           background: linear-gradient(90deg, #ff4b2b, #ff416c);
         }
 
@@ -1055,10 +1055,11 @@ export default function Home() {
 
 
         @media (max-width: 1024px) and (orientation: landscape) {
+          /* No margin/max-height inside the banner: the slide must fill it
+             (otherwise a square dark strip shows at the bottom), and leave
+             room at the top for login + share */
           .hero-section {
-            padding: 32px;
-            margin-bottom: 24px;
-            max-height: 300px; /* Prevent over-stretch on tablets */
+            padding: 60px 32px 44px;
           }
           .hero-title { font-size: 2.2rem; }
           .hero-visual { width: 100px; height: 100px; }
@@ -1073,8 +1074,8 @@ export default function Home() {
           }
 
           .carousel-nav-btn {
-            width: 26px;
-            height: 26px;
+            width: 34px;
+            height: 34px;
             background: rgba(0, 0, 0, 0.45);
             border: 1px solid rgba(255, 255, 255, 0.18);
             box-shadow: 0 2px 8px rgba(0, 0, 0, 0.4);
@@ -1089,15 +1090,24 @@ export default function Home() {
           }
 
           :global(.nav-arrow-icon) {
-            width: 14px !important;
-            height: 14px !important;
+            width: 18px !important;
+            height: 18px !important;
           }
 
           .carousel-dots-container {
             bottom: 10px;
           }
 
-          .header-right-group { top: 12px; right: 12px; gap: 8px; }
+          /* Share on the left, login on the right */
+          .header-right-group {
+            top: 12px;
+            left: 12px;
+            right: 12px;
+            gap: 8px;
+            justify-content: space-between;
+            pointer-events: none;
+          }
+          .header-right-group > :global(*) { pointer-events: auto; }
 
           .hero-section {
             height: auto;

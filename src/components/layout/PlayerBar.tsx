@@ -360,7 +360,7 @@ const PlayerBar = ({ onExpand }: { onExpand?: () => void }) => {
                 tabIndex={0}
                 aria-label={isPlaying ? "Pause music" : "Play music"}
               >
-                {!isLoaded && !isFinalMode ? (
+                {!isLoaded && !isFinalMode && currentTrack ? (
                   <div className="loading-spinner"></div>
                 ) : isPlaying ? (
                   <Pause fill="currentColor" size={28} />
@@ -380,7 +380,7 @@ const PlayerBar = ({ onExpand }: { onExpand?: () => void }) => {
 
             {/* 3. Right Button 1: Offline Download — in Final Mode: STOP Final Mode */}
             {isFinalMode ? (
-              <FinalStopButton onStop={() => stop()} size={36} style={{ marginLeft: '24px' }} />
+              <FinalStopButton onStop={() => stop()} className="feature-btn glass" iconSize={18} style={{ marginLeft: '24px', padding: '8px 12px', display: 'flex', alignItems: 'center', justifyContent: 'center' }} />
             ) : (
               <div
                 className="feature-btn glass"

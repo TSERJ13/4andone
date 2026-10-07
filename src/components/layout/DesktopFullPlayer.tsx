@@ -354,10 +354,10 @@ export default function DesktopFullPlayer({ onClose }: { onClose: () => void }) 
 
                    {/* 4. Download — in Final Mode: STOP Final Mode */}
                    {isFinalMode ? (
-                     <FinalStopButton onStop={() => stop()} size={44} />
+                     <FinalStopButton onStop={() => stop()} className="console-action-btn-v13" iconSize={30} />
                    ) : (
                      <div className="console-action-btn-v13">
-                       <OfflineDownloadButton track={currentTrack} iconSize={28} />
+                       <OfflineDownloadButton track={currentTrack} iconSize={30} />
                      </div>
                    )}
 
@@ -427,7 +427,7 @@ export default function DesktopFullPlayer({ onClose }: { onClose: () => void }) 
                        <SkipBack size={36} fill="currentColor" />
                      </button>
                      <button onClick={togglePlay} className="play-giant-v17">
-                       {!isLoaded && !isFinalMode ? (
+                       {!isLoaded && !isFinalMode && currentTrack ? (
                          <div className="deck-spinner"></div>
                        ) : isPlaying ? (
                          <Pause size={44} fill="currentColor" />

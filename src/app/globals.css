@@ -1053,3 +1053,10 @@ button {
   box-shadow: 0 25px 80px rgba(0, 0, 0, 0.85) !important;
   border: 1px solid rgba(255, 255, 255, 0.12) !important;
 }
+/* Final Mode "Stop" ✕ — red, wins over the players' own button colours */
+button.final-exit-btn.final-exit-btn,
+button.final-exit-btn.final-exit-btn:hover,
+button.final-exit-btn.final-exit-btn:active {
+  color: #ef4444 !important;
+  cursor: pointer;
+}

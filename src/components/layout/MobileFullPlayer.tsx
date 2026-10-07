@@ -317,7 +317,7 @@ const MobileFullPlayer = ({ isOpen, onClose }: MobileFullPlayerProps) => {
 
             {/* 3. Offline Download — in Final Mode: STOP Final Mode instead */}
             {isFinalMode ? (
-              <FinalStopButton onStop={() => stop()} size={42} />
+              <FinalStopButton onStop={() => stop()} className="mfp-meta-btn" iconSize={28} />
             ) : (
               <div className="mfp-meta-btn" title="Offline Download">
                 <OfflineDownloadButton track={currentTrack} iconSize={28} />
@@ -384,7 +384,7 @@ const MobileFullPlayer = ({ isOpen, onClose }: MobileFullPlayerProps) => {
             className={`mfp-play-pause-btn ${isFinalMode ? 'mfp-final-active' : ''}`}
             onClick={togglePlay}
           >
-            {!isLoaded && !isFinalMode ? (
+            {!isLoaded && !isFinalMode && currentTrack ? (
               <div className="mfp-loading-spinner"></div>
             ) : isPlaying ? (
               <Pause fill="currentColor" size={32} />

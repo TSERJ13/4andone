@@ -54,7 +54,33 @@ export const OfflineDownloadButton: React.FC<OfflineDownloadButtonProps> = ({
     }
   };
 
-  if (!track) return null;
+  // No track (e.g. right after Final Mode ends): keep the button in place,
+  // greyed out, so the player's button row doesn't lose a button.
+  if (!track) {
+    return (
+      <button
+        type="button"
+        className={`offline-dl-btn ${className}`}
+        disabled
+        aria-label="Download track for offline"
+        style={{
+          display: 'inline-flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          background: 'transparent',
+          border: 'none',
+          padding: 0,
+          lineHeight: 0,
+          color: 'inherit',
+          opacity: 0.4,
+          cursor: 'default',
+          ...style
+        }}
+      >
+        <Download size={iconSize} />
+      </button>
+    );
+  }
 
   return (
     <button
@@ -76,6 +102,8 @@ export const OfflineDownloadButton: React.FC<OfflineDownloadButtonProps> = ({
         justifyContent: 'center',
         background: 'transparent',
         border: 'none',
+        padding: 0,     // same box as the icon buttons next to it
+        lineHeight: 0,
         cursor: downloaded ? 'default' : 'pointer',
         color: downloaded ? '#22c55e' : 'inherit',
         transition: 'all 0.2s',

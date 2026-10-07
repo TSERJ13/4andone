@@ -17,7 +17,7 @@ import { TopSocialMenu } from '@/components/kofi/TopSocialMenu';
 import AdBanner from '@/components/ads/AdBanner';
 import { useRouter } from 'next/navigation';
 import { TrackRow } from '@/components/tracks/TrackRow';
-import { ListAd, shouldShowListAdAfter } from '@/components/ads/ListAd';
+import { ListAd, useListAdAnchor } from '@/components/ads/ListAd';
 
 export default function Home() {
   const {
@@ -27,6 +27,7 @@ export default function Home() {
     trackId: playingTrackId,
     loadTrack
   } = useAudioControls();
+  const listAdAnchor = useListAdAnchor(); // the single list ad sits under this track
   const {
     tracks,
     styles,
@@ -559,7 +560,7 @@ export default function Home() {
                         styleColor={styles.find(s => s.title.toLowerCase() === track.style?.toLowerCase())?.color}
                         isDownloaded={downloadedIds.includes(track.id)}
                       />
-                      {shouldShowListAdAfter(i, Math.min(visibleTrackCount, newArrivals.length)) && <ListAd />}
+                      {track.id === listAdAnchor && <ListAd key={track.id} />}
                     </Fragment>
                   );
                 })}

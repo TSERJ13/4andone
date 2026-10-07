@@ -326,11 +326,8 @@ export default function RootLayout({
     <html lang="en" suppressHydrationWarning>
       <head>
         <meta name="google-site-verification" content="hmYQzKJ5eZK-N6rFBBDmqMyRCh3UtPeC8kjDeZyg-l4" />
-        <script
-          async
-          src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-2697205988789699"
-          crossOrigin="anonymous"
-        />
+        {/* AdSense script is loaded by <AdSenseLoader> (free users, public pages only) */}
+        <meta name="google-adsense-account" content="ca-pub-2697205988789699" />
         <script src="https://telegram.org/js/telegram-web-app.js" />
         <script
           type="application/ld+json"

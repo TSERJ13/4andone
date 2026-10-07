@@ -16,6 +16,8 @@ import DesktopFullPlayer from './DesktopFullPlayer';
 import OfflineBanner from './OfflineBanner';
 import { SubscriptionModal } from '@/components/subscription/SubscriptionModal';
 import { TrackLimitAdModal } from '@/components/ads/TrackLimitAdModal';
+import AdSenseLoader from '@/components/ads/AdSenseLoader';
+import { ListAdAnchorTracker } from '@/components/ads/ListAd';
 
 export default function AppLayout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
@@ -163,6 +165,8 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
 
   return (
     <>
+      <AdSenseLoader />
+      <ListAdAnchorTracker />
       <div className={`app-container ${mounted && isPlayerActive ? 'player-active' : ''}`}>
         <OfflineBanner />
         <Sidebar />

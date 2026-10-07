@@ -10,12 +10,13 @@ import { displayStyleName } from '@/utils/styleNames';
 import Link from 'next/link';
 import ConfirmModal from '@/components/admin/ConfirmModal';
 import { TrackRow } from '@/components/tracks/TrackRow';
-import { ListAd, shouldShowListAdAfter } from '@/components/ads/ListAd';
+import { ListAd, useListAdAnchor } from '@/components/ads/ListAd';
 
 const SearchPage = () => {
   const [query, setQuery] = useState('');
   const { tracks, styles, finalTracks, addToFinal, removeFromFinal, toggleFavorite } = useStudio();
   const { isPlaying, title: playingTitle, trackId: playingTrackId, loadTrack } = useAudioControls();
+  const listAdAnchor = useListAdAnchor(); // the single list ad sits under this track
   const { isAuthenticated, setIsAuthModalOpen } = useAuth();
   const downloadedIds = useDownloadedTracks();
 
@@ -137,7 +138,7 @@ const SearchPage = () => {
                       styleColor={styles.find(s => s.title.toLowerCase() === track.style?.toLowerCase())?.color}
                       isDownloaded={downloadedIds.includes(track.id)}
                     />
-                    {shouldShowListAdAfter(i, searchResults.length) && <ListAd />}
+                    {track.id === listAdAnchor && <ListAd key={track.id} />}
                   </Fragment>
                   );
                 })

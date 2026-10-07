@@ -16,7 +16,7 @@ const BREAK_AD_SLOT = process.env.NEXT_PUBLIC_ADSENSE_BREAK_SLOT || '7693569362'
 const STRIP_SECONDS = 15; // the strip closes by itself after 15s
 
 /**
- * Break shown to free users every 8 tracks — two separate steps:
+ * Break shown to free users every 5 tracks — two separate steps:
  *
  * 1. SPONSORED STRIP — an AdSense ad pinned to the top of the screen, at most
  *    30% of the screen height (Better Ads / AdSense sticky-ad rule). The site

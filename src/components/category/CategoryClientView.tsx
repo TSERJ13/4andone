@@ -9,7 +9,7 @@ import { useAuth } from '@/context/AuthContext';
 import { SeoTrack } from '@/lib/seo-data';
 import { SeoDanceCategory } from '@/utils/seo';
 import { TrackRow } from '@/components/tracks/TrackRow';
-import { ListAd, shouldShowListAdAfter } from '@/components/ads/ListAd';
+import { ListAd, useListAdAnchor } from '@/components/ads/ListAd';
 
 interface Props {
   category: SeoDanceCategory;
@@ -18,6 +18,7 @@ interface Props {
 
 export default function CategoryClientView({ category, initialTracks }: Props) {
   const { isPlaying, title: playingTitle, trackId: playingTrackId, loadTrack, togglePlay } = useAudioControls();
+  const listAdAnchor = useListAdAnchor(); // the single list ad sits under this track
   const { tracks, toggleFavorite } = useStudio();
   const { isAuthenticated, setIsAuthModalOpen } = useAuth();
   const [searchQuery, setSearchQuery] = useState('');
@@ -141,7 +142,7 @@ export default function CategoryClientView({ category, initialTracks }: Props) {
                 badge="duration"
                 href={`/music/${slug}`}
               />
-              {shouldShowListAdAfter(i, filtered.length) && <ListAd />}
+              {track.id === listAdAnchor && <ListAd key={track.id} />}
             </Fragment>
           );
         })}

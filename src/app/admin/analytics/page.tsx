@@ -700,7 +700,6 @@ export default function AdminAnalytics() {
           { label: 'This Year', value: totals.year, sub: `${uniqueTotals.year} unique`, icon: <BarChart3 size={16}/> },
           { label: 'Avg Session', value: fmtDuration(avgDuration), icon: <Clock size={16}/>, isStr: true },
           { label: 'TG Users', value: tgUsers.length, icon: <Users size={16}/> },
-          { label: 'Coffee Clicks', value: totalKofiClicks, sub: `${uniqueKofiClickers} unique · ${kofiToday} today`, icon: <Coffee size={16} style={{ color: '#f59e0b' }}/> },
         ] as { label: string; value: string | number; sub?: string; icon: React.ReactNode; isStr?: boolean }[]).map(item => (
           <div key={item.label} className="sum-card glass">
             <div className="sum-icon">{item.icon}</div>
@@ -743,72 +742,17 @@ export default function AdminAnalytics() {
         )}
       </div>
 
-      {/* Buy Me Coffee Tracking Section */}
-      <div className="coffee-card glass" id="coffee-tracking">
-        <div className="coffee-head">
-          <div className="coffee-title-row">
-            <div className="coffee-icon-pill">
-              <Coffee size={20} />
-            </div>
-            <div>
-              <div className="coffee-title-badges">
-                <h3>Buy Me Coffee Tracking</h3>
-                <span className="coffee-count-pill">{totalKofiClicks} clicks</span>
-                <span className="coffee-count-pill" style={{ color: '#1db954', background: 'rgba(29,185,84,0.15)', borderColor: 'rgba(29,185,84,0.3)' }}>{uniqueKofiClickers} unique supporters</span>
-              </div>
-              <p className="coffee-subtitle">Visitor interactions and supporter identification in real time</p>
-            </div>
-          </div>
-
-          <div className="period-tabs">
-            {(['today', '7d', '30d', 'all'] as const).map(p => (
-              <button
-                key={p}
-                className={`ptab ${kofiPeriod === p ? 'active' : ''}`}
-                onClick={() => setKofiPeriod(p)}
-              >
-                {p === 'today' ? 'Today' : p === '7d' ? '7 Days' : p === '30d' ? '30 Days' : 'All Time'}
-              </button>
-            ))}
-          </div>
-        </div>
-
-        {/* 4 Metrics Strip */}
-        <div className="coffee-metrics-strip">
-          <div className="coffee-stat-box">
-            <span className="c-stat-label">Clicks ({kofiPeriod === 'today' ? 'Today' : kofiPeriod === '7d' ? '7D' : kofiPeriod === '30d' ? '30D' : 'All'})</span>
-            <span className="c-stat-val text-amber">{filteredKofi.length}</span>
-            <span className="c-stat-sub">{totalKofiClicks} all-time</span>
-          </div>
-          <div className="coffee-stat-box">
-            <span className="c-stat-label">Unique Supporters ({kofiPeriod === 'today' ? 'Today' : kofiPeriod === '7d' ? '7D' : kofiPeriod === '30d' ? '30D' : 'All'})</span>
-            <span className="c-stat-val text-primary">{filteredUniqueClickers}</span>
-            <span className="c-stat-sub">{uniqueKofiClickers} all-time unique</span>
-          </div>
-          <div className="coffee-stat-box">
-            <span className="c-stat-label">Today&apos;s Activity</span>
-            <span className="c-stat-val">{kofiToday}</span>
-            <span className="c-stat-sub">{kofiWeek} this week</span>
-          </div>
-          <div className="coffee-stat-box">
-            <span className="c-stat-label">Supporter Rate</span>
-            <span className="c-stat-val">
-              {uniqueTotals.month > 0 ? ((uniqueKofiClickers / uniqueTotals.month) * 100).toFixed(1) + '%' : '—'}
-            </span>
-            <span className="c-stat-sub">of 30-day visitors</span>
-          </div>
-        </div>
-
+      {/* Live visitors (Buy Me Coffee tracking removed) */}
+      <div className="coffee-card glass" id="live-visitors">
         {/* Visitor & Supporter Activity Hub with Tabs */}
         <div className="coffee-log-section">
           <div className="visitor-log-header">
             <div className="visitor-log-title-group">
-              <h4>Live Visitors & Supporter Log</h4>
+              <h4>Live Visitors</h4>
               <span className="coffee-log-count">
                 {activeVisitorTab === 'online' && `${liveUsers.length} active visitors on site`}
                 {activeVisitorTab === 'today' && `${todayVisits.length} visits logged today`}
                 {activeVisitorTab === 'week' && `${weekVisits.length} visits logged this week`}
-                {activeVisitorTab === 'supporters' && `${filteredKofi.length} events · ${filteredUniqueClickers} unique supporters`}
               </span>
             </div>
 
@@ -834,14 +778,6 @@ export default function AdminAnalytics() {
                 onClick={() => setActiveVisitorTab('week')}
               >
                 <span>This Week ({weekVisits.length})</span>
-              </button>
-              <button
-                type="button"
-                className={`vtab ${activeVisitorTab === 'supporters' ? 'active supporters' : ''}`}
-                onClick={() => setActiveVisitorTab('supporters')}
-              >
-                <Coffee size={13} />
-                <span>Recent Supporter Log ({filteredKofi.length})</span>
               </button>
             </div>
           </div>
@@ -1077,79 +1013,6 @@ export default function AdminAnalytics() {
             )
           )}
 
-          {/* TAB 4: RECENT SUPPORTER LOG (COFFEE CLICKS) */}
-          {activeVisitorTab === 'supporters' && (
-            loading ? (
-              <div className="panel-empty">Loading coffee clicks...</div>
-            ) : filteredKofi.length === 0 ? (
-              <div className="coffee-empty">
-                <Coffee size={28} className="coffee-empty-icon" />
-                <span>No clicks recorded {kofiPeriod !== 'all' ? 'for this period' : 'yet'}.</span>
-                <span className="coffee-empty-sub">Supporters and device details will appear here live when users tap Buy Me Coffee.</span>
-              </div>
-            ) : (
-              <div className="coffee-list">
-                {filteredKofi.slice(0, 30).map(c => {
-                  const tgUser = tgUsers.find(u => u.telegram_id.toString() === c.user_ref);
-                  const isTelegram = !!tgUser;
-                  const sourceBadge = c.source === 'modal_external'
-                    ? { label: 'External Tab', color: '#f59e0b', bg: 'rgba(245,158,11,0.12)' }
-                    : c.source === 'sidebar'
-                    ? { label: 'Sidebar Button', color: '#3b82f6', bg: 'rgba(59,130,246,0.12)' }
-                    : { label: 'Header Pill', color: '#1db954', bg: 'rgba(29,185,84,0.12)' };
-
-                  return (
-                    <div key={c.id} className="coffee-row">
-                      <div className="coffee-row-left">
-                        <div 
-                          className="coffee-row-avatar" 
-                          style={{ 
-                            background: isTelegram ? '#1db954' : 'rgba(59,130,246,0.18)', 
-                            color: isTelegram ? '#000' : '#60a5fa' 
-                          }}
-                        >
-                          {isTelegram ? (tgUser!.first_name?.charAt(0) || 'T') : '🌐'}
-                        </div>
-                        <div className="coffee-row-info">
-                          <div className="coffee-row-name">
-                            {isTelegram ? (
-                              <div className="coffee-supporter-identity">
-                                <span className="supporter-full-name">{tgUser!.first_name}{tgUser!.last_name ? ' ' + tgUser!.last_name : ''}</span>
-                                {tgUser!.username && <span className="act-handle">@{tgUser!.username}</span>}
-                                <span className="tg-uid-badge">ID: {tgUser!.telegram_id}</span>
-                                <span className="supporter-platform-badge tg">✈️ Telegram</span>
-                                {tgUser!.visit_count > 1 && <span className="act-visits">({tgUser!.visit_count}x visits)</span>}
-                              </div>
-                            ) : (
-                              <div className="coffee-supporter-identity">
-                                <span className="supporter-full-name">Visitor #{c.session_id ? c.session_id.slice(0, 8) : 'Web'}</span>
-                                <span className="supporter-platform-badge web">🌐 Web Visitor</span>
-                                {c.session_id && <span className="session-sub-tag">sess: {c.session_id.slice(0, 8)}</span>}
-                              </div>
-                            )}
-                          </div>
-                          <div className="coffee-row-meta">
-                            <span className="act-flag">{getFlag(c.country_code)}</span>
-                            <span className="font-semibold text-zinc-300">{c.country_code || 'Global'}</span>
-                            <span className="act-dot">·</span>
-                            <span>{timeAgo(c.created_at)}</span>
-                            <span className="act-dot">·</span>
-                            <span className="text-zinc-500">{new Date(c.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' })}</span>
-                          </div>
-                        </div>
-                      </div>
-
-                      <div className="coffee-row-right">
-                        <span className="coffee-tag" style={{ color: sourceBadge.color, background: sourceBadge.bg }}>
-                          {sourceBadge.label}
-                        </span>
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
-            )
-          )}
         </div>
       </div>
 
@@ -1489,7 +1352,7 @@ export default function AdminAnalytics() {
         .sum-sub { font-size:11px; font-weight:700; color:#1db954; margin-top:2px; }
 
         /* Buy Me Coffee Tracking Card */
-        .coffee-card { padding:24px 28px; border-radius:24px; border:1px solid rgba(245,158,11,0.22); background:linear-gradient(135deg, rgba(245,158,11,0.04), rgba(24,24,27,0.7)); }
+        .coffee-card { padding:24px 28px; border-radius:24px; border:1px solid rgba(255,255,255,0.08); background:rgba(24,24,27,0.6); }
         .coffee-head { display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:14px; margin-bottom:22px; }
         .coffee-title-row { display:flex; align-items:center; gap:14px; }
         .coffee-icon-pill { width:42px; height:42px; border-radius:12px; background:rgba(245,158,11,0.15); border:1px solid rgba(245,158,11,0.3); display:flex; align-items:center; justify-content:center; color:#f59e0b; flex-shrink:0; }
@@ -1506,7 +1369,7 @@ export default function AdminAnalytics() {
         .text-amber { color:#f59e0b !important; }
         .c-stat-sub { font-size:11px; font-weight:600; color:#a1a1aa; }
 
-        .coffee-log-section { border-top:1px solid rgba(255,255,255,0.06); padding-top:18px; }
+        .coffee-log-section { }
         .visitor-log-header { display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:12px; margin-bottom:16px; }
         .visitor-log-title-group { display:flex; flex-direction:column; gap:2px; }
         .visitor-log-title-group h4 { font-size:14px; font-weight:800; color:#fff; margin:0; text-transform:uppercase; letter-spacing:0.5px; }

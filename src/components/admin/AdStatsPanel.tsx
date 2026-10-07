@@ -12,6 +12,7 @@ type Row = {
   filled: number;
   not_filled: number;
   promo_clicks: number;
+  ad_clicks: number;
 };
 type Period = 'today' | '7d' | '30d';
 
@@ -66,6 +67,7 @@ export default function AdStatsPanel() {
       filled: Number(r.filled) || 0,
       not_filled: Number(r.not_filled) || 0,
       promo_clicks: Number(r.promo_clicks) || 0,
+      ad_clicks: Number(r.ad_clicks) || 0,
     })).sort((a, b) => b.listeners - a.listeners || b.filled - a.filled || b.visits - a.visits));
     setLoading(false);
   }, [period]);
@@ -80,8 +82,9 @@ export default function AdStatsPanel() {
       filled: t.filled + r.filled,
       not_filled: t.not_filled + r.not_filled,
       promo_clicks: t.promo_clicks + r.promo_clicks,
+      ad_clicks: t.ad_clicks + r.ad_clicks,
     }),
-    { visits: 0, listeners: 0, requested: 0, filled: 0, not_filled: 0, promo_clicks: 0 },
+    { visits: 0, listeners: 0, requested: 0, filled: 0, not_filled: 0, promo_clicks: 0, ad_clicks: 0 },
   );
   const fillRate = total.requested ? Math.round((total.filled / total.requested) * 100) : 0;
 
@@ -91,6 +94,7 @@ export default function AdStatsPanel() {
     { label: 'Ads requested', value: total.requested, hint: 'asked Google for an ad' },
     { label: 'Ads shown', value: total.filled, hint: `Google gave an ad · ${fillRate}%`, color: '#22c55e' },
     { label: 'Not shown', value: total.not_filled, hint: 'Google had no ad / blocked', color: '#ef4444' },
+    { label: 'Ad clicks', value: total.ad_clicks, hint: 'approximate · exact in AdSense', color: '#60a5fa' },
     { label: 'Premium card clicks', value: total.promo_clicks, hint: 'shown instead of an ad', color: '#facc15' },
   ];
 
@@ -101,7 +105,7 @@ export default function AdStatsPanel() {
           <Megaphone size={18} />
           <div>
             <h3>Ads &amp; Visitors</h3>
-            <p>Visits, real listeners and our ads by country (clicks and earnings: AdSense reports)</p>
+            <p>Visits, real listeners and our ads by country (exact clicks and earnings: AdSense reports)</p>
           </div>
         </div>
         <div className="ad-stats-tabs">
@@ -135,12 +139,13 @@ export default function AdStatsPanel() {
               <th>Listeners</th>
               <th>Ads shown</th>
               <th>Not shown</th>
+              <th>Ad clicks</th>
               <th>Premium clicks</th>
             </tr>
           </thead>
           <tbody>
             {rows.length === 0 && !loading && (
-              <tr><td colSpan={6} className="ad-empty">No data for this period yet.</td></tr>
+              <tr><td colSpan={7} className="ad-empty">No data for this period yet.</td></tr>
             )}
             {(showAll ? rows : rows.slice(0, TOP_COUNTRIES)).map((r) => (
               <tr key={r.country}>
@@ -152,6 +157,7 @@ export default function AdStatsPanel() {
                 <td className="g">{r.listeners}</td>
                 <td className="g">{r.filled}</td>
                 <td className="r">{r.not_filled}</td>
+                <td className="b">{r.ad_clicks}</td>
                 <td className="y">{r.promo_clicks}</td>
               </tr>
             ))}
@@ -188,6 +194,7 @@ export default function AdStatsPanel() {
         .ad-table td.g { color: #22c55e; font-weight: 700; }
         .ad-table td.r { color: #ef4444; }
         .ad-table td.y { color: #facc15; }
+        .ad-table td.b { color: #60a5fa; }
         .c-flag { margin-right: 4px; }
         .bot-tag { margin-left: 8px; font-size: 10px; font-weight: 800; letter-spacing: 0.5px; text-transform: uppercase; color: #a1a1aa; background: rgba(255,255,255,0.06); border: 1px solid rgba(255,255,255,0.1); padding: 2px 7px; border-radius: 999px; }
         .ad-more { margin: 12px auto 0; display: flex; align-items: center; gap: 6px; border: 1px solid rgba(255,255,255,0.1); background: rgba(255,255,255,0.04); color: #e4e4e7; font-weight: 700; font-size: 13px; padding: 9px 16px; border-radius: 999px; cursor: pointer; }

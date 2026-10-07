@@ -61,3 +61,10 @@ as $$
 $$;
 revoke execute on function public.get_ad_stats(timestamptz) from public, anon, authenticated;
 grant execute on function public.get_ad_stats(timestamptz) to service_role;
+
+-- v2 (applied): approximate ad clicks
+alter table public.ad_events drop constraint ad_events_event_check;
+alter table public.ad_events add constraint ad_events_event_check
+  check (event in ('requested', 'filled', 'unfilled', 'no_answer', 'promo_click', 'click'));
+-- get_ad_stats() was recreated with an extra ad_clicks column (same query plus
+-- count(*) filter (where event = 'click')), service_role only.

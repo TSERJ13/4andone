@@ -70,6 +70,7 @@ const AdBreak: React.FC<{ onClose: () => void }> = ({ onClose }) => {
             fillHeight="min(22vh, 180px)"
             height={90}
             onRequested={() => recordAdEvent('strip', 'requested')}
+            onAdClick={() => recordAdEvent('strip', 'click')}
             onStatusChange={(status) => {
               recordAdEvent('strip', status);
               if (status === 'unfilled') setStep('promo');

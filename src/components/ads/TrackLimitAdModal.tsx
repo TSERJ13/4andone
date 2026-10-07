@@ -5,6 +5,7 @@ import { X, Sparkles, Play } from 'lucide-react';
 import { useAuth } from '@/context/AuthContext';
 import { useAudioControls } from '@/components/audio/AudioProvider';
 import { AdBanner } from '@/components/ads/AdBanner';
+import { recordAdEvent } from '@/lib/adEvents';
 
 interface TrackLimitAdModalProps {
   isOpen: boolean;
@@ -68,7 +69,9 @@ const AdBreak: React.FC<{ onClose: () => void }> = ({ onClose }) => {
             responsive
             fillHeight="min(22vh, 180px)"
             height={90}
+            onRequested={() => recordAdEvent('strip', 'requested')}
             onStatusChange={(status) => {
+              recordAdEvent('strip', status);
               if (status === 'unfilled') setStep('promo');
             }}
           />

@@ -5,6 +5,7 @@ import { useAudioControls } from '@/components/audio/AudioProvider';
 import { Sparkles } from 'lucide-react';
 import { useAuth } from '@/context/AuthContext';
 import { AdBanner, logAdEvent } from '@/components/ads/AdBanner';
+import { recordAdEvent } from '@/lib/adEvents';
 
 // ONE in-list ad, shown directly under the track the user starts as their
 // 3rd, 6th, 9th… track. Only one at a time: when the next one comes, the ad
@@ -69,6 +70,7 @@ export const ListAd: React.FC = () => {
       () => setStatus((s) => {
         if (s !== 'pending') return s;
         logAdEvent(LIST_AD_SLOT, requested ? 'no answer from Google in 8s → Premium card' : 'never requested → Premium card');
+        if (requested) recordAdEvent('list', 'no_answer');
         return 'empty';
       }),
       requested ? NO_ANSWER_MS : NO_ANSWER_MS + 4000,
@@ -87,10 +89,11 @@ export const ListAd: React.FC = () => {
         responsive
         height={100}
         onStatusChange={(s) => {
+          recordAdEvent('list', s === 'filled' ? 'filled' : 'unfilled');
           if (s === 'unfilled') logAdEvent(LIST_AD_SLOT, 'no Google ad → Premium card');
           setStatus(s === 'filled' ? 'filled' : 'empty');
         }}
-        onRequested={() => setRequested(true)}
+        onRequested={() => { setRequested(true); recordAdEvent('list', 'requested'); }}
       />
       <style jsx>{`
         .list-ad {
@@ -126,7 +129,11 @@ export const ListAd: React.FC = () => {
 const PremiumPromoCard: React.FC = () => {
   const { setIsSubscriptionModalOpen } = useAuth();
   return (
-    <button type="button" className="premium-promo" onClick={() => setIsSubscriptionModalOpen(true)}>
+    <button
+      type="button"
+      className="premium-promo"
+      onClick={() => { recordAdEvent('list', 'promo_click'); setIsSubscriptionModalOpen(true); }}
+    >
       <span className="premium-promo-icon"><Sparkles size={18} /></span>
       <span className="premium-promo-text">
         <strong>Listen without ads</strong>

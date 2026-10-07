@@ -2,6 +2,7 @@
 
 import React, { useEffect, useRef, useState, useSyncExternalStore } from 'react';
 import { useAudioControls } from '@/components/audio/AudioProvider';
+import { Sparkles } from 'lucide-react';
 import { useAuth } from '@/context/AuthContext';
 import { AdBanner, logAdEvent } from '@/components/ads/AdBanner';
 
@@ -67,7 +68,7 @@ export const ListAd: React.FC = () => {
     const t = setTimeout(
       () => setStatus((s) => {
         if (s !== 'pending') return s;
-        logAdEvent(LIST_AD_SLOT, requested ? 'no answer from Google in 8s → hidden' : 'never requested → hidden');
+        logAdEvent(LIST_AD_SLOT, requested ? 'no answer from Google in 8s → Premium card' : 'never requested → Premium card');
         return 'empty';
       }),
       requested ? NO_ANSWER_MS : NO_ANSWER_MS + 4000,
@@ -75,7 +76,9 @@ export const ListAd: React.FC = () => {
     return () => clearTimeout(t);
   }, [status, requested]);
 
-  if (isPremium || status === 'empty') return null;
+  if (isPremium) return null;
+  // Google had no ad (or it was blocked): show our own Premium card instead.
+  if (status === 'empty') return <PremiumPromoCard />;
   return (
     <div className={`list-ad ${status}`} aria-label="Advertisement">
       {status === 'filled' && <span className="list-ad-label">Sponsored</span>}
@@ -83,7 +86,10 @@ export const ListAd: React.FC = () => {
         slot={LIST_AD_SLOT}
         responsive
         height={100}
-        onStatusChange={(s) => setStatus(s === 'filled' ? 'filled' : 'empty')}
+        onStatusChange={(s) => {
+          if (s === 'unfilled') logAdEvent(LIST_AD_SLOT, 'no Google ad → Premium card');
+          setStatus(s === 'filled' ? 'filled' : 'empty');
+        }}
         onRequested={() => setRequested(true)}
       />
       <style jsx>{`
@@ -113,6 +119,62 @@ export const ListAd: React.FC = () => {
         }
       `}</style>
     </div>
+  );
+};
+
+/** Our own card (not an ad) shown where Google had no ad to show. */
+const PremiumPromoCard: React.FC = () => {
+  const { setIsSubscriptionModalOpen } = useAuth();
+  return (
+    <button type="button" className="premium-promo" onClick={() => setIsSubscriptionModalOpen(true)}>
+      <span className="premium-promo-icon"><Sparkles size={18} /></span>
+      <span className="premium-promo-text">
+        <strong>Listen without ads</strong>
+        <span>Ad-Free Premium · only $1.99/mo</span>
+      </span>
+      <span className="premium-promo-btn">Upgrade</span>
+      <style jsx>{`
+        .premium-promo {
+          width: 100%;
+          display: flex;
+          align-items: center;
+          gap: 12px;
+          margin: 6px 0 10px;
+          padding: 12px 14px;
+          border-radius: 16px;
+          border: 1px solid rgba(29, 185, 84, 0.3);
+          background: linear-gradient(135deg, rgba(29, 185, 84, 0.12), rgba(29, 185, 84, 0.03));
+          color: #fff;
+          text-align: left;
+          cursor: pointer;
+          transition: border-color 0.15s, background-color 0.15s;
+        }
+        .premium-promo:hover { border-color: rgba(29, 185, 84, 0.6); }
+        .premium-promo-icon {
+          width: 36px;
+          height: 36px;
+          flex-shrink: 0;
+          border-radius: 50%;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          color: #1db954;
+          background: rgba(29, 185, 84, 0.15);
+        }
+        .premium-promo-text { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
+        .premium-promo-text strong { font-size: 14px; font-weight: 800; }
+        .premium-promo-text span { font-size: 12px; color: #1db954; font-weight: 600; }
+        .premium-promo-btn {
+          flex-shrink: 0;
+          padding: 8px 16px;
+          border-radius: 999px;
+          background: #1db954;
+          color: #000;
+          font-size: 13px;
+          font-weight: 800;
+        }
+      `}</style>
+    </button>
   );
 };
 

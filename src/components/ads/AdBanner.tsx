@@ -52,6 +52,8 @@ export function logAdEvent(slot: string, event: string) {
   const w = window as unknown as { __adLog?: string[] };
   const time = new Date().toTimeString().slice(0, 8);
   w.__adLog = [...(w.__adLog || []), `${time} ${slot} ${event}`].slice(-8);
+  // Also in the browser console, so it can be checked on any URL (no ?addebug).
+  console.info(`[4and.one ads] ${time} ${slot} ${event}`);
 }
 
 function resolveDeviceType(): AdDeviceType {

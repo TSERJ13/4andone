@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useCallback, useEffect, useState } from 'react';
-import { Megaphone, RefreshCw } from 'lucide-react';
+import { Megaphone, RefreshCw, ChevronDown } from 'lucide-react';
 import { adminDb } from '@/lib/admin-db';
 
 type Row = {
@@ -22,6 +22,20 @@ const periodStart = (p: Period) => {
   return d;
 };
 
+const TOP_COUNTRIES = 5;
+
+let regionNames: Intl.DisplayNames | null = null;
+const countryName = (code: string) => {
+  if (!/^[A-Z]{2}$/.test(code)) return 'Unknown';
+  try {
+    regionNames = regionNames || new Intl.DisplayNames(['en'], { type: 'region' });
+    return regionNames.of(code) || code;
+  } catch { return code; }
+};
+
+// Lots of visits but almost nobody plays music → robots / crawlers, not people.
+const looksLikeBots = (r: Row) => r.visits >= 50 && r.listeners / r.visits < 0.03;
+
 const flag = (code: string) =>
   /^[A-Z]{2}$/.test(code)
     ? String.fromCodePoint(...code.split('').map((c) => 127397 + c.charCodeAt(0)))
@@ -37,6 +51,7 @@ export default function AdStatsPanel() {
   const [rows, setRows] = useState<Row[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [showAll, setShowAll] = useState(false);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -51,7 +66,7 @@ export default function AdStatsPanel() {
       filled: Number(r.filled) || 0,
       not_filled: Number(r.not_filled) || 0,
       promo_clicks: Number(r.promo_clicks) || 0,
-    })));
+    })).sort((a, b) => b.listeners - a.listeners || b.filled - a.filled || b.visits - a.visits));
     setLoading(false);
   }, [period]);
 
@@ -118,22 +133,23 @@ export default function AdStatsPanel() {
               <th>Country</th>
               <th>Visits</th>
               <th>Listeners</th>
-              <th>Ads requested</th>
-              <th>Shown</th>
+              <th>Ads shown</th>
               <th>Not shown</th>
               <th>Premium clicks</th>
             </tr>
           </thead>
           <tbody>
             {rows.length === 0 && !loading && (
-              <tr><td colSpan={7} className="ad-empty">No data for this period yet.</td></tr>
+              <tr><td colSpan={6} className="ad-empty">No data for this period yet.</td></tr>
             )}
-            {rows.map((r) => (
+            {(showAll ? rows : rows.slice(0, TOP_COUNTRIES)).map((r) => (
               <tr key={r.country}>
-                <td>{flag(r.country)} {r.country === 'UNKNOWN' ? 'Unknown' : r.country}</td>
+                <td>
+                  <span className="c-flag">{flag(r.country)}</span> {countryName(r.country)}
+                  {looksLikeBots(r) && <span className="bot-tag" title="Many visits, almost no one played music">robots</span>}
+                </td>
                 <td>{r.visits}</td>
                 <td className="g">{r.listeners}</td>
-                <td>{r.requested}</td>
                 <td className="g">{r.filled}</td>
                 <td className="r">{r.not_filled}</td>
                 <td className="y">{r.promo_clicks}</td>
@@ -142,6 +158,12 @@ export default function AdStatsPanel() {
           </tbody>
         </table>
       </div>
+      {rows.length > TOP_COUNTRIES && (
+        <button className="ad-more" onClick={() => setShowAll((v) => !v)}>
+          {showAll ? 'Show top 5 only' : `Show all countries (${rows.length})`}
+          <ChevronDown size={16} style={{ transform: showAll ? 'rotate(180deg)' : 'none', transition: 'transform 0.2s' }} />
+        </button>
+      )}
 
       <style jsx>{`
         .ad-stats { border-radius: 24px; padding: 24px; margin-bottom: 24px; }
@@ -166,6 +188,10 @@ export default function AdStatsPanel() {
         .ad-table td.g { color: #22c55e; font-weight: 700; }
         .ad-table td.r { color: #ef4444; }
         .ad-table td.y { color: #facc15; }
+        .c-flag { margin-right: 4px; }
+        .bot-tag { margin-left: 8px; font-size: 10px; font-weight: 800; letter-spacing: 0.5px; text-transform: uppercase; color: #a1a1aa; background: rgba(255,255,255,0.06); border: 1px solid rgba(255,255,255,0.1); padding: 2px 7px; border-radius: 999px; }
+        .ad-more { margin: 12px auto 0; display: flex; align-items: center; gap: 6px; border: 1px solid rgba(255,255,255,0.1); background: rgba(255,255,255,0.04); color: #e4e4e7; font-weight: 700; font-size: 13px; padding: 9px 16px; border-radius: 999px; cursor: pointer; }
+        .ad-more:hover { background: rgba(255,255,255,0.08); }
         .ad-empty { text-align: center !important; color: #71717a !important; padding: 24px !important; }
         :global(.spin) { animation: adspin 1s linear infinite; }
         @keyframes adspin { to { transform: rotate(360deg); } }

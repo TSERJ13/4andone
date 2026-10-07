@@ -1773,6 +1773,7 @@ export const AudioProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     trackCurrentTimeRef.current = 0;
     setDuration(0);
     setIsLoaded(false);
+    setIsLoading(false);
     setIsPauseCountdown(false);
     isPauseCountdownRef.current = false;
     setPauseTime(15);

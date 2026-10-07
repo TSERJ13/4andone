@@ -21,12 +21,12 @@ export default function AdSenseLoader() {
 
   useEffect(() => {
     if (isLoading || isPremium || excluded) return;
-    if (document.querySelector('script[data-adsense-loader]')) return;
+    // Already added? (match by src — AdSense rejects unknown attributes on its tag)
+    if (document.querySelector('script[src*="adsbygoogle.js"]')) return;
     const s = document.createElement('script');
     s.async = true;
     s.src = ADSENSE_SRC;
     s.crossOrigin = 'anonymous';
-    s.setAttribute('data-adsense-loader', '1');
     document.head.appendChild(s);
   }, [isLoading, isPremium, excluded]);
 

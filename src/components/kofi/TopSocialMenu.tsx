@@ -284,12 +284,20 @@ export const TopSocialMenu: React.FC<TopSocialMenuProps> = ({ className = '' }) 
         }
 
         /* Mobile (<= 768px): All buttons are icon-only without text labels */
+        /* Phone: the button sits on the LEFT of the banner, so the tray opens to the right */
+        @keyframes slideOutRight {
+          from { opacity: 0; transform: translateX(-14px) scale(0.94); }
+          to { opacity: 1; transform: translateX(0) scale(1); }
+        }
         @media (max-width: 768px) {
           .top-social-menu-container {
             gap: 6px;
+            flex-direction: row-reverse;
           }
           .social-expanded-tray {
             gap: 6px;
+            transform-origin: left center;
+            animation-name: slideOutRight;
           }
           .pill-text {
             display: none !important;

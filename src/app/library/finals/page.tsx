@@ -36,8 +36,9 @@ const formatClock = (seconds: number) => {
   return `${mins}:${secs.toString().padStart(2, '0')}`;
 };
 
-const SessionProgressPath = ({ d, resting }: { d: string; resting: boolean }) => {
-  const { currentTime, sessionDuration } = useAudio();
+const SessionProgressPath = ({ d }: { d: string }) => {
+  const { currentTime, sessionDuration, isPauseCountdown } = useAudio();
+  const resting = isPauseCountdown;
   const totalProgress = sessionDuration > 0 ? Math.min(currentTime / sessionDuration, 1) : 0;
   return (
     <path
@@ -50,8 +51,10 @@ const SessionProgressPath = ({ d, resting }: { d: string; resting: boolean }) =>
   );
 };
 
+// Only during the 15s rest between dances (it used to show all the time).
 const RestCountdown = () => {
-  const { pauseTime } = useAudio();
+  const { pauseTime, isPauseCountdown } = useAudio();
+  if (!isPauseCountdown) return null;
   return <div className="rest-timer-overlay pulse-intense">{pauseTime}</div>;
 };
 
@@ -724,7 +727,6 @@ const FinalsPage = () => {
                     >
                       <SessionProgressPath
                         d={generateDynamicPath(cardDim.w, cardDim.h, 16)}
-                        resting={false}
                       />
                     </svg>
                   </div>
@@ -1229,6 +1231,51 @@ const FinalsPage = () => {
         .yt-program-card.active {
           border-color: #ef4444;
           box-shadow: 0 0 30px rgba(239, 68, 68, 0.35);
+        }
+
+        /* Running program: red progress ring around the card + rest countdown.
+           :global — rendered by small components outside this one. */
+        .rectangular-timer-border {
+          position: absolute;
+          inset: 0;
+          border-radius: 16px;
+          pointer-events: none;
+          z-index: 5;
+        }
+        .timer-svg { width: 100%; height: 100%; overflow: visible; }
+        :global(.border-rect-progress) {
+          fill: none;
+          stroke-width: 4px;
+          stroke-linecap: round;
+          transition: stroke-dasharray 0.3s ease-out;
+        }
+        :global(.border-rect-progress.playing) {
+          stroke: #ef4444;
+          filter: drop-shadow(0 0 8px rgba(239, 68, 68, 0.45));
+        }
+        :global(.border-rect-progress.resting) {
+          stroke: #f44336;
+          filter: drop-shadow(0 0 12px rgba(244, 67, 54, 0.6));
+        }
+        @keyframes pulse-intense {
+          0% { transform: scale(1); opacity: 0.8; }
+          50% { transform: scale(1.06); opacity: 1; }
+          100% { transform: scale(1); opacity: 0.8; }
+        }
+        :global(.rest-timer-overlay) {
+          position: absolute;
+          inset: 0;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          background: radial-gradient(circle, rgba(244, 67, 54, 0.35) 0%, rgba(20, 20, 20, 0.8) 100%);
+          border-radius: 16px;
+          font-size: 48px;
+          font-weight: 900;
+          color: #ff3b30;
+          z-index: 15;
+          animation: pulse-intense 1s infinite ease-in-out;
+          text-shadow: 0 0 25px rgba(255, 59, 48, 0.8);
         }
 
         .yt-card-top-row {

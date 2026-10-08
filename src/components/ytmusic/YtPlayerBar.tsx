@@ -24,6 +24,7 @@ import {
   ListPlus
 } from 'lucide-react';
 import { useAudio } from '@/components/audio/AudioProvider';
+import { FinalStopButton } from '@/components/audio/FinalStopButton';
 import { useStudio } from '@/components/admin/StudioProvider';
 import { getTrackCover } from '@/utils/trackCover';
 
@@ -59,7 +60,12 @@ export default function YtPlayerBar({ onExpandPlayer }: YtPlayerBarProps) {
     duration,
     seek,
     bpm,
-    setBpm
+    setBpm,
+    isFinalMode,
+    isPauseCountdown,
+    pauseTime,
+    sessionDuration,
+    stop
   } = useAudio();
 
   const [isSpeedPopoverOpen, setIsSpeedPopoverOpen] = useState(false);
@@ -94,9 +100,13 @@ export default function YtPlayerBar({ onExpandPlayer }: YtPlayerBarProps) {
   const liveTrack = tracks.find((t) => t.id === currentTrack?.id) || currentTrack;
   const isFavorite = liveTrack?.isFavorite || false;
   const coverImg = getTrackCover(currentTrack, albums);
-  const progressPercent = duration > 0 ? (currentTime / duration) * 100 : 0;
+  // Final Mode: the bar shows the whole session (all dances + rests) and is
+  // read-only; skipping/seeking would break the competition timing.
+  const totalDur = isFinalMode && sessionDuration > 0 ? sessionDuration : duration;
+  const progressPercent = totalDur > 0 ? Math.min(100, (currentTime / totalDur) * 100) : 0;
 
   const handleSeekClick = (e: React.MouseEvent<HTMLDivElement>) => {
+    if (isFinalMode) return;
     const rect = e.currentTarget.getBoundingClientRect();
     const clickX = e.clientX - rect.left;
     const ratio = clickX / rect.width;
@@ -152,10 +162,14 @@ export default function YtPlayerBar({ onExpandPlayer }: YtPlayerBarProps) {
   return (
     <div className="yt-player-bar-container">
       {/* Top Red Progress Line */}
-      <div className="yt-progress-line-track" onClick={handleSeekClick}>
+      <div
+        className="yt-progress-line-track"
+        onClick={handleSeekClick}
+        style={isFinalMode ? { cursor: 'default' } : undefined}
+      >
         <div
           className="yt-progress-line-fill"
-          style={{ width: `${progressPercent}%` }}
+          style={{ width: `${progressPercent}%`, ...(isFinalMode ? { background: '#ef4444' } : {}) }}
         />
       </div>
 
@@ -167,6 +181,8 @@ export default function YtPlayerBar({ onExpandPlayer }: YtPlayerBarProps) {
             className="yt-player-icon-btn"
             onClick={playPrevious}
             title="Previous"
+            disabled={isFinalMode}
+            style={isFinalMode ? { opacity: 0.3, cursor: 'not-allowed' } : undefined}
           >
             <SkipBack size={20} fill="currentColor" />
           </button>
@@ -189,13 +205,23 @@ export default function YtPlayerBar({ onExpandPlayer }: YtPlayerBarProps) {
             className="yt-player-icon-btn"
             onClick={playNext}
             title="Next"
+            disabled={isFinalMode}
+            style={isFinalMode ? { opacity: 0.3, cursor: 'not-allowed' } : undefined}
           >
             <SkipForward size={20} fill="currentColor" />
           </button>
 
-          <span className="yt-player-time-display">
-            {formatTime(currentTime)} / {formatTime(duration)}
-          </span>
+          {isFinalMode && <FinalStopButton onStop={() => stop()} className="yt-player-icon-btn" iconSize={20} />}
+
+          {isPauseCountdown ? (
+            <span className="yt-player-time-display" style={{ color: '#ef4444', fontWeight: 800 }} aria-live="polite">
+              Rest {pauseTime}s
+            </span>
+          ) : (
+            <span className="yt-player-time-display" style={isFinalMode ? { color: '#ef4444' } : undefined}>
+              {formatTime(currentTime)} / {formatTime(totalDur)}
+            </span>
+          )}
         </div>
 
         {/* CENTER: Thumbnail, Title, Artist, Heart (Liked Music), 3-Dots Menu */}
@@ -207,12 +233,18 @@ export default function YtPlayerBar({ onExpandPlayer }: YtPlayerBarProps) {
           />
           <div className="yt-player-meta">
             <span className="yt-player-title">{title}</span>
-            <span className="yt-player-artist">
-              {artist}
-              {currentTrack?.style && (
-                <span className="yt-style-highlight"> • {currentTrack.style}</span>
-              )}
-            </span>
+            {isPauseCountdown ? (
+              <span className="yt-player-artist" style={{ color: '#ef4444', fontWeight: 700 }} aria-live="polite">
+                Rest · next dance in {pauseTime}s
+              </span>
+            ) : (
+              <span className="yt-player-artist">
+                {artist}
+                {currentTrack?.style && (
+                  <span className="yt-style-highlight"> • {currentTrack.style}</span>
+                )}
+              </span>
+            )}
           </div>
 
           <div className="yt-player-actions yt-desktop-only-actions" onClick={(e) => e.stopPropagation()}>
@@ -449,14 +481,19 @@ export default function YtPlayerBar({ onExpandPlayer }: YtPlayerBarProps) {
             )}
           </button>
 
-          <button
-            type="button"
-            className="yt-player-mobile-btn"
-            onClick={playNext}
-            aria-label="Next track"
-          >
-            <SkipForward size={22} fill="#ffffff" color="#ffffff" />
-          </button>
+          {isFinalMode ? (
+            // Final Mode: no skipping — the red ✕ ends the session instead
+            <FinalStopButton onStop={() => stop()} className="yt-player-mobile-btn" iconSize={22} />
+          ) : (
+            <button
+              type="button"
+              className="yt-player-mobile-btn"
+              onClick={playNext}
+              aria-label="Next track"
+            >
+              <SkipForward size={22} fill="#ffffff" color="#ffffff" />
+            </button>
+          )}
         </div>
       </div>
     </div>

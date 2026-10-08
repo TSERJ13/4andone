@@ -52,7 +52,7 @@ export const SubscriptionModal: React.FC<SubscriptionModalProps> = ({ isOpen, on
 
         {/* Pricing Subtitle */}
         <p className="yt-prem-price-sub">
-          1-month trial for GEL 0 • Then GEL 14.49/month • Cancel anytime
+          $1.99/month • Cancel anytime
         </p>
 
         {/* Main CTA / Authentication & Payment Step */}
@@ -76,7 +76,7 @@ export const SubscriptionModal: React.FC<SubscriptionModalProps> = ({ isOpen, on
               className="yt-prem-cta-btn"
               onClick={() => setShowPayment(true)}
             >
-              Try 1 month for GEL 0
+              Get Premium · $1.99/month
             </button>
           </div>
         ) : (

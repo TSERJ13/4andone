@@ -1,4 +1,20 @@
 import { Track, Album, Style } from '@/components/admin/StudioProvider';
+import { DEFAULT_ALBUMS } from '@/types/album';
+
+const GENERIC_COVERS = [
+  '/logo-3d.png',
+  '/logo-square.jpg',
+  '/logo-square.png',
+  '/logo-4andone-3d.png',
+  '/logo-4andone-3d.jpg',
+  '/4andone-mix.jpg',
+];
+
+function isGenericCover(url?: string | null): boolean {
+  if (!url) return true;
+  const lower = url.toLowerCase().trim();
+  return GENERIC_COVERS.some(g => lower.includes(g)) || lower.includes('logo-3d') || lower.includes('logo-square');
+}
 
 export function getTrackCover(
   track: Track | any | null,
@@ -7,54 +23,132 @@ export function getTrackCover(
 ): string {
   if (!track) return '/logo-3d.png';
 
-  // 1. Explicit coverUrl or artworkUrl
-  if (track.coverUrl) return track.coverUrl;
-  if (track.artworkUrl) return track.artworkUrl;
+  const artistLower = (track.artist || '').toLowerCase().trim();
+  const albumLower = (track.album || '').toLowerCase().trim();
+  const titleLower = (track.title || '').toLowerCase().trim();
 
-  // 2. Exact match by album name / slug / ID
-  if (track.album && albums.length > 0) {
-    const trackAlb = track.album.toLowerCase().trim();
-    const matchedAlb = albums.find(
-      (a) => a.title.toLowerCase().trim() === trackAlb ||
-             a.id.toLowerCase() === trackAlb ||
-             a.slug.toLowerCase() === trackAlb
+  // 1. Direct Band Substring Checks (overrides missing or generic covers)
+  if (
+    artistLower.includes('empress') ||
+    albumLower.includes('empress') ||
+    titleLower.includes('empress')
+  ) {
+    return '/empress-orchestra.jpg';
+  }
+
+  if (
+    artistLower.includes('georgie musheev') ||
+    artistLower.includes('musheev') ||
+    artistLower.includes('7 winds') ||
+    artistLower.includes('seven winds') ||
+    albumLower.includes('musheev')
+  ) {
+    return '/georgie-musheev.jpg';
+  }
+
+  if (
+    artistLower.includes('boris myagkov') ||
+    artistLower.includes('myagkov') ||
+    albumLower.includes('myagkov')
+  ) {
+    return '/boris-myagkov-big-band.jpg';
+  }
+
+  if (
+    (artistLower.includes('rose') && artistLower.includes('band')) ||
+    albumLower.includes('roses-band') ||
+    albumLower.includes("rose's band") ||
+    albumLower.includes('rosesband')
+  ) {
+    return '/rosesband.jpg';
+  }
+
+  if (
+    artistLower.includes('dance star') ||
+    artistLower.includes('dancestar') ||
+    albumLower.includes('dance-star') ||
+    albumLower.includes('dancestar')
+  ) {
+    return '/dancestar.jpg';
+  }
+
+  if (
+    artistLower.includes('goc') ||
+    artistLower.includes('german open') ||
+    albumLower.includes('goc')
+  ) {
+    return '/goc2026.png';
+  }
+
+  if (
+    artistLower.includes('maksy') ||
+    albumLower.includes('maksy')
+  ) {
+    return '/dj-maksy.jpg';
+  }
+
+  if (
+    artistLower.includes('midland') ||
+    albumLower.includes('midland')
+  ) {
+    return '/midland-big-band.jpg';
+  }
+
+  if (
+    artistLower.includes('len phillips') ||
+    artistLower.includes('lpbb') ||
+    albumLower.includes('len-phillips') ||
+    albumLower.includes('len phillips')
+  ) {
+    return '/len-phillips-big-band.jpg';
+  }
+
+  if (
+    artistLower.includes('la grande') ||
+    artistLower.includes('orchestra italiana') ||
+    albumLower.includes('la-grande') ||
+    albumLower.includes('la grande')
+  ) {
+    return '/la-grande-orchestra-italiana.jpg';
+  }
+
+  // 2. Custom non-generic coverUrl / artworkUrl on track object
+  if (track.coverUrl && !isGenericCover(track.coverUrl)) {
+    return track.coverUrl;
+  }
+  if (track.artworkUrl && !isGenericCover(track.artworkUrl)) {
+    return track.artworkUrl;
+  }
+
+  // 3. Dynamic album matching against passed albums or DEFAULT_ALBUMS
+  const effectiveAlbums = (albums && albums.length > 0) ? albums : DEFAULT_ALBUMS;
+
+  if (albumLower) {
+    const matchedAlb = effectiveAlbums.find(
+      (a) => a.title.toLowerCase().trim() === albumLower ||
+             a.id.toLowerCase() === albumLower ||
+             a.slug.toLowerCase() === albumLower
     );
     if (matchedAlb?.coverUrl) return matchedAlb.coverUrl;
   }
 
-  // 3. Match by artist name or artist tags / substrings
-  if (track.artist) {
-    const artistLower = track.artist.toLowerCase().trim();
-    if (artistLower.includes('georgie musheev') || artistLower.includes('musheev') || artistLower.includes('7 winds') || artistLower.includes('seven winds')) {
-      return '/georgie-musheev.jpg';
-    }
-    if (artistLower.includes('boris myagkov') || artistLower.includes('myagkov')) {
-      return '/boris-myagkov-big-band.jpg';
-    }
-    if (artistLower.includes('rose') && artistLower.includes('band')) {
-      return '/rosesband.jpg';
-    }
-    if (artistLower.includes('dance star') || artistLower.includes('dancestar')) {
-      return '/dancestar.jpg';
-    }
-    if (artistLower.includes('goc') || artistLower.includes('german open')) {
-      return '/goc2026.png';
-    }
-    if (artistLower.includes('maksy')) {
-      return '/dj-maksy.jpg';
-    }
-    if (artistLower.includes('midland')) {
-      return '/midland-big-band.jpg';
-    }
-
-    if (albums.length > 0) {
-      const matchedArtistAlb = albums.find(
-        (a) => a.artist && a.artist.toLowerCase().trim() === artistLower
-      );
-      if (matchedArtistAlb?.coverUrl) return matchedArtistAlb.coverUrl;
-    }
+  if (artistLower) {
+    const matchedArtistAlb = effectiveAlbums.find((a) => {
+      if (!a.artist) return false;
+      const albArt = a.artist.toLowerCase().trim();
+      if (albArt === artistLower || artistLower.includes(albArt) || albArt.includes(artistLower)) return true;
+      if (a.tags && a.tags.some((t) => {
+        const tag = t.toLowerCase().trim();
+        return artistLower.includes(tag) || tag.includes(artistLower);
+      })) return true;
+      return false;
+    });
+    if (matchedArtistAlb?.coverUrl) return matchedArtistAlb.coverUrl;
   }
 
-  // 4. Default fallback logo - NEVER attribute someone else's cover art!
+  // 4. Fallback explicit cover (even if generic) or default logo
+  if (track.coverUrl) return track.coverUrl;
+  if (track.artworkUrl) return track.artworkUrl;
+
   return '/logo-3d.png';
 }

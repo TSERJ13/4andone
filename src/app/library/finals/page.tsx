@@ -2,12 +2,34 @@
 
 import { FINAL_USER_STOP_EVENT } from '@/components/audio/FinalStopButton';
 import React, { useState, useRef, useEffect } from 'react';
-import { Play, Music2, Disc, Zap, Activity, MicOff, Dumbbell, Info, ArrowRight, Heart, Settings, X } from 'lucide-react';
+import {
+  Play,
+  Music2,
+  Disc,
+  Zap,
+  Activity,
+  MicOff,
+  Dumbbell,
+  Info,
+  ArrowRight,
+  Heart,
+  Settings,
+  X,
+  Sparkles,
+  Trophy,
+  Flame,
+  Clock,
+  Shuffle
+} from 'lucide-react';
 import Link from 'next/link';
 import { useAudio, useAudioControls } from '@/components/audio/AudioProvider';
+import { useStudio, Track } from '@/components/admin/StudioProvider';
+import { useAuth } from '@/context/AuthContext';
+import { useDownloadedTracks } from '@/hooks/useDownloadedTracks';
+import ConfirmModal from '@/components/admin/ConfirmModal';
+import { TrackRow } from '@/components/tracks/TrackRow';
 
-// PERFORMANCE: only these tiny pieces read the playback clock, so the whole
-// Finals page no longer re-renders ~5x/sec while a program is playing.
+// Clock formatting helper
 const formatClock = (seconds: number) => {
   const mins = Math.floor(seconds / 60);
   const secs = Math.floor(seconds % 60);
@@ -37,58 +59,203 @@ const SessionClock = () => {
   const { currentTime, sessionDuration } = useAudio();
   return <p className="session-timer">{formatClock(currentTime)} / {formatClock(sessionDuration)}</p>;
 };
-import { useStudio, Track } from '@/components/admin/StudioProvider';
-import { useAuth } from '@/context/AuthContext';
-import { useDownloadedTracks } from '@/hooks/useDownloadedTracks';
-import ConfirmModal from '@/components/admin/ConfirmModal';
-import { TrackRow } from '@/components/tracks/TrackRow';
 
-// Program card definitions — single source of truth for the Final Mode grid.
-// Order here = display order on screen. To add/remove a program, edit this list.
-//
-// `tag` (optional): if set, the program ONLY uses tracks that carry this tag.
-//   - The match is case-insensitive and substring-based, so the tag "Blackpool"
-//     also matches "Blackpool 2024", etc.
-//   - Programs WITHOUT a `tag` keep the old behaviour: they pick from the whole
-//     library by dance style. This keeps Latin/Standard working unchanged.
-// To make a program tag-driven: add `tag: 'YourTagName'` and create that tag in
-// Admin → Taxonomy, then assign it to tracks in Admin → Library.
-const PROGRAMS: { key: string; label: string; cls: string; icon: React.ReactNode; tag?: string }[] = [
-  { key: 'Latin',             label: 'Latin',          cls: 'latin',          icon: <Zap size={24} /> },
-  { key: 'Standard',          label: 'Standard',       cls: 'standard',       icon: <Activity size={24} /> },
-  { key: '10Dance',           label: '10-Dance',       cls: 'all-dance',      icon: <Disc size={24} /> },
-  { key: '2Dance',            label: '2-Dance',        cls: 'two-dance',      icon: <Music2 size={24} /> },
-  { key: '4Dance',            label: '4-Dance',        cls: 'four-dance',     icon: <Music2 size={24} /> },
-  { key: '8Dance',            label: '8-Dance',        cls: 'eight-dance',    icon: <Music2 size={24} /> },
-  { key: '6Dance',            label: '6-Dance',        cls: 'six-dance',      icon: <Zap size={20} /> },
-  { key: 'InstLatin',         label: 'Inst. Latin',    cls: 'inst-latin',     icon: <MicOff size={24} />, tag: 'Instrumental' },
-  { key: 'InstStandard',      label: 'Inst. Standard', cls: 'inst-std',       icon: <MicOff size={24} />, tag: 'Instrumental' },
-  { key: 'JiveLatin',         label: 'Jive Mode',      cls: 'jive-mode',      icon: <Zap size={24} /> },
-  { key: 'QuickstepStandard', label: 'Quickstep Mode', cls: 'quickstep-mode', icon: <Activity size={24} /> },
-  { key: 'BlackpoolLt',       label: 'Blackpool Lt',   cls: 'blackpool-lt',   icon: <Disc size={24} />, tag: 'Blackpool' },
-  { key: 'BlackpoolSt',       label: 'Blackpool St',   cls: 'blackpool-st',   icon: <Disc size={24} />, tag: 'Blackpool' },
-  { key: 'LikedSongs',        label: 'Liked Songs',    cls: 'liked-songs',    icon: <Heart size={24} /> },
-  { key: 'Fitness',           label: 'Fitness',        cls: 'fitness',        icon: <Dumbbell size={24} /> },
+// Program definitions with category grouping for YouTube Music shelves
+export interface ProgramDef {
+  key: string;
+  label: string;
+  category: 'official' | 'multi' | 'specials' | 'personal';
+  subtitle: string;
+  color: string;
+  coverImg: string;
+  icon: React.ReactNode;
+  tag?: string;
+}
+
+const PROGRAMS: ProgramDef[] = [
+  // 1. Official Competition Finals
+  {
+    key: 'Latin',
+    label: 'Latin Final',
+    category: 'official',
+    subtitle: '5 Dances • ~9 Min • Samba to Jive',
+    color: '#ef4444',
+    coverImg: '/styles/samba.jpg',
+    icon: <Zap size={22} />
+  },
+  {
+    key: 'Standard',
+    label: 'Standard Final',
+    category: 'official',
+    subtitle: '5 Dances • ~9 Min • Waltz to Quickstep',
+    color: '#3b82f6',
+    coverImg: '/styles/slow-waltz.jpg',
+    icon: <Activity size={22} />
+  },
+  {
+    key: '10Dance',
+    label: '10-Dance Final',
+    category: 'official',
+    subtitle: '10 Dances • ~18 Min • Full Marathon',
+    color: '#10b981',
+    coverImg: '/styles/paso-doble.jpg',
+    icon: <Disc size={22} />
+  },
+
+  // 2. Multi-Dance Programs
+  {
+    key: '2Dance',
+    label: '2-Dance Warmup',
+    category: 'multi',
+    subtitle: '2 Dances • ~4 Min • Slow Waltz & Cha-Cha',
+    color: '#8b5cf6',
+    coverImg: '/styles/cha-cha-cha.jpg',
+    icon: <Music2 size={22} />
+  },
+  {
+    key: '4Dance',
+    label: '4-Dance Session',
+    category: 'multi',
+    subtitle: '4 Dances • ~7 Min • Mixed Selection',
+    color: '#f59e0b',
+    coverImg: '/styles/jive.jpg',
+    icon: <Music2 size={22} />
+  },
+  {
+    key: '6Dance',
+    label: '6-Dance Session',
+    category: 'multi',
+    subtitle: '6 Dances • ~11 Min • Extended Practice',
+    color: '#ec4899',
+    coverImg: '/styles/rumba.jpg',
+    icon: <Zap size={22} />
+  },
+  {
+    key: '8Dance',
+    label: '8-Dance Session',
+    category: 'multi',
+    subtitle: '8 Dances • ~15 Min • Advanced Final',
+    color: '#f97316',
+    coverImg: '/styles/quickstep.jpg',
+    icon: <Music2 size={22} />
+  },
+
+  // 3. Specials & Tagged Editions
+  {
+    key: 'InstLatin',
+    label: 'Inst. Latin',
+    category: 'specials',
+    subtitle: '5 Instrumental Latin Tracks',
+    color: '#a855f7',
+    coverImg: '/styles/samba.jpg',
+    icon: <MicOff size={22} />,
+    tag: 'Instrumental'
+  },
+  {
+    key: 'InstStandard',
+    label: 'Inst. Standard',
+    category: 'specials',
+    subtitle: '5 Instrumental Standard Tracks',
+    color: '#06b6d4',
+    coverImg: '/styles/slow-foxtrot.jpg',
+    icon: <MicOff size={22} />,
+    tag: 'Instrumental'
+  },
+  {
+    key: 'JiveLatin',
+    label: 'Jive Mode',
+    category: 'specials',
+    subtitle: 'High Energy Jive Practice',
+    color: '#eab308',
+    coverImg: '/styles/jive.jpg',
+    icon: <Zap size={22} />
+  },
+  {
+    key: 'QuickstepStandard',
+    label: 'Quickstep Mode',
+    category: 'specials',
+    subtitle: 'Fast Pace Quickstep Session',
+    color: '#14b8a6',
+    coverImg: '/styles/quickstep.jpg',
+    icon: <Activity size={22} />
+  },
+  {
+    key: 'BlackpoolLt',
+    label: 'Blackpool Lt',
+    category: 'specials',
+    subtitle: 'Blackpool Festival Latin Edition',
+    color: '#f43f5e',
+    coverImg: '/styles/paso-doble.jpg',
+    icon: <Disc size={22} />,
+    tag: 'Blackpool'
+  },
+  {
+    key: 'BlackpoolSt',
+    label: 'Blackpool St',
+    category: 'specials',
+    subtitle: 'Blackpool Festival Standard Edition',
+    color: '#3b82f6',
+    coverImg: '/styles/viennese-waltz.jpg',
+    icon: <Disc size={22} />,
+    tag: 'Blackpool'
+  },
+
+  // 4. Personal Practice
+  {
+    key: 'LikedSongs',
+    label: 'Liked Songs Final',
+    category: 'personal',
+    subtitle: 'Final practice from your Favorites',
+    color: '#ef4444',
+    coverImg: '/styles/tango.jpg',
+    icon: <Heart size={22} />
+  },
+  {
+    key: 'Fitness',
+    label: 'Fitness Workout',
+    category: 'personal',
+    subtitle: 'Non-stop Dance Cardio Session',
+    color: '#f97316',
+    coverImg: '/styles/fitness.jpg',
+    icon: <Dumbbell size={22} />
+  }
+];
+
+const FILTER_CATEGORIES = [
+  { id: 'all', label: 'All Modes' },
+  { id: 'official', label: 'Official Finals' },
+  { id: 'multi', label: 'Multi-Dance' },
+  { id: 'specials', label: 'Specials & Tags' },
+  { id: 'personal', label: 'Personal & Fitness' }
 ];
 
 const FinalsPage = () => {
-  const { 
+  const {
     tracks,
     styles,
-    finalTracks, 
-    removeFromFinal, 
-    reorderFinalTracks,
-    setFinalTracks,
+    finalTracks,
     toggleFavorite
   } = useStudio();
-  const { 
-    loadTrack, isPlaying, title: playingTitle, trackId: playingTrackId, duration, 
-    isPauseCountdown, stop, isFitness, setIsFitness,
-    activeMode, setActiveMode, sessionTracks, setSessionTracks,
-    isFinalMode, setFitnessTargetTime
+
+  const {
+    loadTrack,
+    isPlaying,
+    title: playingTitle,
+    trackId: playingTrackId,
+    stop,
+    setIsFitness,
+    activeMode,
+    setActiveMode,
+    sessionTracks,
+    setSessionTracks,
+    isFinalMode,
+    setFitnessTargetTime
   } = useAudioControls();
+
   const { isAuthenticated, setIsAuthModalOpen } = useAuth();
   const downloadedIds = useDownloadedTracks();
+
+  const [activeCategoryChip, setActiveCategoryChip] = useState('all');
   const [showStopConfirm, setShowStopConfirm] = useState(false);
   const [showFinalOver, setShowFinalOver] = useState(false);
   const [infoModal, setInfoModal] = useState<{
@@ -108,6 +275,7 @@ const FinalsPage = () => {
     showCancel: false,
     onConfirm: () => {}
   });
+
   const userManuallyStoppedRef = useRef(false);
   const lastActiveModeRef = useRef<string | null>(null);
   const lastSessionTracksRef = useRef<any[]>([]);
@@ -115,8 +283,7 @@ const FinalsPage = () => {
   const [cardDim, setCardDim] = useState({ w: 0, h: 0 });
   const activeCardRef = useRef<HTMLDivElement>(null);
   const [showFitnessModal, setShowFitnessModal] = useState(false);
-  const [fitnessDuration, setFitnessDuration] = useState(10); // Minutes
-  const [fitnessDurationSecs, setFitnessDurationSecs] = useState(0); // Seconds
+  const [fitnessDuration, setFitnessDuration] = useState(10);
   const [showLikedSongsModal, setShowLikedSongsModal] = useState(false);
 
   const [showSettingsModal, setShowSettingsModal] = useState(false);
@@ -164,7 +331,6 @@ const FinalsPage = () => {
     return () => obs.disconnect();
   }, [activeMode]);
 
-  // Track activeMode/sessionTracks so we can detect when Final Mode ends naturally.
   useEffect(() => {
     if (activeMode && sessionTracks.length > 0) {
       lastActiveModeRef.current = activeMode;
@@ -172,14 +338,12 @@ const FinalsPage = () => {
     }
   }, [activeMode, sessionTracks]);
 
-  // Stop button in the players → the user ended it, no "is over" popup.
   useEffect(() => {
     const onUserStop = () => { userManuallyStoppedRef.current = true; };
     window.addEventListener(FINAL_USER_STOP_EVENT, onUserStop);
     return () => window.removeEventListener(FINAL_USER_STOP_EVENT, onUserStop);
   }, []);
 
-  // Detect natural session end: isFinalMode flips false when AudioProvider's stop() fires.
   useEffect(() => {
     if (!isFinalMode && lastActiveModeRef.current && !userManuallyStoppedRef.current) {
       setShowFinalOver(true);
@@ -189,11 +353,9 @@ const FinalsPage = () => {
     }
   }, [isFinalMode]);
 
-
   const generateDynamicPath = (w: number, h: number, r: number) => {
     if (w === 0 || h === 0) return "";
-    const inset = 2; // Keep line perfectly centered on border
-    // Start at Top-Middle (w/2, inset)
+    const inset = 2;
     return `M ${w/2} ${inset} 
             L ${w - r} ${inset} 
             Q ${w - inset} ${inset} ${w - inset} ${r} 
@@ -205,26 +367,27 @@ const FinalsPage = () => {
             Q ${inset} ${inset} ${r} ${inset} 
             L ${w/2} ${inset}`;
   };
-  
 
-  // Use global sessionTracks instead of Studio's finalTracks for active session UI
   const sessionList = (activeMode && sessionTracks.length > 0) ? sessionTracks : finalTracks;
 
-  const currentTrackIndex = sessionList.findIndex(t => playingTrackId ? t.id === playingTrackId : (t.id === playingTitle || t.title === playingTitle));
-
-  
   const latinOrder = latinStartDance === 'Cha-Cha-Cha' || latinStartDance === 'Cha-cha-cha'
     ? ["Cha-Cha-Cha", "Samba", "Rumba", "Paso Doble", "Jive"]
     : ["Samba", "Cha-Cha-Cha", "Rumba", "Paso Doble", "Jive"];
   const standardOrder = ["Slow Waltz", "Tango", "Viennese Waltz", "Slow Foxtrot", "Quickstep"];
 
   const handleProgramShuffle = (type: string) => {
+    if (type === 'Fitness') {
+      setShowFitnessModal(true);
+      return;
+    }
+    if (type === 'LikedSongs') {
+      setShowLikedSongsModal(true);
+      return;
+    }
+
     let order: string[] = [];
     let filterFn: (t: Track) => boolean = () => true;
 
-    // TAG-DRIVEN FILTERING: if this program has a `tag` in the PROGRAMS config,
-    // restrict it to tracks carrying that tag (case-insensitive substring match).
-    // Programs without a tag fall through to using the whole library by style.
     const programDef = PROGRAMS.find(p => p.key === type);
     const requiredTag = programDef?.tag?.toLowerCase();
     if (requiredTag) {
@@ -242,47 +405,18 @@ const FinalsPage = () => {
       case '10Dance':
         order = [...standardOrder, ...latinOrder];
         break;
-      // 2-Dance — Slow Waltz + Cha Cha Cha
       case '2Dance':
         order = ['Slow Waltz', 'Cha-Cha-Cha'];
         break;
-      // 4-Dance — Slow Waltz, Quickstep, Cha Cha Cha, Jive
       case '4Dance':
         order = ['Slow Waltz', 'Quickstep', 'Cha-Cha-Cha', 'Jive'];
         break;
-      case '8Dance':
-        order = [...standardOrder, ...latinOrder].filter(s => s !== "Slow Foxtrot" && s !== "Paso Doble");
-        break;
       case '6Dance':
-        order = [...standardOrder, ...latinOrder].filter(s => !["Slow Foxtrot", "Paso Doble", "Viennese Waltz", "Rumba"].includes(s));
+        order = ['Slow Waltz', 'Tango', 'Quickstep', 'Samba', 'Cha-Cha-Cha', 'Jive'];
         break;
-      // Blackpool Latin / Standard — full discipline, tag-filtered via PROGRAMS config
-      case 'BlackpoolLt':
-        order = latinOrder;
+      case '8Dance':
+        order = ['Slow Waltz', 'Tango', 'Slow Foxtrot', 'Quickstep', 'Samba', 'Cha-Cha-Cha', 'Rumba', 'Jive'];
         break;
-      case 'BlackpoolSt':
-        order = standardOrder;
-        break;
-      // Liked Songs — opens a modal to select Latin or Standard
-      case 'LikedSongs': {
-        checkAuthAndExecute(() => {
-          const liked = tracks.filter(t => t.isFavorite);
-          if (liked.length === 0) {
-            setInfoModal({
-              isOpen: true,
-              title: 'No Liked Songs',
-              message: 'No liked songs yet. Tap the heart on tracks to add them here.',
-              confirmText: 'OK',
-              variant: 'primary',
-              showCancel: false,
-              onConfirm: () => setInfoModal(prev => ({ ...prev, isOpen: false }))
-            });
-            return;
-          }
-          setShowLikedSongsModal(true);
-        }, 'use Liked Songs program');
-        return;
-      }
       case 'InstLatin':
         order = latinOrder;
         break;
@@ -290,95 +424,42 @@ const FinalsPage = () => {
         order = standardOrder;
         break;
       case 'JiveLatin':
-        const jivePool = tracks.filter(t => t.style.toLowerCase() === 'jive');
-        const latinPools = {
-          Samba: tracks.filter(t => t.style.toLowerCase() === 'samba'),
-          'Cha-Cha-Cha': tracks.filter(t => t.style.toLowerCase() === 'cha-cha-cha' || t.style.toLowerCase() === 'cha-cha-cha'),
-          Rumba: tracks.filter(t => t.style.toLowerCase() === 'rumba'),
-          'Paso Doble': tracks.filter(t => t.style.toLowerCase() === 'paso doble')
-        };
-        const jiveLatinTracks: Track[] = [];
-        const pick = (pool: Track[]) => pool[Math.floor(Math.random() * pool.length)];
-        
-        // 1. Samba - Jive
-        if (latinPools.Samba.length) jiveLatinTracks.push(pick(latinPools.Samba));
-        if (jivePool.length) jiveLatinTracks.push(pick(jivePool));
-        // 2. Cha-cha - Jive
-        if (latinPools['Cha-Cha-Cha'].length) jiveLatinTracks.push(pick(latinPools['Cha-Cha-Cha']));
-        if (jivePool.length) jiveLatinTracks.push(pick(jivePool));
-        // 3. Rumba - Jive
-        if (latinPools.Rumba.length) jiveLatinTracks.push(pick(latinPools.Rumba));
-        if (jivePool.length) jiveLatinTracks.push(pick(jivePool));
-        // 4. Paso - Jive
-        if (latinPools['Paso Doble'].length) jiveLatinTracks.push(pick(latinPools['Paso Doble']));
-        if (jivePool.length) jiveLatinTracks.push(pick(jivePool));
-        // 5. Jive - Jive
-        if (jivePool.length) {
-          jiveLatinTracks.push(pick(jivePool));
-          jiveLatinTracks.push(pick(jivePool));
-        }
-        if (jiveLatinTracks.length) {
-          setActiveMode('JiveLatin');
-          setSessionTracks(jiveLatinTracks);
-          loadTrack(jiveLatinTracks[0], false, true);
-        }
-        return;
+        order = ['Jive', 'Jive', 'Jive', 'Jive', 'Jive'];
+        break;
       case 'QuickstepStandard':
-        const qsPool = tracks.filter(t => t.style.toLowerCase() === 'quickstep');
-        const stdPools = {
-          'Slow Waltz': tracks.filter(t => t.style.toLowerCase() === 'slow waltz'),
-          Tango: tracks.filter(t => t.style.toLowerCase() === 'tango'),
-          'Viennese Waltz': tracks.filter(t => t.style.toLowerCase() === 'viennese waltz'),
-          'Slow Foxtrot': tracks.filter(t => t.style.toLowerCase() === 'slow foxtrot')
-        };
-        const qsStdTracks: Track[] = [];
-        const pickStd = (pool: Track[]) => pool[Math.floor(Math.random() * pool.length)];
-
-        // 1. Waltz - QS
-        if (stdPools['Slow Waltz'].length) qsStdTracks.push(pickStd(stdPools['Slow Waltz']));
-        if (qsPool.length) qsStdTracks.push(pickStd(qsPool));
-        // 2. Tango - QS
-        if (stdPools.Tango.length) qsStdTracks.push(pickStd(stdPools.Tango));
-        if (qsPool.length) qsStdTracks.push(pickStd(qsPool));
-        // 3. Viennese - QS
-        if (stdPools['Viennese Waltz'].length) qsStdTracks.push(pickStd(stdPools['Viennese Waltz']));
-        if (qsPool.length) qsStdTracks.push(pickStd(qsPool));
-        // 4. Foxtrot - QS
-        if (stdPools['Slow Foxtrot'].length) qsStdTracks.push(pickStd(stdPools['Slow Foxtrot']));
-        if (qsPool.length) qsStdTracks.push(pickStd(qsPool));
-        // 5. QS - QS
-        if (qsPool.length) {
-          qsStdTracks.push(pickStd(qsPool));
-          qsStdTracks.push(pickStd(qsPool));
-        }
-        if (qsStdTracks.length) {
-          setActiveMode('QuickstepStandard');
-          setSessionTracks(qsStdTracks);
-          loadTrack(qsStdTracks[0], false, true);
-        }
-        return;
-      case 'Fitness':
-        setShowFitnessModal(true);
-        return;
+        order = ['Quickstep', 'Quickstep', 'Quickstep', 'Quickstep', 'Quickstep'];
+        break;
+      case 'BlackpoolLt':
+        order = latinOrder;
+        break;
+      case 'BlackpoolSt':
+        order = standardOrder;
+        break;
+      default:
+        order = latinOrder;
     }
 
-    const selectedTracks: Track[] = [];
-    order.forEach((styleName: string) => {
-      let styleTracks = tracks.filter((t: Track) => 
-        t.style.toLowerCase() === styleName.toLowerCase() && filterFn(t)
-      );
+    const availableTracks = tracks.filter(t =>
+      !t.tags?.some(tag => tag.toLowerCase() === 'closed' || tag === 'დახურული') &&
+      filterFn(t)
+    );
 
-      // Apply Paso Doble specific filtering
+    const selectedTracks: Track[] = [];
+    order.forEach((styleName) => {
+      let styleTracks = availableTracks.filter(t => t.style?.toLowerCase() === styleName.toLowerCase());
+
       if (styleName.toLowerCase() === 'paso doble') {
-         if (pasoDuration !== 'All') {
-            const hasTheme = styleTracks.filter(t => t.tags?.includes(`paso-${pasoDuration}`));
-            if (hasTheme.length > 0) styleTracks = hasTheme;
-         }
-         
-         if (pasoVersion !== 'All') {
-            const hasWdsf = styleTracks.filter(t => t.tags?.includes('paso-wdsf'));
-            if (pasoVersion === 'WDSF' && hasWdsf.length > 0) styleTracks = hasWdsf;
-         }
+        if (pasoDuration === 'short') {
+          styleTracks = styleTracks.filter(t => (t.duration || 0) < 110);
+        } else if (pasoDuration === 'long') {
+          styleTracks = styleTracks.filter(t => (t.duration || 0) >= 110);
+        }
+
+        if (pasoVersion === '2') {
+          styleTracks = styleTracks.filter(t => t.tags?.some(tag => tag.toLowerCase().includes('2 highlight') || tag.toLowerCase().includes('2 accents')));
+        } else if (pasoVersion === '3') {
+          styleTracks = styleTracks.filter(t => t.tags?.some(tag => tag.toLowerCase().includes('3 highlight') || tag.toLowerCase().includes('3 accents')));
+        }
       }
 
       if (styleTracks.length > 0) {
@@ -387,20 +468,17 @@ const FinalsPage = () => {
       }
     });
 
-    if (selectedTracks.length) {
+    if (selectedTracks.length > 0) {
       setActiveMode(type);
       setSessionTracks(selectedTracks);
-      // Ensure we start playing
       loadTrack(selectedTracks[0], false, true);
     } else {
-      // No track matched the program's filter — tell the user how to fix it
-      // instead of failing silently.
-      if (requiredTag && programDef) {
-        const tagName = programDef.tag;
+      const tagName = programDef?.tag;
+      if (tagName) {
         setInfoModal({
           isOpen: true,
           title: `${programDef.label} Is Empty`,
-          message: `This program only uses tracks tagged "${tagName}".\n\nTo add tracks:\n1. Open Admin → Taxonomy and create a tag named "${tagName}".\n2. Open Admin → Library, edit a track, and select the "${tagName}" tag.`,
+          message: `This program only uses tracks tagged "${tagName}". Add tracks in Admin Panel.`,
           confirmText: 'OK',
           variant: 'primary',
           showCancel: false,
@@ -410,7 +488,7 @@ const FinalsPage = () => {
         setInfoModal({
           isOpen: true,
           title: 'No Tracks Found',
-          message: 'No tracks found for this program. Add tracks for these styles in the Admin Panel.',
+          message: 'No tracks found for this program.',
           confirmText: 'OK',
           variant: 'primary',
           showCancel: false,
@@ -423,11 +501,10 @@ const FinalsPage = () => {
   const handleStopProgram = () => {
     userManuallyStoppedRef.current = true;
     lastActiveModeRef.current = null;
-    stop(); // stop() in context now handles setActiveMode(null) and setSessionTracks([])
+    stop();
     setShowStopConfirm(false);
     setIsFitness(false);
   };
-
 
   const startLikedSongsProgram = (discipline: 'Latin' | 'Standard') => {
     const liked = tracks.filter(t => t.isFavorite);
@@ -435,7 +512,7 @@ const FinalsPage = () => {
       setInfoModal({
         isOpen: true,
         title: 'No Liked Songs',
-        message: 'No liked songs yet. Tap the heart on tracks to add them here.',
+        message: 'No liked songs yet. Tap heart to add tracks to favorites.',
         confirmText: 'OK',
         variant: 'primary',
         showCancel: false,
@@ -460,33 +537,19 @@ const FinalsPage = () => {
       setActiveMode('LikedSongs');
       setSessionTracks(selectedTracks);
       loadTrack(selectedTracks[0], false, true);
-    } else {
-      setInfoModal({
-        isOpen: true,
-        title: 'No Liked Songs Found',
-        message: `No liked songs found for ${discipline} styles.`,
-        confirmText: 'OK',
-        variant: 'primary',
-        showCancel: false,
-        onConfirm: () => setInfoModal(prev => ({ ...prev, isOpen: false }))
-      });
     }
     setShowLikedSongsModal(false);
   };
 
   const startFitness = (selectedTargetSeconds: number) => {
-    // 1. Filter by "Fitness" Style
-    const fitnessPool = tracks.filter(t => 
-      t.style?.toLowerCase() === 'fitness'
-    );
-
+    const fitnessPool = tracks.filter(t => t.style?.toLowerCase() === 'fitness');
     setIsFitness(true);
-    
+
     if (fitnessPool.length === 0) {
       setInfoModal({
         isOpen: true,
         title: 'No Fitness Tracks',
-        message: "No tracks found with Style 'Fitness'. Please assign tracks to the Fitness style in the Admin Panel.",
+        message: "No tracks found with Style 'Fitness'.",
         confirmText: 'OK',
         variant: 'primary',
         showCancel: false,
@@ -501,7 +564,6 @@ const FinalsPage = () => {
     const selectedTracks: Track[] = [];
     const pool = [...fitnessPool].sort(() => 0.5 - Math.random());
 
-    // Fill queue beyond targetSeconds so session never ends early before timer
     let iterations = 0;
     while (currentSeconds < (targetSeconds + 600) && iterations < 50) {
       const track = pool[iterations % pool.length];
@@ -515,16 +577,7 @@ const FinalsPage = () => {
     setSessionTracks(selectedTracks);
     setShowFitnessModal(false);
     setIsFitness(true);
-    // Fitness acts as a continuous Final session, so we MUST enable isFinalMode to use the queue
     loadTrack(selectedTracks[0], false, true);
-  };
-
-  const handleDragStart = (e: React.DragEvent, trackId: string) => {
-    e.dataTransfer.setData('trackId', trackId);
-  };
-
-  const handleDragOver = (e: React.DragEvent) => {
-    e.preventDefault();
   };
 
   const handleReplayFinalMode = () => {
@@ -532,950 +585,855 @@ const FinalsPage = () => {
     const modeToReplay = lastActiveModeRef.current;
     lastActiveModeRef.current = null;
     if (modeToReplay) {
-      // Small timeout to allow state to settle before starting a new session
       setTimeout(() => handleProgramShuffle(modeToReplay), 100);
     }
   };
 
-  const handleCloseFinalOver = () => {
-    setShowFinalOver(false);
-    lastActiveModeRef.current = null;
-  };
-
+  const filteredPrograms = PROGRAMS.filter(p =>
+    activeCategoryChip === 'all' || p.category === activeCategoryChip
+  );
 
   return (
-    <div className="page-wrapper">
-      <div className="finals-container animate-in">
-        <header className="page-header-unified">
-          <div>
-            <span className="yt-header-kicker">4AND.ONE PRACTICE</span>
-            <h1>Finals Practice</h1>
-          </div>
-          <div style={{ display: 'flex', gap: '10px' }}>
-            <Link href="/learn-final-mode" className="learn-finals-btn">
-              <Info size={16} />
-              <span>How it works?</span>
-              <ArrowRight size={14} className="arrow" />
-            </Link>
-            <button className="learn-finals-btn settings-btn" onClick={() => setShowSettingsModal(true)}>
-              <Settings size={16} className="settings-icon" />
-              <span className="settings-text">Settings</span>
-            </button>
-          </div>
-        </header>
+    <div className="yt-finals-page animate-in">
+      {/* 1. YouTube Music Page Header */}
+      <div className="yt-finals-header">
+        <div className="yt-finals-header-title">
+          <span className="yt-kicker">4ANDONE PRACTICE</span>
+          <h1 className="yt-title">Finals Practice</h1>
+        </div>
 
-        <div className="finals-sectors-unified animate-in">
-        
-        <section className="programs-section">
-          <header className="section-header">
-          </header>
-          
-          <div className="programs-grid">
-            {PROGRAMS.map(({ key, label, cls, icon }) => {
-              const isActive = activeMode === key;
-              return (
-                <div className="prog-card-wrapper" key={key}>
-                  <div
-                    className={`prog-card ${cls} glass ${isActive ? 'active' : ''}`}
-                    onClick={() => isActive ? setShowStopConfirm(true) : handleProgramShuffle(key)}
-                    role="button"
-                    tabIndex={0}
-                    onKeyDown={(e) => e.key === 'Enter' && (isActive ? setShowStopConfirm(true) : handleProgramShuffle(key))}
-                  >
-                    {isActive && (
-                      <>
-                        <div className="rectangular-timer-border" ref={activeCardRef}>
-                          <svg
-                            width={cardDim.w}
-                            height={cardDim.h}
-                            viewBox={`0 0 ${cardDim.w} ${cardDim.h}`}
-                            className="timer-svg"
-                          >
-                            <SessionProgressPath
-                              d={generateDynamicPath(cardDim.w, cardDim.h, 20)}
-                              resting={isPauseCountdown}
-                            />
-                          </svg>
-                        </div>
-                        {isPauseCountdown && <RestCountdown />}
-                      </>
-                    )}
-                    <div className="card-icon">{icon}</div>
-                    <div className="card-info">
-                      <h4>{label}</h4>
-                      {isActive && <SessionClock />}
-                    </div>
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-          </section>
-        
-        {sessionList.length > 0 && (
-          <div className="tracks-list animate-in" style={{ animationDelay: '0.2s', marginTop: '20px' }}>
-            {sessionList.map((track, i) => {
-              const isTrackActive = isPlaying && (playingTrackId ? playingTrackId === track.id : (playingTitle === track.title || playingTitle === track.id));
+        <div className="yt-finals-header-actions">
+          <Link href="/learn-final-mode" className="yt-header-pill-btn">
+            <Info size={16} />
+            <span>How it works?</span>
+          </Link>
 
-              return (
-              <TrackRow
-                key={`${track.id}-${i}`}
-                track={track}
-                isActive={isTrackActive}
-                onPlay={() => loadTrack(track, false, true)}
-                onToggleFavorite={() => checkAuthAndExecute(() => toggleFavorite?.(track.id), 'favorite tracks')}
-                badge="style"
-                styleColor={styles.find(s => s.title.toLowerCase() === track.style?.toLowerCase())?.color}
-                isDownloaded={downloadedIds.includes(track.id)}
-              />
-              );
-            })}
-          </div>
-        )}
+          <button
+            type="button"
+            className="yt-header-pill-btn settings"
+            onClick={() => setShowSettingsModal(true)}
+          >
+            <Settings size={16} />
+            <span>Settings</span>
+          </button>
+        </div>
       </div>
-    </div>
+
+      {/* 2. Featured Practice Hero Banner (YouTube Music Featured Card) */}
+      <div className="yt-hero-practice-banner">
+        <div className="yt-hero-content">
+          <div className="yt-hero-badge">
+            <Trophy size={14} color="#ef4444" />
+            <span>FEATURED PRACTICE</span>
+          </div>
+          <h2 className="yt-hero-heading">Latin Final Practice</h2>
+          <p className="yt-hero-desc">
+            5 Competition Dances • Samba, Cha-Cha-Cha, Rumba, Paso Doble, Jive
+          </p>
+
+          <button
+            type="button"
+            className="yt-hero-play-btn"
+            onClick={() => handleProgramShuffle('Latin')}
+          >
+            <Play fill="#000000" color="#000000" size={20} />
+            <span>START LATIN FINAL</span>
+          </button>
+        </div>
+
+        <div className="yt-hero-cover-wrap">
+          <img
+            src="/styles/samba.jpg"
+            alt="Latin Final"
+            className="yt-hero-cover-img"
+          />
+        </div>
+      </div>
+
+      {/* 3. Category Filter Chips Row */}
+      <div className="yt-category-chips-row">
+        {FILTER_CATEGORIES.map((cat) => (
+          <button
+            key={cat.id}
+            type="button"
+            className={`yt-category-chip ${activeCategoryChip === cat.id ? 'active' : ''}`}
+            onClick={() => setActiveCategoryChip(cat.id)}
+          >
+            {cat.label}
+          </button>
+        ))}
+      </div>
+
+      {/* 4. Programs Shelves / Grid */}
+      <div className="yt-programs-grid">
+        {filteredPrograms.map((prog) => {
+          const isActive = activeMode === prog.key;
+
+          return (
+            <div
+              key={prog.key}
+              className={`yt-program-card ${isActive ? 'active' : ''}`}
+              style={{
+                background: `linear-gradient(135deg, ${prog.color}22 0%, #181818 100%)`
+              }}
+              onClick={() => isActive ? setShowStopConfirm(true) : handleProgramShuffle(prog.key)}
+            >
+              {isActive && (
+                <>
+                  <div className="rectangular-timer-border" ref={activeCardRef}>
+                    <svg
+                      width={cardDim.w}
+                      height={cardDim.h}
+                      viewBox={`0 0 ${cardDim.w} ${cardDim.h}`}
+                      className="timer-svg"
+                    >
+                      <SessionProgressPath
+                        d={generateDynamicPath(cardDim.w, cardDim.h, 16)}
+                        resting={false}
+                      />
+                    </svg>
+                  </div>
+                  {/* Rest countdown */}
+                  <RestCountdown />
+                </>
+              )}
+
+              <div className="yt-card-top-row">
+                <div
+                  className="yt-card-icon-circle"
+                  style={{ background: `${prog.color}25`, color: prog.color }}
+                >
+                  {prog.icon}
+                </div>
+
+                <div className="yt-card-play-btn">
+                  <Play fill="#ffffff" color="#ffffff" size={16} />
+                </div>
+              </div>
+
+              <div className="yt-card-body">
+                <h3 className="yt-card-title">{prog.label}</h3>
+                <p className="yt-card-subtitle">{prog.subtitle}</p>
+
+                {isActive && (
+                  <div className="yt-card-active-clock">
+                    <SessionClock />
+                  </div>
+                )}
+              </div>
+
+              <div className="yt-card-thumb-bg">
+                <img src={prog.coverImg} alt={prog.label} className="yt-card-thumb" />
+              </div>
+            </div>
+          );
+        })}
+      </div>
+
+      {/* 5. Live Practice Session Tracklist */}
+      {sessionList.length > 0 && (
+        <div className="yt-session-tracklist-container animate-in">
+          <div className="yt-tracklist-header">
+            <h3 className="yt-tracklist-title">Current Session Tracklist</h3>
+            <span className="yt-tracklist-count">{sessionList.length} Tracks</span>
+          </div>
+
+          <div className="yt-tracks-list">
+            {sessionList.map((track, i) => {
+              const isTrackActive =
+                isPlaying &&
+                (playingTrackId
+                  ? playingTrackId === track.id
+                  : playingTitle === track.title || playingTitle === track.id);
+
+              return (
+                <TrackRow
+                  key={`${track.id}-${i}`}
+                  track={track}
+                  isActive={isTrackActive}
+                  onPlay={() => loadTrack(track, false, true)}
+                  onToggleFavorite={() =>
+                    checkAuthAndExecute(
+                      () => toggleFavorite?.(track.id),
+                      'favorite tracks'
+                    )
+                  }
+                  badge="style"
+                  styleColor={
+                    styles.find(
+                      s => s.title.toLowerCase() === track.style?.toLowerCase()
+                    )?.color
+                  }
+                  isDownloaded={downloadedIds.includes(track.id)}
+                />
+              );
+            })}
+          </div>
+        </div>
+      )}
+
+      {/* MODALS */}
+      {/* 1. Stop Confirmation Modal */}
+      <ConfirmModal
+        isOpen={showStopConfirm}
+        title="Stop Practice Session?"
+        message="Are you sure you want to stop the current final practice session?"
+        confirmText="Stop Session"
+        variant="danger"
+        showCancel={true}
+        onClose={() => setShowStopConfirm(false)}
+        onConfirm={handleStopProgram}
+      />
+
+      {/* 2. Session Over Celebration Modal */}
+      <ConfirmModal
+        isOpen={showFinalOver}
+        title="🎉 Session Completed!"
+        message="Great job! You finished your final practice session."
+        confirmText="Practice Again"
+        variant="primary"
+        showCancel={true}
+        onClose={() => setShowFinalOver(false)}
+        onConfirm={handleReplayFinalMode}
+      />
+
+      {/* 3. Settings Modal */}
+      {showSettingsModal && (
+        <div className="yt-modal-overlay" onClick={() => setShowSettingsModal(false)}>
+          <div className="yt-modal-card" onClick={(e) => e.stopPropagation()}>
+            <div className="yt-modal-header">
+              <h3>Final Practice Settings</h3>
+              <button type="button" className="yt-modal-close" onClick={() => setShowSettingsModal(false)}>
+                <X size={20} />
+              </button>
+            </div>
+
+            <div className="yt-modal-body">
+              <div className="yt-setting-group">
+                <label>Latin Start Dance</label>
+                <div className="yt-modal-chips-group">
+                  <button
+                    type="button"
+                    className={`yt-modal-chip ${latinStartDance === 'Samba' ? 'active' : ''}`}
+                    onClick={() => setLatinStartDance('Samba')}
+                  >
+                    Samba First
+                  </button>
+                  <button
+                    type="button"
+                    className={`yt-modal-chip ${latinStartDance === 'Cha-Cha-Cha' ? 'active' : ''}`}
+                    onClick={() => setLatinStartDance('Cha-Cha-Cha')}
+                  >
+                    Cha-Cha First
+                  </button>
+                </div>
+              </div>
+
+              <div className="yt-setting-group">
+                <label>Paso Doble Length</label>
+                <div className="yt-modal-chips-group">
+                  <button
+                    type="button"
+                    className={`yt-modal-chip ${pasoDuration === 'All' ? 'active' : ''}`}
+                    onClick={() => setPasoDuration('All')}
+                  >
+                    All Durations
+                  </button>
+                  <button
+                    type="button"
+                    className={`yt-modal-chip ${pasoDuration === 'short' ? 'active' : ''}`}
+                    onClick={() => setPasoDuration('short')}
+                  >
+                    Short (&lt;1:50)
+                  </button>
+                  <button
+                    type="button"
+                    className={`yt-modal-chip ${pasoDuration === 'long' ? 'active' : ''}`}
+                    onClick={() => setPasoDuration('long')}
+                  >
+                    Long (&gt;1:50)
+                  </button>
+                </div>
+              </div>
+
+              <div className="yt-setting-group">
+                <label>Paso Doble Accents</label>
+                <div className="yt-modal-chips-group">
+                  <button
+                    type="button"
+                    className={`yt-modal-chip ${pasoVersion === 'All' ? 'active' : ''}`}
+                    onClick={() => setPasoVersion('All')}
+                  >
+                    All Accents
+                  </button>
+                  <button
+                    type="button"
+                    className={`yt-modal-chip ${pasoVersion === '2' ? 'active' : ''}`}
+                    onClick={() => setPasoVersion('2')}
+                  >
+                    2 Accents
+                  </button>
+                  <button
+                    type="button"
+                    className={`yt-modal-chip ${pasoVersion === '3' ? 'active' : ''}`}
+                    onClick={() => setPasoVersion('3')}
+                  >
+                    3 Accents
+                  </button>
+                </div>
+              </div>
+            </div>
+
+            <div className="yt-modal-footer">
+              <button type="button" className="yt-save-btn" onClick={saveSettings}>
+                Save Settings
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* 4. Fitness Modal */}
+      {showFitnessModal && (
+        <div className="yt-modal-overlay" onClick={() => setShowFitnessModal(false)}>
+          <div className="yt-modal-card" onClick={(e) => e.stopPropagation()}>
+            <div className="yt-modal-header">
+              <h3>Fitness Cardio Practice</h3>
+              <button type="button" className="yt-modal-close" onClick={() => setShowFitnessModal(false)}>
+                <X size={20} />
+              </button>
+            </div>
+
+            <div className="yt-modal-body">
+              <label>Select Target Duration</label>
+              <div className="yt-modal-chips-group">
+                {[5, 10, 15, 20, 30].map(mins => (
+                  <button
+                    key={mins}
+                    type="button"
+                    className={`yt-modal-chip ${fitnessDuration === mins ? 'active' : ''}`}
+                    onClick={() => setFitnessDuration(mins)}
+                  >
+                    {mins} Minutes
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            <div className="yt-modal-footer">
+              <button type="button" className="yt-save-btn" onClick={() => startFitness(fitnessDuration * 60)}>
+                Start Fitness Session
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* 5. Liked Songs Modal */}
+      {showLikedSongsModal && (
+        <div className="yt-modal-overlay" onClick={() => setShowLikedSongsModal(false)}>
+          <div className="yt-modal-card" onClick={(e) => e.stopPropagation()}>
+            <div className="yt-modal-header">
+              <h3>Liked Songs Final</h3>
+              <button type="button" className="yt-modal-close" onClick={() => setShowLikedSongsModal(false)}>
+                <X size={20} />
+              </button>
+            </div>
+
+            <div className="yt-modal-body">
+              <label>Choose Discipline</label>
+              <div className="yt-modal-chips-group">
+                <button type="button" className="yt-modal-chip active" onClick={() => startLikedSongsProgram('Latin')}>
+                  Latin Discipline
+                </button>
+                <button type="button" className="yt-modal-chip active" onClick={() => startLikedSongsProgram('Standard')}>
+                  Standard Discipline
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* 6. Information Alert Modal */}
+      <ConfirmModal
+        isOpen={infoModal.isOpen}
+        title={infoModal.title}
+        message={infoModal.message}
+        confirmText={infoModal.confirmText}
+        variant={infoModal.variant}
+        showCancel={infoModal.showCancel}
+        onClose={() => setInfoModal(prev => ({ ...prev, isOpen: false }))}
+        onConfirm={infoModal.onConfirm}
+      />
 
       <style jsx>{`
-        .program-selector-btn {
-          font-size: 14px;
-          font-weight: 800;
-          text-transform: uppercase;
-          padding: 16px;
-          border-radius: 16px;
-          background: rgba(255, 255, 255, 0.03);
-          letter-spacing: 1.5px;
-          width: 100%;
-          cursor: pointer;
-          transition: all 0.2s ease;
-        }
-        
-        .program-selector-btn:hover {
-          background: rgba(255, 255, 255, 0.08);
-          transform: translateY(-2px);
-        }
-
-        .program-selector-btn.latin { 
-          color: #f7971e; 
-          border: 1px solid rgba(247, 151, 30, 0.3); 
-        }
-        .program-selector-btn.latin:hover {
-          box-shadow: 0 4px 20px rgba(247, 151, 30, 0.2);
-        }
-
-        .program-selector-btn.standard { 
-          color: #2193b0; 
-          border: 1px solid rgba(33, 147, 176, 0.3); 
-        }
-        .program-selector-btn.standard:hover {
-          box-shadow: 0 4px 20px rgba(33, 147, 176, 0.2);
-        }
-        .finals-container {
-          padding: 24px 32px 140px 32px;
-          max-width: 1400px;
+        .yt-finals-page {
+          padding: 16px 24px 140px 24px;
+          max-width: 1300px;
           margin: 0 auto;
-          display: flex;
-          flex-direction: column;
-          gap: 28px;
         }
 
-        .page-header-unified {
+        .yt-finals-header {
           display: flex;
           align-items: center;
           justify-content: space-between;
-          padding: 24px 0 12px 0;
-          background: transparent;
-          margin-bottom: 8px;
+          margin-bottom: 24px;
         }
 
-        .yt-header-kicker {
+        .yt-kicker {
           font-size: 11px;
           font-weight: 700;
           letter-spacing: 1.2px;
-          color: rgba(255, 255, 255, 0.6);
+          color: #aaaaaa;
+          text-transform: uppercase;
           display: block;
           margin-bottom: 4px;
         }
 
-        .page-header-unified h1 {
-          font-size: 2.2rem;
+        .yt-title {
+          font-size: 28px;
           font-weight: 800;
-          letter-spacing: -0.5px;
           color: #ffffff;
           margin: 0;
+          letter-spacing: -0.5px;
         }
 
-        .learn-finals-btn {
+        .yt-finals-header-actions {
           display: flex;
           align-items: center;
-          gap: 8px;
-          padding: 8px 16px;
-          background: #272727 !important;
-          border: 1px solid rgba(255, 255, 255, 0.08) !important;
-          border-radius: 20px;
-          font-size: 13px;
-          font-weight: 700;
-          color: #ffffff;
-          transition: all 0.2s ease;
-        }
-
-        .learn-finals-btn:hover {
-          background: #333333 !important;
-          border-color: rgba(255, 255, 255, 0.15) !important;
-          transform: translateY(-1px);
-        }
-
-        .learn-finals-btn .arrow {
-          opacity: 0.7;
-          transition: transform 0.2s;
-        }
-
-        .learn-finals-btn:hover .arrow {
-          opacity: 1;
-          transform: translateX(3px);
-        }
-
-        @media (max-width: 768px) {
-          .settings-text {
-            display: none !important;
-          }
-          .settings-btn {
-            padding: 0 !important;
-            width: 38px !important;
-            height: 38px !important;
-            border-radius: 50% !important;
-            justify-content: center;
-            background: rgba(255, 0, 51, 0.12) !important;
-            border: 1px solid rgba(255, 0, 51, 0.3) !important;
-          }
-          .settings-icon {
-            color: #ff0033 !important;
-            width: 20px !important;
-            height: 20px !important;
-          }
-        }
-
-        .finals-settings-modal {
-          width: 100%;
-          max-width: 440px;
-          padding: 28px;
-          border-radius: 16px;
-          background: #212121;
-          border: 1px solid rgba(255, 255, 255, 0.1);
-          text-align: center;
-          box-shadow: 0 16px 50px rgba(0, 0, 0, 0.9);
-        }
-
-        .finals-settings-modal .modal-header h2 {
-          font-size: 1.3rem;
-          font-weight: 700;
-          margin-bottom: 4px;
-          color: #ffffff;
-        }
-
-        .finals-settings-modal .modal-header p {
-          font-size: 0.85rem;
-          color: rgba(255, 255, 255, 0.6);
-        }
-
-        .form-label {
-          display: block;
-          font-size: 0.7rem;
-          font-weight: 700;
-          text-transform: uppercase;
-          letter-spacing: 1px;
-          color: rgba(255, 255, 255, 0.6);
-          margin-bottom: 8px;
-          text-align: left;
-        }
-
-        .custom-options-grid {
-          display: grid;
           gap: 10px;
         }
 
-        .custom-options-grid.two-cols {
-          grid-template-columns: repeat(2, 1fr);
-        }
-
-        .option-card {
+        .yt-header-pill-btn {
           display: flex;
-          flex-direction: column;
           align-items: center;
-          justify-content: center;
-          padding: 12px 10px;
-          border-radius: 12px;
-          background: #272727;
-          border: 1px solid rgba(255, 255, 255, 0.08);
-          color: white;
+          gap: 8px;
+          background: rgba(255, 255, 255, 0.08);
+          border: 1px solid rgba(255, 255, 255, 0.1);
+          color: #ffffff;
+          font-size: 13px;
+          font-weight: 600;
+          padding: 8px 16px;
+          border-radius: 20px;
+          text-decoration: none;
           cursor: pointer;
           transition: all 0.2s ease;
         }
 
-        .option-card:hover {
-          background: #333333;
-          border-color: rgba(255, 255, 255, 0.15);
+        .yt-header-pill-btn:hover {
+          background: rgba(255, 255, 255, 0.16);
         }
 
-        .option-card.active {
-          background: rgba(255, 0, 51, 0.15);
-          border-color: #ff0033;
-          box-shadow: 0 2px 12px rgba(255, 0, 51, 0.25);
-        }
-
-        .option-card .opt-title {
-          font-size: 0.85rem;
-          font-weight: 700;
-          margin-bottom: 2px;
-          color: #ffffff;
-        }
-
-        .option-card .opt-desc {
-          font-size: 0.68rem;
-          opacity: 0.6;
-        }
-
-        .done-green-btn {
-          width: 100%;
-          padding: 12px;
+        /* Hero Practice Banner */
+        .yt-hero-practice-banner {
+          background: linear-gradient(135deg, #3a0808 0%, #180505 50%, #0c0c0c 100%);
+          border: 1px solid rgba(239, 68, 68, 0.3);
           border-radius: 20px;
-          font-weight: 700;
-          font-size: 0.95rem;
-          background: #ff0033;
+          padding: 28px 32px;
+          display: flex;
+          align-items: center;
+          justify-content: space-between;
+          margin-bottom: 28px;
+          box-shadow: 0 16px 40px rgba(0, 0, 0, 0.6), inset 0 0 60px rgba(239, 68, 68, 0.15);
+          position: relative;
+          overflow: hidden;
+        }
+
+        .yt-hero-content {
+          max-width: 600px;
+          z-index: 2;
+        }
+
+        .yt-hero-badge {
+          display: inline-flex;
+          align-items: center;
+          gap: 6px;
+          background: rgba(239, 68, 68, 0.2);
+          border: 1px solid rgba(239, 68, 68, 0.4);
+          color: #ef4444;
+          font-size: 11px;
+          font-weight: 800;
+          letter-spacing: 0.8px;
+          padding: 4px 10px;
+          border-radius: 12px;
+          margin-bottom: 12px;
+        }
+
+        .yt-hero-heading {
+          font-size: 26px;
+          font-weight: 900;
           color: #ffffff;
+          margin: 0 0 8px 0;
+          letter-spacing: -0.5px;
+        }
+
+        .yt-hero-desc {
+          font-size: 14px;
+          color: #cccccc;
+          margin: 0 0 20px 0;
+          line-height: 1.4;
+        }
+
+        .yt-hero-play-btn {
+          display: inline-flex;
+          align-items: center;
+          gap: 10px;
+          background: #ffffff;
+          color: #000000;
+          font-size: 13px;
+          font-weight: 800;
+          letter-spacing: 0.5px;
+          padding: 10px 22px;
+          border-radius: 24px;
           border: none;
           cursor: pointer;
-          margin-top: 24px;
-          transition: transform 0.15s ease, background 0.15s ease;
-          box-shadow: 0 4px 16px rgba(255, 0, 51, 0.35);
+          box-shadow: 0 6px 20px rgba(255, 255, 255, 0.3);
+          transition: transform 0.2s ease, box-shadow 0.2s ease;
         }
 
-        .done-green-btn:hover {
-          transform: scale(1.02);
-          background: #cc0029;
+        .yt-hero-play-btn:hover {
+          transform: scale(1.04);
+          box-shadow: 0 8px 28px rgba(255, 255, 255, 0.45);
         }
 
-        .programs-section {
-          margin-bottom: 40px;
+        .yt-hero-cover-wrap {
+          width: 140px;
+          height: 140px;
+          border-radius: 16px;
+          overflow: hidden;
+          box-shadow: 0 12px 32px rgba(0, 0, 0, 0.7);
+          transform: rotate(6deg);
+          border: 2px solid rgba(255, 255, 255, 0.2);
+          z-index: 2;
         }
 
-        .section-header h3 {
-          font-size: 0.9rem;
-          font-weight: 800;
-          opacity: 0.6;
-          text-transform: uppercase;
-          letter-spacing: 1px;
-          margin-bottom: 24px;
-        }
-
-        .programs-grid {
-          display: grid;
-          grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
-          gap: 16px;
-        }
-
-        .prog-card {
-          padding: 16px 20px;
-          border-radius: 8px;
-          background: #212121;
-          display: flex;
-          align-items: center;
-          gap: 16px;
-          cursor: pointer;
-          transition: all 0.2s ease;
-          border: 1px solid rgba(255, 255, 255, 0.06);
-          border-left: 4px solid #ff0033;
-          text-align: left;
-        }
-
-        .prog-card:hover { 
-          transform: translateY(-2px); 
-          background: #272727;
-          border-color: rgba(255, 255, 255, 0.12);
-        }
-
-        .prog-card-wrapper { position: relative; }
-        /* Running program: red frame, like the red Final timer */
-        .prog-card.active { border-color: rgba(255, 0, 51, 0.8) !important; box-shadow: 0 0 20px rgba(255, 0, 51, 0.25); }
-
-        .prog-card.latin { border-left-color: #ff0033; }
-        .prog-card.standard { border-left-color: #00d2ff; }
-        .prog-card.all-dance { border-left-color: #22c55e; }
-        .prog-card.two-dance { border-left-color: #a855f7; }
-        .prog-card.four-dance { border-left-color: #eab308; }
-        .prog-card.eight-dance { border-left-color: #f97316; }
-        .prog-card.six-dance { border-left-color: #ec407a; }
-        .prog-card.inst-latin { border-left-color: #9c27b0; }
-        .prog-card.inst-std { border-left-color: #3f51b5; }
-        .prog-card.jive-mode { border-left-color: #ff9800; }
-        .prog-card.quickstep-mode { border-left-color: #26c6da; }
-        .prog-card.blackpool-lt { border-left-color: #ec407a; }
-        .prog-card.blackpool-st { border-left-color: #3b82f6; }
-        .prog-card.liked-songs { border-left-color: #ef4444; }
-        .prog-card.fitness { border-left-color: #ff5722; }
-
-        .rectangular-timer-border {
-          position: absolute;
-          inset: -2px;
-          border-radius: 10px;
-          pointer-events: none;
-          z-index: 5;
-        }
-
-        .timer-svg {
+        .yt-hero-cover-img {
           width: 100%;
           height: 100%;
-          overflow: visible;
+          object-fit: cover;
         }
 
-        /* :global — these are rendered by SessionProgressPath / RestCountdown /
-           SessionClock (small components outside this one), so scoped styles
-           don't reach them; without this the SVG path filled black. */
-        :global(.border-rect-progress) {
-          fill: none;
-          stroke-width: 4px;
-          stroke-linecap: round;
-          transition: stroke-dasharray 0.3s ease-out;
-        }
-
-        /* Final timer ring is red while dancing too (not only while resting) */
-        :global(.border-rect-progress.playing) {
-          stroke: #ef4444;
-          filter: drop-shadow(0 0 8px rgba(239, 68, 68, 0.45));
-        }
-
-        :global(.border-rect-progress.resting) {
-          stroke: #f44336;
-          filter: drop-shadow(0 0 12px rgba(244, 67, 54, 0.6));
-        }
-
-        @keyframes pulse-intense {
-          0% { transform: scale(1); opacity: 0.8; }
-          50% { transform: scale(1.1); opacity: 1; }
-          100% { transform: scale(1); opacity: 0.8; }
-        }
-
-        :global(.rest-timer-overlay) {
-          position: absolute;
-          inset: 0;
+        /* Category Chips */
+        .yt-category-chips-row {
           display: flex;
           align-items: center;
-          justify-content: center;
-          background: radial-gradient(circle, rgba(244, 67, 54, 0.35) 0%, rgba(20, 20, 20, 0.75) 100%);
-          border-radius: 8px;
-          font-size: 52px;
-          font-weight: 1000;
-          color: #ff3b30;
-          z-index: 15;
-          backdrop-filter: blur(12px);
-          animation: pulse-intense 1s infinite ease-in-out;
-          text-shadow: 0 0 25px rgba(255, 59, 48, 0.8), 0 0 10px rgba(0,0,0,0.8);
-        }
-
-        .card-icon {
-          width: 44px;
-          height: 44px;
-          border-radius: 8px;
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          background: rgba(255, 255, 255, 0.05);
-          flex-shrink: 0;
-        }
-
-        .prog-card.latin .card-icon { color: #ff0033; background: rgba(255, 0, 51, 0.12); }
-        .prog-card.standard .card-icon { color: #00d2ff; background: rgba(0, 210, 255, 0.12); }
-        .prog-card.all-dance .card-icon { color: #22c55e; background: rgba(34, 197, 94, 0.12); }
-        .prog-card.two-dance .card-icon { color: #a855f7; background: rgba(168, 85, 247, 0.12); }
-        .prog-card.four-dance .card-icon { color: #eab308; background: rgba(234, 179, 8, 0.12); }
-        .prog-card.eight-dance .card-icon { color: #f97316; background: rgba(249, 115, 22, 0.12); }
-        .prog-card.six-dance .card-icon { color: #ec407a; background: rgba(236, 64, 122, 0.12); }
-        .prog-card.inst-latin .card-icon { color: #9c27b0; background: rgba(156, 39, 176, 0.12); }
-        .prog-card.inst-std .card-icon { color: #3f51b5; background: rgba(63, 81, 181, 0.12); }
-        .prog-card.fitness .card-icon { color: #ff5722; background: rgba(255, 87, 34, 0.12); }
-        .prog-card.jive-mode .card-icon { color: #ff9800; background: rgba(255, 152, 0, 0.12); }
-        .prog-card.quickstep-mode .card-icon { color: #26c6da; background: rgba(38, 198, 218, 0.12); }
-        .prog-card.blackpool-lt .card-icon { color: #ec407a; background: rgba(236, 64, 122, 0.12); }
-        .prog-card.blackpool-st .card-icon { color: #3b82f6; background: rgba(59, 130, 246, 0.12); }
-        .prog-card.liked-songs .card-icon { color: #ef4444; background: rgba(239, 68, 68, 0.12); }
-
-        .card-info h4 { font-size: 15px; font-weight: 700; color: #ffffff; margin-bottom: 2px; }
-        .card-info p { font-size: 11px; opacity: 0.5; font-weight: 600; }
-        :global(.session-timer) { 
-          font-size: 12px !important; 
-          color: #ef4444 !important; 
-          opacity: 1 !important; 
-          font-family: monospace;
-          margin-top: 4px;
-        }
-
-        .track-queue-section { padding: 32px; border-radius: 32px; background: rgba(255,255,255,0.02); }
-        .queue-header { margin-bottom: 24px; }
-        .queue-header h3 { font-size: 1.2rem; font-weight: 900; }
-        .queue-header .description { font-size: 12px; opacity: 0.5; margin-top: 4px; }
-
-        .tracks-list { display: flex; flex-direction: column; gap: 8px; }
-        
-
-        @media (max-width: 768px) {
-          .finals-container { padding: 16px 0 140px; gap: 24px; } /* side spacing = home page */
-          .page-header-unified h1 { font-size: 24px !important; letter-spacing: 0px !important; }
-          .learn-finals-btn { 
-            padding: 8px 12px !important; 
-            font-size: 11px !important; 
-            transform: scale(0.85); 
-            transform-origin: right center;
-          }
-          .programs-grid { 
-             grid-template-columns: repeat(2, 1fr); 
-             gap: 10px;
-          }
-          .prog-card {
-             padding: 12px;
-             gap: 10px;
-             border-radius: 16px;
-          }
-          .card-icon {
-             width: 36px;
-             height: 36px;
-          }
-          .card-info h4 { font-size: 13px; font-weight: 700; }
-          .track-queue-section { padding: 20px; border-radius: 24px; }
-          .page-header-unified h1 { font-size: 20px !important; }
-          .page-header-unified .text-secondary { font-size: 10px !important; opacity: 0.6 !important; }
-          .learn-finals-btn { 
-            padding: 2px 6px !important; 
-            font-size: 7px !important; 
-          }
-          .learn-finals-btn span { font-size: 7px !important; font-weight: 800; display: inline; }
-        }
-      `}</style>
-      <style jsx>{`
-        .modal-overlay {
-          position: fixed;
-          top: 0;
-          left: 0;
-          width: 100dvw;
-          height: 100dvh;
-          background: transparent !important;
-          backdrop-filter: blur(20px);
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          z-index: 5002;
-          padding: 20px;
-        }
-        
-        .modal-content {
-          width: 100%;
-          position: relative;
-        }
-
-        .fitness-modal {
-          max-width: 400px;
-          padding: 32px;
-          text-align: center;
-          border-radius: 16px;
-          border: 1px solid rgba(255, 0, 51, 0.5) !important;
-        }
-
-        .modal-header {
-          display: flex;
-          flex-direction: column;
-          align-items: center;
-          gap: 16px;
-          margin-bottom: 32px;
-        }
-
-        .modal-header h2 { font-size: 24px; font-weight: 800; }
-        .modal-header p { font-size: 14px; color: #71717a; }
-
-        .custom-duration-selector {
-          display: flex;
-          justify-content: center;
-          align-items: center;
-          gap: 16px;
-          margin-bottom: 32px;
-        }
-
-        .time-group {
-          display: flex;
-          flex-direction: column;
-          align-items: center;
-          gap: 8px;
-        }
-
-        .time-separator {
-          font-size: 40px;
-          font-weight: 900;
-          color: rgba(255, 255, 255, 0.4);
+          gap: 10px;
+          overflow-x: auto;
+          scrollbar-width: none;
           margin-bottom: 24px;
         }
 
-        .duration-input {
-          background: rgba(255,255,255,0.05);
-          border: 2px solid rgba(255, 255, 255, 0.08);
-          border-radius: 20px;
-          width: 100px;
-          height: 100px;
-          text-align: center;
-          font-size: 44px;
-          font-weight: 900;
-          color: white;
-          outline: none;
-          transition: all 0.2s;
+        .yt-category-chips-row::-webkit-scrollbar {
+          display: none;
         }
 
-        .duration-input:focus {
-          border-color: #ff0033;
-          box-shadow: 0 0 0 4px rgba(255, 0, 51, 0.2);
-          background: rgba(255, 0, 51, 0.05);
-        }
-        
-        .duration-input::-webkit-outer-spin-button,
-        .duration-input::-webkit-inner-spin-button {
-          -webkit-appearance: none;
-          margin: 0;
-        }
-
-        .duration-label {
+        .yt-category-chip {
+          background: rgba(255, 255, 255, 0.08);
+          border: 1px solid rgba(255, 255, 255, 0.08);
+          color: #ffffff;
           font-size: 13px;
-          font-weight: 800;
-          letter-spacing: 2px;
-          text-transform: uppercase;
-          color: #71717a;
+          font-weight: 600;
+          padding: 7px 18px;
+          border-radius: 20px;
+          cursor: pointer;
+          white-space: nowrap;
+          transition: all 0.2s ease;
         }
 
-        .start-fitness-btn {
-          width: 100%;
-          height: 56px;
-          font-size: 16px;
-          font-weight: 800;
-          border-radius: 14px;
+        .yt-category-chip.active {
+          background: #ffffff;
+          color: #000000;
+          border-color: #ffffff;
         }
 
-        .cancel-btn { margin-top: 8px; width: 100%; height: 48px; border-radius: 12px; }
+        /* Programs Grid */
+        .yt-programs-grid {
+          display: grid;
+          grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+          gap: 16px;
+          margin-bottom: 36px;
+        }
 
-        .final-over-modal {
-          text-align: center;
-          padding: 40px 32px;
-          max-width: 360px;
-          border-radius: 24px;
+        .yt-program-card {
+          position: relative;
+          border-radius: 16px;
+          padding: 20px;
+          min-height: 130px;
+          cursor: pointer;
+          overflow: hidden;
+          border: 1px solid rgba(255, 255, 255, 0.08);
+          box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4);
+          transition: transform 0.25s ease, box-shadow 0.25s ease;
           display: flex;
           flex-direction: column;
+          justify-content: space-between;
+        }
+
+        .yt-program-card:hover {
+          transform: translateY(-4px) scale(1.02);
+          box-shadow: 0 16px 36px rgba(0, 0, 0, 0.6);
+        }
+
+        .yt-program-card.active {
+          border-color: #ef4444;
+          box-shadow: 0 0 30px rgba(239, 68, 68, 0.35);
+        }
+
+        .yt-card-top-row {
+          display: flex;
           align-items: center;
-          gap: 12px;
+          justify-content: space-between;
+          z-index: 2;
+
         }
-        .final-over-icon {
-          font-size: 56px;
-          line-height: 1;
-          animation: pop-in 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
-        }
-        @keyframes pop-in {
-          from { transform: scale(0.3); opacity: 0; }
-          to { transform: scale(1); opacity: 1; }
-        }
-        .final-over-title {
-          font-size: 22px;
-          font-weight: 900;
-          color: white;
-          margin: 0;
-        }
-        .final-over-subtitle {
-          font-size: 14px;
-          color: rgba(255,255,255,0.55);
-          margin: 0;
-        }
-        .final-over-btns {
-          display: flex;
-          flex-direction: column;
-          gap: 10px;
-          width: 100%;
-          margin-top: 8px;
-        }
-        .final-over-replay-btn {
+
+        .yt-card-icon-circle {
+          width: 42px;
+          height: 42px;
+          border-radius: 50%;
           display: flex;
           align-items: center;
           justify-content: center;
-          gap: 8px;
-          width: 100%;
-          height: 52px;
-          border-radius: 14px;
-          background: linear-gradient(135deg, #f59e0b, #ef4444);
-          color: white;
-          font-size: 15px;
+        }
+
+        .yt-card-play-btn {
+          width: 34px;
+          height: 34px;
+          border-radius: 50%;
+          background: rgba(255, 255, 255, 0.15);
+          backdrop-filter: blur(8px);
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          opacity: 0.8;
+          transition: transform 0.2s ease, opacity 0.2s ease;
+        }
+
+        .yt-program-card:hover .yt-card-play-btn {
+          opacity: 1;
+          transform: scale(1.1);
+        }
+
+        .yt-card-body {
+          z-index: 2;
+          margin-top: 12px;
+        }
+
+        .yt-card-title {
+          font-size: 17px;
           font-weight: 800;
+          color: #ffffff;
+          margin: 0 0 4px 0;
+          letter-spacing: -0.3px;
+        }
+
+        .yt-card-subtitle {
+          font-size: 12px;
+          color: #aaaaaa;
+          margin: 0;
+          line-height: 1.3;
+        }
+
+        .yt-card-active-clock {
+          margin-top: 8px;
+          font-size: 12px;
+          font-weight: 700;
+          color: #ef4444;
+        }
+
+        .yt-card-thumb-bg {
+          position: absolute;
+          right: -12px;
+          bottom: -12px;
+          width: 85px;
+          height: 85px;
+          border-radius: 12px;
+          overflow: hidden;
+          transform: rotate(15deg);
+          opacity: 0.35;
+          box-shadow: -4px 4px 16px rgba(0, 0, 0, 0.6);
+          transition: transform 0.3s ease, opacity 0.3s ease;
+        }
+
+        .yt-program-card:hover .yt-card-thumb-bg {
+          transform: rotate(6deg) scale(1.1);
+          opacity: 0.6;
+        }
+
+        .yt-card-thumb {
+          width: 100%;
+          height: 100%;
+          object-fit: cover;
+        }
+
+        /* Session Tracklist */
+        .yt-session-tracklist-container {
+          background: #141414;
+          border-radius: 16px;
+          padding: 20px;
+          border: 1px solid rgba(255, 255, 255, 0.08);
+        }
+
+        .yt-tracklist-header {
+          display: flex;
+          align-items: center;
+          justify-content: space-between;
+          margin-bottom: 16px;
+        }
+
+        .yt-tracklist-title {
+          font-size: 18px;
+          font-weight: 800;
+          color: #ffffff;
+          margin: 0;
+        }
+
+        .yt-tracklist-count {
+          font-size: 12px;
+          color: #aaaaaa;
+          font-weight: 600;
+        }
+
+        .yt-tracks-list {
+          display: flex;
+          flex-direction: column;
+          gap: 4px;
+        }
+
+        /* Modal Styles */
+        .yt-modal-overlay {
+          position: fixed;
+          inset: 0;
+          background: rgba(0, 0, 0, 0.8);
+          backdrop-filter: blur(12px);
+          z-index: 1000;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          padding: 20px;
+        }
+
+        .yt-modal-card {
+          background: #1c1c1c;
+          border: 1px solid rgba(255, 255, 255, 0.15);
+          border-radius: 20px;
+          width: 100%;
+          max-width: 480px;
+          padding: 24px;
+          box-shadow: 0 20px 60px rgba(0, 0, 0, 0.9);
+        }
+
+        .yt-modal-header {
+          display: flex;
+          align-items: center;
+          justify-content: space-between;
+          margin-bottom: 20px;
+        }
+
+        .yt-modal-header h3 {
+          font-size: 18px;
+          font-weight: 800;
+          color: #ffffff;
+          margin: 0;
+        }
+
+        .yt-modal-close {
+          background: none;
+          border: none;
+          color: #aaaaaa;
+          cursor: pointer;
+          padding: 4px;
+        }
+
+        .yt-modal-body {
+          display: flex;
+          flex-direction: column;
+          gap: 18px;
+          margin-bottom: 24px;
+        }
+
+        .yt-setting-group label,
+        .yt-modal-body label {
+          font-size: 12px;
+          font-weight: 700;
+          color: #aaaaaa;
+          text-transform: uppercase;
+          letter-spacing: 0.5px;
+          display: block;
+          margin-bottom: 8px;
+        }
+
+        .yt-modal-chips-group {
+          display: flex;
+          flex-wrap: wrap;
+          gap: 8px;
+        }
+
+        .yt-modal-chip {
+          background: rgba(255, 255, 255, 0.08);
+          border: 1px solid rgba(255, 255, 255, 0.1);
+          color: #ffffff;
+          font-size: 13px;
+          font-weight: 600;
+          padding: 8px 16px;
+          border-radius: 16px;
+          cursor: pointer;
+          transition: all 0.2s ease;
+        }
+
+        .yt-modal-chip.active {
+          background: #ffffff;
+          color: #000000;
+        }
+
+        .yt-modal-footer {
+          display: flex;
+          justify-content: flex-end;
+        }
+
+        .yt-save-btn {
+          background: #ffffff;
+          color: #000000;
+          font-size: 14px;
+          font-weight: 800;
+          padding: 10px 24px;
+          border-radius: 20px;
           border: none;
           cursor: pointer;
-          transition: opacity 0.2s;
         }
-        .final-over-replay-btn:hover { opacity: 0.85; }
-        .final-over-close-btn {
-          width: 100%;
-          height: 44px;
-          border-radius: 12px;
-          background: rgba(255,255,255,0.07);
-          color: rgba(255,255,255,0.6);
-          font-size: 14px;
-          font-weight: 700;
-          border: 1px solid rgba(255,255,255,0.1);
-          cursor: pointer;
-          transition: background 0.2s;
+
+        @media (max-width: 768px) {
+          .yt-finals-page {
+            padding: 12px 16px 140px 16px;
+          }
+
+          .yt-hero-practice-banner {
+            flex-direction: column;
+            align-items: flex-start;
+            gap: 16px;
+            padding: 20px;
+          }
+
+          .yt-hero-cover-wrap {
+            display: none;
+          }
+
+          .yt-programs-grid {
+            grid-template-columns: repeat(2, 1fr);
+            gap: 12px;
+          }
+
+          .yt-program-card {
+            padding: 14px;
+            min-height: 110px;
+          }
+
+          .yt-card-title {
+            font-size: 15px;
+          }
         }
-        .final-over-close-btn:hover { background: rgba(255,255,255,0.12); }
       `}</style>
-
-      
-      {showStopConfirm && (
-        <ConfirmModal 
-          isOpen={showStopConfirm}
-          onClose={() => setShowStopConfirm(false)}
-          onConfirm={handleStopProgram}
-          title="End Finals Practice?"
-          message={`You are on track ${currentTrackIndex + 1} of ${sessionList.length}. Do you want to stop the practice session?`}
-          confirmText="Finish"
-          variant="danger"
-        />
-      )}
-
-      {/* Final Mode Over Modal */}
-      {showFinalOver && (
-        <div className="modal-overlay" onClick={handleCloseFinalOver}>
-          <div className="modal-content glass final-over-modal animate-in" onClick={e => e.stopPropagation()} style={{ position: 'relative' }}>
-            <button 
-              onClick={handleCloseFinalOver}
-              aria-label="Close"
-              style={{
-                position: 'absolute',
-                top: '16px',
-                right: '16px',
-                background: 'rgba(255,255,255,0.08)',
-                border: 'none',
-                borderRadius: '50%',
-                width: '32px',
-                height: '32px',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                color: 'rgba(255,255,255,0.7)',
-                cursor: 'pointer',
-                transition: 'all 0.2s'
-              }}
-            >
-              <X size={18} />
-            </button>
-            <div className="final-over-icon">🏆</div>
-            <h2 className="final-over-title">Final Mode is Over</h2>
-            <p className="final-over-subtitle">Do you want to replay?</p>
-            <div className="final-over-btns">
-              <button className="final-over-replay-btn" onClick={handleReplayFinalMode}>
-                <Play size={18} fill="currentColor" />
-                Replay
-              </button>
-              <button className="final-over-close-btn" onClick={handleCloseFinalOver}>
-                ✕ Close
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Fitness Duration Modal */}
-      {showFitnessModal && (
-        <div className="modal-overlay" onClick={() => setShowFitnessModal(false)}>
-          <div className="modal-content glass fitness-modal animate-in" onClick={e => e.stopPropagation()}>
-            <div className="modal-header">
-              <Dumbbell className="text-primary" size={28} />
-              <div>
-                <h2>Fitness Session</h2>
-                <p>Select duration for non-stop music</p>
-              </div>
-            </div>
-            
-            <div className="custom-duration-selector">
-              <div className="time-group">
-                <input 
-                   type="number"
-                   min="0"
-                   max="300"
-                   value={fitnessDuration}
-                   onChange={e => setFitnessDuration(Math.max(0, Number(e.target.value)))}
-                   className="duration-input"
-                   placeholder="0"
-                />
-                <span className="duration-label">Min</span>
-              </div>
-              
-              <div className="time-separator">:</div>
-
-              <div className="time-group">
-                <input 
-                   type="number"
-                   min="0"
-                   max="59"
-                   value={fitnessDurationSecs}
-                   onChange={e => {
-                     let val = Number(e.target.value);
-                     if (val >= 60) {
-                        setFitnessDuration(prev => prev + Math.floor(val / 60));
-                        val = val % 60;
-                     }
-                     setFitnessDurationSecs(Math.max(0, val));
-                   }}
-                   className="duration-input"
-                   placeholder="00"
-                />
-                <span className="duration-label">Sec</span>
-              </div>
-            </div>
-
-            <button className="primary-btn start-fitness-btn" onClick={() => {
-              const totalSecs = (fitnessDuration * 60) + fitnessDurationSecs;
-              if (totalSecs > 0) startFitness(totalSecs);
-            }}>
-              Start Session
-            </button>
-
-            <button className="cancel-btn text-btn" onClick={() => setShowFitnessModal(false)}>
-              Cancel
-            </button>
-          </div>
-        </div>
-      )}
-
-      {showLikedSongsModal && (
-        <div className="modal-overlay" onClick={() => setShowLikedSongsModal(false)}>
-          <div className="modal-content fitness-modal glass" onClick={e => e.stopPropagation()}>
-            <div className="modal-header">
-              <Heart size={48} className="text-[#ef5350] mb-2" />
-              <h2>Liked Songs</h2>
-              <p>Choose your discipline</p>
-            </div>
-            
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '16px', marginTop: '24px' }}>
-              <button 
-                className="program-selector-btn latin"
-                onClick={() => startLikedSongsProgram('Latin')}
-              >
-                International Latin
-              </button>
-              <button 
-                className="program-selector-btn standard"
-                onClick={() => startLikedSongsProgram('Standard')}
-              >
-                International Standard
-              </button>
-            </div>
-            
-            <button className="cancel-btn text-btn" style={{ marginTop: '24px' }} onClick={() => setShowLikedSongsModal(false)}>
-              Cancel
-            </button>
-          </div>
-        </div>
-      )}
-
-      {showSettingsModal && (
-        <div className="modal-overlay" onClick={() => setShowSettingsModal(false)}>
-          <div className="modal-content finals-settings-modal glass" onClick={e => e.stopPropagation()}>
-            <div className="modal-header">
-              <Settings size={36} style={{ color: '#ff0033', marginBottom: '8px' }} />
-              <h2>Finals Settings</h2>
-              <p>Configure your practice preferences</p>
-            </div>
-
-            <div className="modal-body" style={{ display: 'flex', flexDirection: 'column', gap: '18px', marginTop: '20px' }}>
-              {/* 1. First Latin Dance */}
-              <div className="form-group">
-                <label className="form-label">First Latin Dance</label>
-                <div className="custom-options-grid two-cols">
-                  <button
-                    type="button"
-                    className={`option-card ${latinStartDance === 'Samba' ? 'active' : ''}`}
-                    onClick={() => setLatinStartDance('Samba')}
-                  >
-                    <span className="opt-title">Samba First</span>
-                    <span className="opt-desc">Samba → Cha-Cha</span>
-                  </button>
-                  <button
-                    type="button"
-                    className={`option-card ${latinStartDance === 'Cha-Cha-Cha' || latinStartDance === 'Cha-cha-cha' ? 'active' : ''}`}
-                    onClick={() => setLatinStartDance('Cha-Cha-Cha')}
-                  >
-                    <span className="opt-title">Cha-Cha-Cha First</span>
-                    <span className="opt-desc">Cha-Cha → Samba</span>
-                  </button>
-                </div>
-              </div>
-
-              {/* 2. Paso Doble Themes */}
-              <div className="form-group">
-                <label className="form-label">Paso Doble Themes</label>
-                <div className="custom-options-grid two-cols">
-                  <button
-                    type="button"
-                    className={`option-card ${pasoDuration === '2-theme' || pasoDuration === 'All' || pasoDuration === '1-theme' ? 'active' : ''}`}
-                    onClick={() => setPasoDuration('2-theme')}
-                  >
-                    <span className="opt-title">2 Themes</span>
-                    <span className="opt-desc">~1:45 (Standard)</span>
-                  </button>
-                  <button
-                    type="button"
-                    className={`option-card ${pasoDuration === '3-theme' ? 'active' : ''}`}
-                    onClick={() => setPasoDuration('3-theme')}
-                  >
-                    <span className="opt-title">3 Themes</span>
-                    <span className="opt-desc">~2:15 (Full Track)</span>
-                  </button>
-                </div>
-              </div>
-
-              {/* 3. Paso Doble Version */}
-              <div className="form-group">
-                <label className="form-label">Paso Doble Version</label>
-                <div className="custom-options-grid two-cols">
-                  <button
-                    type="button"
-                    className={`option-card ${pasoVersion === 'All' ? 'active' : ''}`}
-                    onClick={() => setPasoVersion('All')}
-                  >
-                    <span className="opt-title">All Versions</span>
-                    <span className="opt-desc">Any Paso Track</span>
-                  </button>
-                  <button
-                    type="button"
-                    className={`option-card ${pasoVersion === 'WDSF' ? 'active' : ''}`}
-                    onClick={() => setPasoVersion('WDSF')}
-                  >
-                    <span className="opt-title">WDSF / España Cañí</span>
-                    <span className="opt-desc">Official Version</span>
-                  </button>
-                </div>
-              </div>
-            </div>
-
-            <button
-              className="primary-btn done-green-btn"
-              onClick={() => saveSettings()}
-            >
-              Done
-            </button>
-          </div>
-        </div>
-      )}
-
-      {infoModal.isOpen && (
-        <ConfirmModal
-          isOpen={infoModal.isOpen}
-          onClose={() => setInfoModal(prev => ({ ...prev, isOpen: false }))}
-          onConfirm={infoModal.onConfirm}
-          title={infoModal.title}
-          message={infoModal.message}
-          confirmText={infoModal.confirmText || 'OK'}
-          variant={infoModal.variant || 'primary'}
-          showCancel={infoModal.showCancel ?? false}
-        />
-      )}
-
     </div>
   );
 };

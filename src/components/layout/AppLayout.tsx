@@ -35,8 +35,39 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
     setIsMobileDrawerOpen(false);
   }, [pathname]);
 
+  // SCROLL GUARD: AdSense responsive ads set inline "height: auto !important"
+  // (and overflow rules) on the elements above them. The page scrolls inside
+  // .yt-main-content-scroll while html/body are locked, so those inline rules
+  // froze scrolling. Strip only those inline sizing rules from the app shell.
+  useEffect(() => {
+    if (!mounted) return; // the app shell isn't rendered before mount
+    const HEIGHT_PROPS = ['height', 'min-height', 'max-height'];
+    const SHELL_PROPS = [...HEIGHT_PROPS, 'overflow', 'overflow-y'];
+    const shell = ['.yt-app-layout', '.yt-app-body-wrap', '.yt-main-content-scroll']
+      .map((sel) => document.querySelector(sel))
+      .filter(Boolean) as HTMLElement[];
+    // html/body: only sizing (modals legitimately set body overflow)
+    const targets = [document.documentElement, document.body, ...shell];
+    const clean = (el: HTMLElement) => {
+      const props = shell.includes(el) ? SHELL_PROPS : HEIGHT_PROPS;
+      for (const prop of props) {
+        if (el.style.getPropertyValue(prop)) el.style.removeProperty(prop);
+      }
+    };
+    targets.forEach(clean);
+    const observer = new MutationObserver((mutations) => {
+      mutations.forEach((m) => clean(m.target as HTMLElement));
+    });
+    targets.forEach((el) => observer.observe(el, { attributes: true, attributeFilter: ['style'] }));
+    return () => observer.disconnect();
+  }, [mounted, pathname]);
+
   useEffect(() => {
     setMounted(true);
+    // Pick up a new service worker so old cached builds don't linger
+    if ('serviceWorker' in navigator) {
+      navigator.serviceWorker.getRegistrations().then((regs) => regs.forEach((reg) => reg.update())).catch(() => {});
+    }
     const isPWA =
       window.matchMedia('(display-mode: standalone)').matches ||
       (window.navigator as { standalone?: boolean }).standalone === true;

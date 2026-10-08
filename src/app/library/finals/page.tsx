@@ -434,10 +434,10 @@ const FinalsPage = () => {
         order = ['Slow Waltz', 'Quickstep', 'Cha-Cha-Cha', 'Jive'];
         break;
       case '6Dance':
-        order = ['Slow Waltz', 'Tango', 'Quickstep', 'Samba', 'Cha-Cha-Cha', 'Jive'];
+        order = [...standardOrder, ...latinOrder].filter(s => !['Slow Foxtrot', 'Paso Doble', 'Viennese Waltz', 'Rumba'].includes(s));
         break;
       case '8Dance':
-        order = ['Slow Waltz', 'Tango', 'Slow Foxtrot', 'Quickstep', 'Samba', 'Cha-Cha-Cha', 'Rumba', 'Jive'];
+        order = [...standardOrder, ...latinOrder].filter(s => s !== 'Slow Foxtrot' && s !== 'Paso Doble');
         break;
       case 'InstLatin':
         order = latinOrder;
@@ -445,11 +445,13 @@ const FinalsPage = () => {
       case 'InstStandard':
         order = standardOrder;
         break;
+      // Jive + Latin: Samba-Jive, Cha-Jive, Rumba-Jive, Paso-Jive, Jive-Jive
       case 'JiveLatin':
-        order = ['Jive', 'Jive', 'Jive', 'Jive', 'Jive'];
+        order = ['Samba', 'Jive', 'Cha-Cha-Cha', 'Jive', 'Rumba', 'Jive', 'Paso Doble', 'Jive', 'Jive', 'Jive'];
         break;
+      // Quickstep + Standard: Waltz-QS, Tango-QS, Viennese-QS, Foxtrot-QS, QS-QS
       case 'QuickstepStandard':
-        order = ['Quickstep', 'Quickstep', 'Quickstep', 'Quickstep', 'Quickstep'];
+        order = ['Slow Waltz', 'Quickstep', 'Tango', 'Quickstep', 'Viennese Waltz', 'Quickstep', 'Slow Foxtrot', 'Quickstep', 'Quickstep', 'Quickstep'];
         break;
       case 'BlackpoolLt':
         order = latinOrder;
@@ -471,22 +473,30 @@ const FinalsPage = () => {
       let styleTracks = availableTracks.filter(t => t.style?.toLowerCase() === styleName.toLowerCase());
 
       if (styleName.toLowerCase() === 'paso doble') {
+        // Soft filters (as on main): narrow only when something matches,
+        // otherwise keep the whole Paso pool so the dance is never skipped.
+        const narrow = (fn: (t: Track) => boolean) => {
+          const hit = styleTracks.filter(fn);
+          if (hit.length > 0) styleTracks = hit;
+        };
         if (pasoDuration === 'short') {
-          styleTracks = styleTracks.filter(t => (t.duration || 0) < 110);
+          narrow(t => (t.duration || 0) > 0 && (t.duration || 0) < 110);
         } else if (pasoDuration === 'long') {
-          styleTracks = styleTracks.filter(t => (t.duration || 0) >= 110);
+          narrow(t => (t.duration || 0) >= 110);
         }
 
         if (pasoVersion === '2') {
-          styleTracks = styleTracks.filter(t => t.tags?.some(tag => tag.toLowerCase().includes('2 highlight') || tag.toLowerCase().includes('2 accents')));
+          narrow(t => !!t.tags?.some(tag => tag.toLowerCase().includes('2 highlight') || tag.toLowerCase().includes('2 accents')));
         } else if (pasoVersion === '3') {
-          styleTracks = styleTracks.filter(t => t.tags?.some(tag => tag.toLowerCase().includes('3 highlight') || tag.toLowerCase().includes('3 accents')));
+          narrow(t => !!t.tags?.some(tag => tag.toLowerCase().includes('3 highlight') || tag.toLowerCase().includes('3 accents')));
         }
       }
 
       if (styleTracks.length > 0) {
-        const randomTrack = styleTracks[Math.floor(Math.random() * styleTracks.length)];
-        selectedTracks.push(randomTrack);
+        // Prefer a track not already in this session (Jive/QS repeat several times)
+        const fresh = styleTracks.filter(t => !selectedTracks.some(s => s.id === t.id));
+        const pool = fresh.length > 0 ? fresh : styleTracks;
+        selectedTracks.push(pool[Math.floor(Math.random() * pool.length)]);
       }
     });
 
@@ -750,13 +760,15 @@ const FinalsPage = () => {
 
               <div className="yt-card-body">
                 <h3 className="yt-card-title">{prog.label}</h3>
-                <p className="yt-card-subtitle">{prog.subtitle}</p>
-
-                {isActive && (
-                  <div className="yt-card-active-clock">
-                    <SessionClock />
-                  </div>
-                )}
+                {/* The clock sits over the subtitle so the active card keeps its size */}
+                <div className="yt-card-subtitle-wrap">
+                  <p className="yt-card-subtitle" style={isActive ? { visibility: 'hidden' } : undefined}>{prog.subtitle}</p>
+                  {isActive && (
+                    <div className="yt-card-active-clock">
+                      <SessionClock />
+                    </div>
+                  )}
+                </div>
               </div>
 
               <div className="yt-card-thumb-bg">
@@ -1332,11 +1344,22 @@ const FinalsPage = () => {
           line-height: 1.3;
         }
 
+        .yt-card-subtitle-wrap {
+          position: relative;
+        }
+
         .yt-card-active-clock {
-          margin-top: 8px;
-          font-size: 12px;
+          position: absolute;
+          left: 0;
+          top: 50%;
+          transform: translateY(-50%);
+          font-size: 13px;
           font-weight: 700;
           color: #ef4444;
+        }
+
+        .yt-card-active-clock :global(.session-timer) {
+          margin: 0;
         }
 
         .yt-card-thumb-bg {

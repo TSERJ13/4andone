@@ -20,7 +20,8 @@ import {
   Gauge,
   Download,
   ListPlus,
-  Disc
+  Disc,
+  Trophy
 } from 'lucide-react';
 import { useAudio } from '@/components/audio/AudioProvider';
 import { FinalStopButton } from '@/components/audio/FinalStopButton';
@@ -59,6 +60,8 @@ export default function DesktopFullPlayer({ onClose }: DesktopFullPlayerProps) {
     seek,
     loadTrack,
     isFinalMode,
+    toggleFinalMode,
+    activeMode,
     isPauseCountdown,
     pauseTime,
     sessionDuration,
@@ -321,7 +324,21 @@ export default function DesktopFullPlayer({ onClose }: DesktopFullPlayerProps) {
             <button type="button" className="yt-player-icon-btn" onClick={playNext} title="Next" disabled={isFinalMode} style={isFinalMode ? { opacity: 0.3, cursor: 'not-allowed' } : undefined}>
               <SkipForward size={20} fill="currentColor" />
             </button>
-            {isFinalMode && <FinalStopButton onStop={() => stop()} className="yt-player-icon-btn" iconSize={20} />}
+            {isFinalMode ? (
+              <FinalStopButton onStop={() => stop()} className="yt-player-icon-btn" iconSize={20} />
+            ) : (
+              // Final Mode for the current track: cuts at 1:45 (Viennese 1:25) with a fade, like main
+              <button
+                type="button"
+                className="yt-player-icon-btn"
+                onClick={toggleFinalMode}
+                disabled={!!activeMode}
+                title="Final Mode (1:45 Timer)"
+                aria-label="Final Mode"
+              >
+                <Trophy size={20} />
+              </button>
+            )}
             {isPauseCountdown ? (
               <span className="yt-player-time-display" style={{ color: '#ef4444', fontWeight: 800 }} aria-live="polite">Rest {pauseTime}s</span>
             ) : (

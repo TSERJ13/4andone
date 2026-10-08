@@ -1,7 +1,7 @@
 "use client";
 
 import React from 'react';
-import { X, AlertTriangle } from 'lucide-react';
+import { X, AlertTriangle, CheckCircle2 } from 'lucide-react';
 
 interface ConfirmModalProps {
   isOpen: boolean;
@@ -12,6 +12,7 @@ interface ConfirmModalProps {
   confirmText?: string;
   variant?: 'danger' | 'primary';
   showCancel?: boolean;
+  icon?: React.ReactNode;
 }
 
 const ConfirmModal = ({ 
@@ -22,7 +23,8 @@ const ConfirmModal = ({
   message, 
   confirmText = "Confirm",
   variant = 'danger',
-  showCancel = true
+  showCancel = true,
+  icon
 }: ConfirmModalProps) => {
   if (!isOpen) return null;
 
@@ -31,19 +33,31 @@ const ConfirmModal = ({
       <div className="modal-content glass animate-in">
         <header className="modal-header">
           <div className="header-title">
-            <div className={`icon-box glass ${variant === 'danger' ? 'danger-icon' : ''}`}>
-              <AlertTriangle size={20} />
+            <div className={`icon-box glass ${variant === 'danger' ? 'danger-icon' : 'primary-icon'}`}>
+              {icon ? (
+                icon
+              ) : variant === 'danger' ? (
+                <AlertTriangle size={20} />
+              ) : (
+                <CheckCircle2 size={22} color="#10b981" />
+              )}
             </div>
             <div>
               <h3>{title}</h3>
               <p>{message}</p>
             </div>
           </div>
-          <button className="close-btn" onClick={onClose}><X size={20} /></button>
+          <button type="button" className="close-btn" onClick={onClose} aria-label="Close">
+            <X size={20} />
+          </button>
         </header>
 
         <div className="modal-footer">
-          {showCancel && <button type="button" className="btn-secondary" onClick={onClose}>Cancel</button>}
+          {showCancel && (
+            <button type="button" className="btn-secondary" onClick={onClose}>
+              Cancel
+            </button>
+          )}
           <button 
             type="button" 
             className={variant === 'danger' ? 'btn-danger' : 'btn-primary'}
@@ -69,7 +83,7 @@ const ConfirmModal = ({
           display: flex;
           align-items: center;
           justify-content: center;
-          z-index: 5001; /* Above mobile player and everything else */
+          z-index: 5001;
           padding: 20px;
         }
 
@@ -86,8 +100,8 @@ const ConfirmModal = ({
 
         .modal-header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 24px; }
         .header-title { display: flex; gap: 16px; align-items: flex-start; }
-        .header-title h3 { font-size: 18px; font-weight: 700; color: #ffffff; letter-spacing: -0.2px; }
-        .header-title p { font-size: 14px; color: rgba(255, 255, 255, 0.7); margin-top: 6px; line-height: 1.5; }
+        .header-title h3 { font-size: 18px; font-weight: 700; color: #ffffff; letter-spacing: -0.2px; margin: 0; }
+        .header-title p { font-size: 14px; color: rgba(255, 255, 255, 0.7); margin-top: 6px; line-height: 1.5; margin-bottom: 0; }
 
         .icon-box { 
           width: 44px; 
@@ -96,11 +110,10 @@ const ConfirmModal = ({
           display: flex; 
           align-items: center; 
           justify-content: center; 
-          color: #ff0033;
-          background: rgba(255, 0, 51, 0.12);
           flex-shrink: 0;
         }
-        .danger-icon { color: #ff0033; background: rgba(255, 0, 51, 0.15); }
+        .danger-icon { color: #ff0033; background: rgba(255, 0, 51, 0.15); border: 1px solid rgba(255, 0, 51, 0.2); }
+        .primary-icon { color: #10b981; background: rgba(16, 185, 129, 0.15); border: 1px solid rgba(16, 185, 129, 0.2); }
 
         .close-btn { color: rgba(255, 255, 255, 0.5); transition: color 0.2s; background: none; border: none; cursor: pointer; padding: 4px; }
         .close-btn:hover { color: #ffffff; }
@@ -120,7 +133,7 @@ const ConfirmModal = ({
         }
         .btn-secondary:hover { background: rgba(255, 255, 255, 0.15); color: #ffffff; }
 
-        .btn-danger, .btn-primary {
+        .btn-danger {
           background: #ff0033;
           color: #ffffff;
           padding: 10px 24px;
@@ -132,7 +145,21 @@ const ConfirmModal = ({
           transition: all 0.2s;
           box-shadow: 0 4px 14px rgba(255, 0, 51, 0.3);
         }
-        .btn-danger:hover, .btn-primary:hover { background: #cc0029; transform: scale(1.02); }
+        .btn-danger:hover { background: #cc0029; transform: scale(1.02); }
+
+        .btn-primary {
+          background: #10b981;
+          color: #ffffff;
+          padding: 10px 24px;
+          border-radius: 20px;
+          font-weight: 700;
+          font-size: 14px;
+          border: none;
+          cursor: pointer;
+          transition: all 0.2s;
+          box-shadow: 0 4px 14px rgba(16, 185, 129, 0.3);
+        }
+        .btn-primary:hover { background: #059669; transform: scale(1.02); }
 
         @media (max-width: 768px) {
           .modal-overlay { 

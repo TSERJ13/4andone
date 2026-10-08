@@ -15,14 +15,22 @@ import {
   MessageSquare, 
   ChevronRight,
   Upload,
-  LogIn
+  LogIn,
+  Lock
 } from 'lucide-react';
 import { useAuth } from '@/context/AuthContext';
+import ConfirmModal from '@/components/admin/ConfirmModal';
 
 export const UserBadge: React.FC<{ textColor?: string }> = ({ textColor = 'white' }) => {
   const { user, logout, isAuthenticated, setIsAuthModalOpen, isPremium, setIsSubscriptionModalOpen } = useAuth();
   const [showPopup, setShowPopup] = useState(false);
   const popupRef = useRef<HTMLDivElement>(null);
+
+  const [lockedModal, setLockedModal] = useState({
+    isOpen: false,
+    title: '',
+    message: ''
+  });
 
   // Close popup when clicking outside
   useEffect(() => {
@@ -155,7 +163,7 @@ export const UserBadge: React.FC<{ textColor?: string }> = ({ textColor = 'white
           {/* Section 2: History & Preferences */}
           <div className="yt-menu-section">
             <Link 
-              href="/library/favorites" 
+              href="/history" 
               className="yt-menu-item"
               onClick={() => setShowPopup(false)}
             >
@@ -163,30 +171,45 @@ export const UserBadge: React.FC<{ textColor?: string }> = ({ textColor = 'white
               <span>History</span>
             </Link>
 
-            <Link 
-              href="/library/finals" 
+            <button 
+              type="button" 
               className="yt-menu-item"
-              onClick={() => setShowPopup(false)}
+              onClick={() => {
+                setShowPopup(false);
+                setLockedModal({
+                  isOpen: true,
+                  title: 'Settings Locked',
+                  message: 'Settings is currently locked while we work on new updates. Check back soon!'
+                });
+              }}
             >
               <Settings size={20} className="yt-menu-icon" />
-              <span>Settings</span>
-            </Link>
+              <span style={{ flex: 1, textAlign: 'left' }}>Settings</span>
+              <Lock size={14} className="yt-menu-arrow" />
+            </button>
 
-            <Link 
-              href="/learn-final-mode" 
+            <button 
+              type="button" 
               className="yt-menu-item"
-              onClick={() => setShowPopup(false)}
+              onClick={() => {
+                setShowPopup(false);
+                setLockedModal({
+                  isOpen: true,
+                  title: 'Help Locked',
+                  message: 'Help center is currently locked while we work on new updates. Check back soon!'
+                });
+              }}
             >
               <HelpCircle size={20} className="yt-menu-icon" />
-              <span>Help</span>
-            </Link>
+              <span style={{ flex: 1, textAlign: 'left' }}>Help</span>
+              <Lock size={14} className="yt-menu-arrow" />
+            </button>
 
             <button
               type="button"
               className="yt-menu-item"
               onClick={() => {
                 setShowPopup(false);
-                // Opens the contact form; messages land in Admin → Messages
                 window.dispatchEvent(new CustomEvent('open-contact-modal'));
               }}
             >
@@ -196,6 +219,19 @@ export const UserBadge: React.FC<{ textColor?: string }> = ({ textColor = 'white
           </div>
         </div>
       )}
+
+      {/* Locked Feature Modal */}
+      <ConfirmModal
+        isOpen={lockedModal.isOpen}
+        title={lockedModal.title}
+        message={lockedModal.message}
+        confirmText="Got it"
+        variant="primary"
+        icon={<Lock size={22} color="#10b981" />}
+        showCancel={false}
+        onClose={() => setLockedModal(prev => ({ ...prev, isOpen: false }))}
+        onConfirm={() => setLockedModal(prev => ({ ...prev, isOpen: false }))}
+      />
 
       <style jsx>{`
         .yt-user-menu-wrapper {

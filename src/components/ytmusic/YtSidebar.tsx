@@ -5,6 +5,8 @@ import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { Home, Trophy, Library, Sparkles, Plus, Heart, Pin } from 'lucide-react';
 
+import { useAuth } from '@/context/AuthContext';
+
 interface YtSidebarProps {
   isCollapsed?: boolean;
 }
@@ -24,12 +26,13 @@ const DANCE_PLAYLISTS = [
 
 export default function YtSidebar({ isCollapsed = false }: YtSidebarProps) {
   const pathname = usePathname();
+  const { setIsSubscriptionModalOpen } = useAuth();
 
   const navItems = [
     { label: 'Home', href: '/', icon: Home },
     { label: 'Final Mode', href: '/library/finals', icon: Trophy },
     { label: 'Library', href: '/library', icon: Library },
-    { label: 'Upgrade', href: '/#upgrade', icon: Sparkles },
+    { label: 'Upgrade', href: '#upgrade', icon: Sparkles, onClick: () => setIsSubscriptionModalOpen(true) },
   ];
 
   return (
@@ -38,7 +41,20 @@ export default function YtSidebar({ isCollapsed = false }: YtSidebarProps) {
       <nav className="yt-sidebar-main-nav">
         {navItems.map((item) => {
           const Icon = item.icon;
-          const isActive = pathname === item.href;
+          const isActive = item.href !== '#upgrade' && pathname === item.href;
+          if (item.onClick) {
+            return (
+              <button
+                key={item.label}
+                type="button"
+                onClick={item.onClick}
+                className="yt-nav-item"
+              >
+                <Icon size={20} className="yt-nav-icon" />
+                <span className="yt-nav-label">{item.label}</span>
+              </button>
+            );
+          }
           return (
             <Link
               key={item.label}

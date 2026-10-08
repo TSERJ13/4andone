@@ -41,6 +41,17 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
   }, []);
 
   useEffect(() => {
+    const checkUpgradeHash = () => {
+      if (window.location.hash === '#upgrade') {
+        setIsSubscriptionModalOpen(true);
+      }
+    };
+    checkUpgradeHash();
+    window.addEventListener('hashchange', checkUpgradeHash);
+    return () => window.removeEventListener('hashchange', checkUpgradeHash);
+  }, [setIsSubscriptionModalOpen]);
+
+  useEffect(() => {
     const handleOpenFullPlayer = () => {
       if (window.innerWidth > 1024) {
         setIsDesktopExpanded(true);

@@ -325,6 +325,9 @@ export default function RootLayout({
   return (
     <html lang="en" suppressHydrationWarning>
       <head>
+        <link rel="preconnect" href="https://telegram.org" />
+        <link rel="dns-prefetch" href="https://telegram.org" />
+        <link rel="preconnect" href="https://oauth.telegram.org" />
         <meta name="google-site-verification" content="hmYQzKJ5eZK-N6rFBBDmqMyRCh3UtPeC8kjDeZyg-l4" />
         {/* AdSense script is loaded by <AdSenseLoader> (free users, public pages only) */}
         <meta name="google-adsense-account" content="ca-pub-2697205988789699" />

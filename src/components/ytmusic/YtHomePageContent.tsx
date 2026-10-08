@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { useStudio } from '@/components/admin/StudioProvider';
 import { useAudioControls } from '@/components/audio/AudioProvider';
 import YtFilterChips from './YtFilterChips';
@@ -27,20 +27,54 @@ export default function YtHomePageContent() {
 
   const [activeCategory, setActiveCategory] = useState('all');
   const [searchQuery, setSearchQuery] = useState('');
+  const [recentlyPlayedIds, setRecentlyPlayedIds] = useState<string[]>([]);
 
-  // Filter tracks by category or search query
-  const filteredTracks = tracks.filter((t) => {
-    const matchesSearch =
-      !searchQuery ||
-      t.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      (t.artist || '').toLowerCase().includes(searchQuery.toLowerCase());
+  useEffect(() => {
+    const loadRecentlyPlayed = () => {
+      try {
+        const saved = localStorage.getItem('4andone_recently_played');
+        if (saved) {
+          setRecentlyPlayedIds(JSON.parse(saved));
+        }
+      } catch (e) {}
+    };
 
-    const matchesCategory =
-      activeCategory === 'all' ||
-      (t.style || '').toLowerCase().replace(/\s+/g, '-') === activeCategory;
+    loadRecentlyPlayed();
 
-    return matchesSearch && matchesCategory;
-  });
+    window.addEventListener('4andone_recently_played_updated', loadRecentlyPlayed);
+    window.addEventListener('storage', loadRecentlyPlayed);
+    return () => {
+      window.removeEventListener('4andone_recently_played_updated', loadRecentlyPlayed);
+      window.removeEventListener('storage', loadRecentlyPlayed);
+    };
+  }, []);
+
+  // Filter tracks by category or search query and sort recently played first
+  const filteredTracks = useMemo(() => {
+    const filtered = tracks.filter((t) => {
+      const matchesSearch =
+        !searchQuery ||
+        t.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        (t.artist || '').toLowerCase().includes(searchQuery.toLowerCase());
+
+      const matchesCategory =
+        activeCategory === 'all' ||
+        (t.style || '').toLowerCase().replace(/\s+/g, '-') === activeCategory;
+
+      return matchesSearch && matchesCategory;
+    });
+
+    if (recentlyPlayedIds.length === 0) return filtered;
+
+    return [...filtered].sort((a, b) => {
+      const indexA = recentlyPlayedIds.indexOf(a.id);
+      const indexB = recentlyPlayedIds.indexOf(b.id);
+      if (indexA !== -1 && indexB !== -1) return indexA - indexB;
+      if (indexA !== -1) return -1;
+      if (indexB !== -1) return 1;
+      return 0;
+    });
+  }, [tracks, searchQuery, activeCategory, recentlyPlayedIds]);
 
   // Prepare Album Shelf Items
   const albumShelfItems: YtShelfItem[] = albums.map((alb) => ({

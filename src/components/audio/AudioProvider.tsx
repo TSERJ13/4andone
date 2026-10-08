@@ -674,6 +674,18 @@ export const AudioProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       return;
     }
 
+    if (track?.id) {
+      try {
+        const saved = localStorage.getItem('4andone_recently_played');
+        let recent: string[] = saved ? JSON.parse(saved) : [];
+        recent = [track.id, ...recent.filter((id: string) => id !== track.id)].slice(0, 50);
+        localStorage.setItem('4andone_recently_played', JSON.stringify(recent));
+        if (typeof window !== 'undefined') {
+          window.dispatchEvent(new Event('4andone_recently_played_updated'));
+        }
+      } catch (e) {}
+    }
+
     const currentToken = ++loadingTokenRef.current;
 
     try {

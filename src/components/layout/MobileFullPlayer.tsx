@@ -22,9 +22,11 @@ import {
   Download,
   ListPlus,
   Disc,
-  Trophy
+  Trophy,
+  X
 } from 'lucide-react';
 import { useAudio } from '@/components/audio/AudioProvider';
+import { FINAL_USER_STOP_EVENT } from '@/components/audio/FinalStopButton';
 import { useStudio } from '@/components/admin/StudioProvider';
 import { getTrackCover } from '@/utils/trackCover';
 
@@ -61,7 +63,11 @@ export default function MobileFullPlayer({ isOpen, onClose }: MobileFullPlayerPr
     bpm,
     setBpm,
     isFinalMode,
-    toggleFinalMode
+    toggleFinalMode,
+    isPauseCountdown,
+    pauseTime,
+    sessionDuration,
+    stop
   } = useAudio();
 
   const [mode, setMode] = useState<'audio' | 'video'>('audio');
@@ -94,7 +100,9 @@ export default function MobileFullPlayer({ isOpen, onClose }: MobileFullPlayerPr
   const liveTrack = tracks.find((t) => t.id === currentTrack?.id) || currentTrack;
   const isFavorite = liveTrack?.isFavorite || false;
   const coverImg = getTrackCover(currentTrack, albums);
-  const progressPercent = duration > 0 ? (currentTime / duration) * 100 : 0;
+  // Final Mode: the bar shows the whole session and can't be dragged.
+  const totalDur = isFinalMode && sessionDuration > 0 ? sessionDuration : duration;
+  const progressPercent = totalDur > 0 ? Math.min(100, (currentTime / totalDur) * 100) : 0;
 
   const currentBpm = bpm || 100;
   const bpmDelta = currentBpm - 100;
@@ -118,6 +126,7 @@ export default function MobileFullPlayer({ isOpen, onClose }: MobileFullPlayerPr
   };
 
   const handleSeekClick = (e: React.MouseEvent<HTMLDivElement>) => {
+    if (isFinalMode) return;
     const rect = e.currentTarget.getBoundingClientRect();
     const clickX = e.clientX - rect.left;
     const ratio = clickX / rect.width;
@@ -300,11 +309,20 @@ export default function MobileFullPlayer({ isOpen, onClose }: MobileFullPlayerPr
           <button
             type="button"
             className={`yt-action-pill ${isFinalMode ? 'active-final' : ''}`}
-            onClick={toggleFinalMode}
-            title="Final Mode (1:45 Timer)"
+            onClick={() => {
+              if (isFinalMode) {
+                // Ending Final Mode = the user's choice (no "Final Mode is Over" popup)
+                window.dispatchEvent(new Event(FINAL_USER_STOP_EVENT));
+                stop();
+              } else {
+                toggleFinalMode();
+              }
+            }}
+            title={isFinalMode ? 'Stop Final Mode' : 'Final Mode (1:45 Timer)'}
+            aria-label={isFinalMode ? 'Stop Final Mode' : 'Final Mode'}
           >
-            <Trophy size={14} color={isFinalMode ? '#ef4444' : 'currentColor'} />
-            <span>Final</span>
+            {isFinalMode ? <X size={14} color="#ef4444" strokeWidth={2.75} /> : <Trophy size={14} color="currentColor" />}
+            <span>{isFinalMode ? 'Stop Final' : 'Final'}</span>
           </button>
 
           <button
@@ -375,12 +393,19 @@ export default function MobileFullPlayer({ isOpen, onClose }: MobileFullPlayerPr
 
       {/* Progress Slider */}
       <div className="yt-mobile-progress-wrap">
-        <div className="yt-progress-line-track" onClick={handleSeekClick}>
-          <div className="yt-progress-line-fill" style={{ width: `${progressPercent}%` }} />
+        <div className="yt-progress-line-track" onClick={handleSeekClick} style={isFinalMode ? { cursor: 'default' } : undefined}>
+          <div
+            className="yt-progress-line-fill"
+            style={{ width: `${progressPercent}%`, ...(isFinalMode ? { background: '#ef4444' } : {}) }}
+          />
         </div>
-        <div className="yt-mobile-time-row">
-          <span>{formatTime(currentTime)}</span>
-          <span>{formatTime(duration)}</span>
+        <div className="yt-mobile-time-row" style={isFinalMode ? { color: '#ef4444' } : undefined}>
+          {isPauseCountdown ? (
+            <span style={{ fontWeight: 800 }} aria-live="polite">Rest · next dance in {pauseTime}s</span>
+          ) : (
+            <span>{formatTime(currentTime)}</span>
+          )}
+          <span>{formatTime(totalDur)}</span>
         </div>
       </div>
 
@@ -394,7 +419,13 @@ export default function MobileFullPlayer({ isOpen, onClose }: MobileFullPlayerPr
           <Shuffle size={20} />
         </button>
 
-        <button type="button" className="yt-mobile-control-btn" onClick={playPrevious}>
+        <button
+          type="button"
+          className="yt-mobile-control-btn"
+          onClick={playPrevious}
+          disabled={isFinalMode}
+          style={isFinalMode ? { opacity: 0.3 } : undefined}
+        >
           <SkipBack size={26} fill="currentColor" />
         </button>
 
@@ -406,7 +437,13 @@ export default function MobileFullPlayer({ isOpen, onClose }: MobileFullPlayerPr
           )}
         </button>
 
-        <button type="button" className="yt-mobile-control-btn" onClick={playNext}>
+        <button
+          type="button"
+          className="yt-mobile-control-btn"
+          onClick={playNext}
+          disabled={isFinalMode}
+          style={isFinalMode ? { opacity: 0.3 } : undefined}
+        >
           <SkipForward size={26} fill="currentColor" />
         </button>
 

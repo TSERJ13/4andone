@@ -54,7 +54,7 @@ export default function UpgradePage() {
 
         {/* Pricing Text */}
         <p className="yt-prem-subtitle">
-          1-month trial for $0 • Then $1.99/month • Cancel anytime
+          $1.99/month • Cancel anytime
         </p>
 
         {/* Action Buttons & Auth */}
@@ -80,7 +80,7 @@ export default function UpgradePage() {
                 className="yt-prem-btn-primary"
                 onClick={() => setShowPayment(true)}
               >
-                Try 1 month for $0
+                Get Premium · $1.99/month
               </button>
             </div>
           ) : (
@@ -125,7 +125,7 @@ export default function UpgradePage() {
           )}
 
           <p className="yt-prem-disclaimer">
-            You'll be reminded 7 days before your trial ends. Recurring billing. <span className="yt-prem-link">Restrictions apply.</span>
+            Recurring billing. Cancel anytime.
           </p>
         </div>
 

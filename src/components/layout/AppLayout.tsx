@@ -22,6 +22,7 @@ import AdDebugPanel from '@/components/ads/AdDebugPanel';
 import AddToPlaylistModal from '@/components/audio/AddToPlaylistModal';
 import { OPEN_ADD_TO_PLAYLIST_EVENT } from '@/components/audio/playerActions';
 import type { Track } from '@/components/admin/StudioProvider';
+import PwaInstallPrompt from '@/components/pwa/PwaInstallPrompt';
 import '@/styles/ytmusic.css';
 
 export default function AppLayout({ children }: { children: React.ReactNode }) {
@@ -198,6 +199,9 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
         onClose={() => setPlaylistTrack(null)}
         track={playlistTrack}
       />
+
+      {/* PWA Home Screen Install Banner */}
+      <PwaInstallPrompt />
 
       {/* Mobile Full Screen Player */}
       <MobileFullPlayer

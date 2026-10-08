@@ -2,6 +2,7 @@
 
 import React, { createContext, useContext, useState, useEffect, useRef, useMemo, useCallback } from 'react';
 import { getAudioFile } from '@/utils/storage';
+import { getTrackCover } from '@/utils/trackCover';
 
 interface AudioContextType {
   isPlaying: boolean;
@@ -132,7 +133,7 @@ import { useAuth } from '@/context/AuthContext';
 import { supabase } from '@/utils/supabase';
 
 export const AudioProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const { tracks, finalTracks } = useStudio();
+  const { tracks, finalTracks, albums } = useStudio();
   const { user, isPremium, setIsSubscriptionModalOpen } = useAuth();
   const [isPlaying, setIsPlaying] = useState(false);
   const [bpm, setBpmState] = useState(100);
@@ -1278,14 +1279,18 @@ export const AudioProvider: React.FC<{ children: React.ReactNode }> = ({ childre
 
       // MEDIA SESSION SETUP
       if ('mediaSession' in navigator) {
+        const coverPath = getTrackCover(track, albums);
+        const absoluteCover = (typeof window !== 'undefined' && coverPath.startsWith('/')) 
+          ? `${window.location.origin}${coverPath}` 
+          : coverPath;
+
         navigator.mediaSession.metadata = new MediaMetadata({
           title: track.title,
-          artist: track.artist,
+          artist: track.artist || '4ANDONE Artist',
           album: track.album || '4and.one Music',
-          artwork: track.artworkUrl ? [
-            { src: track.artworkUrl, sizes: '512x512', type: 'image/jpeg' },
-          ] : [
-            { src: '/icons/icon-192x192.png', sizes: '192x192', type: 'image/png' },
+          artwork: [
+            { src: absoluteCover, sizes: '512x512', type: 'image/jpeg' },
+            { src: absoluteCover, sizes: '192x192', type: 'image/png' },
             { src: '/icons/icon-512x512.png', sizes: '512x512', type: 'image/png' },
           ]
         });

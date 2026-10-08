@@ -160,8 +160,8 @@ export default function YtPlayerBar({ onExpandPlayer }: YtPlayerBarProps) {
       </div>
 
       <div className="yt-player-bar-content">
-        {/* LEFT: Playback Controls & Time */}
-        <div className="yt-player-left-controls">
+        {/* LEFT: Playback Controls & Time (Desktop Only) */}
+        <div className="yt-player-left-controls yt-desktop-only-controls">
           <button
             type="button"
             className="yt-player-icon-btn"
@@ -215,7 +215,7 @@ export default function YtPlayerBar({ onExpandPlayer }: YtPlayerBarProps) {
             </span>
           </div>
 
-          <div className="yt-player-actions" onClick={(e) => e.stopPropagation()}>
+          <div className="yt-player-actions yt-desktop-only-actions" onClick={(e) => e.stopPropagation()}>
             {/* Heart Save Button */}
             <button
               type="button"
@@ -321,8 +321,8 @@ export default function YtPlayerBar({ onExpandPlayer }: YtPlayerBarProps) {
           </div>
         </div>
 
-        {/* RIGHT: Speed Icon (with Popover), Volume, Repeat, Shuffle, Down Chevron */}
-        <div className="yt-player-right-controls" ref={popoverRef}>
+        {/* RIGHT: Speed Icon (with Popover), Volume, Repeat, Shuffle, Down Chevron (Desktop Only) */}
+        <div className="yt-player-right-controls yt-desktop-only-controls" ref={popoverRef}>
           {/* Speed Popover Card (Anchored above Speed icon) */}
           {isSpeedPopoverOpen && (
             <div className="yt-speed-popover-card">
@@ -431,6 +431,31 @@ export default function YtPlayerBar({ onExpandPlayer }: YtPlayerBarProps) {
             title="Collapse / Expand"
           >
             <ChevronDown size={20} />
+          </button>
+        </div>
+
+        {/* MOBILE ONLY: Play/Pause and Next track buttons (Matching YouTube Music Mobile Mini Player) */}
+        <div className="yt-player-mobile-controls" onClick={(e) => e.stopPropagation()}>
+          <button
+            type="button"
+            className="yt-player-mobile-btn"
+            onClick={togglePlay}
+            aria-label={isPlaying ? 'Pause' : 'Play'}
+          >
+            {isPlaying ? (
+              <Pause size={24} fill="#ffffff" color="#ffffff" />
+            ) : (
+              <Play size={24} fill="#ffffff" color="#ffffff" style={{ marginLeft: '2px' }} />
+            )}
+          </button>
+
+          <button
+            type="button"
+            className="yt-player-mobile-btn"
+            onClick={playNext}
+            aria-label="Next track"
+          >
+            <SkipForward size={22} fill="#ffffff" color="#ffffff" />
           </button>
         </div>
       </div>

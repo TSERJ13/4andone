@@ -30,7 +30,7 @@ export default function YtHeader({ onToggleSidebar, onSearch, searchQuery = '' }
 
   return (
     <header className="yt-header">
-      {/* Left: Hamburger + Transparent 4and.one Music Logo */}
+      {/* Left: Hamburger Button */}
       <div className="yt-header-left">
         <button
           type="button"
@@ -40,14 +40,6 @@ export default function YtHeader({ onToggleSidebar, onSearch, searchQuery = '' }
         >
           <Menu size={22} />
         </button>
-
-        <Link href="/" className="yt-logo-brand-link">
-          <img 
-            src="/logo-3d.png" 
-            alt="4and.one Music" 
-            style={{ height: '60px', width: 'auto', objectFit: 'contain', maxHeight: '100%' }}
-          />
-        </Link>
       </div>
 
       {/* Center: Search Bar */}

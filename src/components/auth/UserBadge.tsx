@@ -205,9 +205,9 @@ export const UserBadge: React.FC<{ textColor?: string }> = ({ textColor = 'white
           gap: 8px;
           padding: 6px 14px;
           border-radius: 18px;
-          background: transparent;
-          border: 1px solid rgba(62, 166, 255, 0.6);
-          color: #3ea6ff;
+          background: rgba(16, 185, 129, 0.08);
+          border: 1px solid rgba(16, 185, 129, 0.6);
+          color: #10b981;
           font-size: 14px;
           font-weight: 700;
           cursor: pointer;
@@ -215,15 +215,16 @@ export const UserBadge: React.FC<{ textColor?: string }> = ({ textColor = 'white
         }
 
         .yt-signin-btn:hover {
-          background: rgba(62, 166, 255, 0.12);
-          border-color: #3ea6ff;
+          background: rgba(16, 185, 129, 0.18);
+          border-color: #10b981;
+          box-shadow: 0 0 12px rgba(16, 185, 129, 0.25);
         }
 
         .yt-signin-icon {
           display: flex;
           align-items: center;
           justify-content: center;
-          color: #3ea6ff;
+          color: #10b981;
         }
 
         .yt-profile-trigger {
@@ -317,7 +318,7 @@ export const UserBadge: React.FC<{ textColor?: string }> = ({ textColor = 'white
 
         .yt-menu-manage-link {
           font-size: 13px;
-          color: #3ea6ff;
+          color: #10b981;
           text-decoration: none;
           font-weight: 500;
         }

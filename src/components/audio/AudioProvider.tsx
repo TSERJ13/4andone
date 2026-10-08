@@ -133,7 +133,7 @@ import { supabase } from '@/utils/supabase';
 
 export const AudioProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const { tracks, finalTracks } = useStudio();
-  const { user, isPremium } = useAuth();
+  const { user, isPremium, setIsSubscriptionModalOpen } = useAuth();
   const [isPlaying, setIsPlaying] = useState(false);
   const [bpm, setBpmState] = useState(100);
   const [isFinalMode, setIsFinalMode] = useState(false); // Default to Normal Mode
@@ -1714,6 +1714,10 @@ export const AudioProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   const toggleRepeat = React.useCallback(() => setIsRepeat(prev => !prev), []);
   const toggleShuffle = React.useCallback(() => setIsShuffle(prev => !prev), []);
   const toggleFinalMode = React.useCallback(() => {
+    if (!isPremiumRef.current) {
+      setIsSubscriptionModalOpen(true);
+      return;
+    }
     setIsFinalMode(prev => {
       const nextVal = !prev;
       // Same rule as loadTrack: loop in normal mode, end (→ limit/onended) in Final

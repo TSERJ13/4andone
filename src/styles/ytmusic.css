@@ -2172,4 +2172,24 @@
   }
 }
 
+/* FINAL STOP BUTTON STYLING */
+.final-exit-btn {
+  background: rgba(239, 68, 68, 0.15) !important;
+  border: 1px solid rgba(239, 68, 68, 0.3) !important;
+  border-radius: 50% !important;
+  padding: 6px !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  color: #ef4444 !important;
+  cursor: pointer !important;
+  transition: transform 0.15s ease, background 0.15s ease !important;
+}
+
+.final-exit-btn:hover {
+  background: rgba(239, 68, 68, 0.3) !important;
+  transform: scale(1.08) !important;
+}
+
+
 

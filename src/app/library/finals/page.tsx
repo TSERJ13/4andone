@@ -255,7 +255,7 @@ const FinalsPage = () => {
     setFitnessTargetTime
   } = useAudioControls();
 
-  const { isAuthenticated, setIsAuthModalOpen } = useAuth();
+  const { isAuthenticated, isPremium, setIsAuthModalOpen, setIsSubscriptionModalOpen } = useAuth();
   const downloadedIds = useDownloadedTracks();
 
   const [activeCategoryChip, setActiveCategoryChip] = useState('all');
@@ -396,6 +396,10 @@ const FinalsPage = () => {
   const standardOrder = ["Slow Waltz", "Tango", "Viennese Waltz", "Slow Foxtrot", "Quickstep"];
 
   const handleProgramShuffle = (type: string) => {
+    if (!isPremium) {
+      setIsSubscriptionModalOpen(true);
+      return;
+    }
     updateLastPlayed(type);
 
     if (type === 'Fitness') {
@@ -554,6 +558,10 @@ const FinalsPage = () => {
   };
 
   const startLikedSongsProgram = (discipline: 'Latin' | 'Standard') => {
+    if (!isPremium) {
+      setIsSubscriptionModalOpen(true);
+      return;
+    }
     updateLastPlayed('LikedSongs');
     const liked = tracks.filter(t => {
       const albumName = (t.album || '').toLowerCase();
@@ -597,6 +605,10 @@ const FinalsPage = () => {
   };
 
   const startFitness = (selectedTargetSeconds: number) => {
+    if (!isPremium) {
+      setIsSubscriptionModalOpen(true);
+      return;
+    }
     updateLastPlayed('Fitness');
     const fitnessPool = tracks.filter(t => t.style?.toLowerCase() === 'fitness');
     setIsFitness(true);

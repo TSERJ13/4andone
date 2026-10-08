@@ -182,36 +182,52 @@ const PlaylistPage = () => {
       />
 
       <style jsx>{`
-        .playlist-page { padding: 40px; padding-bottom: 120px; }
-        .page-header { display: flex; align-items: flex-end; gap: 32px; margin-bottom: 40px; }
-        .icon-large { 
-          width: 232px; height: 232px; border-radius: 20px; 
-          background: linear-gradient(135deg, var(--primary), #121212);
-          display: flex; align-items: center; justify-content: center;
-          box-shadow: 0 16px 32px rgba(0,0,0,0.5);
-          flex-shrink: 0;
-          border: 1px solid rgba(255,255,255,0.05);
+        .playlist-page {
+          padding: 24px 32px 140px 32px;
+          max-width: 1200px;
+          margin: 0 auto;
         }
-        .head-content { display: flex; flex-direction: column; gap: 8px; }
-        .label { text-transform: uppercase; font-size: 11px; font-weight: 800; letter-spacing: 1px; color: #71717a; }
-        .title { font-size: 5rem; font-weight: 950; margin: 0; line-height: 1; letter-spacing: -3px; }
-        .description { font-size: 14px; opacity: 0.6; }
-        .stats { font-size: 14px; font-weight: 600; color: #71717a; }
 
-        .actions { display: flex; align-items: center; height: 100px; }
-        .play-btn-large { 
-          width: 56px; height: 56px; border-radius: 50%; background: var(--primary); 
-          color: black; display: flex; align-items: center; justify-content: center; 
-          transition: transform 0.2s;
+        .page-header {
+          display: flex;
+          align-items: flex-end;
+          gap: 28px;
+          margin-bottom: 24px;
         }
-        .play-btn-large:hover { transform: scale(1.05); }
+
+        .icon-large { 
+          width: 180px; height: 180px; border-radius: 8px; 
+          background: linear-gradient(135deg, #ff0033 0%, #770018 100%);
+          display: flex; align-items: center; justify-content: center;
+          box-shadow: 0 10px 30px rgba(0, 0, 0, 0.6);
+          flex-shrink: 0;
+          border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        .head-content { display: flex; flex-direction: column; gap: 6px; flex: 1; min-width: 0; }
+        .label {
+          font-size: 11px; font-weight: 800; letter-spacing: 1.2px;
+          text-transform: uppercase; color: #ff0033;
+        }
+        .title { font-size: 2.4rem; font-weight: 900; margin: 0; line-height: 1.1; letter-spacing: -0.5px; color: #fff; }
+        .description { font-size: 13px; color: #8b8b93; margin: 2px 0 0 0; }
+        .stats { font-size: 13px; font-weight: 500; color: #aaa; margin: 4px 0 0 0; }
+
+        .actions { display: flex; align-items: center; gap: 12px; margin-bottom: 24px; }
+        .play-btn-large {
+          display: inline-flex; align-items: center; gap: 8px;
+          padding: 11px 24px; border: none; border-radius: 999px;
+          background: #ff0033; color: #ffffff; font-weight: 700; font-size: 14px;
+          cursor: pointer; transition: transform 0.15s, background-color 0.15s;
+        }
+        .play-btn-large:hover { background: #cc0029; transform: scale(1.02); }
+        .play-btn-large:active { transform: scale(0.96); }
         
         .btn-delete-playlist {
           display: flex;
           align-items: center;
           gap: 6px;
           padding: 8px 16px;
-          margin-left: 16px;
           border-radius: 20px;
           background: rgba(244, 63, 94, 0.1);
           border: 1px solid rgba(244, 63, 94, 0.25);
@@ -226,10 +242,6 @@ const PlaylistPage = () => {
           transform: translateY(-1px);
         }
 
-        .fav-action { opacity: 0.4; transition: all 0.2s; background: none; border: none; cursor: pointer; color: #555; }
-        .fav-action:hover, .fav-action.active-heart { opacity: 1; transform: scale(1.1); }
-        .fav-action.active-heart { color: #ff4b2b; }
-        
         .remove-track-action {
           opacity: 0.4;
           transition: all 0.2s;
@@ -247,18 +259,16 @@ const PlaylistPage = () => {
           color: #f43f5e;
           transform: scale(1.15);
         }
-        
-        .text-secondary { color: #71717a; }
-        .text-primary { color: var(--primary); }
 
-        .empty-state { padding: 40px; text-align: center; opacity: 0.4; }
+        .tracks-list { display: flex; flex-direction: column; gap: 4px; }
+        .empty-state { padding: 60px 20px; text-align: center; color: #717171; }
 
         @media (max-width: 768px) {
-          .playlist-page { padding: 20px 0 120px; }
-          .page-header { flex-direction: column; align-items: center; text-align: center; gap: 24px; margin-top: 20px; }
-          .icon-large { width: 140px; height: 140px; border-radius: 20px; }
-          .title { font-size: 2.2rem; letter-spacing: -1px; }
-          .actions { justify-content: center; height: 80px; }
+          .playlist-page { padding: 12px 0 120px 0; }
+          .page-header { gap: 16px; margin-bottom: 20px; }
+          .icon-large { width: 110px; height: 110px; border-radius: 6px; }
+          .title { font-size: 1.6rem; }
+          .play-btn-large { padding: 9px 18px; font-size: 13px; }
         }
       `}</style>
     </div>

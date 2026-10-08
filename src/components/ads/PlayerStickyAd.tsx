@@ -63,7 +63,7 @@ export default function PlayerStickyAd() {
                   <span className="house-feature-chip">
                     <Trophy size={10} /> Final Mode
                   </span>
-                  <span className="house-feature-chip">
+                  <span className="house-feature-chip house-chip-extra">
                     <Download size={10} /> Offline Mode
                   </span>
                 </div>

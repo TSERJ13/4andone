@@ -1,107 +1,114 @@
 "use client";
 
-import React, { useState, useEffect } from 'react';
-import { Download, Share, PlusSquare, X, Sparkles, Smartphone } from 'lucide-react';
+import React, { useState, useEffect, useRef } from 'react';
+import { Download, Share, PlusSquare, X, Sparkles, MoreVertical } from 'lucide-react';
+
+const DISMISS_KEY = 'pwa_prompt_dismissed_time';
+const DISMISS_MS = 7 * 86400 * 1000;
+
+const dismissedRecently = () => {
+  try {
+    const t = localStorage.getItem(DISMISS_KEY);
+    return !!t && Date.now() - parseInt(t, 10) < DISMISS_MS;
+  } catch {
+    return false;
+  }
+};
+
+type InstallPromptEvent = Event & {
+  prompt: () => Promise<void>;
+  userChoice: Promise<{ outcome: 'accepted' | 'dismissed' }>;
+};
 
 export default function PwaInstallPrompt() {
-  const [deferredPrompt, setDeferredPrompt] = useState<any>(null);
   const [isVisible, setIsVisible] = useState(false);
-  const [isIos, setIsIos] = useState(false);
+  const isIosRef = useRef(false); // only read in click handlers
   const [showIosTutorial, setShowIosTutorial] = useState(false);
+  // Browsers without an install prompt (desktop Safari, Firefox…): menu steps
+  const [showManualSteps, setShowManualSteps] = useState(false);
+  // The captured install prompt lives in a ref so the listeners below are
+  // registered once (they were re-added on every change, and on iOS the
+  // early `return` skipped removing them).
+  const deferredPromptRef = useRef<InstallPromptEvent | null>(null);
+
+  const runNativePrompt = () => {
+    const prompt = deferredPromptRef.current;
+    if (!prompt) return false;
+    prompt.prompt();
+    prompt.userChoice.then((choice) => {
+      if (choice.outcome === 'accepted') setIsVisible(false);
+      deferredPromptRef.current = null;
+    }).catch(() => { deferredPromptRef.current = null; });
+    return true;
+  };
 
   useEffect(() => {
-    // Check if already installed / standalone mode
     const isStandalone =
       window.matchMedia('(display-mode: standalone)').matches ||
-      (window.navigator as any).standalone === true;
+      (window.navigator as { standalone?: boolean }).standalone === true;
 
-    if (isStandalone) return; // Don't show if already installed as PWA
+    const ua = window.navigator.userAgent.toLowerCase();
+    // iPadOS 13+ reports itself as a Mac — detect it by touch support
+    const isIosDevice = /iphone|ipad|ipod/.test(ua) ||
+      (ua.includes('macintosh') && navigator.maxTouchPoints > 1);
+    isIosRef.current = isIosDevice;
 
-    // Check iOS detection
-    const userAgent = window.navigator.userAgent.toLowerCase();
-    const isIosDevice = /iphone|ipad|ipod/.test(userAgent);
-    setIsIos(isIosDevice);
+    const timers: ReturnType<typeof setTimeout>[] = [];
 
-    // Listen for custom trigger event (e.g. from Sidebar install button)
+    // "Install App" in the side menu
     const handleCustomTrigger = () => {
+      if (isStandalone) return; // already installed
       if (isIosDevice) {
         setShowIosTutorial(true);
         setIsVisible(true);
-      } else if (deferredPrompt) {
-        deferredPrompt.prompt();
-        deferredPrompt.userChoice.then((choiceResult: any) => {
-          if (choiceResult.outcome === 'accepted') {
-            setIsVisible(false);
-          }
-          setDeferredPrompt(null);
-        });
-      } else {
+      } else if (!runNativePrompt()) {
+        setShowManualSteps(true);
         setIsVisible(true);
       }
     };
     window.addEventListener('open-pwa-install', handleCustomTrigger);
 
-    // Capture beforeinstallprompt for Android / Chrome / Desktop
+    // Android / Chrome / Edge desktop
     const handleBeforeInstallPrompt = (e: Event) => {
       e.preventDefault();
-      setDeferredPrompt(e);
-
-      // Check if user previously dismissed prompt recently (last 7 days)
-      const dismissedTime = localStorage.getItem('pwa_prompt_dismissed_time');
-      if (dismissedTime && Date.now() - parseInt(dismissedTime, 10) < 7 * 86400 * 1000) {
-        return;
-      }
-
-      // Show prompt after a short pleasant delay
-      const timer = setTimeout(() => {
-        setIsVisible(true);
-      }, 5000);
-
-      return () => clearTimeout(timer);
+      deferredPromptRef.current = e as InstallPromptEvent;
+      if (isStandalone || dismissedRecently()) return;
+      timers.push(setTimeout(() => setIsVisible(true), 5000));
     };
-
     window.addEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
 
-    // For iOS, if not dismissed, show after 8 seconds
-    if (isIosDevice) {
-      const dismissedTime = localStorage.getItem('pwa_prompt_dismissed_time');
-      if (!dismissedTime || Date.now() - parseInt(dismissedTime, 10) >= 7 * 86400 * 1000) {
-        const timer = setTimeout(() => {
-          setIsVisible(true);
-        }, 8000);
-        return () => clearTimeout(timer);
-      }
+    const handleInstalled = () => {
+      deferredPromptRef.current = null;
+      setIsVisible(false);
+    };
+    window.addEventListener('appinstalled', handleInstalled);
+
+    // iOS has no install prompt: offer the steps once in a while
+    if (isIosDevice && !isStandalone && !dismissedRecently()) {
+      timers.push(setTimeout(() => setIsVisible(true), 8000));
     }
 
     return () => {
+      timers.forEach(clearTimeout);
       window.removeEventListener('open-pwa-install', handleCustomTrigger);
       window.removeEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
+      window.removeEventListener('appinstalled', handleInstalled);
     };
-  }, [deferredPrompt]);
+  }, []);
 
   const handleInstallClick = () => {
-    if (isIos) {
+    if (isIosRef.current) {
       setShowIosTutorial(true);
       return;
     }
-
-    if (deferredPrompt) {
-      deferredPrompt.prompt();
-      deferredPrompt.userChoice.then((choiceResult: any) => {
-        if (choiceResult.outcome === 'accepted') {
-          setIsVisible(false);
-        }
-        setDeferredPrompt(null);
-      });
-    } else {
-      setShowIosTutorial(true);
-    }
+    if (!runNativePrompt()) setShowManualSteps(true);
   };
 
   const handleDismiss = () => {
     setIsVisible(false);
     setShowIosTutorial(false);
-    localStorage.setItem('pwa_prompt_dismissed_time', Date.now().toString());
+    setShowManualSteps(false);
+    try { localStorage.setItem(DISMISS_KEY, Date.now().toString()); } catch { /* ignore */ }
   };
 
   if (!isVisible) return null;
@@ -142,7 +149,27 @@ export default function PwaInstallPrompt() {
             <div className="pwa-step">
               <span className="step-num">2</span>
               <p>
-                Scroll and select <strong>"Add to Home Screen"</strong>:
+                Scroll and select <strong>&ldquo;Add to Home Screen&rdquo;</strong>:
+              </p>
+              <PlusSquare size={20} className="text-purple-400 inline-block ml-1" />
+            </div>
+            <button className="pwa-done-btn" onClick={handleDismiss}>
+              Got it
+            </button>
+          </div>
+        ) : showManualSteps ? (
+          <div className="pwa-ios-instructions">
+            <div className="pwa-step">
+              <span className="step-num">1</span>
+              <p>
+                Open your browser <strong>menu</strong>:
+              </p>
+              <MoreVertical size={20} className="text-sky-400 inline-block ml-1" />
+            </div>
+            <div className="pwa-step">
+              <span className="step-num">2</span>
+              <p>
+                Choose <strong>&ldquo;Install app&rdquo;</strong> or <strong>&ldquo;Add to Home Screen&rdquo;</strong>.
               </p>
               <PlusSquare size={20} className="text-purple-400 inline-block ml-1" />
             </div>
@@ -166,7 +193,8 @@ export default function PwaInstallPrompt() {
       <style jsx>{`
         .pwa-install-overlay {
           position: fixed;
-          bottom: 84px;
+          /* above the player bar (72px) + the sticky ad strip (~60px) */
+          bottom: 148px;
           right: 24px;
           z-index: 9999;
           max-width: 420px;
@@ -176,7 +204,8 @@ export default function PwaInstallPrompt() {
 
         @media (max-width: 768px) {
           .pwa-install-overlay {
-            bottom: 74px;
+            /* above bottom nav (56) + mini player (60) + ad strip (~60) */
+            bottom: calc(184px + env(safe-area-inset-bottom, 0px));
             left: 16px;
             right: 16px;
             width: auto;

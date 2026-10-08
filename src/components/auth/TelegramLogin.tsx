@@ -28,13 +28,10 @@ export const TelegramLogin: React.FC = () => {
       script.setAttribute('data-request-access', 'write');
       script.async = true;
 
-      script.onload = () => {
-        setIsLoaded(true);
-      };
-
       scriptContainerRef.current.appendChild(script);
 
-      // Check if iframe is inserted into DOM
+      // Ready = the widget's iframe is in the DOM (script onload fires before
+      // the iframe exists, so it would hide the placeholder too early).
       const observer = new MutationObserver(() => {
         if (scriptContainerRef.current?.querySelector('iframe')) {
           setIsLoaded(true);
@@ -43,12 +40,13 @@ export const TelegramLogin: React.FC = () => {
 
       observer.observe(scriptContainerRef.current, { childList: true, subtree: true });
 
-      // Fallback: set loaded after 600ms
-      const timer = setTimeout(() => setIsLoaded(true), 600);
+      // Fallback for slow networks: reveal whatever is there after 4s
+      const timer = setTimeout(() => setIsLoaded(true), 4000);
 
       return () => {
         observer.disconnect();
         clearTimeout(timer);
+        delete (window as any).onTelegramAuth;
       };
     }
 

@@ -60,44 +60,48 @@ function mapDbToAlbum(row: any): Album {
 
 import { DEFAULT_ALBUMS } from '@/types/album';
 
+// Built-in albums (DEFAULT_ALBUMS + albums.json) shipped with the code.
+function builtInAlbums(): Album[] {
+  const albums = readLocalAlbums();
+  for (const defAlb of DEFAULT_ALBUMS) {
+    if (!albums.some(a => a.id === defAlb.id || a.slug === defAlb.slug)) {
+      albums.push(defAlb);
+    }
+  }
+  return albums;
+}
+
 export async function GET() {
   try {
-    const localAlbums = readLocalAlbums();
-    // Ensure all DEFAULT_ALBUMS are in localAlbums
-    for (const defAlb of DEFAULT_ALBUMS) {
-      if (!localAlbums.some(a => a.id === defAlb.id || a.slug === defAlb.slug)) {
-        localAlbums.push(defAlb);
-      }
-    }
+    const localAlbums = builtInAlbums();
 
-    // 1. Try Supabase first
+    // 1. Supabase is the source of truth. A row with is_published = false is a
+    //    deleted album: it is hidden and also stops the built-in copy of the
+    //    same album from coming back ("deleted albums return" bug).
     const { data: dbData, error } = await supabase
       .from('albums')
       .select('*')
       .order('order_index', { ascending: true });
 
-    if (!error && dbData && dbData.length > 0) {
-      const dbAlbums = dbData.map(mapDbToAlbum);
-      // Merge missing local/default albums
+    if (!error && dbData) {
+      const deletedSlugs = new Set(dbData.filter((r: any) => r.is_published === false).map((r: any) => r.slug));
+      const dbAlbums = dbData.filter((r: any) => r.is_published !== false).map(mapDbToAlbum);
+      // Built-in albums not saved in the DB yet (and not deleted) still show
       for (const locAlb of localAlbums) {
+        if (deletedSlugs.has(locAlb.slug)) continue;
         if (!dbAlbums.some(a => a.id === locAlb.id || a.slug === locAlb.slug)) {
           dbAlbums.push(locAlb);
         }
       }
       dbAlbums.sort((a, b) => (a.orderIndex ?? 0) - (b.orderIndex ?? 0));
-      return NextResponse.json({ albums: dbAlbums, source: 'supabase+merged' });
+      return NextResponse.json({ albums: dbAlbums, source: 'supabase+builtin' });
     }
 
-    // 2. Fallback to local JSON file
+    // 2. Fallback to the built-in list
     localAlbums.sort((a, b) => (a.orderIndex ?? 0) - (b.orderIndex ?? 0));
     return NextResponse.json({ albums: localAlbums, source: 'local' });
   } catch (err: any) {
-    const localAlbums = readLocalAlbums();
-    for (const defAlb of DEFAULT_ALBUMS) {
-      if (!localAlbums.some(a => a.id === defAlb.id || a.slug === defAlb.slug)) {
-        localAlbums.push(defAlb);
-      }
-    }
+    const localAlbums = builtInAlbums();
     localAlbums.sort((a, b) => (a.orderIndex ?? 0) - (b.orderIndex ?? 0));
     return NextResponse.json({ albums: localAlbums, error: err.message, source: 'fallback' });
   }
@@ -282,14 +286,35 @@ export async function DELETE(req: NextRequest) {
     const filtered = localAlbums.filter(a => a.id !== id && a.slug !== slug);
     writeLocalAlbums(filtered);
 
+    // Which album is it? (by slug, or by id in the built-in list / the DB)
+    let targetSlug = slug;
+    let targetTitle = '';
+    const builtIn = builtInAlbums().find(a => (slug && a.slug === slug) || (id && a.id === id));
+    if (builtIn) {
+      targetSlug = builtIn.slug;
+      targetTitle = builtIn.title;
+    } else if (!targetSlug && id) {
+      const { data: row } = await supabase.from('albums').select('slug, title').eq('id', id).maybeSingle();
+      targetSlug = row?.slug ?? null;
+    }
+
     try {
-      if (slug) {
-        await supabase.from('albums').delete().eq('slug', slug);
+      if (builtIn && targetSlug) {
+        // A built-in album lives in the code, so deleting the DB row is not
+        // enough — keep a hidden marker row so it stays deleted.
+        const { error: markErr } = await supabase.from('albums').upsert(
+          { slug: targetSlug, title: targetTitle || targetSlug, is_published: false },
+          { onConflict: 'slug' }
+        );
+        if (markErr) throw markErr;
+      } else if (targetSlug) {
+        await supabase.from('albums').delete().eq('slug', targetSlug);
       } else if (id) {
         await supabase.from('albums').delete().eq('id', id);
       }
     } catch (e) {
       console.warn('Could not delete from supabase albums:', e);
+      return NextResponse.json({ error: 'Could not delete the album' }, { status: 500 });
     }
 
     return NextResponse.json({ success: true });

@@ -18,6 +18,9 @@ import { TrackLimitAdModal } from '@/components/ads/TrackLimitAdModal';
 import AdSenseLoader from '@/components/ads/AdSenseLoader';
 import { ListAdAnchorTracker } from '@/components/ads/ListAd';
 import AdDebugPanel from '@/components/ads/AdDebugPanel';
+import AddToPlaylistModal from '@/components/audio/AddToPlaylistModal';
+import { OPEN_ADD_TO_PLAYLIST_EVENT } from '@/components/audio/playerActions';
+import type { Track } from '@/components/admin/StudioProvider';
 import '@/styles/ytmusic.css';
 
 export default function AppLayout({ children }: { children: React.ReactNode }) {
@@ -27,6 +30,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
   const [isDesktopExpanded, setIsDesktopExpanded] = useState(false);
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
   const [isMobileDrawerOpen, setIsMobileDrawerOpen] = useState(false);
+  const [playlistTrack, setPlaylistTrack] = useState<Track | null>(null);
 
   const { title, isAdModalOpen, setIsAdModalOpen } = useAudioControls();
   const { isAuthModalOpen, setIsAuthModalOpen, isSubscriptionModalOpen, setIsSubscriptionModalOpen } = useAuth();
@@ -34,6 +38,13 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     setIsMobileDrawerOpen(false);
   }, [pathname]);
+
+  // "Save to playlist" from any player menu
+  useEffect(() => {
+    const open = (e: Event) => setPlaylistTrack((e as CustomEvent<Track>).detail || null);
+    window.addEventListener(OPEN_ADD_TO_PLAYLIST_EVENT, open);
+    return () => window.removeEventListener(OPEN_ADD_TO_PLAYLIST_EVENT, open);
+  }, []);
 
   // SCROLL GUARD: AdSense responsive ads set inline "height: auto !important"
   // (and overflow rules) on the elements above them. The page scrolls inside
@@ -178,6 +189,11 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
       />
 
       <ContactModal />
+      <AddToPlaylistModal
+        isOpen={!!playlistTrack}
+        onClose={() => setPlaylistTrack(null)}
+        track={playlistTrack}
+      />
 
       {/* Mobile Full Screen Player */}
       <MobileFullPlayer

@@ -114,7 +114,7 @@ export default function LibraryPage() {
   const allAlbums: Album[] = (dbAlbums && dbAlbums.length > 0 ? dbAlbums : DEFAULT_ALBUMS);
 
   // Unique artists for Artists view
-  const artistList = DEFAULT_ALBUMS.map(album => ({
+  const artistList = allAlbums.map(album => ({
     name: album.artist,
     coverUrl: album.coverUrl,
     slug: album.slug,

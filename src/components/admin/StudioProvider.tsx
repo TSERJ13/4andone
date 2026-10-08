@@ -311,12 +311,9 @@ export const StudioProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       if (tagsData) setTags(tagsData);
       // Albums (Dynamic Album Builder)
       if (aData?.albums && Array.isArray(aData.albums)) {
+        // /api/albums already adds the built-in albums (minus deleted ones);
+        // merging DEFAULT_ALBUMS again here brought deleted albums back.
         const merged = [...aData.albums];
-        for (const defAlb of DEFAULT_ALBUMS) {
-          if (!merged.some(a => a.id === defAlb.id || a.slug === defAlb.slug)) {
-            merged.push(defAlb);
-          }
-        }
         merged.sort((a, b) => (a.orderIndex ?? 0) - (b.orderIndex ?? 0));
         setAlbums(merged);
       }

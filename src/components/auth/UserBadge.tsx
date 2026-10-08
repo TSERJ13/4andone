@@ -181,14 +181,18 @@ export const UserBadge: React.FC<{ textColor?: string }> = ({ textColor = 'white
               <span>Help</span>
             </Link>
 
-            <a 
-              href="mailto:support@4and.one" 
+            <button
+              type="button"
               className="yt-menu-item"
-              onClick={() => setShowPopup(false)}
+              onClick={() => {
+                setShowPopup(false);
+                // Opens the contact form; messages land in Admin → Messages
+                window.dispatchEvent(new CustomEvent('open-contact-modal'));
+              }}
             >
               <MessageSquare size={20} className="yt-menu-icon" />
               <span>Send feedback</span>
-            </a>
+            </button>
           </div>
         </div>
       )}

@@ -23,6 +23,7 @@ import {
   Disc,
   Trophy
 } from 'lucide-react';
+import { openAddToPlaylist, saveTrackOffline } from '@/components/audio/playerActions';
 import { useAudio } from '@/components/audio/AudioProvider';
 import { FinalStopButton } from '@/components/audio/FinalStopButton';
 import { useStudio, Track } from '@/components/admin/StudioProvider';
@@ -141,19 +142,7 @@ export default function DesktopFullPlayer({ onClose }: DesktopFullPlayerProps) {
     setTimeout(() => setShowCopiedToast(false), 2500);
   };
 
-  const handleDownload = () => {
-    if (!currentTrack) return;
-    const url = currentTrack.audioUrl || currentTrack.audio_url;
-    if (url) {
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = `${currentTrack.title || 'track'}.mp3`;
-      a.target = '_blank';
-      document.body.appendChild(a);
-      a.click();
-      document.body.removeChild(a);
-    }
-  };
+  const handleDownload = () => saveTrackOffline(currentTrack);
 
   const currentBpm = bpm || 100;
   const bpmDelta = currentBpm - 100;
@@ -433,7 +422,7 @@ export default function DesktopFullPlayer({ onClose }: DesktopFullPlayerProps) {
                       className="yt-context-menu-item"
                       onClick={() => {
                         setIsMenuOpen(false);
-                        router.push('/library');
+                        openAddToPlaylist(currentTrack);
                       }}
                     >
                       <ListPlus size={16} />

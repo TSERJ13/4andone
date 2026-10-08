@@ -25,6 +25,7 @@ import {
   Trophy,
   X
 } from 'lucide-react';
+import { openAddToPlaylist, saveTrackOffline } from '@/components/audio/playerActions';
 import { useAudio } from '@/components/audio/AudioProvider';
 import { FINAL_USER_STOP_EVENT } from '@/components/audio/FinalStopButton';
 import { useStudio } from '@/components/admin/StudioProvider';
@@ -142,19 +143,7 @@ export default function MobileFullPlayer({ isOpen, onClose }: MobileFullPlayerPr
     setTimeout(() => setShowCopiedToast(false), 2500);
   };
 
-  const handleDownload = () => {
-    if (!currentTrack) return;
-    const url = currentTrack.audioUrl || currentTrack.audio_url;
-    if (url) {
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = `${currentTrack.title || 'track'}.mp3`;
-      a.target = '_blank';
-      document.body.appendChild(a);
-      a.click();
-      document.body.removeChild(a);
-    }
-  };
+  const handleDownload = () => saveTrackOffline(currentTrack);
 
   return (
     <div className={`yt-mobile-full-player-overlay ${isFinalRedActive ? 'final-mode-active' : ''}`}>
@@ -214,8 +203,7 @@ export default function MobileFullPlayer({ isOpen, onClose }: MobileFullPlayerPr
                 className="yt-context-menu-item"
                 onClick={() => {
                   setIsMenuOpen(false);
-                  onClose();
-                  router.push('/library');
+                  openAddToPlaylist(currentTrack);
                 }}
               >
                 <ListPlus size={16} />
@@ -327,10 +315,7 @@ export default function MobileFullPlayer({ isOpen, onClose }: MobileFullPlayerPr
           <button
             type="button"
             className="yt-action-pill"
-            onClick={() => {
-              onClose();
-              router.push('/library');
-            }}
+            onClick={() => openAddToPlaylist(currentTrack)}
           >
             <Bookmark size={14} />
             <span>Save</span>

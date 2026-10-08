@@ -35,23 +35,16 @@ export default function UpgradePage() {
           <ArrowLeft size={18} />
           <span>Back</span>
         </button>
-
-        <div className="yt-prem-header-brand">
-          <div className="yt-prem-play-badge">
-            <Play size={14} fill="#ffffff" color="#ffffff" style={{ marginLeft: '1px' }} />
-          </div>
-          <span className="yt-prem-brand-title">4ANDONE Music</span>
-        </div>
       </header>
 
       {/* Main Content Area */}
       <main className="yt-prem-hero-content">
-        {/* Large Logo Badge */}
-        <div className="yt-prem-hero-logo">
-          <div className="yt-logo-glow-ring">
-            <img src="/logo-square.png" alt="4ANDONE Logo" className="yt-logo-img" />
+        {/* Green Play Badge Brand Header */}
+        <div className="yt-prem-hero-brand">
+          <div className="yt-prem-hero-play-badge">
+            <Play size={22} fill="#ffffff" color="#ffffff" style={{ marginLeft: '2px' }} />
           </div>
-          <span className="yt-logo-subtext">4ANDONE Music</span>
+          <span className="yt-prem-hero-brand-title">4ANDONE Music</span>
         </div>
 
         {/* Main Headline */}
@@ -250,30 +243,6 @@ export default function UpgradePage() {
           transform: translateY(-1px);
         }
 
-        .yt-prem-header-brand {
-          display: flex;
-          align-items: center;
-          gap: 8px;
-        }
-
-        .yt-prem-play-badge {
-          width: 28px;
-          height: 28px;
-          border-radius: 50%;
-          background: linear-gradient(135deg, #10b981 0%, #059669 100%);
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          box-shadow: 0 2px 10px rgba(16, 185, 129, 0.4);
-        }
-
-        .yt-prem-brand-title {
-          font-size: 17px;
-          font-weight: 800;
-          letter-spacing: -0.3px;
-          color: #ffffff;
-        }
-
         /* Hero Content */
         .yt-prem-hero-content {
           position: relative;
@@ -288,21 +257,30 @@ export default function UpgradePage() {
           text-align: center;
         }
 
-        .yt-prem-hero-logo {
+        .yt-prem-hero-brand {
           display: flex;
           align-items: center;
-          gap: 12px;
+          gap: 10px;
           margin-bottom: 24px;
         }
 
-        .yt-logo-glow-ring {
-          position: relative;
-          width: 48px;
-          height: 48px;
-          border-radius: 14px;
-          overflow: hidden;
-          box-shadow: 0 8px 25px rgba(16, 185, 129, 0.4);
+        .yt-prem-hero-play-badge {
+          width: 44px;
+          height: 44px;
+          border-radius: 50%;
+          background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          box-shadow: 0 6px 20px rgba(16, 185, 129, 0.45);
           border: 1px solid rgba(255, 255, 255, 0.2);
+        }
+
+        .yt-prem-hero-brand-title {
+          font-size: 26px;
+          font-weight: 900;
+          letter-spacing: -0.5px;
+          color: #ffffff;
         }
 
         .yt-logo-img {

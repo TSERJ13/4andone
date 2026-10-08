@@ -1038,22 +1038,24 @@ const FinalsPage = () => {
           display: flex;
           flex-direction: column;
           align-items: flex-end;
-          gap: 8px;
+          gap: 4px;
+          margin-top: -10px;
         }
 
         .yt-small-how-link {
           display: inline-flex;
           align-items: center;
-          gap: 5px;
-          color: #aaaaaa;
-          font-size: 12px;
+          gap: 4px;
+          color: #888888;
+          font-size: 11px;
           font-weight: 500;
           text-decoration: none;
           transition: color 0.15s ease;
+          padding-bottom: 2px;
         }
 
         .yt-small-how-link:hover {
-          color: #ffffff;
+          color: #10b981;
         }
 
         .yt-header-pill-btn {

@@ -911,9 +911,50 @@
   border-radius: 6px;
   white-space: nowrap;
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
-  pointer-events: none;
   animation: popoverFadeIn 0.15s ease;
   z-index: 310;
+}
+
+.yt-menu-wrapper {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+
+.yt-context-menu-popover {
+  position: absolute;
+  bottom: 50px;
+  right: 0;
+  width: 220px;
+  background: #212121;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.8);
+  border-radius: 12px;
+  padding: 6px 0;
+  display: flex;
+  flex-direction: column;
+  z-index: 350;
+  animation: popoverFadeIn 0.15s ease;
+}
+
+.yt-context-menu-item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  padding: 10px 16px;
+  background: transparent;
+  border: none;
+  color: #ffffff;
+  font-size: 13px;
+  font-weight: 500;
+  text-align: left;
+  cursor: pointer;
+  transition: background 0.12s ease;
+}
+
+.yt-context-menu-item:hover {
+  background: rgba(255, 255, 255, 0.1);
 }
 
 .yt-player-time-display {

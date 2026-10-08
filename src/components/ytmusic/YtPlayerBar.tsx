@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState, useRef, useEffect } from 'react';
+import { useRouter } from 'next/navigation';
 import {
   Play,
   Pause,
@@ -16,7 +17,11 @@ import {
   MoreVertical,
   Minus,
   Plus,
-  Gauge
+  Gauge,
+  Download,
+  PlusCircle,
+  Disc,
+  ListPlus
 } from 'lucide-react';
 import { useAudio } from '@/components/audio/AudioProvider';
 import { useStudio } from '@/components/admin/StudioProvider';
@@ -34,6 +39,7 @@ interface YtPlayerBarProps {
 }
 
 export default function YtPlayerBar({ onExpandPlayer }: YtPlayerBarProps) {
+  const router = useRouter();
   const { albums, tracks, toggleFavorite } = useStudio();
   const {
     isPlaying,
@@ -57,8 +63,11 @@ export default function YtPlayerBar({ onExpandPlayer }: YtPlayerBarProps) {
   } = useAudio();
 
   const [isSpeedPopoverOpen, setIsSpeedPopoverOpen] = useState(false);
+  const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [showCopiedToast, setShowCopiedToast] = useState(false);
+  
   const popoverRef = useRef<HTMLDivElement>(null);
+  const menuRef = useRef<HTMLDivElement>(null);
 
   // Close speed popover when clicking outside
   useEffect(() => {
@@ -66,14 +75,17 @@ export default function YtPlayerBar({ onExpandPlayer }: YtPlayerBarProps) {
       if (popoverRef.current && !popoverRef.current.contains(event.target as Node)) {
         setIsSpeedPopoverOpen(false);
       }
+      if (menuRef.current && !menuRef.current.contains(event.target as Node)) {
+        setIsMenuOpen(false);
+      }
     };
-    if (isSpeedPopoverOpen) {
+    if (isSpeedPopoverOpen || isMenuOpen) {
       document.addEventListener('mousedown', handleClickOutside);
     }
     return () => {
       document.removeEventListener('mousedown', handleClickOutside);
     };
-  }, [isSpeedPopoverOpen]);
+  }, [isSpeedPopoverOpen, isMenuOpen]);
 
   if (!currentTrack && title === "No Track Selected") {
     return null;
@@ -108,8 +120,7 @@ export default function YtPlayerBar({ onExpandPlayer }: YtPlayerBarProps) {
     }
   };
 
-  const handleShare = (e: React.MouseEvent) => {
-    e.stopPropagation();
+  const handleShare = () => {
     if (!currentTrack) return;
     const shareUrl = `${window.location.origin}/track/${currentTrack.id}`;
     if (navigator.clipboard) {
@@ -117,6 +128,20 @@ export default function YtPlayerBar({ onExpandPlayer }: YtPlayerBarProps) {
     }
     setShowCopiedToast(true);
     setTimeout(() => setShowCopiedToast(false), 2500);
+  };
+
+  const handleDownload = () => {
+    if (!currentTrack) return;
+    const url = currentTrack.audioUrl || currentTrack.audio_url;
+    if (url) {
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `${currentTrack.title || 'track'}.mp3`;
+      a.target = '_blank';
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+    }
   };
 
   const currentBpm = bpm || 100;
@@ -173,7 +198,7 @@ export default function YtPlayerBar({ onExpandPlayer }: YtPlayerBarProps) {
           </span>
         </div>
 
-        {/* CENTER: Thumbnail, Title, Artist, Heart (Liked Music), Share, More Options */}
+        {/* CENTER: Thumbnail, Title, Artist, Heart (Liked Music), 3-Dots Menu */}
         <div className="yt-player-center-meta" onClick={onExpandPlayer}>
           <img
             src={coverImg}
@@ -205,32 +230,94 @@ export default function YtPlayerBar({ onExpandPlayer }: YtPlayerBarProps) {
               />
             </button>
 
-            {/* Share Button */}
-            <div className="yt-share-btn-wrapper">
+            {/* 3-Dots Menu Button & Popover Menu */}
+            <div className="yt-menu-wrapper" ref={menuRef}>
               <button
                 type="button"
-                className="yt-player-icon-btn"
-                onClick={handleShare}
-                title="Share track link"
+                className={`yt-player-icon-btn ${isMenuOpen ? 'active' : ''}`}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setIsMenuOpen(!isMenuOpen);
+                }}
+                title="More options"
               >
-                <Share2 size={18} />
+                <MoreVertical size={18} />
               </button>
 
+              {/* Toast for link copy */}
               {showCopiedToast && (
                 <div className="yt-copied-toast">
-                  Link copied!
+                  Link copied to clipboard!
+                </div>
+              )}
+
+              {/* YouTube Music Style 3-Dots Context Menu */}
+              {isMenuOpen && (
+                <div className="yt-context-menu-popover">
+                  <button
+                    type="button"
+                    className="yt-context-menu-item"
+                    onClick={async () => {
+                      setIsMenuOpen(false);
+                      if (currentTrack?.id) await toggleFavorite(currentTrack.id);
+                    }}
+                  >
+                    <Heart size={16} fill={isFavorite ? '#ef4444' : 'none'} color={isFavorite ? '#ef4444' : 'currentColor'} />
+                    <span>{isFavorite ? 'Remove from Liked Songs' : 'Save to Liked Songs'}</span>
+                  </button>
+
+                  <button
+                    type="button"
+                    className="yt-context-menu-item"
+                    onClick={() => {
+                      setIsMenuOpen(false);
+                      handleDownload();
+                    }}
+                  >
+                    <Download size={16} />
+                    <span>Download track</span>
+                  </button>
+
+                  <button
+                    type="button"
+                    className="yt-context-menu-item"
+                    onClick={() => {
+                      setIsMenuOpen(false);
+                      router.push('/library');
+                    }}
+                  >
+                    <ListPlus size={16} />
+                    <span>Save to playlist</span>
+                  </button>
+
+                  {currentTrack?.album && (
+                    <button
+                      type="button"
+                      className="yt-context-menu-item"
+                      onClick={() => {
+                        setIsMenuOpen(false);
+                        router.push(`/album/${currentTrack.album.toLowerCase().replace(/\s+/g, '-')}`);
+                      }}
+                    >
+                      <Disc size={16} />
+                      <span>Go to album</span>
+                    </button>
+                  )}
+
+                  <button
+                    type="button"
+                    className="yt-context-menu-item"
+                    onClick={() => {
+                      setIsMenuOpen(false);
+                      handleShare();
+                    }}
+                  >
+                    <Share2 size={16} />
+                    <span>Share track</span>
+                  </button>
                 </div>
               )}
             </div>
-
-            {/* More Options */}
-            <button
-              type="button"
-              className="yt-player-icon-btn"
-              title="More options"
-            >
-              <MoreVertical size={18} />
-            </button>
           </div>
         </div>
 

@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState, useRef, useEffect } from 'react';
+import { useRouter } from 'next/navigation';
 import {
   Play,
   Pause,
@@ -16,7 +17,10 @@ import {
   MoreVertical,
   Minus,
   Plus,
-  Gauge
+  Gauge,
+  Download,
+  ListPlus,
+  Disc
 } from 'lucide-react';
 import { useAudio } from '@/components/audio/AudioProvider';
 import { useStudio, Track } from '@/components/admin/StudioProvider';
@@ -34,6 +38,7 @@ interface DesktopFullPlayerProps {
 }
 
 export default function DesktopFullPlayer({ onClose }: DesktopFullPlayerProps) {
+  const router = useRouter();
   const {
     isPlaying,
     togglePlay,
@@ -59,23 +64,29 @@ export default function DesktopFullPlayer({ onClose }: DesktopFullPlayerProps) {
   const { tracks, albums, toggleFavorite } = useStudio();
   const [activeTab, setActiveTab] = useState<'upnext' | 'lyrics' | 'comments' | 'related'>('upnext');
   const [isSpeedPopoverOpen, setIsSpeedPopoverOpen] = useState(false);
+  const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [showCopiedToast, setShowCopiedToast] = useState(false);
+  
   const popoverRef = useRef<HTMLDivElement>(null);
+  const menuRef = useRef<HTMLDivElement>(null);
 
-  // Close speed popover on outside click
+  // Close popovers on outside click
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
       if (popoverRef.current && !popoverRef.current.contains(event.target as Node)) {
         setIsSpeedPopoverOpen(false);
       }
+      if (menuRef.current && !menuRef.current.contains(event.target as Node)) {
+        setIsMenuOpen(false);
+      }
     };
-    if (isSpeedPopoverOpen) {
+    if (isSpeedPopoverOpen || isMenuOpen) {
       document.addEventListener('mousedown', handleClickOutside);
     }
     return () => {
       document.removeEventListener('mousedown', handleClickOutside);
     };
-  }, [isSpeedPopoverOpen]);
+  }, [isSpeedPopoverOpen, isMenuOpen]);
 
   const liveTrack = tracks.find((t) => t.id === currentTrack?.id) || currentTrack;
   const isFavorite = liveTrack?.isFavorite || false;
@@ -106,8 +117,7 @@ export default function DesktopFullPlayer({ onClose }: DesktopFullPlayerProps) {
     }
   };
 
-  const handleShare = (e: React.MouseEvent) => {
-    e.stopPropagation();
+  const handleShare = () => {
     if (!currentTrack) return;
     const shareUrl = `${window.location.origin}/track/${currentTrack.id}`;
     if (navigator.clipboard) {
@@ -115,6 +125,20 @@ export default function DesktopFullPlayer({ onClose }: DesktopFullPlayerProps) {
     }
     setShowCopiedToast(true);
     setTimeout(() => setShowCopiedToast(false), 2500);
+  };
+
+  const handleDownload = () => {
+    if (!currentTrack) return;
+    const url = currentTrack.audioUrl || currentTrack.audio_url;
+    if (url) {
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `${currentTrack.title || 'track'}.mp3`;
+      a.target = '_blank';
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+    }
   };
 
   const currentBpm = bpm || 100;
@@ -293,7 +317,7 @@ export default function DesktopFullPlayer({ onClose }: DesktopFullPlayerProps) {
             </span>
           </div>
 
-          {/* Center: Track Title, Subtitle, Heart (Liked), Share, More Options */}
+          {/* Center: Track Title, Subtitle, Heart (Liked), 3-Dots Menu */}
           <div className="yt-player-center-meta">
             <div className="yt-player-meta">
               <span className="yt-player-title">{title}</span>
@@ -318,32 +342,94 @@ export default function DesktopFullPlayer({ onClose }: DesktopFullPlayerProps) {
                 />
               </button>
 
-              {/* Share Button */}
-              <div className="yt-share-btn-wrapper">
+              {/* 3-Dots Menu Button & Popover Menu */}
+              <div className="yt-menu-wrapper" ref={menuRef}>
                 <button
                   type="button"
-                  className="yt-player-icon-btn"
-                  onClick={handleShare}
-                  title="Share track link"
+                  className={`yt-player-icon-btn ${isMenuOpen ? 'active' : ''}`}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setIsMenuOpen(!isMenuOpen);
+                  }}
+                  title="More options"
                 >
-                  <Share2 size={18} />
+                  <MoreVertical size={18} />
                 </button>
 
+                {/* Toast for link copy */}
                 {showCopiedToast && (
                   <div className="yt-copied-toast">
-                    Link copied!
+                    Link copied to clipboard!
+                  </div>
+                )}
+
+                {/* YouTube Music Style 3-Dots Context Menu */}
+                {isMenuOpen && (
+                  <div className="yt-context-menu-popover">
+                    <button
+                      type="button"
+                      className="yt-context-menu-item"
+                      onClick={async () => {
+                        setIsMenuOpen(false);
+                        if (currentTrack?.id) await toggleFavorite(currentTrack.id);
+                      }}
+                    >
+                      <Heart size={16} fill={isFavorite ? '#ef4444' : 'none'} color={isFavorite ? '#ef4444' : 'currentColor'} />
+                      <span>{isFavorite ? 'Remove from Liked Songs' : 'Save to Liked Songs'}</span>
+                    </button>
+
+                    <button
+                      type="button"
+                      className="yt-context-menu-item"
+                      onClick={() => {
+                        setIsMenuOpen(false);
+                        handleDownload();
+                      }}
+                    >
+                      <Download size={16} />
+                      <span>Download track</span>
+                    </button>
+
+                    <button
+                      type="button"
+                      className="yt-context-menu-item"
+                      onClick={() => {
+                        setIsMenuOpen(false);
+                        router.push('/library');
+                      }}
+                    >
+                      <ListPlus size={16} />
+                      <span>Save to playlist</span>
+                    </button>
+
+                    {currentTrack?.album && (
+                      <button
+                        type="button"
+                        className="yt-context-menu-item"
+                        onClick={() => {
+                          setIsMenuOpen(false);
+                          router.push(`/album/${currentTrack.album.toLowerCase().replace(/\s+/g, '-')}`);
+                        }}
+                      >
+                        <Disc size={16} />
+                        <span>Go to album</span>
+                      </button>
+                    )}
+
+                    <button
+                      type="button"
+                      className="yt-context-menu-item"
+                      onClick={() => {
+                        setIsMenuOpen(false);
+                        handleShare();
+                      }}
+                    >
+                      <Share2 size={16} />
+                      <span>Share track</span>
+                    </button>
                   </div>
                 )}
               </div>
-
-              {/* More Options */}
-              <button
-                type="button"
-                className="yt-player-icon-btn"
-                title="More options"
-              >
-                <MoreVertical size={18} />
-              </button>
             </div>
           </div>
 
@@ -414,7 +500,7 @@ export default function DesktopFullPlayer({ onClose }: DesktopFullPlayerProps) {
 
             {/* Volume control */}
             <div className="yt-volume-control">
-              <button type="button" className="yt-player-icon-btn" onClick={() => setVolume(volume > 0 ? 0 : 1)}>
+              <button type="button" className="yt-bar-btn" onClick={() => setVolume(volume > 0 ? 0 : 1)}>
                 {volume === 0 ? <VolumeX size={18} /> : <Volume2 size={18} />}
               </button>
               <input
@@ -428,15 +514,14 @@ export default function DesktopFullPlayer({ onClose }: DesktopFullPlayerProps) {
               />
             </div>
 
-            <button type="button" className={`yt-player-icon-btn ${isRepeat ? 'active' : ''}`} onClick={toggleRepeat} title="Repeat">
+            <button type="button" className={`yt-bar-btn ${isRepeat ? 'active' : ''}`} onClick={toggleRepeat} title="Repeat">
               <Repeat size={18} />
             </button>
-
-            <button type="button" className={`yt-player-icon-btn ${isShuffle ? 'active' : ''}`} onClick={toggleShuffle} title="Shuffle">
+            <button type="button" className={`yt-bar-btn ${isShuffle ? 'active' : ''}`} onClick={toggleShuffle} title="Shuffle">
               <Shuffle size={18} />
             </button>
 
-            <button type="button" className="yt-player-icon-btn yt-collapse-btn" onClick={onClose} title="Collapse player">
+            <button type="button" className="yt-bar-btn yt-collapse-btn" onClick={onClose} title="Collapse player">
               <ChevronDown size={22} />
             </button>
           </div>

@@ -64,8 +64,8 @@ const ConfirmModal = ({
           left: 0;
           width: 100dvw;
           height: 100dvh;
-          background: rgba(0,0,0,0.8);
-          backdrop-filter: blur(8px);
+          background: rgba(0, 0, 0, 0.75);
+          backdrop-filter: blur(12px);
           display: flex;
           align-items: center;
           justify-content: center;
@@ -75,54 +75,75 @@ const ConfirmModal = ({
 
         .modal-content {
           width: 100%;
-          max-width: 440px;
-          border-radius: 28px;
-          padding: 32px;
+          max-width: 420px;
+          border-radius: 16px;
+          background: #212121;
+          border: 1px solid rgba(255, 255, 255, 0.1);
+          box-shadow: 0 16px 40px rgba(0, 0, 0, 0.8);
+          padding: 24px;
           position: relative;
         }
 
         .modal-header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 24px; }
-        .header-title { display: flex; gap: 16px; align-items: center; }
-        .header-title h3 { font-size: 20px; font-weight: 800; letter-spacing: -0.5px; }
-        .header-title p { font-size: 13px; color: #71717a; margin-top: 4px; line-height: 1.5; }
+        .header-title { display: flex; gap: 16px; align-items: flex-start; }
+        .header-title h3 { font-size: 18px; font-weight: 700; color: #ffffff; letter-spacing: -0.2px; }
+        .header-title p { font-size: 14px; color: rgba(255, 255, 255, 0.7); margin-top: 6px; line-height: 1.5; }
 
         .icon-box { 
           width: 44px; 
           height: 44px; 
-          border-radius: 14px; 
+          border-radius: 50%; 
           display: flex; 
           align-items: center; 
           justify-content: center; 
-          color: #1db954;
+          color: #ff0033;
+          background: rgba(255, 0, 51, 0.12);
           flex-shrink: 0;
         }
-        .danger-icon { color: #ef4444; background: rgba(239, 68, 68, 0.1); }
+        .danger-icon { color: #ff0033; background: rgba(255, 0, 51, 0.15); }
 
-        .close-btn { color: #71717a; transition: color 0.2s; }
-        .close-btn:hover { color: white; }
+        .close-btn { color: rgba(255, 255, 255, 0.5); transition: color 0.2s; background: none; border: none; cursor: pointer; padding: 4px; }
+        .close-btn:hover { color: #ffffff; }
 
-        .modal-footer { display: flex; justify-content: flex-end; gap: 12px; margin-top: 8px; }
+        .modal-footer { display: flex; justify-content: flex-end; gap: 12px; margin-top: 16px; }
 
-        .btn-danger {
-          background: #ef4444;
-          color: white;
-          padding: 10px 24px;
-          border-radius: 12px;
-          font-weight: 700;
+        .btn-secondary {
+          background: rgba(255, 255, 255, 0.08);
+          color: rgba(255, 255, 255, 0.8);
+          padding: 10px 20px;
+          border-radius: 20px;
+          font-weight: 600;
           font-size: 14px;
+          border: none;
+          cursor: pointer;
           transition: all 0.2s;
         }
-        .btn-danger:hover { background: #dc2626; transform: scale(1.02); }
+        .btn-secondary:hover { background: rgba(255, 255, 255, 0.15); color: #ffffff; }
+
+        .btn-danger, .btn-primary {
+          background: #ff0033;
+          color: #ffffff;
+          padding: 10px 24px;
+          border-radius: 20px;
+          font-weight: 700;
+          font-size: 14px;
+          border: none;
+          cursor: pointer;
+          transition: all 0.2s;
+          box-shadow: 0 4px 14px rgba(255, 0, 51, 0.3);
+        }
+        .btn-danger:hover, .btn-primary:hover { background: #cc0029; transform: scale(1.02); }
 
         @media (max-width: 768px) {
           .modal-overlay { 
             align-items: center; 
-            padding: 24px; 
+            padding: 20px; 
             z-index: 6000;
           }
           .modal-content { 
-            border-radius: 24px; 
+            border-radius: 16px; 
             max-width: 100%; 
+            padding: 20px;
           }
         }
       `}</style>

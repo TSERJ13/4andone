@@ -863,31 +863,49 @@ const FinalsPage = () => {
         }
 
         .prog-card {
-          padding: 20px;
-          border-radius: 20px;
+          padding: 16px 20px;
+          border-radius: 8px;
+          background: #212121;
           display: flex;
           align-items: center;
           gap: 16px;
           cursor: pointer;
-          transition: all 0.2s;
-          border: 1px solid rgba(255, 255, 255, 0.05);
+          transition: all 0.2s ease;
+          border: 1px solid rgba(255, 255, 255, 0.06);
+          border-left: 4px solid #ff0033;
           text-align: left;
         }
 
         .prog-card:hover { 
-          transform: translateY(-4px); 
-          background: rgba(255, 255, 255, 0.08);
-          border-color: var(--primary);
+          transform: translateY(-2px); 
+          background: #272727;
+          border-color: rgba(255, 255, 255, 0.12);
         }
 
         .prog-card-wrapper { position: relative; }
         /* Running program: red frame, like the red Final timer */
-        .prog-card.active { border-color: rgba(239, 68, 68, 0.6) !important; box-shadow: 0 0 18px rgba(239, 68, 68, 0.18); }
+        .prog-card.active { border-color: rgba(255, 0, 51, 0.8) !important; box-shadow: 0 0 20px rgba(255, 0, 51, 0.25); }
+
+        .prog-card.latin { border-left-color: #ff0033; }
+        .prog-card.standard { border-left-color: #00d2ff; }
+        .prog-card.all-dance { border-left-color: #22c55e; }
+        .prog-card.two-dance { border-left-color: #a855f7; }
+        .prog-card.four-dance { border-left-color: #eab308; }
+        .prog-card.eight-dance { border-left-color: #f97316; }
+        .prog-card.six-dance { border-left-color: #ec407a; }
+        .prog-card.inst-latin { border-left-color: #9c27b0; }
+        .prog-card.inst-std { border-left-color: #3f51b5; }
+        .prog-card.jive-mode { border-left-color: #ff9800; }
+        .prog-card.quickstep-mode { border-left-color: #26c6da; }
+        .prog-card.blackpool-lt { border-left-color: #ec407a; }
+        .prog-card.blackpool-st { border-left-color: #3b82f6; }
+        .prog-card.liked-songs { border-left-color: #ef4444; }
+        .prog-card.fitness { border-left-color: #ff5722; }
 
         .rectangular-timer-border {
           position: absolute;
           inset: -2px;
-          border-radius: 22px;
+          border-radius: 10px;
           pointer-events: none;
           z-index: 5;
         }
@@ -932,7 +950,7 @@ const FinalsPage = () => {
           align-items: center;
           justify-content: center;
           background: radial-gradient(circle, rgba(244, 67, 54, 0.35) 0%, rgba(20, 20, 20, 0.75) 100%);
-          border-radius: 20px;
+          border-radius: 8px;
           font-size: 52px;
           font-weight: 1000;
           color: #ff3b30;
@@ -943,32 +961,33 @@ const FinalsPage = () => {
         }
 
         .card-icon {
-          width: 48px;
-          height: 48px;
-          border-radius: 12px;
+          width: 44px;
+          height: 44px;
+          border-radius: 8px;
           display: flex;
           align-items: center;
           justify-content: center;
           background: rgba(255, 255, 255, 0.05);
+          flex-shrink: 0;
         }
 
-        .prog-card.latin .card-icon { color: #f7971e; background: rgba(247, 151, 30, 0.1); }
-        .prog-card.standard .card-icon { color: #00d2ff; background: rgba(0, 210, 255, 0.1); }
-        .prog-card.all-dance .card-icon { color: #ff0033; background: rgba(255, 0, 51, 0.1); }
-        .prog-card.eight-dance .card-icon { color: #ffeb3b; background: rgba(255, 235, 59, 0.1); }
-        .prog-card.six-dance .card-icon { color: #e91e63; background: rgba(233, 30, 99, 0.1); }
-        .prog-card.inst-latin .card-icon { color: #9c27b0; background: rgba(156, 39, 176, 0.1); }
-        .prog-card.inst-std .card-icon { color: #3f51b5; background: rgba(63, 81, 181, 0.1); }
-        .prog-card.fitness .card-icon { color: #ff5722; background: rgba(255, 87, 34, 0.1); }
-        .prog-card.jive-mode .card-icon { color: #ff9800; background: rgba(255, 152, 0, 0.1); }
-        .prog-card.quickstep-mode .card-icon { color: #26c6da; background: rgba(38, 198, 218, 0.1); }
-        .prog-card.two-dance .card-icon { color: #66bb6a; background: rgba(102, 187, 106, 0.1); }
-        .prog-card.four-dance .card-icon { color: #ab47bc; background: rgba(171, 71, 188, 0.1); }
-        .prog-card.blackpool-lt .card-icon { color: #ec407a; background: rgba(236, 64, 122, 0.1); }
-        .prog-card.blackpool-st .card-icon { color: #5c6bc0; background: rgba(92, 107, 192, 0.1); }
-        .prog-card.liked-songs .card-icon { color: #ef5350; background: rgba(239, 83, 80, 0.1); }
+        .prog-card.latin .card-icon { color: #ff0033; background: rgba(255, 0, 51, 0.12); }
+        .prog-card.standard .card-icon { color: #00d2ff; background: rgba(0, 210, 255, 0.12); }
+        .prog-card.all-dance .card-icon { color: #22c55e; background: rgba(34, 197, 94, 0.12); }
+        .prog-card.two-dance .card-icon { color: #a855f7; background: rgba(168, 85, 247, 0.12); }
+        .prog-card.four-dance .card-icon { color: #eab308; background: rgba(234, 179, 8, 0.12); }
+        .prog-card.eight-dance .card-icon { color: #f97316; background: rgba(249, 115, 22, 0.12); }
+        .prog-card.six-dance .card-icon { color: #ec407a; background: rgba(236, 64, 122, 0.12); }
+        .prog-card.inst-latin .card-icon { color: #9c27b0; background: rgba(156, 39, 176, 0.12); }
+        .prog-card.inst-std .card-icon { color: #3f51b5; background: rgba(63, 81, 181, 0.12); }
+        .prog-card.fitness .card-icon { color: #ff5722; background: rgba(255, 87, 34, 0.12); }
+        .prog-card.jive-mode .card-icon { color: #ff9800; background: rgba(255, 152, 0, 0.12); }
+        .prog-card.quickstep-mode .card-icon { color: #26c6da; background: rgba(38, 198, 218, 0.12); }
+        .prog-card.blackpool-lt .card-icon { color: #ec407a; background: rgba(236, 64, 122, 0.12); }
+        .prog-card.blackpool-st .card-icon { color: #3b82f6; background: rgba(59, 130, 246, 0.12); }
+        .prog-card.liked-songs .card-icon { color: #ef4444; background: rgba(239, 68, 68, 0.12); }
 
-        .card-info h4 { font-size: 14px; font-weight: 800; margin-bottom: 2px; }
+        .card-info h4 { font-size: 15px; font-weight: 700; color: #ffffff; margin-bottom: 2px; }
         .card-info p { font-size: 11px; opacity: 0.5; font-weight: 600; }
         :global(.session-timer) { 
           font-size: 12px !important; 

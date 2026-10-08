@@ -106,13 +106,10 @@ export const UserBadge: React.FC<{ textColor?: string }> = ({ textColor = 'white
               <span>Your profile</span>
             </Link>
 
-            <button 
-              type="button"
+            <Link
+              href="/upgrade"
               className="yt-menu-item"
-              onClick={() => {
-                setShowPopup(false);
-                setIsSubscriptionModalOpen(true);
-              }}
+              onClick={() => setShowPopup(false)}
             >
               {isPremium ? (
                 <>
@@ -125,7 +122,7 @@ export const UserBadge: React.FC<{ textColor?: string }> = ({ textColor = 'white
                   <span>Get 4and.one Premium</span>
                 </>
               )}
-            </button>
+            </Link>
 
             <button 
               type="button"

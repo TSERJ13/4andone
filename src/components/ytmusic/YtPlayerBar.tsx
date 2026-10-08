@@ -65,8 +65,12 @@ export default function YtPlayerBar({ onExpandPlayer }: YtPlayerBarProps) {
     isPauseCountdown,
     pauseTime,
     sessionDuration,
-    stop
+    stop,
+    toggleFinalMode,
+    activeMode
   } = useAudio();
+  // A Final program ends completely; Final on a single track just turns off and keeps playing
+  const endFinal = () => (activeMode ? stop() : toggleFinalMode());
 
   const [isSpeedPopoverOpen, setIsSpeedPopoverOpen] = useState(false);
   const [isMenuOpen, setIsMenuOpen] = useState(false);
@@ -211,7 +215,7 @@ export default function YtPlayerBar({ onExpandPlayer }: YtPlayerBarProps) {
             <SkipForward size={20} fill="currentColor" />
           </button>
 
-          {isFinalMode && <FinalStopButton onStop={() => stop()} className="yt-player-icon-btn" iconSize={20} />}
+          {isFinalMode && <FinalStopButton onStop={endFinal} className="yt-player-icon-btn" iconSize={20} />}
 
           {isPauseCountdown ? (
             <span className="yt-player-time-display" style={{ color: '#ef4444', fontWeight: 800 }} aria-live="polite">
@@ -483,7 +487,7 @@ export default function YtPlayerBar({ onExpandPlayer }: YtPlayerBarProps) {
 
           {isFinalMode ? (
             // Final Mode: no skipping — the red ✕ ends the session instead
-            <FinalStopButton onStop={() => stop()} className="yt-player-mobile-btn" iconSize={22} />
+            <FinalStopButton onStop={endFinal} className="yt-player-mobile-btn" iconSize={22} />
           ) : (
             <button
               type="button"

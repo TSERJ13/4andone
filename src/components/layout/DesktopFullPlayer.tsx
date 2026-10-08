@@ -69,6 +69,8 @@ export default function DesktopFullPlayer({ onClose }: DesktopFullPlayerProps) {
     bpm,
     setBpm
   } = useAudio();
+  // A Final program ends completely; Final on a single track just turns off and keeps playing
+  const endFinal = () => (activeMode ? stop() : toggleFinalMode());
 
   const { tracks, albums, toggleFavorite } = useStudio();
   const [activeTab, setActiveTab] = useState<'upnext' | 'lyrics' | 'comments' | 'related'>('upnext');
@@ -325,7 +327,7 @@ export default function DesktopFullPlayer({ onClose }: DesktopFullPlayerProps) {
               <SkipForward size={20} fill="currentColor" />
             </button>
             {isFinalMode ? (
-              <FinalStopButton onStop={() => stop()} className="yt-player-icon-btn" iconSize={20} />
+              <FinalStopButton onStop={endFinal} className="yt-player-icon-btn" iconSize={20} />
             ) : (
               // Final Mode for the current track: cuts at 1:45 (Viennese 1:25) with a fade, like main
               <button

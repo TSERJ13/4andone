@@ -304,43 +304,8 @@ export default function DesktopFullPlayer({ onClose }: DesktopFullPlayerProps) {
         </div>
 
         <div className="yt-player-bar-content">
-          {/* Left: Prev, Play/Pause, Next & Time Display */}
-          <div className="yt-player-left-controls">
-            <button type="button" className="yt-player-icon-btn" onClick={playPrevious} title="Previous" disabled={isFinalMode} style={isFinalMode ? { opacity: 0.3, cursor: 'not-allowed' } : undefined}>
-              <SkipBack size={20} fill="currentColor" />
-            </button>
-            <button type="button" className="yt-player-icon-btn yt-main-play-btn" onClick={togglePlay} title={isPlaying ? 'Pause' : 'Play'}>
-              {isPlaying ? <Pause size={22} fill="currentColor" color="currentColor" /> : <Play size={22} fill="currentColor" color="currentColor" style={{ marginLeft: 2 }} />}
-            </button>
-            <button type="button" className="yt-player-icon-btn" onClick={playNext} title="Next" disabled={isFinalMode} style={isFinalMode ? { opacity: 0.3, cursor: 'not-allowed' } : undefined}>
-              <SkipForward size={20} fill="currentColor" />
-            </button>
-            {isFinalMode ? (
-              <FinalStopButton onStop={endFinal} className="yt-player-icon-btn" iconSize={20} />
-            ) : (
-              // Final Mode for the current track: cuts at 1:45 (Viennese 1:25) with a fade, like main
-              <button
-                type="button"
-                className="yt-player-icon-btn"
-                onClick={toggleFinalMode}
-                disabled={!!activeMode}
-                title="Final Mode (1:45 Timer)"
-                aria-label="Final Mode"
-              >
-                <Trophy size={20} />
-              </button>
-            )}
-            {isPauseCountdown ? (
-              <span className="yt-player-time-display" style={{ color: '#ef4444', fontWeight: 800 }} aria-live="polite">Rest {pauseTime}s</span>
-            ) : (
-              <span className="yt-player-time-display" style={isFinalMode ? { color: '#ef4444' } : undefined}>
-                {formatTime(currentTime)} / {formatTime(totalDur)}
-              </span>
-            )}
-          </div>
-
-          {/* Center: Album Cover Thumb, Track Title, Subtitle, Heart (Liked), 3-Dots Menu */}
-          <div className="yt-player-center-meta">
+          {/* LEFT: Album Cover Thumb, Track Title, Subtitle, Heart (Liked), 3-Dots Menu */}
+          <div className="yt-player-left-meta">
             <img
               src={coverImg}
               alt={title}
@@ -458,6 +423,41 @@ export default function DesktopFullPlayer({ onClose }: DesktopFullPlayerProps) {
                 )}
               </div>
             </div>
+          </div>
+
+          {/* CENTER: Prev, Play/Pause, Next & Time Display */}
+          <div className="yt-player-center-controls">
+            <button type="button" className="yt-player-icon-btn" onClick={playPrevious} title="Previous" disabled={isFinalMode} style={isFinalMode ? { opacity: 0.3, cursor: 'not-allowed' } : undefined}>
+              <SkipBack size={20} fill="currentColor" />
+            </button>
+            <button type="button" className="yt-player-icon-btn yt-main-play-btn" onClick={togglePlay} title={isPlaying ? 'Pause' : 'Play'}>
+              {isPlaying ? <Pause size={22} fill="currentColor" color="currentColor" /> : <Play size={22} fill="currentColor" color="currentColor" style={{ marginLeft: 2 }} />}
+            </button>
+            <button type="button" className="yt-player-icon-btn" onClick={playNext} title="Next" disabled={isFinalMode} style={isFinalMode ? { opacity: 0.3, cursor: 'not-allowed' } : undefined}>
+              <SkipForward size={20} fill="currentColor" />
+            </button>
+            {isFinalMode ? (
+              <FinalStopButton onStop={endFinal} className="yt-player-icon-btn" iconSize={20} />
+            ) : (
+              // Final Mode for the current track: cuts at 1:45 (Viennese 1:25) with a fade, like main
+              <button
+                type="button"
+                className="yt-player-icon-btn"
+                onClick={toggleFinalMode}
+                disabled={!!activeMode}
+                title="Final Mode (1:45 Timer)"
+                aria-label="Final Mode"
+              >
+                <Trophy size={20} />
+              </button>
+            )}
+            {isPauseCountdown ? (
+              <span className="yt-player-time-display" style={{ color: '#ef4444', fontWeight: 800 }} aria-live="polite">Rest {pauseTime}s</span>
+            ) : (
+              <span className="yt-player-time-display" style={isFinalMode ? { color: '#ef4444' } : undefined}>
+                {formatTime(currentTime)} / {formatTime(totalDur)}
+              </span>
+            )}
           </div>
 
           {/* Right: Speedometer Popover, Volume, Repeat, Shuffle, Collapse Chevron */}

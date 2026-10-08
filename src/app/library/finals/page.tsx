@@ -463,8 +463,23 @@ const FinalsPage = () => {
         order = latinOrder;
     }
 
+    const is4andoneMix = (t: Track) => {
+      const albumName = (t.album || '').toLowerCase();
+      const artistName = (t.artist || '').toLowerCase();
+      const titleName = (t.title || '').toLowerCase();
+      const tagsStr = (t.tags || []).join(' ').toLowerCase();
+      return (
+        albumName.includes('4andone mix') ||
+        albumName.includes('4 and one mix') ||
+        artistName.includes('4andone mix') ||
+        titleName.includes('4andone mix') ||
+        tagsStr.includes('4andone mix')
+      );
+    };
+
     const availableTracks = tracks.filter(t =>
       !t.tags?.some(tag => tag.toLowerCase() === 'closed' || tag === 'დახურული') &&
+      !is4andoneMix(t) &&
       filterFn(t)
     );
 
@@ -540,7 +555,14 @@ const FinalsPage = () => {
 
   const startLikedSongsProgram = (discipline: 'Latin' | 'Standard') => {
     updateLastPlayed('LikedSongs');
-    const liked = tracks.filter(t => t.isFavorite);
+    const liked = tracks.filter(t => {
+      const albumName = (t.album || '').toLowerCase();
+      const artistName = (t.artist || '').toLowerCase();
+      const titleName = (t.title || '').toLowerCase();
+      const tagsStr = (t.tags || []).join(' ').toLowerCase();
+      const isMix = albumName.includes('4andone mix') || albumName.includes('4 and one mix') || artistName.includes('4andone mix') || titleName.includes('4andone mix') || tagsStr.includes('4andone mix');
+      return t.isFavorite && !isMix;
+    });
     if (liked.length === 0) {
       setInfoModal({
         isOpen: true,

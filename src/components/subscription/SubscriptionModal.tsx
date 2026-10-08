@@ -2,10 +2,9 @@
 
 import React, { useState, useEffect } from 'react';
 import { PayPalScriptProvider, PayPalButtons } from '@paypal/react-paypal-js';
-import { X, ShieldCheck, Check } from 'lucide-react';
+import { X, ShieldCheck, Check, Play } from 'lucide-react';
 import { useAuth } from '@/context/AuthContext';
 import { TelegramLogin } from '@/components/auth/TelegramLogin';
-import Logo from '@/components/brand/Logo';
 
 const PAYPAL_CLIENT_ID = process.env.NEXT_PUBLIC_PAYPAL_CLIENT_ID || 'AR7DFDs4W3LqJNeFTELaFs06b8vuc3tcE6FZSmloQgAmtM05ZaR2_cRJosyOFGWF5ZEsXRAGNQVlFkDn';
 const PAYPAL_PLAN_ID = process.env.NEXT_PUBLIC_PAYPAL_PLAN_ID || 'P-2P321243C53094157NLCL5WI';
@@ -32,15 +31,18 @@ export const SubscriptionModal: React.FC<SubscriptionModalProps> = ({ isOpen, on
   if (!isOpen) return null;
 
   return (
-    <div className="yt-prem-modal-overlay">
-      <div className="yt-prem-card animate-in-popup">
+    <div className="yt-prem-modal-overlay" onClick={onClose}>
+      <div className="yt-prem-card animate-in-popup" onClick={(e) => e.stopPropagation()}>
         <button className="yt-prem-close-btn" onClick={onClose} aria-label="Close">
           <X size={20} />
         </button>
 
         {/* Brand Header */}
-        <div className="yt-prem-brand">
-          <Logo size={28} />
+        <div className="yt-prem-brand-header">
+          <div className="yt-prem-logo-circle">
+            <Play size={16} fill="#ffffff" color="#ffffff" style={{ marginLeft: '2px' }} />
+          </div>
+          <span className="yt-prem-logo-text">4and.one Music</span>
         </div>
 
         {/* Hero Title */}
@@ -50,24 +52,8 @@ export const SubscriptionModal: React.FC<SubscriptionModalProps> = ({ isOpen, on
 
         {/* Pricing Subtitle */}
         <p className="yt-prem-price-sub">
-          $1.99/month • Cancel anytime
+          1-month trial for GEL 0 • Then GEL 14.49/month • Cancel anytime
         </p>
-
-        {/* Perks List */}
-        <div className="yt-prem-perks">
-          <div className="yt-prem-perk-item">
-            <Check size={16} className="yt-prem-check" />
-            <span>Ad-free music listening</span>
-          </div>
-          <div className="yt-prem-perk-item">
-            <Check size={16} className="yt-prem-check" />
-            <span>Download tracks to listen offline</span>
-          </div>
-          <div className="yt-prem-perk-item">
-            <Check size={16} className="yt-prem-check" />
-            <span>Background play &amp; continuous Final Mode</span>
-          </div>
-        </div>
 
         {/* Main CTA / Authentication & Payment Step */}
         {!isAuthenticated ? (
@@ -79,7 +65,7 @@ export const SubscriptionModal: React.FC<SubscriptionModalProps> = ({ isOpen, on
           </div>
         ) : isPremium || success ? (
           <div className="yt-prem-success">
-            <ShieldCheck size={44} style={{ color: '#3ea6ff' }} />
+            <ShieldCheck size={48} style={{ color: '#3ea6ff' }} />
             <h3>You have 4and.one Premium!</h3>
             <p>Enjoy unlimited ad-free music across all your devices.</p>
             <button className="yt-prem-cta-btn" onClick={onClose}>Continue Listening</button>
@@ -90,7 +76,7 @@ export const SubscriptionModal: React.FC<SubscriptionModalProps> = ({ isOpen, on
               className="yt-prem-cta-btn"
               onClick={() => setShowPayment(true)}
             >
-              Get 4and.one Premium
+              Try 1 month for GEL 0
             </button>
           </div>
         ) : (
@@ -132,8 +118,24 @@ export const SubscriptionModal: React.FC<SubscriptionModalProps> = ({ isOpen, on
           </div>
         )}
 
+        {/* Perks List */}
+        <div className="yt-prem-perks">
+          <div className="yt-prem-perk-item">
+            <Check size={16} className="yt-prem-check" />
+            <span>Ad-free music listening &amp; uninterrupted practice</span>
+          </div>
+          <div className="yt-prem-perk-item">
+            <Check size={16} className="yt-prem-check" />
+            <span>Download tracks to listen offline anytime</span>
+          </div>
+          <div className="yt-prem-perk-item">
+            <Check size={16} className="yt-prem-check" />
+            <span>Continuous Final Mode &amp; background playback</span>
+          </div>
+        </div>
+
         <p className="yt-prem-footer-disclaimer">
-          Recurring billing. Cancel anytime in account settings. Secured by PayPal 256-bit SSL.
+          You'll be reminded 7 days before your trial ends. Recurring billing. Cancel anytime.
         </p>
       </div>
 
@@ -141,8 +143,8 @@ export const SubscriptionModal: React.FC<SubscriptionModalProps> = ({ isOpen, on
         .yt-prem-modal-overlay {
           position: fixed;
           inset: 0;
-          background: rgba(0, 0, 0, 0.86);
-          backdrop-filter: blur(12px);
+          background: rgba(0, 0, 0, 0.85);
+          backdrop-filter: blur(16px);
           display: flex;
           align-items: center;
           justify-content: center;
@@ -151,20 +153,20 @@ export const SubscriptionModal: React.FC<SubscriptionModalProps> = ({ isOpen, on
         }
 
         .yt-prem-card {
-          background: radial-gradient(circle at 85% 20%, #3d1248 0%, #0c0c0e 65%);
+          background: radial-gradient(circle at 50% 25%, #461752 0%, #1c0a24 50%, #0c0c0e 90%);
           border: 1px solid rgba(255, 255, 255, 0.12);
           width: 100%;
-          max-width: 500px;
-          border-radius: 20px;
+          max-width: 520px;
+          border-radius: 24px;
           padding: 36px 32px;
           position: relative;
           color: white;
-          box-shadow: 0 30px 70px rgba(0, 0, 0, 0.95);
+          box-shadow: 0 30px 80px rgba(0, 0, 0, 0.95);
           display: flex;
           flex-direction: column;
           align-items: center;
           text-align: center;
-          gap: 16px;
+          gap: 14px;
         }
 
         .yt-prem-close-btn {
@@ -189,24 +191,43 @@ export const SubscriptionModal: React.FC<SubscriptionModalProps> = ({ isOpen, on
           color: #ffffff;
         }
 
-        .yt-prem-brand {
+        .yt-prem-brand-header {
+          display: flex;
+          align-items: center;
+          gap: 8px;
           margin-bottom: 4px;
         }
 
+        .yt-prem-logo-circle {
+          width: 28px;
+          height: 28px;
+          border-radius: 50%;
+          background: #ff0033;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+        }
+
+        .yt-prem-logo-text {
+          font-size: 18px;
+          font-weight: 800;
+          color: #ffffff;
+        }
+
         .yt-prem-title {
-          font-size: 1.75rem;
+          font-size: 1.6rem;
           font-weight: 800;
           line-height: 1.25;
           letter-spacing: -0.5px;
           color: #ffffff;
           margin: 0;
-          max-width: 420px;
+          max-width: 440px;
         }
 
         .yt-prem-price-sub {
           font-size: 14px;
-          color: #aaaaaa;
-          margin: 0;
+          color: rgba(255, 255, 255, 0.8);
+          margin: 0 0 4px 0;
           font-weight: 500;
         }
 
@@ -214,18 +235,22 @@ export const SubscriptionModal: React.FC<SubscriptionModalProps> = ({ isOpen, on
           display: flex;
           flex-direction: column;
           gap: 8px;
-          margin: 6px 0;
+          margin: 10px 0 4px 0;
           text-align: left;
           width: 100%;
-          max-width: 340px;
+          max-width: 380px;
+          background: rgba(255, 255, 255, 0.03);
+          border: 1px solid rgba(255, 255, 255, 0.06);
+          border-radius: 14px;
+          padding: 14px 18px;
         }
 
         .yt-prem-perk-item {
           display: flex;
           align-items: center;
           gap: 10px;
-          font-size: 13.5px;
-          color: #dddddd;
+          font-size: 13px;
+          color: rgba(255, 255, 255, 0.85);
         }
 
         :global(.yt-prem-check) {
@@ -239,19 +264,20 @@ export const SubscriptionModal: React.FC<SubscriptionModalProps> = ({ isOpen, on
           flex-direction: column;
           align-items: center;
           gap: 10px;
-          margin-top: 6px;
+          margin-top: 4px;
         }
 
         .yt-prem-cta-btn {
           background: #3ea6ff;
           color: #030303;
-          font-size: 14px;
+          font-size: 15px;
           font-weight: 700;
           padding: 12px 32px;
-          border-radius: 20px;
+          border-radius: 24px;
           border: none;
           cursor: pointer;
-          transition: background-color 0.15s, transform 0.15s;
+          transition: background-color 0.15s, transform 0.15s, box-shadow 0.15s;
+          box-shadow: 0 4px 18px rgba(62, 166, 255, 0.35);
         }
 
         .yt-prem-cta-btn:hover {
@@ -282,10 +308,10 @@ export const SubscriptionModal: React.FC<SubscriptionModalProps> = ({ isOpen, on
 
         .yt-prem-footer-disclaimer {
           font-size: 11.5px;
-          color: #717171;
+          color: rgba(255, 255, 255, 0.5);
           margin: 4px 0 0 0;
           line-height: 1.4;
-          max-width: 360px;
+          max-width: 380px;
         }
 
         @media (max-width: 768px) {

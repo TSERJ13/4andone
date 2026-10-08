@@ -94,18 +94,40 @@
   background: rgba(255, 255, 255, 0.1);
 }
 
-.yt-logo {
+.yt-logo-brand-link {
+  text-decoration: none;
   display: flex;
   align-items: center;
-  gap: 8px;
-  text-decoration: none;
 }
 
-.yt-logo-3d-img {
-  height: 38px;
-  width: auto;
-  object-fit: contain;
-  border-radius: 6px;
+.yt-brand-logo {
+  display: flex;
+  align-items: baseline;
+  gap: 2px;
+  font-family: 'Inter', -apple-system, sans-serif;
+  user-select: none;
+}
+
+.yt-brand-four {
+  font-size: 26px;
+  font-weight: 900;
+  color: #10b981;
+  text-shadow: 0 0 12px rgba(16, 185, 129, 0.4);
+  line-height: 1;
+}
+
+.yt-brand-text {
+  font-size: 20px;
+  font-weight: 800;
+  color: #ffffff;
+  letter-spacing: -0.5px;
+}
+
+.yt-brand-music {
+  font-size: 16px;
+  font-weight: 700;
+  color: #10b981;
+  margin-left: 4px;
 }
 
 /* Center Search Pill */
@@ -1414,3 +1436,23 @@
   text-transform: uppercase;
   letter-spacing: 0.5px;
 }
+
+/* Track row YouTube Music image & style highlight adjustments */
+.track-row-cover {
+  width: 40px;
+  height: 40px;
+  border-radius: 4px;
+  object-fit: cover;
+  flex-shrink: 0;
+}
+
+.style-highlight-bold {
+  color: #ffffff !important;
+  font-weight: 700 !important;
+  letter-spacing: 0.2px;
+}
+
+.track-duration-sub {
+  color: #a1a1aa;
+}
+

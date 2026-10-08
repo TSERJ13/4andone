@@ -18,6 +18,8 @@ import {
   Video
 } from 'lucide-react';
 import { useAudio } from '@/components/audio/AudioProvider';
+import { useStudio } from '@/components/admin/StudioProvider';
+import { getTrackCover } from '@/utils/trackCover';
 
 const formatTime = (seconds: number): string => {
   if (!seconds || isNaN(seconds)) return '0:00';
@@ -32,6 +34,7 @@ interface MobileFullPlayerProps {
 }
 
 export default function MobileFullPlayer({ isOpen, onClose }: MobileFullPlayerProps) {
+  const { albums } = useStudio();
   const {
     isPlaying,
     togglePlay,
@@ -55,6 +58,7 @@ export default function MobileFullPlayer({ isOpen, onClose }: MobileFullPlayerPr
 
   if (!isOpen) return null;
 
+  const coverImg = getTrackCover(currentTrack, albums);
   const progressPercent = duration > 0 ? (currentTime / duration) * 100 : 0;
 
   const handleSeekClick = (e: React.MouseEvent<HTMLDivElement>) => {
@@ -99,7 +103,7 @@ export default function MobileFullPlayer({ isOpen, onClose }: MobileFullPlayerPr
       <div className="yt-mobile-stage">
         <div className="yt-mobile-art-box">
           <img
-            src={currentTrack?.coverUrl || currentTrack?.artworkUrl || '/logo-square.jpg'}
+            src={coverImg}
             alt={title}
             className="yt-mobile-art-img"
           />
@@ -112,7 +116,12 @@ export default function MobileFullPlayer({ isOpen, onClose }: MobileFullPlayerPr
           <h2 className="yt-mobile-track-title">{title}</h2>
           <span className="yt-title-chevron">&gt;</span>
         </div>
-        <p className="yt-mobile-track-artist">{artist}</p>
+        <p className="yt-mobile-track-artist">
+          {artist}
+          {currentTrack?.style && (
+            <span className="yt-style-highlight"> • {currentTrack.style}</span>
+          )}
+        </p>
       </div>
 
       {/* Action Buttons Pill Row (Like, Dislike, Comment, Save) */}
@@ -199,7 +208,7 @@ export default function MobileFullPlayer({ isOpen, onClose }: MobileFullPlayerPr
 
       {/* Bottom Style Badge */}
       <div className="yt-mobile-bottom-tag">
-        <span>{currentTrack?.style || 'Dance Track'}</span>
+        <span className="yt-style-highlight">{currentTrack?.style || 'Dance Track'}</span>
       </div>
     </div>
   );

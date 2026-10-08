@@ -2,9 +2,10 @@
 
 import React, { useState } from 'react';
 import Link from 'next/link';
-import { Play, Pause, ChevronLeft, ChevronRight, ThumbsUp, ChevronRight as ArrowRight, Pin } from 'lucide-react';
-import { Track } from '@/components/admin/StudioProvider';
+import { Play, Pause, ChevronLeft, ChevronRight, ThumbsUp, ChevronRight as ArrowRight } from 'lucide-react';
+import { Track, useStudio } from '@/components/admin/StudioProvider';
 import { useAudioControls } from '@/components/audio/AudioProvider';
+import { getTrackCover } from '@/utils/trackCover';
 
 interface YtQuickPicksProps {
   tracks: Track[];
@@ -12,11 +13,10 @@ interface YtQuickPicksProps {
 }
 
 export default function YtQuickPicks({ tracks, onPlayAll }: YtQuickPicksProps) {
+  const { albums } = useStudio();
   const { togglePlay, isPlaying, trackId: playingTrackId, loadTrack } = useAudioControls();
   const [pageIndex, setPageIndex] = useState(0);
 
-  // Take top tracks for quick picks
-  const displayTracks = tracks.slice(0, 12);
   const mobileQuickPicks = tracks.slice(0, 8); // 8 cards + 1 liked music card = 9 (3x3 grid)
 
   const itemsPerPage = 12; // 3 columns x 4 rows
@@ -74,7 +74,7 @@ export default function YtQuickPicks({ tracks, onPlayAll }: YtQuickPicksProps) {
         </div>
       </div>
 
-      {/* MOBILE 3x3 GRID LAYOUT (Image 1) */}
+      {/* MOBILE 3x3 GRID LAYOUT */}
       <div className="yt-mobile-quick-grid">
         {/* Card 1: Liked Music Special Card */}
         <Link href="/library/favorites" className="yt-grid-card yt-liked-card">
@@ -91,6 +91,7 @@ export default function YtQuickPicks({ tracks, onPlayAll }: YtQuickPicksProps) {
         {/* Cards 2-9 */}
         {mobileQuickPicks.map((track) => {
           const isThisPlaying = playingTrackId === track.id && isPlaying;
+          const coverImg = getTrackCover(track, albums);
           return (
             <div
               key={`mob-${track.id}`}
@@ -98,7 +99,7 @@ export default function YtQuickPicks({ tracks, onPlayAll }: YtQuickPicksProps) {
               onClick={() => handleTrackClick(track)}
             >
               <img
-                src={(track as any).coverUrl || track.artworkUrl || '/logo-square.jpg'}
+                src={coverImg}
                 alt={track.title}
                 className="yt-card-img"
               />
@@ -117,12 +118,13 @@ export default function YtQuickPicks({ tracks, onPlayAll }: YtQuickPicksProps) {
         })}
       </div>
 
-      {/* DESKTOP 3-COLUMN LIST LAYOUT (Image 2 & 4) */}
+      {/* DESKTOP 3-COLUMN LIST LAYOUT */}
       <div className="yt-desktop-quick-columns">
         {columns.map((col, colIdx) => (
           <div key={`col-${colIdx}`} className="yt-quick-col">
             {col.map((track) => {
               const isThisPlaying = playingTrackId === track.id && isPlaying;
+              const coverImg = getTrackCover(track, albums);
               return (
                 <div
                   key={`desk-${track.id}`}
@@ -131,7 +133,7 @@ export default function YtQuickPicks({ tracks, onPlayAll }: YtQuickPicksProps) {
                 >
                   <div className="yt-track-thumb-box">
                     <img
-                      src={(track as any).coverUrl || track.artworkUrl || '/logo-square.jpg'}
+                      src={coverImg}
                       alt={track.title}
                       className="yt-track-thumb"
                     />
@@ -147,7 +149,10 @@ export default function YtQuickPicks({ tracks, onPlayAll }: YtQuickPicksProps) {
                   <div className="yt-track-info-col">
                     <span className="yt-track-title-text">{track.title}</span>
                     <span className="yt-track-sub-text">
-                      {track.artist || '4ANDONE Studio'} • {track.style || 'Dance'}
+                      {track.artist || '4ANDONE Studio'}
+                      {track.style && (
+                        <span className="yt-style-highlight"> • {track.style}</span>
+                      )}
                     </span>
                   </div>
                 </div>

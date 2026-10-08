@@ -14,6 +14,7 @@ import {
 } from 'lucide-react';
 import { useAudio } from '@/components/audio/AudioProvider';
 import { useStudio, Track } from '@/components/admin/StudioProvider';
+import { getTrackCover } from '@/utils/trackCover';
 
 const formatTime = (seconds: number): string => {
   if (!seconds || isNaN(seconds)) return '0:00';
@@ -47,9 +48,10 @@ export default function DesktopFullPlayer({ onClose }: DesktopFullPlayerProps) {
     loadTrack
   } = useAudio();
 
-  const { tracks } = useStudio();
+  const { tracks, albums } = useStudio();
   const [activeTab, setActiveTab] = useState<'upnext' | 'lyrics' | 'comments' | 'related'>('upnext');
 
+  const coverImg = getTrackCover(currentTrack, albums);
   const progressPercent = duration > 0 ? (currentTime / duration) * 100 : 0;
 
   const handleSeekClick = (e: React.MouseEvent<HTMLDivElement>) => {
@@ -67,7 +69,7 @@ export default function DesktopFullPlayer({ onClose }: DesktopFullPlayerProps) {
         <div className="yt-player-left-stage">
           <div className="yt-player-artwork-box">
             <img
-              src={currentTrack?.coverUrl || currentTrack?.artworkUrl || '/logo-square.jpg'}
+              src={coverImg}
               alt={title}
               className="yt-player-stage-img"
             />
@@ -114,6 +116,7 @@ export default function DesktopFullPlayer({ onClose }: DesktopFullPlayerProps) {
             <div className="yt-panel-queue-list">
               {tracks.slice(0, 35).map((track: Track) => {
                 const isThisPlaying = currentTrack?.id === track.id;
+                const trkCover = getTrackCover(track, albums);
                 return (
                   <div
                     key={track.id}
@@ -122,7 +125,7 @@ export default function DesktopFullPlayer({ onClose }: DesktopFullPlayerProps) {
                   >
                     <div className="yt-queue-thumb-box">
                       <img
-                        src={(track as any).coverUrl || track.artworkUrl || '/logo-square.jpg'}
+                        src={trkCover}
                         alt={track.title}
                         className="yt-queue-thumb"
                       />
@@ -135,7 +138,10 @@ export default function DesktopFullPlayer({ onClose }: DesktopFullPlayerProps) {
 
                     <div className="yt-queue-info">
                       <span className="yt-queue-title">{track.title}</span>
-                      <span className="yt-queue-artist">{track.artist || '4ANDONE Music'}</span>
+                      <span className="yt-queue-artist">
+                        {track.artist || '4ANDONE Music'}
+                        {track.style && <span className="yt-style-highlight"> • {track.style}</span>}
+                      </span>
                     </div>
 
                     <span className="yt-queue-duration">
@@ -173,25 +179,30 @@ export default function DesktopFullPlayer({ onClose }: DesktopFullPlayerProps) {
           {/* Tab 4: RELATED */}
           {activeTab === 'related' && (
             <div className="yt-panel-queue-list">
-              {tracks.slice(5, 20).map((track: Track) => (
-                <div
-                  key={`rel-${track.id}`}
-                  className="yt-queue-item"
-                  onClick={() => loadTrack(track)}
-                >
-                  <div className="yt-queue-thumb-box">
-                    <img
-                      src={(track as any).coverUrl || track.artworkUrl || '/logo-square.jpg'}
-                      alt={track.title}
-                      className="yt-queue-thumb"
-                    />
+              {tracks.slice(5, 20).map((track: Track) => {
+                const trkCover = getTrackCover(track, albums);
+                return (
+                  <div
+                    key={`rel-${track.id}`}
+                    className="yt-queue-item"
+                    onClick={() => loadTrack(track)}
+                  >
+                    <div className="yt-queue-thumb-box">
+                      <img
+                        src={trkCover}
+                        alt={track.title}
+                        className="yt-queue-thumb"
+                      />
+                    </div>
+                    <div className="yt-queue-info">
+                      <span className="yt-queue-title">{track.title}</span>
+                      <span className="yt-queue-artist">
+                        {track.style && <span className="yt-style-highlight">• {track.style}</span>}
+                      </span>
+                    </div>
                   </div>
-                  <div className="yt-queue-info">
-                    <span className="yt-queue-title">{track.title}</span>
-                    <span className="yt-queue-artist">{track.style || 'Dance'}</span>
-                  </div>
-                </div>
-              ))}
+                );
+              })}
             </div>
           )}
         </div>
@@ -221,7 +232,10 @@ export default function DesktopFullPlayer({ onClose }: DesktopFullPlayerProps) {
           {/* Center: Track Title & Subtitle */}
           <div className="yt-bar-center-meta">
             <span className="yt-bar-track-title">{title}</span>
-            <span className="yt-bar-track-subtitle">{artist}</span>
+            <span className="yt-bar-track-subtitle">
+              {artist}
+              {currentTrack?.style && <span className="yt-style-highlight"> • {currentTrack.style}</span>}
+            </span>
           </div>
 
           {/* Right: Volume, Repeat, Shuffle, Collapse Chevron */}

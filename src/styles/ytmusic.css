@@ -806,23 +806,27 @@
   padding: 0 16px;
 }
 
-.yt-player-left-controls {
+.yt-player-left-meta {
   display: flex;
   align-items: center;
-  gap: 8px;
-  min-width: 200px;
+  gap: 12px;
+  flex: 1;
+  min-width: 0;
+  max-width: 33.33%;
+  cursor: pointer;
+}
+
+.yt-player-center-controls {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  flex: 1;
+  min-width: 0;
 }
 
 .yt-player-main-play-btn {
   color: #ffffff;
-}
-
-.yt-player-center-meta {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  max-width: 50%;
-  cursor: pointer;
 }
 
 .yt-player-actions {
@@ -837,6 +841,9 @@
   align-items: center;
   gap: 12px;
   justify-content: flex-end;
+  flex: 1;
+  min-width: 0;
+  max-width: 33.33%;
 }
 
 .yt-player-thumb {
@@ -1216,7 +1223,7 @@
     height: 57px;
   }
 
-  .yt-player-center-meta {
+  .yt-player-left-meta {
     max-width: 100%;
     flex: 1;
     min-width: 0;
@@ -1905,3 +1912,40 @@
     padding-right: 0 !important;
   }
 }
+
+/* STICKY AD BANNER ABOVE PLAYER BAR */
+.player-sticky-ad-container {
+  position: fixed;
+  bottom: var(--yt-player-height, 72px);
+  left: 0;
+  right: 0;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  z-index: 145;
+  pointer-events: none;
+  background: transparent;
+  padding: 4px 0;
+}
+
+.player-sticky-ad-inner {
+  pointer-events: auto;
+  max-height: 60px;
+  overflow: hidden;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  background: rgba(15, 15, 15, 0.95);
+  border-radius: 8px 8px 0 0;
+  border-top: 1px solid rgba(255, 255, 255, 0.1);
+  border-left: 1px solid rgba(255, 255, 255, 0.1);
+  border-right: 1px solid rgba(255, 255, 255, 0.1);
+  box-shadow: 0 -4px 15px rgba(0, 0, 0, 0.5);
+}
+
+@media (max-width: 768px) {
+  .player-sticky-ad-container {
+    bottom: calc(var(--yt-mobile-nav-height, 56px) + 60px);
+  }
+}
+

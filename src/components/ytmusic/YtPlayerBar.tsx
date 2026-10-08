@@ -167,58 +167,8 @@ export default function YtPlayerBar({ onExpandPlayer }: YtPlayerBarProps) {
       </div>
 
       <div className="yt-player-bar-content">
-        {/* LEFT: Playback Controls & Time (Desktop Only) */}
-        <div className="yt-player-left-controls yt-desktop-only-controls">
-          <button
-            type="button"
-            className="yt-player-icon-btn"
-            onClick={playPrevious}
-            title="Previous"
-            disabled={isFinalMode}
-            style={isFinalMode ? { opacity: 0.3, cursor: 'not-allowed' } : undefined}
-          >
-            <SkipBack size={20} fill="currentColor" />
-          </button>
-
-          <button
-            type="button"
-            className="yt-player-icon-btn yt-main-play-btn"
-            onClick={togglePlay}
-            title={isPlaying ? 'Pause' : 'Play'}
-          >
-            {isPlaying ? (
-              <Pause size={22} fill="currentColor" color="currentColor" />
-            ) : (
-              <Play size={22} fill="currentColor" color="currentColor" style={{ marginLeft: 2 }} />
-            )}
-          </button>
-
-          <button
-            type="button"
-            className="yt-player-icon-btn"
-            onClick={playNext}
-            title="Next"
-            disabled={isFinalMode}
-            style={isFinalMode ? { opacity: 0.3, cursor: 'not-allowed' } : undefined}
-          >
-            <SkipForward size={20} fill="currentColor" />
-          </button>
-
-          {isFinalMode && <FinalStopButton onStop={endFinal} className="yt-player-icon-btn" iconSize={20} />}
-
-          {isPauseCountdown ? (
-            <span className="yt-player-time-display" style={{ color: '#ef4444', fontWeight: 800 }} aria-live="polite">
-              Rest {pauseTime}s
-            </span>
-          ) : (
-            <span className="yt-player-time-display" style={isFinalMode ? { color: '#ef4444' } : undefined}>
-              {formatTime(currentTime)} / {formatTime(totalDur)}
-            </span>
-          )}
-        </div>
-
-        {/* CENTER: Thumbnail, Title, Artist, Heart (Liked Music), 3-Dots Menu */}
-        <div className="yt-player-center-meta" onClick={onExpandPlayer}>
+        {/* LEFT: Thumbnail, Title, Artist, Heart (Liked Music), 3-Dots Menu */}
+        <div className="yt-player-left-meta" onClick={onExpandPlayer}>
           <img
             src={coverImg}
             alt={title}
@@ -344,6 +294,56 @@ export default function YtPlayerBar({ onExpandPlayer }: YtPlayerBarProps) {
               )}
             </div>
           </div>
+        </div>
+
+        {/* CENTER: Playback Controls & Time (Desktop Only / Centered) */}
+        <div className="yt-player-center-controls yt-desktop-only-controls">
+          <button
+            type="button"
+            className="yt-player-icon-btn"
+            onClick={playPrevious}
+            title="Previous"
+            disabled={isFinalMode}
+            style={isFinalMode ? { opacity: 0.3, cursor: 'not-allowed' } : undefined}
+          >
+            <SkipBack size={20} fill="currentColor" />
+          </button>
+
+          <button
+            type="button"
+            className="yt-player-icon-btn yt-main-play-btn"
+            onClick={togglePlay}
+            title={isPlaying ? 'Pause' : 'Play'}
+          >
+            {isPlaying ? (
+              <Pause size={22} fill="currentColor" color="currentColor" />
+            ) : (
+              <Play size={22} fill="currentColor" color="currentColor" style={{ marginLeft: 2 }} />
+            )}
+          </button>
+
+          <button
+            type="button"
+            className="yt-player-icon-btn"
+            onClick={playNext}
+            title="Next"
+            disabled={isFinalMode}
+            style={isFinalMode ? { opacity: 0.3, cursor: 'not-allowed' } : undefined}
+          >
+            <SkipForward size={20} fill="currentColor" />
+          </button>
+
+          {isFinalMode && <FinalStopButton onStop={endFinal} className="yt-player-icon-btn" iconSize={20} />}
+
+          {isPauseCountdown ? (
+            <span className="yt-player-time-display" style={{ color: '#ef4444', fontWeight: 800 }} aria-live="polite">
+              Rest {pauseTime}s
+            </span>
+          ) : (
+            <span className="yt-player-time-display" style={isFinalMode ? { color: '#ef4444' } : undefined}>
+              {formatTime(currentTime)} / {formatTime(totalDur)}
+            </span>
+          )}
         </div>
 
         {/* RIGHT: Speed Icon (with Popover), Volume, Repeat, Shuffle, Down Chevron (Desktop Only) */}

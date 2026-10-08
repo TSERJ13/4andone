@@ -16,6 +16,7 @@ import OfflineBanner from './OfflineBanner';
 import { SubscriptionModal } from '@/components/subscription/SubscriptionModal';
 import { TrackLimitAdModal } from '@/components/ads/TrackLimitAdModal';
 import AdSenseLoader from '@/components/ads/AdSenseLoader';
+import PlayerStickyAd from '@/components/ads/PlayerStickyAd';
 import { ListAdAnchorTracker } from '@/components/ads/ListAd';
 import AdDebugPanel from '@/components/ads/AdDebugPanel';
 import AddToPlaylistModal from '@/components/audio/AddToPlaylistModal';
@@ -165,6 +166,9 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
           {children}
         </main>
       </div>
+
+      {/* Sticky Ad Banner above Player Bar (Free Users) */}
+      {!isFullPlayerOpen && !isDesktopExpanded && <PlayerStickyAd />}
 
       {/* YouTube Music Player Bar */}
       <YtPlayerBar onExpandPlayer={handleExpand} />

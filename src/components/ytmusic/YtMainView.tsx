@@ -1,0 +1,129 @@
+"use client";
+
+import React, { useState } from 'react';
+import { useStudio } from '@/components/admin/StudioProvider';
+import { useAudioControls } from '@/components/audio/AudioProvider';
+import YtHeader from './YtHeader';
+import YtSidebar from './YtSidebar';
+import YtFilterChips from './YtFilterChips';
+import YtQuickPicks from './YtQuickPicks';
+import YtShelf, { YtShelfItem } from './YtShelf';
+import YtPlayerBar from './YtPlayerBar';
+import YtMobileNav from './YtMobileNav';
+import '@/styles/ytmusic.css';
+
+const CATEGORIES = [
+  { id: 'all', name: 'All' },
+  { id: 'samba', name: 'Samba' },
+  { id: 'cha-cha-cha', name: 'Cha-Cha-Cha' },
+  { id: 'rumba', name: 'Rumba' },
+  { id: 'paso-doble', name: 'Paso Doble' },
+  { id: 'jive', name: 'Jive' },
+  { id: 'slow-waltz', name: 'Slow Waltz' },
+  { id: 'tango', name: 'Tango' },
+  { id: 'viennese-waltz', name: 'Viennese Waltz' },
+  { id: 'quickstep', name: 'Quickstep' },
+  { id: 'finals', name: 'Finals' },
+];
+
+export default function YtMainView() {
+  const { tracks, albums, styles } = useStudio();
+  const { togglePlay, isPlaying, trackId: playingTrackId, loadTrack } = useAudioControls();
+
+  const [activeCategory, setActiveCategory] = useState('all');
+  const [searchQuery, setSearchQuery] = useState('');
+  const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
+
+  // Filter tracks by category or search query
+  const filteredTracks = tracks.filter((t) => {
+    const matchesSearch =
+      !searchQuery ||
+      t.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      (t.artist || '').toLowerCase().includes(searchQuery.toLowerCase());
+
+    const matchesCategory =
+      activeCategory === 'all' ||
+      (t.style || '').toLowerCase().replace(/\s+/g, '-') === activeCategory;
+
+    return matchesSearch && matchesCategory;
+  });
+
+  // Prepare Album Shelf Items
+  const albumShelfItems: YtShelfItem[] = albums.map((alb) => ({
+    id: alb.id,
+    title: alb.title,
+    subtitle: `Album • ${alb.artist || '4ANDONE'}`,
+    imageUrl: alb.coverUrl || '/logo-square.jpg',
+    href: `/album/${alb.slug}`,
+  }));
+
+  // Prepare Styles Shelf Items
+  const styleShelfItems: YtShelfItem[] = styles.map((st) => ({
+    id: st.id,
+    title: st.title,
+    subtitle: `Playlist • 4ANDONE`,
+    imageUrl: (st as any).imageUrl || '/logo-square.jpg',
+    href: `/style/${(st as any).slug || st.id}`,
+  }));
+
+  const handlePlayAll = () => {
+    if (filteredTracks.length > 0) {
+      loadTrack(filteredTracks[0]);
+    }
+  };
+
+  return (
+    <div className="yt-app-layout yt-music-app-body">
+      {/* Top Header */}
+      <YtHeader
+        onToggleSidebar={() => setIsSidebarCollapsed((prev) => !prev)}
+        onSearch={setSearchQuery}
+        searchQuery={searchQuery}
+      />
+
+      <div className="yt-app-body-wrap">
+        {/* Left Sidebar */}
+        <YtSidebar isCollapsed={isSidebarCollapsed} />
+
+        {/* Main Content Scrollable View */}
+        <main className="yt-main-content-scroll">
+          {/* Top Category Filter Chips */}
+          <YtFilterChips
+            categories={CATEGORIES}
+            activeCategory={activeCategory}
+            onSelectCategory={setActiveCategory}
+          />
+
+          {/* Quick Picks Section (Mobile 3x3 Grid / Desktop 3-column rows) */}
+          <YtQuickPicks tracks={filteredTracks} onPlayAll={handlePlayAll} />
+
+          {/* Albums Shelf */}
+          {albumShelfItems.length > 0 && (
+            <YtShelf
+              title="Albums for you"
+              subtitle="Popular albums and collections"
+              items={albumShelfItems}
+              aspectRatio="square"
+            />
+          )}
+
+          {/* Dance Styles Shelf */}
+          {styleShelfItems.length > 0 && (
+            <YtShelf
+              title="Dance Categories"
+              subtitle="Latin & Standard playlists for dancers"
+              items={styleShelfItems}
+              aspectRatio="wide"
+            />
+          )}
+        </main>
+      </div>
+
+      {/* Bottom Sticky Player Bar */}
+      <YtPlayerBar />
+
+      {/* Mobile 5-Tab Navigation Bar */}
+      <YtMobileNav />
+    </div>
+  );
+}

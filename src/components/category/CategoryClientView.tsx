@@ -226,7 +226,7 @@ export default function CategoryClientView({ category, initialTracks }: Props) {
           font-weight: 800;
           letter-spacing: 1.4px;
           text-transform: uppercase;
-          color: var(--primary, #1db954);
+          color: #ff0033;
         }
 
         .cat-title {
@@ -283,8 +283,8 @@ export default function CategoryClientView({ category, initialTracks }: Props) {
           align-items: center;
           gap: 8px;
           padding: 11px 22px;
-          background: var(--primary, #1db954);
-          color: #000;
+          background: #ff0033;
+          color: #ffffff;
           font-weight: 800;
           font-size: 14px;
           border-radius: 999px;
@@ -294,7 +294,7 @@ export default function CategoryClientView({ category, initialTracks }: Props) {
           transition: background-color 0.15s, transform 0.15s;
         }
 
-        .cat-play-all-btn:hover { background: #1ed760; }
+        .cat-play-all-btn:hover { background: #cc0029; }
         .cat-play-all-btn:active { transform: scale(0.96); }
 
         .cat-search-box {

@@ -104,77 +104,68 @@ const FavoritesPage = () => {
       />
 
       <style jsx>{`
-        .favorites-page { padding: 40px; padding-bottom: 120px; }
+        .favorites-page {
+          padding: 24px 32px 140px 32px;
+          max-width: 1200px;
+          margin: 0 auto;
+        }
 
-        /* Hero card — same family as the home album cards */
         .liked-hero {
-          position: relative;
-          overflow: hidden;
           display: flex;
-          align-items: center;
-          gap: 20px;
-          padding: 24px;
-          margin-bottom: 28px;
-          border-radius: 20px;
-          background: rgba(255, 255, 255, 0.03);
-          border: 1px solid rgba(255, 255, 255, 0.08);
+          align-items: flex-end;
+          gap: 28px;
+          padding: 0;
+          margin-bottom: 32px;
+          background: transparent;
+          border: none;
         }
         .liked-cover {
           position: relative;
-          width: 96px; height: 96px;
+          width: 180px; height: 180px;
           flex-shrink: 0;
-          border-radius: 18px;
+          border-radius: 8px;
           display: flex; align-items: center; justify-content: center;
           color: #fff;
-          background: linear-gradient(135deg, var(--primary, #1db954), #191414);
-          border: 1px solid rgba(255, 255, 255, 0.06);
+          background: linear-gradient(135deg, #ff0033 0%, #770018 100%);
+          box-shadow: 0 10px 30px rgba(0, 0, 0, 0.6);
+          border: 1px solid rgba(255, 255, 255, 0.1);
         }
-        .liked-info { position: relative; display: flex; flex-direction: column; gap: 4px; flex: 1; min-width: 0; }
+        .liked-info { position: relative; display: flex; flex-direction: column; gap: 6px; flex: 1; min-width: 0; }
         .liked-label {
-          font-size: 10px; font-weight: 800; letter-spacing: 1.5px;
-          text-transform: uppercase; color: #71717a;
+          font-size: 11px; font-weight: 800; letter-spacing: 1.2px;
+          text-transform: uppercase; color: #ff0033;
         }
-        .liked-title { margin: 0; font-size: 2.4rem; font-weight: 900; letter-spacing: -1px; line-height: 1.05; color: #fff; }
-        .liked-stats { margin: 2px 0 0; font-size: 13px; font-weight: 600; color: #a1a1aa; }
+        .liked-title { margin: 0; font-size: 2.4rem; font-weight: 900; letter-spacing: -0.5px; line-height: 1.1; color: #fff; }
+        .liked-stats { margin: 2px 0 12px 0; font-size: 13px; font-weight: 500; color: #aaa; }
         .liked-play {
           position: relative;
           display: inline-flex; align-items: center; gap: 8px;
-          padding: 12px 22px;
+          padding: 11px 24px;
           border: none; border-radius: 999px;
-          background: var(--primary, #1db954);
-          color: #000; font-weight: 800; font-size: 14px;
+          background: #ff0033;
+          color: #ffffff; font-weight: 700; font-size: 14px;
           cursor: pointer;
           transition: transform 0.15s, background-color 0.15s;
         }
-        .liked-play:hover { background: var(--primary-hover, #1ed760); }
-        .liked-play:active { transform: scale(0.95); }
-        .liked-play:disabled { opacity: 0.4; cursor: default; box-shadow: none; }
-
-        .track-only-fav { display: flex; align-items: center; justify-content: flex-end; }
-        .fav-action { opacity: 0.8; transition: all 0.2s; background: none; border: none; cursor: pointer; color: #555; padding: 10px; }
-        .fav-action:hover, .fav-action.active-heart { opacity: 1; transform: scale(1.1); }
-        .fav-action.active-heart { color: #f43f5e; }
-        @keyframes dance {
-          0%, 100% { transform: scaleY(0.5); }
-          50% { transform: scaleY(1); }
-        }
+        .liked-play:hover { background: #cc0029; transform: scale(1.02); }
+        .liked-play:active { transform: scale(0.96); }
+        .liked-play:disabled { opacity: 0.4; cursor: default; transform: none; }
 
         .empty-state {
           display: flex; flex-direction: column; align-items: center; justify-content: center;
-          padding: 80px 0; color: #71717a; gap: 20px; text-align: center;
+          padding: 80px 0; color: #717171; gap: 16px; text-align: center;
         }
         .empty-state h3 { color: white; font-size: 24px; font-weight: 800; }
-        .empty-state p { max-width: 300px; line-height: 1.5; font-size: 14px; }
+        .empty-state p { max-width: 320px; line-height: 1.5; font-size: 14px; }
 
         @media (max-width: 768px) {
-          .favorites-page { padding: 12px 0 20px; }
-          .liked-hero { gap: 14px; padding: 16px; margin: 8px 0 18px; border-radius: 18px; }
-          .liked-cover { width: 64px; height: 64px; border-radius: 14px; }
-          .liked-cover :global(svg) { width: 26px; height: 26px; }
-          .liked-title { font-size: 22px; letter-spacing: -0.5px; }
+          .favorites-page { padding: 12px 0 120px 0; }
+          .liked-hero { gap: 16px; margin-bottom: 20px; }
+          .liked-cover { width: 110px; height: 110px; border-radius: 6px; }
+          .liked-cover :global(svg) { width: 32px; height: 32px; }
+          .liked-title { font-size: 1.6rem; }
           .liked-stats { font-size: 12px; }
-          .liked-play { padding: 0; width: 46px; height: 46px; justify-content: center; }
-          .liked-play span { display: none; }
+          .liked-play { padding: 9px 18px; font-size: 13px; }
         }
       `}</style>
     </div>

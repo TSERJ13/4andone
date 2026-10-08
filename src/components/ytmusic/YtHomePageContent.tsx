@@ -57,7 +57,7 @@ export default function YtHomePageContent() {
     title: st.title,
     subtitle: `Playlist • 4ANDONE`,
     imageUrl: (st as any).imageUrl || '/logo-square.jpg',
-    href: `/style/${(st as any).slug || st.id}`,
+    href: `/style/${(st as any).slug || st.title.toLowerCase().replace(/[\s\-_]+/g, '-')}`,
   }));
 
   const handlePlayAll = () => {

@@ -93,5 +93,43 @@
     "orderIndex": 4,
     "isPublished": true,
     "createdAt": "2026-09-01T20:00:00.000Z"
+  },
+  {
+    "id": "album-dj-maksy",
+    "slug": "dj-maksy",
+    "title": "DJ Maksy Playlist",
+    "artist": "DJ Maksy",
+    "subtitle": "Top DanceSport Hits & Remixes by DJ Maksy. Professional ballroom music collection.",
+    "description": "Top DanceSport Hits & Remixes by DJ Maksy. Professional ballroom music collection.",
+    "badge": "DJ COLLECTION",
+    "coverUrl": "/dj-maksy.jpg",
+    "themeColor": "#3b82f6",
+    "secondaryColor": "#2563eb",
+    "gradient": "linear-gradient(90deg, #3b82f6, #2563eb)",
+    "program": "Both",
+    "allowedStyles": ["Samba", "Cha-Cha-Cha", "Rumba", "Paso Doble", "Jive", "Slow Waltz", "Tango", "Viennese Waltz", "Slow Foxtrot", "Quickstep"],
+    "tags": ["dj maksy", "maksy"],
+    "orderIndex": 5,
+    "isPublished": true,
+    "createdAt": "2026-08-25T20:00:00.000Z"
+  },
+  {
+    "id": "album-midland-big-band",
+    "slug": "midland-big-band",
+    "title": "The Midland Big Band",
+    "artist": "The Midland Big Band",
+    "subtitle": "World Cup Favourites by The Midland Big Band. Classic big band ballroom music.",
+    "description": "World Cup Favourites by The Midland Big Band. Classic big band ballroom music.",
+    "badge": "BIG BAND COLLECTION",
+    "coverUrl": "/midland-big-band.jpg",
+    "themeColor": "#8b5cf6",
+    "secondaryColor": "#7c3aed",
+    "gradient": "linear-gradient(90deg, #8b5cf6, #7c3aed)",
+    "program": "Both",
+    "allowedStyles": ["Samba", "Cha-Cha-Cha", "Rumba", "Paso Doble", "Jive", "Slow Waltz", "Tango", "Viennese Waltz", "Slow Foxtrot", "Quickstep"],
+    "tags": ["midland", "midland big band", "the midland big band"],
+    "orderIndex": 6,
+    "isPublished": true,
+    "createdAt": "2026-08-20T20:00:00.000Z"
   }
 ]

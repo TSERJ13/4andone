@@ -40,6 +40,12 @@ export function getTrackCover(
     if (artistLower.includes('goc') || artistLower.includes('german open')) {
       return '/goc2026.png';
     }
+    if (artistLower.includes('maksy')) {
+      return '/dj-maksy.jpg';
+    }
+    if (artistLower.includes('midland')) {
+      return '/midland-big-band.jpg';
+    }
 
     if (albums.length > 0) {
       const matchedArtistAlb = albums.find(

@@ -42,11 +42,11 @@ export default function YtHeader({ onToggleSidebar, onSearch, searchQuery = '' }
         </button>
 
         <Link href="/" className="yt-logo-brand-link">
-          <div className="yt-brand-logo">
-            <span className="yt-brand-four">4</span>
-            <span className="yt-brand-text">and.one</span>
-            <span className="yt-brand-music">Music</span>
-          </div>
+          <img 
+            src="/logo-3d.png" 
+            alt="4and.one Music" 
+            style={{ height: '60px', width: 'auto', objectFit: 'contain', maxHeight: '100%' }}
+          />
         </Link>
       </div>
 

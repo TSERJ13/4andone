@@ -51,12 +51,31 @@ export default function YtHomePageContent() {
     href: `/album/${alb.slug}`,
   }));
 
+  const getStyleCover = (st: any): string => {
+    if (st.imageUrl && st.imageUrl !== '/logo-square.jpg') return st.imageUrl;
+    const title = (st.title || '').toLowerCase().trim();
+    if (title.includes('cha')) return '/styles/cha-cha-cha.jpg';
+    if (title.includes('samba')) return '/styles/samba.jpg';
+    if (title.includes('rumba')) return '/styles/rumba.jpg';
+    if (title.includes('paso')) return '/styles/paso-doble.jpg';
+    if (title.includes('jive')) return '/styles/jive.jpg';
+    if (title.includes('v') && title.includes('waltz')) return '/styles/viennese-waltz.jpg';
+    if (title.includes('viennese')) return '/styles/viennese-waltz.jpg';
+    if (title.includes('slow') && title.includes('waltz')) return '/styles/slow-waltz.jpg';
+    if (title.includes('waltz')) return '/styles/slow-waltz.jpg';
+    if (title.includes('foxtrot') || title.includes('fox')) return '/styles/slow-foxtrot.jpg';
+    if (title.includes('quick')) return '/styles/quickstep.jpg';
+    if (title.includes('tango')) return '/styles/tango.jpg';
+    if (title.includes('fitness')) return '/styles/fitness.jpg';
+    return '/logo-square.jpg';
+  };
+
   // Prepare Styles Shelf Items
   const styleShelfItems: YtShelfItem[] = styles.map((st) => ({
     id: st.id,
     title: st.title,
     subtitle: `Playlist • 4ANDONE`,
-    imageUrl: (st as any).imageUrl || '/logo-square.jpg',
+    imageUrl: getStyleCover(st),
     href: `/style/${(st as any).slug || st.title.toLowerCase().replace(/[\s\-_]+/g, '-')}`,
   }));
 

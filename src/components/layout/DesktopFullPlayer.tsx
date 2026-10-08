@@ -317,8 +317,13 @@ export default function DesktopFullPlayer({ onClose }: DesktopFullPlayerProps) {
             </span>
           </div>
 
-          {/* Center: Track Title, Subtitle, Heart (Liked), 3-Dots Menu */}
+          {/* Center: Album Cover Thumb, Track Title, Subtitle, Heart (Liked), 3-Dots Menu */}
           <div className="yt-player-center-meta">
+            <img
+              src={coverImg}
+              alt={title}
+              className="yt-player-thumb"
+            />
             <div className="yt-player-meta">
               <span className="yt-player-title">{title}</span>
               <span className="yt-player-artist">

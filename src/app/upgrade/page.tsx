@@ -2,8 +2,9 @@
 
 import React, { useState } from 'react';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import { PayPalScriptProvider, PayPalButtons } from '@paypal/react-paypal-js';
-import { ShieldCheck, ArrowLeft, Play, Check } from 'lucide-react';
+import { ShieldCheck, ArrowLeft, Check } from 'lucide-react';
 import { useAuth } from '@/context/AuthContext';
 import { TelegramLogin } from '@/components/auth/TelegramLogin';
 
@@ -11,6 +12,7 @@ const PAYPAL_CLIENT_ID = process.env.NEXT_PUBLIC_PAYPAL_CLIENT_ID || 'AR7DFDs4W3
 const PAYPAL_PLAN_ID = process.env.NEXT_PUBLIC_PAYPAL_PLAN_ID || 'P-2P321243C53094157NLCL5WI';
 
 export default function UpgradePage() {
+  const router = useRouter();
   const { user, isAuthenticated, isPremium, activatePremium } = useAuth();
   const [success, setSuccess] = useState(false);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
@@ -20,20 +22,26 @@ export default function UpgradePage() {
     <div className="yt-premium-landing-page">
       {/* Top Header Bar */}
       <header className="yt-prem-nav">
-        <Link href="/library" className="yt-prem-back-btn">
-          <ArrowLeft size={20} />
+        <button
+          type="button"
+          className="yt-prem-back-btn"
+          onClick={() => router.back()}
+        >
+          <ArrowLeft size={18} />
           <span>Back</span>
-        </Link>
+        </button>
       </header>
 
       {/* Main Hero Container */}
       <main className="yt-prem-hero-container">
-        {/* YouTube Music Red Logo */}
+        {/* Site 4ANDONE Official Brand Logo */}
         <div className="yt-prem-brand-header">
-          <div className="yt-prem-logo-circle">
-            <Play size={20} fill="#ffffff" color="#ffffff" style={{ marginLeft: '2px' }} />
-          </div>
-          <span className="yt-prem-logo-text">4and.one Music</span>
+          <img
+            src="/logo-square.png"
+            alt="4ANDONE Logo"
+            className="yt-prem-site-logo"
+          />
+          <span className="yt-prem-logo-text">4ANDONE MUSIC</span>
         </div>
 
         {/* Hero Title */}
@@ -98,11 +106,13 @@ export default function UpgradePage() {
                     if (data.subscriptionID) {
                       await activatePremium(data.subscriptionID);
                       setSuccess(true);
+                    } else {
+                      setErrorMsg("Subscription approved, but no subscription ID returned.");
                     }
                   }}
                   onError={(err) => {
-                    console.error("[PAYPAL-ERROR]", err);
-                    setErrorMsg("Subscription processing failed. Please try again.");
+                    console.error("PayPal Subscription Error:", err);
+                    setErrorMsg("Payment processing failed. Please try again.");
                   }}
                 />
               </PayPalScriptProvider>
@@ -110,9 +120,9 @@ export default function UpgradePage() {
           )}
         </div>
 
-        {/* Secondary Links & Disclaimers */}
+        {/* Secondary Links & Disclaimer */}
         <div className="yt-prem-secondary-links">
-          <button type="button" className="yt-prem-link-btn" onClick={() => !isPremium && !isAuthenticated ? null : setShowPayment(true)}>
+          <button type="button" className="yt-prem-link-btn">
             Or save money with a family or student plan
           </button>
           <p className="yt-prem-disclaimer">
@@ -120,27 +130,29 @@ export default function UpgradePage() {
           </p>
         </div>
 
-        {/* Perks Grid */}
+        {/* 3 Key Features Grid */}
         <div className="yt-prem-features-grid">
           <div className="yt-prem-feature-card">
-            <Check size={20} className="yt-prem-feature-check" />
+            <div className="yt-prem-feature-check"><Check size={24} /></div>
             <div>
-              <h4>Ad-free listening</h4>
-              <p>Enjoy uninterrupted music while practicing or listening to your favorite playlists.</p>
+              <h4>Ad-free music</h4>
+              <p>Listen to your favorite dance tracks without interruption.</p>
             </div>
           </div>
+
           <div className="yt-prem-feature-card">
-            <Check size={20} className="yt-prem-feature-check" />
+            <div className="yt-prem-feature-check"><Check size={24} /></div>
             <div>
               <h4>Offline downloads</h4>
-              <p>Download your tracks and take your dance music everywhere without internet connection.</p>
+              <p>Download music directly to your device and practice anywhere.</p>
             </div>
           </div>
+
           <div className="yt-prem-feature-card">
-            <Check size={20} className="yt-prem-feature-check" />
+            <div className="yt-prem-feature-check"><Check size={24} /></div>
             <div>
-              <h4>Uninterrupted Final Mode</h4>
-              <p>Run full Latin &amp; Standard finals practice sessions with zero interruptions or ads.</p>
+              <h4>Background play</h4>
+              <p>Keep the music playing with your screen locked or while using other apps.</p>
             </div>
           </div>
         </div>
@@ -149,43 +161,50 @@ export default function UpgradePage() {
       <style jsx>{`
         .yt-premium-landing-page {
           min-height: 100vh;
-          width: 100%;
-          background: radial-gradient(circle at 50% 25%, #461752 0%, #1c0a24 45%, #030303 90%);
+          background: #030303;
           color: #ffffff;
-          display: flex;
-          flex-direction: column;
-          align-items: center;
-          position: relative;
-          overflow-x: hidden;
-          padding-bottom: 80px;
+          padding-bottom: 120px;
         }
 
         .yt-prem-nav {
-          width: 100%;
-          max-width: 1200px;
-          padding: 24px 32px;
+          padding: 16px 24px;
           display: flex;
           align-items: center;
-          justify-content: space-between;
-          z-index: 10;
+          position: sticky;
+          top: 0;
+          z-index: 50;
+          background: rgba(3, 3, 3, 0.85);
+          backdrop-filter: blur(12px);
+          -webkit-backdrop-filter: blur(12px);
         }
 
         .yt-prem-back-btn {
-          display: flex;
+          display: inline-flex;
           align-items: center;
           gap: 8px;
-          color: rgba(255, 255, 255, 0.7);
-          font-size: 14px;
+          background: rgba(255, 255, 255, 0.08);
+          border: 1px solid rgba(255, 255, 255, 0.12);
+          color: #ffffff;
+          font-size: 13px;
           font-weight: 600;
+          padding: 8px 18px;
+          border-radius: 20px;
           text-decoration: none;
-          transition: color 0.2s;
+          cursor: pointer;
+          transition: all 0.2s ease;
+          box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
         }
-        .yt-prem-back-btn:hover { color: #ffffff; }
+
+        .yt-prem-back-btn:hover {
+          background: rgba(255, 255, 255, 0.16);
+          border-color: rgba(255, 255, 255, 0.25);
+          transform: translateY(-1px);
+        }
 
         .yt-prem-hero-container {
           width: 100%;
           max-width: 900px;
-          margin: 40px auto 0;
+          margin: 20px auto 0;
           display: flex;
           flex-direction: column;
           align-items: center;
@@ -196,19 +215,17 @@ export default function UpgradePage() {
         .yt-prem-brand-header {
           display: flex;
           align-items: center;
-          gap: 10px;
-          margin-bottom: 28px;
+          gap: 12px;
+          margin-bottom: 24px;
         }
 
-        .yt-prem-logo-circle {
-          width: 38px;
-          height: 38px;
-          border-radius: 50%;
-          background: #ff0033;
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          box-shadow: 0 4px 15px rgba(255, 0, 51, 0.4);
+        .yt-prem-site-logo {
+          width: 44px;
+          height: 44px;
+          border-radius: 12px;
+          object-fit: cover;
+          border: 1px solid rgba(255, 255, 255, 0.15);
+          box-shadow: 0 6px 20px rgba(0, 0, 0, 0.6);
         }
 
         .yt-prem-logo-text {
@@ -219,34 +236,31 @@ export default function UpgradePage() {
         }
 
         .yt-prem-hero-headline {
-          font-size: 3rem;
-          font-weight: 800;
-          line-height: 1.2;
+          font-size: 2.5rem;
+          font-weight: 900;
+          line-height: 1.15;
           letter-spacing: -1px;
-          max-width: 820px;
-          margin: 0 0 20px 0;
-          color: #ffffff;
+          max-width: 720px;
+          margin: 0 0 16px 0;
         }
 
         .yt-prem-pricing-sub {
-          font-size: 16px;
+          font-size: 15px;
+          color: rgba(255, 255, 255, 0.7);
+          margin: 0 0 32px 0;
           font-weight: 500;
-          color: rgba(255, 255, 255, 0.85);
-          margin: 0 0 36px 0;
         }
 
         .yt-prem-cta-section {
-          display: flex;
-          flex-direction: column;
-          align-items: center;
           width: 100%;
-          max-width: 420px;
-          margin-bottom: 32px;
+          max-width: 380px;
+          margin-bottom: 24px;
         }
 
         .yt-prem-main-btn {
+          width: 100%;
           background: #3ea6ff;
-          color: #030303;
+          color: #0f0f0f;
           font-size: 16px;
           font-weight: 700;
           padding: 14px 36px;
@@ -366,6 +380,9 @@ export default function UpgradePage() {
         }
 
         @media (max-width: 768px) {
+          .yt-prem-nav {
+            padding: 12px 16px;
+          }
           .yt-prem-hero-headline {
             font-size: 1.8rem;
             letter-spacing: -0.5px;
@@ -378,7 +395,7 @@ export default function UpgradePage() {
             gap: 16px;
           }
           .yt-prem-hero-container {
-            margin-top: 20px;
+            margin-top: 10px;
             padding: 0 16px;
           }
         }

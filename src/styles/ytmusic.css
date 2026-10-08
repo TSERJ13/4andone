@@ -800,12 +800,37 @@
   padding: 0 16px;
 }
 
-.yt-player-left {
+.yt-player-left-controls {
   display: flex;
   align-items: center;
-  gap: 14px;
-  width: 30%;
+  gap: 8px;
+  min-width: 200px;
+}
+
+.yt-player-main-play-btn {
+  color: #ffffff;
+}
+
+.yt-player-center-meta {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  max-width: 50%;
   cursor: pointer;
+}
+
+.yt-player-actions {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  margin-left: 8px;
+}
+
+.yt-player-right-controls {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  justify-content: flex-end;
 }
 
 .yt-player-thumb {
@@ -861,41 +886,70 @@
   color: #fff;
 }
 
-.yt-player-center {
-  display: flex;
-  align-items: center;
-  gap: 12px;
+.yt-player-time-display {
+  font-size: 12px;
+  color: var(--yt-text-secondary);
+  margin-left: 8px;
+  user-select: none;
 }
 
-.yt-player-play-circle-btn {
-  width: 40px;
-  height: 40px;
-  border-radius: 50%;
-  background: #ffffff;
+/* YouTube Music Style BPM Speed Controller Pill */
+.yt-bpm-controller-pill {
+  display: flex;
+  align-items: center;
+  background: rgba(255, 255, 255, 0.08);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 16px;
+  padding: 2px 4px;
+  gap: 2px;
+  user-select: none;
+}
+
+.yt-bpm-btn {
+  background: transparent;
   border: none;
+  color: var(--yt-text-secondary);
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
   display: flex;
   align-items: center;
   justify-content: center;
   cursor: pointer;
-  transition: transform 0.15s ease;
+  transition: background 0.15s ease, color 0.15s ease;
 }
 
-.yt-player-play-circle-btn:hover {
-  transform: scale(1.05);
+.yt-bpm-btn:hover {
+  background: rgba(255, 255, 255, 0.15);
+  color: #ffffff;
 }
 
-.yt-player-time-display {
+.yt-bpm-value-btn {
+  background: transparent;
+  border: none;
+  color: var(--yt-text-primary);
   font-size: 12px;
-  color: var(--yt-text-secondary);
-  margin-left: 12px;
-}
-
-.yt-player-right {
+  font-weight: 700;
+  padding: 2px 6px;
+  border-radius: 12px;
+  cursor: pointer;
   display: flex;
   align-items: center;
-  gap: 12px;
-  width: 30%;
-  justify-content: flex-end;
+  gap: 4px;
+  transition: all 0.15s ease;
+}
+
+.yt-bpm-value-btn:hover {
+  background: rgba(255, 255, 255, 0.15);
+}
+
+.yt-bpm-value-btn.changed {
+  color: #10b981;
+  background: rgba(16, 185, 129, 0.15);
+}
+
+.yt-bpm-icon {
+  color: #10b981;
 }
 
 .yt-volume-control {

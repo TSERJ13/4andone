@@ -1521,6 +1521,7 @@
   flex-direction: column;
   padding: 16px 20px 32px 20px;
   overflow-y: auto;
+  transition: background 0.8s ease, box-shadow 0.8s ease;
 }
 
 .yt-mobile-player-header {

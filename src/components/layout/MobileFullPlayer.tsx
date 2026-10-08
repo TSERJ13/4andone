@@ -101,6 +101,12 @@ export default function MobileFullPlayer({ isOpen, onClose }: MobileFullPlayerPr
   const isBpmChanged = currentBpm !== 100;
   const bpmDisplay = bpmDelta === 0 ? '0%' : (bpmDelta > 0 ? `+${bpmDelta}%` : `${bpmDelta}%`);
 
+  const trackStyle = currentTrack?.style?.toLowerCase() || '';
+  const isPasoDoble = trackStyle.includes('paso');
+  const isVW = trackStyle.includes('viennese') || (trackStyle.includes('waltz') && trackStyle.includes('v'));
+  const finalLimit = isPasoDoble ? (duration || 105) : (isVW ? 85 : 105);
+  const isFinalRedActive = isFinalMode && currentTime >= Math.max(0, finalLimit - 15);
+
   const handleBpmChange = (delta: number) => {
     const currentVal = bpm || 100;
     const newBpm = Math.min(150, Math.max(50, currentVal + delta));
@@ -143,7 +149,7 @@ export default function MobileFullPlayer({ isOpen, onClose }: MobileFullPlayerPr
   };
 
   return (
-    <div className={`yt-mobile-full-player-overlay ${isFinalMode ? 'final-mode-active' : ''}`}>
+    <div className={`yt-mobile-full-player-overlay ${isFinalRedActive ? 'final-mode-active' : ''}`}>
       {/* Top Bar */}
       <div className="yt-mobile-player-header">
         <button type="button" className="yt-mobile-icon-btn" onClick={onClose}>

@@ -28,6 +28,7 @@ import { useAudio } from '@/components/audio/AudioProvider';
 import { FinalStopButton } from '@/components/audio/FinalStopButton';
 import { useStudio, Track } from '@/components/admin/StudioProvider';
 import { getTrackCover } from '@/utils/trackCover';
+import { getRecentlyPlayedTrackIds } from '@/utils/history';
 
 const formatTime = (seconds: number): string => {
   if (!seconds || isNaN(seconds)) return '0:00';
@@ -74,10 +75,32 @@ export default function DesktopFullPlayer({ onClose }: DesktopFullPlayerProps) {
   const endFinal = () => (activeMode ? stop() : toggleFinalMode());
 
   const { tracks, albums, toggleFavorite } = useStudio();
-  const [activeTab, setActiveTab] = useState<'upnext' | 'lyrics' | 'comments' | 'related'>('upnext');
+  const [activeTab, setActiveTab] = useState<'upnext' | 'recent' | 'album' | 'finals'>('upnext');
   const [isSpeedPopoverOpen, setIsSpeedPopoverOpen] = useState(false);
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [showCopiedToast, setShowCopiedToast] = useState(false);
+
+  // 1. Recently Played Tracks
+  const recentTracks = React.useMemo(() => {
+    const ids = getRecentlyPlayedTrackIds();
+    if (!ids || ids.length === 0) return [];
+    return ids.map(id => tracks.find(t => t.id === id)).filter(Boolean) as Track[];
+  }, [tracks]);
+
+  // 2. Album / Artist Tracks
+  const albumTracks = React.useMemo(() => {
+    if (!currentTrack) return [];
+    const albLower = (currentTrack.album || '').toLowerCase().trim();
+    const artLower = (currentTrack.artist || '').toLowerCase().trim();
+
+    return tracks.filter(t => {
+      const tAlb = (t.album || '').toLowerCase().trim();
+      const tArt = (t.artist || '').toLowerCase().trim();
+      if (albLower && (tAlb === albLower || tAlb.includes(albLower) || albLower.includes(tAlb))) return true;
+      if (artLower && (tArt === artLower || tArt.includes(artLower) || artLower.includes(tArt))) return true;
+      return false;
+    });
+  }, [tracks, currentTrack]);
   
   const popoverRef = useRef<HTMLDivElement>(null);
   const menuRef = useRef<HTMLDivElement>(null);
@@ -178,24 +201,26 @@ export default function DesktopFullPlayer({ onClose }: DesktopFullPlayerProps) {
             </button>
             <button
               type="button"
-              className={`yt-panel-tab ${activeTab === 'lyrics' ? 'active' : ''}`}
-              onClick={() => setActiveTab('lyrics')}
+              className={`yt-panel-tab ${activeTab === 'recent' ? 'active' : ''}`}
+              onClick={() => setActiveTab('recent')}
             >
-              LYRICS
+              RECENT
             </button>
             <button
               type="button"
-              className={`yt-panel-tab ${activeTab === 'comments' ? 'active' : ''}`}
-              onClick={() => setActiveTab('comments')}
+              className={`yt-panel-tab ${activeTab === 'album' ? 'active' : ''}`}
+              onClick={() => setActiveTab('album')}
             >
-              COMMENTS
+              ALBUM
             </button>
             <button
               type="button"
-              className={`yt-panel-tab ${activeTab === 'related' ? 'active' : ''}`}
-              onClick={() => setActiveTab('related')}
+              className={`yt-panel-tab ${activeTab === 'finals' ? 'active' : ''}`}
+              onClick={() => setActiveTab('finals')}
+              style={isFinalMode ? { color: '#ef4444', fontWeight: 800 } : undefined}
             >
-              RELATED
+              <Trophy size={14} style={{ display: 'inline', marginRight: '4px', verticalAlign: '-2px' }} />
+              FINALS
             </button>
           </div>
 
@@ -241,38 +266,75 @@ export default function DesktopFullPlayer({ onClose }: DesktopFullPlayerProps) {
             </div>
           )}
 
-          {/* Tab 2: LYRICS / Track Info */}
-          {activeTab === 'lyrics' && (
-            <div className="yt-panel-info-content">
-              <h3 className="yt-info-track-title">{title}</h3>
-              <p className="yt-info-artist-name">{artist}</p>
-              <div className="yt-info-tags-row">
-                <span className="yt-info-badge">Style: {currentTrack?.style || 'Dance'}</span>
-                {currentTrack?.bpm && <span className="yt-info-badge">BPM: {currentTrack.bpm}</span>}
-              </div>
-              <div className="yt-info-text-box">
-                <p>Lyrics and track details available for 4ANDONE premium members.</p>
-              </div>
-            </div>
-          )}
-
-          {/* Tab 3: COMMENTS */}
-          {activeTab === 'comments' && (
-            <div className="yt-panel-info-content">
-              <h4>Community Comments</h4>
-              <p className="yt-info-text-box">No comments yet. Be the first dancer to leave a note!</p>
-            </div>
-          )}
-
-          {/* Tab 4: RELATED */}
-          {activeTab === 'related' && (
+          {/* Tab 2: RECENT Tracks */}
+          {activeTab === 'recent' && (
             <div className="yt-panel-queue-list">
-              {tracks.slice(5, 20).map((track: Track) => {
+              {recentTracks.length === 0 ? (
+                <div className="yt-panel-info-content">
+                  <p className="yt-info-text-box">No recently played tracks yet. Listen to music to build your history!</p>
+                </div>
+              ) : (
+                recentTracks.map((track: Track) => {
+                  const isThisPlaying = currentTrack?.id === track.id;
+                  const trkCover = getTrackCover(track, albums);
+                  return (
+                    <div
+                      key={`rec-${track.id}`}
+                      className={`yt-queue-item ${isThisPlaying ? 'active' : ''}`}
+                      onClick={() => loadTrack(track)}
+                    >
+                      <div className="yt-queue-thumb-box">
+                        <img
+                          src={trkCover}
+                          alt={track.title}
+                          className="yt-queue-thumb"
+                        />
+                        {isThisPlaying && (
+                          <div className="yt-queue-playing-icon">
+                            {isPlaying ? <Pause size={14} fill="#ffffff" /> : <Play size={14} fill="#ffffff" />}
+                          </div>
+                        )}
+                      </div>
+
+                      <div className="yt-queue-info">
+                        <span className="yt-queue-title">{track.title}</span>
+                        <span className="yt-queue-artist">
+                          {track.artist || '4ANDONE Music'}
+                          {track.style && <span className="yt-style-highlight"> • {track.style}</span>}
+                        </span>
+                      </div>
+
+                      <span className="yt-queue-duration">
+                        {track.duration ? formatTime(track.duration) : '3:15'}
+                      </span>
+                    </div>
+                  );
+                })
+              )}
+            </div>
+          )}
+
+          {/* Tab 3: ALBUM Tracks */}
+          {activeTab === 'album' && (
+            <div className="yt-panel-queue-list">
+              <div style={{ padding: '12px 16px', borderBottom: '1px solid rgba(255, 255, 255, 0.08)', background: 'rgba(255, 255, 255, 0.03)' }}>
+                <div style={{ fontSize: '11px', fontWeight: 700, color: '#a855f7', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
+                  Album / Artist Collection
+                </div>
+                <div style={{ fontSize: '14px', fontWeight: 800, color: '#ffffff', marginTop: '2px' }}>
+                  {currentTrack?.album || currentTrack?.artist || '4ANDONE Collection'}
+                </div>
+                <div style={{ fontSize: '12px', color: '#94a3b8', marginTop: '1px' }}>
+                  {albumTracks.length} Tracks in this collection
+                </div>
+              </div>
+              {albumTracks.map((track: Track) => {
+                const isThisPlaying = currentTrack?.id === track.id;
                 const trkCover = getTrackCover(track, albums);
                 return (
                   <div
-                    key={`rel-${track.id}`}
-                    className="yt-queue-item"
+                    key={`alb-${track.id}`}
+                    className={`yt-queue-item ${isThisPlaying ? 'active' : ''}`}
                     onClick={() => loadTrack(track)}
                   >
                     <div className="yt-queue-thumb-box">
@@ -281,13 +343,95 @@ export default function DesktopFullPlayer({ onClose }: DesktopFullPlayerProps) {
                         alt={track.title}
                         className="yt-queue-thumb"
                       />
+                      {isThisPlaying && (
+                        <div className="yt-queue-playing-icon">
+                          {isPlaying ? <Pause size={14} fill="#ffffff" /> : <Play size={14} fill="#ffffff" />}
+                        </div>
+                      )}
                     </div>
+
                     <div className="yt-queue-info">
                       <span className="yt-queue-title">{track.title}</span>
                       <span className="yt-queue-artist">
-                        {track.style && <span className="yt-style-highlight">• {track.style}</span>}
+                        {track.artist || '4ANDONE Music'}
+                        {track.style && <span className="yt-style-highlight"> • {track.style}</span>}
                       </span>
                     </div>
+
+                    <span className="yt-queue-duration">
+                      {track.duration ? formatTime(track.duration) : '3:15'}
+                    </span>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+
+          {/* Tab 4: FINALS / Final Mode */}
+          {activeTab === 'finals' && (
+            <div className="yt-panel-queue-list">
+              <div style={{ padding: '16px', background: 'linear-gradient(135deg, rgba(239, 68, 68, 0.18) 0%, rgba(168, 85, 247, 0.18) 100%)', borderBottom: '1px solid rgba(239, 68, 68, 0.3)' }}>
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                    <Trophy size={20} className="text-red-500" />
+                    <h4 style={{ margin: 0, fontSize: '15px', fontWeight: 800, color: '#fff' }}>Final Mode Practice</h4>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={toggleFinalMode}
+                    style={{
+                      background: isFinalMode ? '#ef4444' : 'linear-gradient(135deg, #a855f7 0%, #7c3aed 100%)',
+                      color: '#fff',
+                      border: 'none',
+                      padding: '6px 14px',
+                      borderRadius: '16px',
+                      fontSize: '12px',
+                      fontWeight: 800,
+                      cursor: 'pointer',
+                      boxShadow: '0 2px 10px rgba(0,0,0,0.3)'
+                    }}
+                  >
+                    {isFinalMode ? 'Exit Final' : 'Start Final'}
+                  </button>
+                </div>
+                <p style={{ fontSize: '12px', color: '#cbd5e1', margin: '8px 0 0 0', lineHeight: 1.4 }}>
+                  Continuous competition rounds with automatic 1:45 timing limit & 15s rest count.
+                </p>
+              </div>
+
+              {tracks.slice(0, 30).map((track: Track) => {
+                const isThisPlaying = currentTrack?.id === track.id;
+                const trkCover = getTrackCover(track, albums);
+                return (
+                  <div
+                    key={`fin-${track.id}`}
+                    className={`yt-queue-item ${isThisPlaying ? 'active' : ''}`}
+                    onClick={() => loadTrack(track, false, true)}
+                  >
+                    <div className="yt-queue-thumb-box">
+                      <img
+                        src={trkCover}
+                        alt={track.title}
+                        className="yt-queue-thumb"
+                      />
+                      {isThisPlaying && (
+                        <div className="yt-queue-playing-icon">
+                          {isPlaying ? <Pause size={14} fill="#ffffff" /> : <Play size={14} fill="#ffffff" />}
+                        </div>
+                      )}
+                    </div>
+
+                    <div className="yt-queue-info">
+                      <span className="yt-queue-title">{track.title}</span>
+                      <span className="yt-queue-artist">
+                        {track.artist || '4ANDONE Music'}
+                        {track.style && <span className="yt-style-highlight"> • {track.style}</span>}
+                      </span>
+                    </div>
+
+                    <span className="yt-queue-duration" style={{ color: '#ef4444', fontWeight: 700 }}>
+                      1:45 Limit
+                    </span>
                   </div>
                 );
               })}

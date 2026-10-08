@@ -227,14 +227,18 @@ export default function LibraryPage() {
           padding: 24px 32px 140px 32px;
           max-width: 1400px;
           margin: 0 auto;
+          box-sizing: border-box;
+          width: 100%;
+          overflow-x: hidden;
         }
 
         .yt-library-top-bar {
           display: flex;
           align-items: center;
           justify-content: space-between;
-          margin-bottom: 28px;
-          gap: 16px;
+          margin-bottom: 24px;
+          gap: 12px;
+          width: 100%;
         }
 
         .yt-library-filter-chips {
@@ -243,6 +247,9 @@ export default function LibraryPage() {
           gap: 8px;
           overflow-x: auto;
           scrollbar-width: none;
+          flex: 1;
+          min-width: 0;
+          -webkit-overflow-scrolling: touch;
         }
         .yt-library-filter-chips::-webkit-scrollbar { display: none; }
 
@@ -257,6 +264,7 @@ export default function LibraryPage() {
           cursor: pointer;
           white-space: nowrap;
           transition: all 0.15s ease;
+          flex-shrink: 0;
         }
         .yt-library-chip:hover {
           background: rgba(255, 255, 255, 0.16);
@@ -277,6 +285,7 @@ export default function LibraryPage() {
           font-weight: 600;
           cursor: pointer;
           white-space: nowrap;
+          flex-shrink: 0;
         }
         .yt-library-sort-btn:hover {
           color: #ffffff;
@@ -284,22 +293,25 @@ export default function LibraryPage() {
 
         .yt-library-grid {
           display: grid;
-          grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
-          gap: 28px 16px;
+          grid-template-columns: repeat(auto-fill, minmax(170px, 1fr));
+          gap: 24px 16px;
+          width: 100%;
         }
 
         .yt-library-card {
           display: flex;
           flex-direction: column;
-          gap: 10px;
+          gap: 8px;
           cursor: pointer;
+          min-width: 0;
+          width: 100%;
         }
 
         .yt-card-cover-box {
           position: relative;
           width: 100%;
           aspect-ratio: 1 / 1;
-          border-radius: 4px;
+          border-radius: 6px;
           overflow: hidden;
           background: #181818;
           display: flex;
@@ -348,8 +360,8 @@ export default function LibraryPage() {
         }
 
         .yt-play-circle-btn {
-          width: 48px;
-          height: 48px;
+          width: 44px;
+          height: 44px;
           border-radius: 50%;
           background: #ffffff;
           display: flex;
@@ -367,6 +379,8 @@ export default function LibraryPage() {
           display: flex;
           flex-direction: column;
           gap: 3px;
+          min-width: 0;
+          width: 100%;
         }
 
         .yt-card-title {
@@ -375,22 +389,21 @@ export default function LibraryPage() {
           color: #ffffff;
           margin: 0;
           line-height: 1.3;
-          display: -webkit-box;
-          -webkit-line-clamp: 1;
-          -webkit-box-orient: vertical;
+          white-space: nowrap;
           overflow: hidden;
+          text-overflow: ellipsis;
+          min-width: 0;
         }
 
         .yt-card-sub {
           font-size: 12px;
           color: #aaaaaa;
           margin: 0;
-          display: inline-flex;
-          align-items: center;
-          gap: 4px;
+          display: block;
           white-space: nowrap;
           overflow: hidden;
           text-overflow: ellipsis;
+          min-width: 0;
         }
 
         :global(.inline-pin) {
@@ -399,11 +412,20 @@ export default function LibraryPage() {
 
         @media (max-width: 768px) {
           .yt-library-page {
-            padding: 12px 0 120px 0;
+            padding: 12px 16px 140px 16px;
+          }
+          .yt-library-top-bar {
+            margin-bottom: 16px;
           }
           .yt-library-grid {
             grid-template-columns: repeat(2, 1fr);
-            gap: 18px 12px;
+            gap: 16px 12px;
+          }
+          .yt-card-title {
+            font-size: 13px;
+          }
+          .yt-card-sub {
+            font-size: 11px;
           }
         }
       `}</style>

@@ -893,63 +893,135 @@
   user-select: none;
 }
 
-/* YouTube Music Style BPM Speed Controller Pill */
-.yt-bpm-controller-pill {
+/* YouTube Music Style Speed Popover Card */
+.yt-player-right-controls {
+  position: relative;
   display: flex;
   align-items: center;
-  background: rgba(255, 255, 255, 0.08);
-  border: 1px solid rgba(255, 255, 255, 0.12);
-  border-radius: 16px;
-  padding: 2px 4px;
-  gap: 2px;
-  user-select: none;
+  gap: 12px;
+  justify-content: flex-end;
 }
 
-.yt-bpm-btn {
-  background: transparent;
+.yt-speed-icon-btn {
+  position: relative;
+}
+
+.yt-speed-icon-btn.active-speed {
+  color: #10b981 !important;
+  background: rgba(16, 185, 129, 0.15) !important;
+}
+
+.yt-speed-badge-dot {
+  position: absolute;
+  top: 6px;
+  right: 6px;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background-color: #10b981;
+}
+
+.yt-speed-popover-card {
+  position: absolute;
+  bottom: 60px;
+  right: 140px;
+  width: 270px;
+  background: #181818;
+  border: 1px solid rgba(16, 185, 129, 0.3);
+  box-shadow: 0 12px 36px rgba(0, 0, 0, 0.8), 0 0 16px rgba(16, 185, 129, 0.15);
+  border-radius: 16px;
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  z-index: 300;
+  animation: popoverFadeIn 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+@keyframes popoverFadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(8px) scale(0.96);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+.yt-speed-popover-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.yt-speed-percentage-text {
+  font-size: 24px;
+  font-weight: 800;
+  color: #10b981;
+  font-family: 'Roboto', -apple-system, sans-serif;
+  line-height: 1;
+}
+
+.yt-speed-reset-btn {
+  background: rgba(255, 255, 255, 0.08);
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  color: #ffffff;
+  font-size: 11px;
+  font-weight: 700;
+  padding: 4px 10px;
+  border-radius: 8px;
+  cursor: pointer;
+  letter-spacing: 0.5px;
+  transition: all 0.15s ease;
+}
+
+.yt-speed-reset-btn:hover {
+  background: #10b981;
+  color: #000000;
+  border-color: #10b981;
+}
+
+.yt-speed-slider-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.yt-speed-step-btn {
+  background: rgba(255, 255, 255, 0.08);
   border: none;
-  color: var(--yt-text-secondary);
-  width: 24px;
-  height: 24px;
+  color: #ffffff;
+  width: 32px;
+  height: 32px;
   border-radius: 50%;
   display: flex;
   align-items: center;
   justify-content: center;
   cursor: pointer;
-  transition: background 0.15s ease, color 0.15s ease;
+  flex-shrink: 0;
+  transition: background 0.15s ease;
 }
 
-.yt-bpm-btn:hover {
-  background: rgba(255, 255, 255, 0.15);
-  color: #ffffff;
+.yt-speed-step-btn:hover {
+  background: rgba(255, 255, 255, 0.2);
 }
 
-.yt-bpm-value-btn {
-  background: transparent;
-  border: none;
-  color: var(--yt-text-primary);
-  font-size: 12px;
-  font-weight: 700;
-  padding: 2px 6px;
-  border-radius: 12px;
+.yt-speed-range-slider {
+  flex: 1;
+  accent-color: #10b981;
+  height: 6px;
+  border-radius: 3px;
   cursor: pointer;
+}
+
+.yt-speed-labels-row {
   display: flex;
-  align-items: center;
-  gap: 4px;
-  transition: all 0.15s ease;
-}
-
-.yt-bpm-value-btn:hover {
-  background: rgba(255, 255, 255, 0.15);
-}
-
-.yt-bpm-value-btn.changed {
-  color: #10b981;
-  background: rgba(16, 185, 129, 0.15);
-}
-
-.yt-bpm-icon {
-  color: #10b981;
+  justify-content: space-between;
+  font-size: 10px;
+  font-weight: 600;
+  color: var(--yt-text-muted);
+  letter-spacing: 0.3px;
 }
 
 .yt-volume-control {

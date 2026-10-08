@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import {
   Play,
   Pause,
@@ -58,6 +58,23 @@ export default function YtPlayerBar({ onExpandPlayer }: YtPlayerBarProps) {
 
   const [isLiked, setIsLiked] = useState(false);
   const [isDisliked, setIsDisliked] = useState(false);
+  const [isSpeedPopoverOpen, setIsSpeedPopoverOpen] = useState(false);
+  const popoverRef = useRef<HTMLDivElement>(null);
+
+  // Close popover when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (popoverRef.current && !popoverRef.current.contains(event.target as Node)) {
+        setIsSpeedPopoverOpen(false);
+      }
+    };
+    if (isSpeedPopoverOpen) {
+      document.addEventListener('mousedown', handleClickOutside);
+    }
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, [isSpeedPopoverOpen]);
 
   if (!currentTrack && title === "No Track Selected") {
     return null;
@@ -75,7 +92,7 @@ export default function YtPlayerBar({ onExpandPlayer }: YtPlayerBarProps) {
 
   const handleBpmChange = (delta: number) => {
     const currentVal = bpm || 100;
-    const newBpm = Math.min(130, Math.max(70, currentVal + delta));
+    const newBpm = Math.min(150, Math.max(50, currentVal + delta));
     setBpm(newBpm, true);
   };
 
@@ -84,8 +101,10 @@ export default function YtPlayerBar({ onExpandPlayer }: YtPlayerBarProps) {
   };
 
   const currentBpm = bpm || 100;
-  const bpmDisplay = `${currentBpm}%`;
+  const bpmDelta = currentBpm - 100;
   const isBpmChanged = currentBpm !== 100;
+
+  const bpmDisplay = bpmDelta === 0 ? '0%' : (bpmDelta > 0 ? `+${bpmDelta}%` : `${bpmDelta}%`);
 
   return (
     <div className="yt-player-bar-container">
@@ -188,38 +207,70 @@ export default function YtPlayerBar({ onExpandPlayer }: YtPlayerBarProps) {
           </div>
         </div>
 
-        {/* RIGHT: BPM Speed Pill, Volume, Repeat, Shuffle, Down Chevron */}
-        <div className="yt-player-right-controls">
-          {/* YT Music Style BPM Speed Controller Pill */}
-          <div className="yt-bpm-controller-pill">
-            <button
-              type="button"
-              className="yt-bpm-btn"
-              onClick={() => handleBpmChange(-1)}
-              title="Decrease speed (-1%)"
-            >
-              <Minus size={13} />
-            </button>
+        {/* RIGHT: Speed Icon (with Popover), Volume, Repeat, Shuffle, Down Chevron */}
+        <div className="yt-player-right-controls" ref={popoverRef}>
+          {/* Speed Popover Card (Anchored above Speed icon) */}
+          {isSpeedPopoverOpen && (
+            <div className="yt-speed-popover-card">
+              <div className="yt-speed-popover-header">
+                <span className="yt-speed-percentage-text">{bpmDisplay}</span>
+                <button
+                  type="button"
+                  className="yt-speed-reset-btn"
+                  onClick={resetBpm}
+                >
+                  RESET
+                </button>
+              </div>
 
-            <button
-              type="button"
-              className={`yt-bpm-value-btn ${isBpmChanged ? 'changed' : ''}`}
-              onClick={resetBpm}
-              title="Click to reset to 100%"
-            >
-              <Gauge size={13} className="yt-bpm-icon" />
-              <span>{bpmDisplay}</span>
-            </button>
+              <div className="yt-speed-slider-row">
+                <button
+                  type="button"
+                  className="yt-speed-step-btn"
+                  onClick={() => handleBpmChange(-1)}
+                  title="-1%"
+                >
+                  <Minus size={15} />
+                </button>
 
-            <button
-              type="button"
-              className="yt-bpm-btn"
-              onClick={() => handleBpmChange(1)}
-              title="Increase speed (+1%)"
-            >
-              <Plus size={13} />
-            </button>
-          </div>
+                <input
+                  type="range"
+                  min={50}
+                  max={150}
+                  step={1}
+                  value={currentBpm}
+                  onChange={(e) => setBpm(parseInt(e.target.value), true)}
+                  className="yt-speed-range-slider"
+                />
+
+                <button
+                  type="button"
+                  className="yt-speed-step-btn"
+                  onClick={() => handleBpmChange(1)}
+                  title="+1%"
+                >
+                  <Plus size={15} />
+                </button>
+              </div>
+
+              <div className="yt-speed-labels-row">
+                <span>-50%</span>
+                <span>NORMAL</span>
+                <span>+50%</span>
+              </div>
+            </div>
+          )}
+
+          {/* Single Speed Icon Button */}
+          <button
+            type="button"
+            className={`yt-player-icon-btn yt-speed-icon-btn ${isBpmChanged || isSpeedPopoverOpen ? 'active-speed' : ''}`}
+            onClick={() => setIsSpeedPopoverOpen(!isSpeedPopoverOpen)}
+            title="Playback Speed"
+          >
+            <Gauge size={20} />
+            {isBpmChanged && <span className="yt-speed-badge-dot" />}
+          </button>
 
           {/* Volume control */}
           <div className="yt-volume-control">

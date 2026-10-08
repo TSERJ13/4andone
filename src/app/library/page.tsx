@@ -417,6 +417,9 @@ export default function LibraryPage() {
           .yt-library-top-bar {
             margin-bottom: 16px;
           }
+          .yt-library-sort-btn {
+            display: none !important;
+          }
           .yt-library-grid {
             grid-template-columns: repeat(2, 1fr);
             gap: 16px 12px;

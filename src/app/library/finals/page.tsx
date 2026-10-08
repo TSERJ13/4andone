@@ -60,11 +60,10 @@ const SessionClock = () => {
   return <p className="session-timer">{formatClock(currentTime)} / {formatClock(sessionDuration)}</p>;
 };
 
-// Program definitions with category grouping for YouTube Music shelves
 export interface ProgramDef {
   key: string;
   label: string;
-  category: 'official' | 'multi' | 'specials' | 'personal';
+  category: 'official' | 'multi' | 'specials' | 'favorites' | 'fitness';
   subtitle: string;
   color: string;
   coverImg: string;
@@ -200,11 +199,11 @@ const PROGRAMS: ProgramDef[] = [
     tag: 'Blackpool'
   },
 
-  // 4. Personal Practice
+  // 4. Favorites & Fitness (Separated)
   {
     key: 'LikedSongs',
     label: 'Liked Songs Final',
-    category: 'personal',
+    category: 'favorites',
     subtitle: 'Final practice from your Favorites',
     color: '#ef4444',
     coverImg: '/styles/tango.jpg',
@@ -213,7 +212,7 @@ const PROGRAMS: ProgramDef[] = [
   {
     key: 'Fitness',
     label: 'Fitness Workout',
-    category: 'personal',
+    category: 'fitness',
     subtitle: 'Non-stop Dance Cardio Session',
     color: '#f97316',
     coverImg: '/styles/fitness.jpg',
@@ -226,7 +225,8 @@ const FILTER_CATEGORIES = [
   { id: 'official', label: 'Official Finals' },
   { id: 'multi', label: 'Multi-Dance' },
   { id: 'specials', label: 'Specials & Tags' },
-  { id: 'personal', label: 'Personal & Fitness' }
+  { id: 'favorites', label: 'Favorites' },
+  { id: 'fitness', label: 'Fitness' }
 ];
 
 const FinalsPage = () => {
@@ -256,6 +256,8 @@ const FinalsPage = () => {
   const downloadedIds = useDownloadedTracks();
 
   const [activeCategoryChip, setActiveCategoryChip] = useState('all');
+  const [lastPlayedProgramKey, setLastPlayedProgramKey] = useState<string>('Latin');
+
   const [showStopConfirm, setShowStopConfirm] = useState(false);
   const [showFinalOver, setShowFinalOver] = useState(false);
   const [infoModal, setInfoModal] = useState<{
@@ -291,7 +293,15 @@ const FinalsPage = () => {
   const [pasoDuration, setPasoDuration] = useState('All');
   const [pasoVersion, setPasoVersion] = useState('All');
 
+  // Load last played final program & prefs
   useEffect(() => {
+    try {
+      const savedLast = localStorage.getItem('4andone_last_played_final');
+      if (savedLast) {
+        setLastPlayedProgramKey(savedLast);
+      }
+    } catch (e) {}
+
     const savedPrefs = localStorage.getItem('final_mode_prefs');
     if (savedPrefs) {
       try {
@@ -302,6 +312,13 @@ const FinalsPage = () => {
       } catch (e) {}
     }
   }, []);
+
+  const updateLastPlayed = (key: string) => {
+    setLastPlayedProgramKey(key);
+    try {
+      localStorage.setItem('4andone_last_played_final', key);
+    } catch (e) {}
+  };
 
   const saveSettings = () => {
     localStorage.setItem('final_mode_prefs', JSON.stringify({
@@ -376,6 +393,8 @@ const FinalsPage = () => {
   const standardOrder = ["Slow Waltz", "Tango", "Viennese Waltz", "Slow Foxtrot", "Quickstep"];
 
   const handleProgramShuffle = (type: string) => {
+    updateLastPlayed(type);
+
     if (type === 'Fitness') {
       setShowFitnessModal(true);
       return;
@@ -507,6 +526,7 @@ const FinalsPage = () => {
   };
 
   const startLikedSongsProgram = (discipline: 'Latin' | 'Standard') => {
+    updateLastPlayed('LikedSongs');
     const liked = tracks.filter(t => t.isFavorite);
     if (liked.length === 0) {
       setInfoModal({
@@ -542,6 +562,7 @@ const FinalsPage = () => {
   };
 
   const startFitness = (selectedTargetSeconds: number) => {
+    updateLastPlayed('Fitness');
     const fitnessPool = tracks.filter(t => t.style?.toLowerCase() === 'fitness');
     setIsFitness(true);
 
@@ -593,6 +614,8 @@ const FinalsPage = () => {
     activeCategoryChip === 'all' || p.category === activeCategoryChip
   );
 
+  const heroProgram = PROGRAMS.find(p => p.key === lastPlayedProgramKey) || PROGRAMS[0];
+
   return (
     <div className="yt-finals-page animate-in">
       {/* 1. YouTube Music Page Header */}
@@ -602,9 +625,9 @@ const FinalsPage = () => {
           <h1 className="yt-title">Finals Practice</h1>
         </div>
 
-        <div className="yt-finals-header-actions">
-          <Link href="/learn-final-mode" className="yt-header-pill-btn">
-            <Info size={16} />
+        <div className="yt-finals-header-right">
+          <Link href="/learn-final-mode" className="yt-small-how-link">
+            <Info size={13} />
             <span>How it works?</span>
           </Link>
 
@@ -613,38 +636,50 @@ const FinalsPage = () => {
             className="yt-header-pill-btn settings"
             onClick={() => setShowSettingsModal(true)}
           >
-            <Settings size={16} />
+            <Settings size={15} />
             <span>Settings</span>
           </button>
         </div>
       </div>
 
-      {/* 2. Featured Practice Hero Banner (YouTube Music Featured Card) */}
-      <div className="yt-hero-practice-banner">
+      {/* 2. Last Played Final Practice Hero Banner */}
+      <div
+        className="yt-hero-practice-banner"
+        style={{
+          background: `linear-gradient(135deg, ${heroProgram.color}33 0%, ${heroProgram.color}12 50%, #0c0c0c 100%)`,
+          borderColor: `${heroProgram.color}44`
+        }}
+      >
         <div className="yt-hero-content">
-          <div className="yt-hero-badge">
-            <Trophy size={14} color="#ef4444" />
-            <span>FEATURED PRACTICE</span>
+          <div
+            className="yt-hero-badge"
+            style={{
+              color: heroProgram.color,
+              borderColor: `${heroProgram.color}66`,
+              background: `${heroProgram.color}22`
+            }}
+          >
+            <Trophy size={14} color={heroProgram.color} />
+            <span>LAST PLAYED PRACTICE</span>
           </div>
-          <h2 className="yt-hero-heading">Latin Final Practice</h2>
-          <p className="yt-hero-desc">
-            5 Competition Dances • Samba, Cha-Cha-Cha, Rumba, Paso Doble, Jive
-          </p>
+
+          <h2 className="yt-hero-heading">{heroProgram.label}</h2>
+          <p className="yt-hero-desc">{heroProgram.subtitle}</p>
 
           <button
             type="button"
             className="yt-hero-play-btn"
-            onClick={() => handleProgramShuffle('Latin')}
+            onClick={() => handleProgramShuffle(heroProgram.key)}
           >
-            <Play fill="#000000" color="#000000" size={20} />
-            <span>START LATIN FINAL</span>
+            <Play fill="#000000" color="#000000" size={18} />
+            <span>START {heroProgram.label.toUpperCase()}</span>
           </button>
         </div>
 
         <div className="yt-hero-cover-wrap">
           <img
-            src="/styles/samba.jpg"
-            alt="Latin Final"
+            src={heroProgram.coverImg}
+            alt={heroProgram.label}
             className="yt-hero-cover-img"
           />
         </div>
@@ -976,9 +1011,9 @@ const FinalsPage = () => {
 
         .yt-finals-header {
           display: flex;
-          align-items: center;
+          align-items: flex-start;
           justify-content: space-between;
-          margin-bottom: 24px;
+          margin-bottom: 20px;
         }
 
         .yt-kicker {
@@ -988,7 +1023,7 @@ const FinalsPage = () => {
           color: #aaaaaa;
           text-transform: uppercase;
           display: block;
-          margin-bottom: 4px;
+          margin-bottom: 2px;
         }
 
         .yt-title {
@@ -999,10 +1034,26 @@ const FinalsPage = () => {
           letter-spacing: -0.5px;
         }
 
-        .yt-finals-header-actions {
+        .yt-finals-header-right {
           display: flex;
+          flex-direction: column;
+          align-items: flex-end;
+          gap: 8px;
+        }
+
+        .yt-small-how-link {
+          display: inline-flex;
           align-items: center;
-          gap: 10px;
+          gap: 5px;
+          color: #aaaaaa;
+          font-size: 12px;
+          font-weight: 500;
+          text-decoration: none;
+          transition: color 0.15s ease;
+        }
+
+        .yt-small-how-link:hover {
+          color: #ffffff;
         }
 
         .yt-header-pill-btn {
@@ -1014,7 +1065,7 @@ const FinalsPage = () => {
           color: #ffffff;
           font-size: 13px;
           font-weight: 600;
-          padding: 8px 16px;
+          padding: 6px 16px;
           border-radius: 20px;
           text-decoration: none;
           cursor: pointer;
@@ -1027,17 +1078,17 @@ const FinalsPage = () => {
 
         /* Hero Practice Banner */
         .yt-hero-practice-banner {
-          background: linear-gradient(135deg, #3a0808 0%, #180505 50%, #0c0c0c 100%);
-          border: 1px solid rgba(239, 68, 68, 0.3);
           border-radius: 20px;
-          padding: 28px 32px;
+          padding: 24px 28px;
           display: flex;
           align-items: center;
           justify-content: space-between;
-          margin-bottom: 28px;
-          box-shadow: 0 16px 40px rgba(0, 0, 0, 0.6), inset 0 0 60px rgba(239, 68, 68, 0.15);
+          margin-bottom: 24px;
+          box-shadow: 0 16px 40px rgba(0, 0, 0, 0.6);
           position: relative;
           overflow: hidden;
+          border: 1px solid rgba(255, 255, 255, 0.1);
+          transition: all 0.3s ease;
         }
 
         .yt-hero-content {
@@ -1049,43 +1100,41 @@ const FinalsPage = () => {
           display: inline-flex;
           align-items: center;
           gap: 6px;
-          background: rgba(239, 68, 68, 0.2);
-          border: 1px solid rgba(239, 68, 68, 0.4);
-          color: #ef4444;
           font-size: 11px;
           font-weight: 800;
           letter-spacing: 0.8px;
           padding: 4px 10px;
           border-radius: 12px;
-          margin-bottom: 12px;
+          margin-bottom: 10px;
+          border: 1px solid transparent;
         }
 
         .yt-hero-heading {
-          font-size: 26px;
+          font-size: 24px;
           font-weight: 900;
           color: #ffffff;
-          margin: 0 0 8px 0;
+          margin: 0 0 6px 0;
           letter-spacing: -0.5px;
         }
 
         .yt-hero-desc {
-          font-size: 14px;
+          font-size: 13px;
           color: #cccccc;
-          margin: 0 0 20px 0;
+          margin: 0 0 18px 0;
           line-height: 1.4;
         }
 
         .yt-hero-play-btn {
           display: inline-flex;
           align-items: center;
-          gap: 10px;
+          gap: 8px;
           background: #ffffff;
           color: #000000;
           font-size: 13px;
           font-weight: 800;
           letter-spacing: 0.5px;
-          padding: 10px 22px;
-          border-radius: 24px;
+          padding: 9px 20px;
+          border-radius: 22px;
           border: none;
           cursor: pointer;
           box-shadow: 0 6px 20px rgba(255, 255, 255, 0.3);
@@ -1098,9 +1147,9 @@ const FinalsPage = () => {
         }
 
         .yt-hero-cover-wrap {
-          width: 140px;
-          height: 140px;
-          border-radius: 16px;
+          width: 125px;
+          height: 125px;
+          border-radius: 14px;
           overflow: hidden;
           box-shadow: 0 12px 32px rgba(0, 0, 0, 0.7);
           transform: rotate(6deg);
@@ -1185,7 +1234,6 @@ const FinalsPage = () => {
           align-items: center;
           justify-content: space-between;
           z-index: 2;
-
         }
 
         .yt-card-icon-circle {

@@ -51,7 +51,7 @@ export default function UpgradePage() {
 
         {/* Pricing Subtitle */}
         <p className="yt-prem-pricing-sub">
-          1-month trial for GEL 0 • Then GEL 14.49/month • Cancel anytime
+          1-month trial for $0 • Then $1.99/month • Cancel anytime
         </p>
 
         {/* Action Button & Payment Flow */}
@@ -63,7 +63,7 @@ export default function UpgradePage() {
             </div>
           ) : isPremium || success ? (
             <div className="yt-prem-success-box">
-              <ShieldCheck size={56} style={{ color: '#3ea6ff' }} />
+              <ShieldCheck size={56} style={{ color: '#10b981' }} />
               <h2>You have 4and.one Premium!</h2>
               <p>Enjoy unlimited ad-free music, offline downloads, and uninterrupted Final Mode.</p>
               <Link href="/library" className="yt-prem-main-btn">
@@ -76,7 +76,7 @@ export default function UpgradePage() {
               className="yt-prem-main-btn"
               onClick={() => setShowPayment(true)}
             >
-              Try 1 month for GEL 0
+              Try 1 month for $0
             </button>
           ) : (
             <div className="yt-prem-paypal-box">
@@ -92,7 +92,7 @@ export default function UpgradePage() {
                 <PayPalButtons
                   style={{
                     shape: 'pill',
-                    color: 'blue',
+                    color: 'gold',
                     layout: 'vertical',
                     label: 'subscribe',
                     height: 48
@@ -120,11 +120,8 @@ export default function UpgradePage() {
           )}
         </div>
 
-        {/* Secondary Links & Disclaimer */}
+        {/* Disclaimer */}
         <div className="yt-prem-secondary-links">
-          <button type="button" className="yt-prem-link-btn">
-            Or save money with a family or student plan
-          </button>
           <p className="yt-prem-disclaimer">
             You'll be reminded 7 days before your trial ends. Recurring billing. <span className="yt-prem-link-span">Restrictions apply.</span>
           </p>
@@ -161,7 +158,7 @@ export default function UpgradePage() {
       <style jsx>{`
         .yt-premium-landing-page {
           min-height: 100vh;
-          background: #030303;
+          background: linear-gradient(180deg, #072619 0%, #03140d 40%, #030303 100%);
           color: #ffffff;
           padding-bottom: 120px;
         }
@@ -173,7 +170,7 @@ export default function UpgradePage() {
           position: sticky;
           top: 0;
           z-index: 50;
-          background: rgba(3, 3, 3, 0.85);
+          background: rgba(3, 3, 3, 0.7);
           backdrop-filter: blur(12px);
           -webkit-backdrop-filter: blur(12px);
         }
@@ -224,8 +221,8 @@ export default function UpgradePage() {
           height: 44px;
           border-radius: 12px;
           object-fit: cover;
-          border: 1px solid rgba(255, 255, 255, 0.15);
-          box-shadow: 0 6px 20px rgba(0, 0, 0, 0.6);
+          border: 1px solid rgba(16, 185, 129, 0.4);
+          box-shadow: 0 6px 20px rgba(16, 185, 129, 0.3);
         }
 
         .yt-prem-logo-text {
@@ -246,7 +243,7 @@ export default function UpgradePage() {
 
         .yt-prem-pricing-sub {
           font-size: 15px;
-          color: rgba(255, 255, 255, 0.7);
+          color: rgba(255, 255, 255, 0.75);
           margin: 0 0 32px 0;
           font-weight: 500;
         }
@@ -259,8 +256,8 @@ export default function UpgradePage() {
 
         .yt-prem-main-btn {
           width: 100%;
-          background: #3ea6ff;
-          color: #0f0f0f;
+          background: #10b981;
+          color: #ffffff;
           font-size: 16px;
           font-weight: 700;
           padding: 14px 36px;
@@ -268,15 +265,15 @@ export default function UpgradePage() {
           border: none;
           cursor: pointer;
           transition: background-color 0.15s, transform 0.15s, box-shadow 0.15s;
-          box-shadow: 0 4px 20px rgba(62, 166, 255, 0.35);
+          box-shadow: 0 4px 20px rgba(16, 185, 129, 0.4);
           text-decoration: none;
           display: inline-block;
         }
 
         .yt-prem-main-btn:hover {
-          background: #65b8ff;
+          background: #059669;
           transform: scale(1.03);
-          box-shadow: 0 6px 25px rgba(62, 166, 255, 0.5);
+          box-shadow: 0 6px 25px rgba(16, 185, 129, 0.6);
         }
 
         .yt-prem-auth-box, .yt-prem-paypal-box, .yt-prem-success-box {
@@ -286,14 +283,15 @@ export default function UpgradePage() {
           align-items: center;
           gap: 16px;
           background: rgba(255, 255, 255, 0.04);
-          border: 1px solid rgba(255, 255, 255, 0.1);
+          border: 1px solid rgba(16, 185, 129, 0.2);
           border-radius: 20px;
           padding: 24px;
+          box-shadow: 0 8px 32px rgba(0, 0, 0, 0.5);
         }
 
         .yt-prem-hint {
           font-size: 14px;
-          color: rgba(255, 255, 255, 0.8);
+          color: rgba(255, 255, 255, 0.85);
           margin: 0;
         }
 
@@ -315,17 +313,6 @@ export default function UpgradePage() {
           margin-bottom: 60px;
         }
 
-        .yt-prem-link-btn {
-          background: none;
-          border: none;
-          color: #3ea6ff;
-          font-size: 14px;
-          font-weight: 600;
-          cursor: pointer;
-          transition: color 0.2s;
-        }
-        .yt-prem-link-btn:hover { text-decoration: underline; color: #65b8ff; }
-
         .yt-prem-disclaimer {
           font-size: 12px;
           color: rgba(255, 255, 255, 0.5);
@@ -335,7 +322,7 @@ export default function UpgradePage() {
         }
 
         .yt-prem-link-span {
-          color: #3ea6ff;
+          color: #10b981;
           cursor: pointer;
         }
 
@@ -351,7 +338,7 @@ export default function UpgradePage() {
 
         .yt-prem-feature-card {
           background: rgba(255, 255, 255, 0.03);
-          border: 1px solid rgba(255, 255, 255, 0.06);
+          border: 1px solid rgba(16, 185, 129, 0.15);
           border-radius: 16px;
           padding: 24px;
           display: flex;
@@ -360,7 +347,7 @@ export default function UpgradePage() {
         }
 
         .yt-prem-feature-check {
-          color: #3ea6ff;
+          color: #10b981;
           flex-shrink: 0;
           margin-top: 2px;
         }

@@ -4,7 +4,7 @@ import React, { useState, useEffect } from 'react';
 import { useAuth } from '@/context/AuthContext';
 import { useAudio } from '@/components/audio/AudioProvider';
 import { AdBanner } from './AdBanner';
-import { Crown, Sparkles, ArrowRight } from 'lucide-react';
+import { Crown, Ban, Trophy, Download, ArrowRight } from 'lucide-react';
 
 export default function PlayerStickyAd() {
   const { isPremium, isLoading, setIsSubscriptionModalOpen } = useAuth();
@@ -38,7 +38,7 @@ export default function PlayerStickyAd() {
           />
         </div>
 
-        {/* Modern HTML/CSS House Premium Banner in English */}
+        {/* Modern HTML/CSS House Premium Banner in English with 3 Core Features */}
         {adStatus === 'unfilled' && (
           <div 
             className="house-premium-ad-banner"
@@ -54,12 +54,18 @@ export default function PlayerStickyAd() {
               </div>
               <div className="house-ad-text-group">
                 <div className="house-ad-headline">
-                  <span>Enjoy Unlimited Music</span>
-                  <span className="house-accent-pill">Ad-Free</span>
+                  <span>Unlock 4ANDONE Premium</span>
                 </div>
-                <div className="house-ad-subline">
-                  <Sparkles size={11} className="house-sparkle" />
-                  <span>Unlimited Downloads • High Fidelity Audio</span>
+                <div className="house-ad-features-row">
+                  <span className="house-feature-chip">
+                    <Ban size={10} /> Ad-Free
+                  </span>
+                  <span className="house-feature-chip">
+                    <Trophy size={10} /> Final Mode
+                  </span>
+                  <span className="house-feature-chip">
+                    <Download size={10} /> Offline Mode
+                  </span>
                 </div>
               </div>
             </div>

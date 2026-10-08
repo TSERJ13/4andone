@@ -547,16 +547,19 @@ const FinalsPage = () => {
     <div className="page-wrapper">
       <div className="finals-container animate-in">
         <header className="page-header-unified">
-          <h1>Finals Practice</h1>
-          <div style={{ display: 'flex', gap: '12px' }}>
+          <div>
+            <span className="yt-header-kicker">4AND.ONE PRACTICE</span>
+            <h1>Finals Practice</h1>
+          </div>
+          <div style={{ display: 'flex', gap: '10px' }}>
             <Link href="/learn-final-mode" className="learn-finals-btn">
-              <Info size={18} />
-              <span>&nbsp;How it works?</span>
-              <ArrowRight size={16} className="arrow" />
+              <Info size={16} />
+              <span>How it works?</span>
+              <ArrowRight size={14} className="arrow" />
             </Link>
             <button className="learn-finals-btn settings-btn" onClick={() => setShowSettingsModal(true)}>
-              <Settings size={18} className="settings-icon" />
-              <span className="settings-text">&nbsp;Settings</span>
+              <Settings size={16} className="settings-icon" />
+              <span className="settings-text">Settings</span>
             </button>
           </div>
         </header>
@@ -679,37 +682,45 @@ const FinalsPage = () => {
           display: flex;
           align-items: center;
           justify-content: space-between;
-          padding: 32px;
-          border-radius: 20px;
-          background: radial-gradient(circle at 85% 20%, #3d1248 0%, #0c0c0e 65%);
-          border: 1px solid rgba(255, 255, 255, 0.12);
-          box-shadow: 0 20px 50px rgba(0, 0, 0, 0.8);
+          padding: 24px 0 12px 0;
+          background: transparent;
           margin-bottom: 8px;
         }
 
+        .yt-header-kicker {
+          font-size: 11px;
+          font-weight: 700;
+          letter-spacing: 1.2px;
+          color: rgba(255, 255, 255, 0.6);
+          display: block;
+          margin-bottom: 4px;
+        }
+
         .page-header-unified h1 {
-          font-size: 2rem;
-          font-weight: 900;
+          font-size: 2.2rem;
+          font-weight: 800;
           letter-spacing: -0.5px;
           color: #ffffff;
+          margin: 0;
         }
 
         .learn-finals-btn {
           display: flex;
           align-items: center;
           gap: 8px;
-          padding: 9px 18px;
-          background: rgba(255, 255, 255, 0.1) !important;
-          border: 1px solid rgba(255, 255, 255, 0.12) !important;
+          padding: 8px 16px;
+          background: #272727 !important;
+          border: 1px solid rgba(255, 255, 255, 0.08) !important;
           border-radius: 20px;
           font-size: 13px;
           font-weight: 700;
           color: #ffffff;
-          transition: all 0.2s;
+          transition: all 0.2s ease;
         }
 
         .learn-finals-btn:hover {
-          background: rgba(255, 255, 255, 0.2) !important;
+          background: #333333 !important;
+          border-color: rgba(255, 255, 255, 0.15) !important;
           transform: translateY(-1px);
         }
 
@@ -733,7 +744,7 @@ const FinalsPage = () => {
             height: 38px !important;
             border-radius: 50% !important;
             justify-content: center;
-            background: rgba(255, 0, 51, 0.1) !important;
+            background: rgba(255, 0, 51, 0.12) !important;
             border: 1px solid rgba(255, 0, 51, 0.3) !important;
           }
           .settings-icon {
@@ -745,18 +756,18 @@ const FinalsPage = () => {
 
         .finals-settings-modal {
           width: 100%;
-          max-width: 460px;
-          padding: 32px;
-          border-radius: 24px;
-          background: #141414;
+          max-width: 440px;
+          padding: 28px;
+          border-radius: 16px;
+          background: #212121;
           border: 1px solid rgba(255, 255, 255, 0.1);
           text-align: center;
-          box-shadow: 0 20px 60px rgba(0,0,0,0.85);
+          box-shadow: 0 16px 50px rgba(0, 0, 0, 0.9);
         }
 
         .finals-settings-modal .modal-header h2 {
-          font-size: 1.4rem;
-          font-weight: 800;
+          font-size: 1.3rem;
+          font-weight: 700;
           margin-bottom: 4px;
           color: #ffffff;
         }
@@ -768,8 +779,8 @@ const FinalsPage = () => {
 
         .form-label {
           display: block;
-          font-size: 0.72rem;
-          font-weight: 800;
+          font-size: 0.7rem;
+          font-weight: 700;
           text-transform: uppercase;
           letter-spacing: 1px;
           color: rgba(255, 255, 255, 0.6);
@@ -791,9 +802,9 @@ const FinalsPage = () => {
           flex-direction: column;
           align-items: center;
           justify-content: center;
-          padding: 12px 8px;
-          border-radius: 16px;
-          background: rgba(255, 255, 255, 0.03);
+          padding: 12px 10px;
+          border-radius: 12px;
+          background: #272727;
           border: 1px solid rgba(255, 255, 255, 0.08);
           color: white;
           cursor: pointer;
@@ -801,19 +812,19 @@ const FinalsPage = () => {
         }
 
         .option-card:hover {
-          background: rgba(255, 255, 255, 0.08);
-          border-color: rgba(255, 0, 51, 0.4);
+          background: #333333;
+          border-color: rgba(255, 255, 255, 0.15);
         }
 
         .option-card.active {
           background: rgba(255, 0, 51, 0.15);
           border-color: #ff0033;
-          box-shadow: 0 4px 15px rgba(255, 0, 51, 0.3);
+          box-shadow: 0 2px 12px rgba(255, 0, 51, 0.25);
         }
 
         .option-card .opt-title {
-          font-size: 0.86rem;
-          font-weight: 800;
+          font-size: 0.85rem;
+          font-weight: 700;
           margin-bottom: 2px;
           color: #ffffff;
         }
@@ -825,17 +836,17 @@ const FinalsPage = () => {
 
         .done-green-btn {
           width: 100%;
-          padding: 14px;
-          border-radius: 30px;
-          font-weight: 800;
-          font-size: 1rem;
+          padding: 12px;
+          border-radius: 20px;
+          font-weight: 700;
+          font-size: 0.95rem;
           background: #ff0033;
           color: #ffffff;
           border: none;
           cursor: pointer;
-          margin-top: 20px;
-          transition: transform 0.2s ease, background 0.2s ease;
-          box-shadow: 0 4px 20px rgba(255, 0, 51, 0.4);
+          margin-top: 24px;
+          transition: transform 0.15s ease, background 0.15s ease;
+          box-shadow: 0 4px 16px rgba(255, 0, 51, 0.35);
         }
 
         .done-green-btn:hover {

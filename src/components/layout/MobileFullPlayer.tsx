@@ -283,52 +283,54 @@ export default function MobileFullPlayer({ isOpen, onClose }: MobileFullPlayerPr
       </div>
 
       {/* Action Buttons Pill Row (Like, Speed, Final 1:45, Save) */}
-      <div className="yt-mobile-actions-row" style={{ position: 'relative' }} ref={speedRef}>
-        <button
-          type="button"
-          className={`yt-action-pill ${isFavorite ? 'active-heart' : ''}`}
-          onClick={async () => {
-            if (currentTrack?.id) {
-              await toggleFavorite(currentTrack.id);
-            }
-          }}
-        >
-          <Heart size={16} fill={isFavorite ? '#ef4444' : 'none'} color={isFavorite ? '#ef4444' : 'currentColor'} />
-          <span>{isFavorite ? 'Liked' : 'Like'}</span>
-        </button>
+      <div className="yt-mobile-actions-wrapper" ref={speedRef}>
+        <div className="yt-mobile-actions-row">
+          <button
+            type="button"
+            className={`yt-action-pill ${isFavorite ? 'active-heart' : ''}`}
+            onClick={async () => {
+              if (currentTrack?.id) {
+                await toggleFavorite(currentTrack.id);
+              }
+            }}
+          >
+            <Heart size={14} fill={isFavorite ? '#ef4444' : 'none'} color={isFavorite ? '#ef4444' : 'currentColor'} />
+            <span>{isFavorite ? 'Liked' : 'Like'}</span>
+          </button>
 
-        {/* Speedometer Pill Button */}
-        <button
-          type="button"
-          className={`yt-action-pill ${isBpmChanged || isSpeedPopoverOpen ? 'active-speed' : ''}`}
-          onClick={() => setIsSpeedPopoverOpen(!isSpeedPopoverOpen)}
-        >
-          <Gauge size={16} />
-          <span>{isBpmChanged ? `Speed ${bpmDisplay}` : 'Speed'}</span>
-        </button>
+          {/* Speedometer Pill Button */}
+          <button
+            type="button"
+            className={`yt-action-pill ${isBpmChanged || isSpeedPopoverOpen ? 'active-speed' : ''}`}
+            onClick={() => setIsSpeedPopoverOpen(!isSpeedPopoverOpen)}
+          >
+            <Gauge size={14} />
+            <span>{isBpmChanged ? `Speed ${bpmDisplay}` : 'Speed'}</span>
+          </button>
 
-        {/* Final Mode Pill Button (1:45 Timer + Red Highlight) */}
-        <button
-          type="button"
-          className={`yt-action-pill ${isFinalMode ? 'active-final' : ''}`}
-          onClick={toggleFinalMode}
-          title="Final Mode (1:45 Timer)"
-        >
-          <Trophy size={16} color={isFinalMode ? '#ef4444' : 'currentColor'} />
-          <span>Final</span>
-        </button>
+          {/* Final Mode Pill Button (1:45 Timer + Red Highlight) */}
+          <button
+            type="button"
+            className={`yt-action-pill ${isFinalMode ? 'active-final' : ''}`}
+            onClick={toggleFinalMode}
+            title="Final Mode (1:45 Timer)"
+          >
+            <Trophy size={14} color={isFinalMode ? '#ef4444' : 'currentColor'} />
+            <span>Final</span>
+          </button>
 
-        <button
-          type="button"
-          className="yt-action-pill"
-          onClick={() => {
-            onClose();
-            router.push('/library');
-          }}
-        >
-          <Bookmark size={16} />
-          <span>Save</span>
-        </button>
+          <button
+            type="button"
+            className="yt-action-pill"
+            onClick={() => {
+              onClose();
+              router.push('/library');
+            }}
+          >
+            <Bookmark size={14} />
+            <span>Save</span>
+          </button>
+        </div>
 
         {/* BPM Speed Popover Card Modal */}
         {isSpeedPopoverOpen && (

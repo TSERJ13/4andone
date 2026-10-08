@@ -2,7 +2,7 @@
 
 import React, { useState } from 'react';
 import Link from 'next/link';
-import { Search, Menu, Cast, Bell, Play, X, User } from 'lucide-react';
+import { Search, Menu, X } from 'lucide-react';
 import { useAuth } from '@/context/AuthContext';
 import { UserBadge } from '@/components/auth/UserBadge';
 
@@ -13,7 +13,7 @@ interface YtHeaderProps {
 }
 
 export default function YtHeader({ onToggleSidebar, onSearch, searchQuery = '' }: YtHeaderProps) {
-  const { user, isAuthenticated, setIsAuthModalOpen } = useAuth();
+  const { user } = useAuth();
   const [localSearch, setLocalSearch] = useState(searchQuery);
   const [isSearchFocused, setIsSearchFocused] = useState(false);
 
@@ -42,12 +42,11 @@ export default function YtHeader({ onToggleSidebar, onSearch, searchQuery = '' }
         </button>
 
         <Link href="/" className="yt-logo">
-          <div className="yt-logo-badge">
-            <Play size={14} fill="currentColor" className="yt-logo-play-icon" />
-          </div>
-          <span className="yt-logo-text">
-            4ANDONE<span className="yt-logo-sub">Music</span>
-          </span>
+          <img
+            src="/logo-4andone-3d.jpg"
+            alt="4and.one Music"
+            className="yt-logo-3d-img"
+          />
         </Link>
       </div>
 
@@ -72,13 +71,8 @@ export default function YtHeader({ onToggleSidebar, onSearch, searchQuery = '' }
         </div>
       </div>
 
-      {/* Right: Notifications & User Profile */}
+      {/* Right: User Profile Badge (No notification bell, no cast) */}
       <div className="yt-header-right">
-        <button type="button" className="yt-icon-btn yt-bell-btn" title="Notifications">
-          <Bell size={20} />
-          <span className="yt-bell-dot" />
-        </button>
-
         <div className="yt-user-area">
           <UserBadge />
         </div>

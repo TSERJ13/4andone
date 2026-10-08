@@ -3,14 +3,14 @@
 import React from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { Home, Compass, Search, Library, Sparkles } from 'lucide-react';
+import { Home, Trophy, Search, Library, Sparkles } from 'lucide-react';
 
 export default function YtMobileNav() {
   const pathname = usePathname();
 
   const tabs = [
     { label: 'Home', href: '/', icon: Home },
-    { label: 'Explore', href: '/library', icon: Compass },
+    { label: 'Finals', href: '/library/finals', icon: Trophy },
     { label: 'Search', href: '/search', icon: Search },
     { label: 'Library', href: '/library/favorites', icon: Library },
     { label: 'Upgrade', href: '/#upgrade', icon: Sparkles },

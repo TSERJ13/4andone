@@ -3,9 +3,7 @@
 import React from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { Home, Compass, Library, Sparkles, Plus, Heart, Music2, Pin } from 'lucide-react';
-import { displayStyleName } from '@/utils/styleNames';
-import { normalizeDanceSlug } from '@/utils/seo';
+import { Home, Trophy, Library, Sparkles, Plus, Heart, Pin } from 'lucide-react';
 
 interface YtSidebarProps {
   isCollapsed?: boolean;
@@ -29,7 +27,7 @@ export default function YtSidebar({ isCollapsed = false }: YtSidebarProps) {
 
   const navItems = [
     { label: 'Home', href: '/', icon: Home },
-    { label: 'Explore', href: '/library', icon: Compass },
+    { label: 'Final Mode', href: '/library/finals', icon: Trophy },
     { label: 'Library', href: '/library/favorites', icon: Library },
     { label: 'Upgrade', href: '/#upgrade', icon: Sparkles },
   ];
@@ -48,7 +46,7 @@ export default function YtSidebar({ isCollapsed = false }: YtSidebarProps) {
               className={`yt-nav-item ${isActive ? 'active' : ''}`}
             >
               <Icon size={20} className="yt-nav-icon" />
-              {!isCollapsed && <span className="yt-nav-label">{item.label}</span>}
+              <span className="yt-nav-label">{item.label}</span>
             </Link>
           );
         })}

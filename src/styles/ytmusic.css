@@ -101,32 +101,11 @@
   text-decoration: none;
 }
 
-.yt-logo-badge {
-  width: 30px;
-  height: 30px;
-  border-radius: 50%;
-  background: var(--yt-red);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  color: #fff;
-}
-
-.yt-logo-text {
-  font-size: 20px;
-  font-weight: 800;
-  letter-spacing: -0.5px;
-  color: #fff;
-  display: flex;
-  align-items: center;
-  gap: 2px;
-}
-
-.yt-logo-sub {
-  font-size: 14px;
-  font-weight: 400;
-  color: var(--yt-text-secondary);
-  margin-left: 2px;
+.yt-logo-3d-img {
+  height: 38px;
+  width: auto;
+  object-fit: contain;
+  border-radius: 6px;
 }
 
 /* Center Search Pill */
@@ -213,6 +192,28 @@
   border-right: 1px solid rgba(255, 255, 255, 0.05);
   flex-shrink: 0;
   overflow-y: auto;
+  transition: width 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.yt-sidebar.collapsed {
+  width: 72px;
+  padding: 12px 6px;
+  align-items: center;
+}
+
+.yt-sidebar.collapsed .yt-nav-item {
+  flex-direction: column;
+  justify-content: center;
+  padding: 12px 4px;
+  font-size: 10px;
+  gap: 6px;
+  text-align: center;
+  border-radius: 8px;
+}
+
+.yt-sidebar.collapsed .yt-nav-label {
+  font-size: 10px;
+  white-space: nowrap;
 }
 
 .yt-sidebar-main-nav {

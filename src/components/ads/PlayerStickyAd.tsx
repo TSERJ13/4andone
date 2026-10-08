@@ -4,7 +4,7 @@ import React, { useState, useEffect } from 'react';
 import { useAuth } from '@/context/AuthContext';
 import { useAudio } from '@/components/audio/AudioProvider';
 import { AdBanner } from './AdBanner';
-import { Crown, Zap } from 'lucide-react';
+import { Crown, Sparkles, ArrowRight } from 'lucide-react';
 
 export default function PlayerStickyAd() {
   const { isPremium, isLoading, setIsSubscriptionModalOpen } = useAuth();
@@ -38,7 +38,7 @@ export default function PlayerStickyAd() {
           />
         </div>
 
-        {/* House Premium Banner (Shown when AdSense is unfilled / blocked / fallback) */}
+        {/* Modern HTML/CSS House Premium Banner in English */}
         {adStatus === 'unfilled' && (
           <div 
             className="house-premium-ad-banner"
@@ -46,29 +46,35 @@ export default function PlayerStickyAd() {
             role="button"
             tabIndex={0}
           >
+            <div className="house-ad-glow-effect" />
+            
             <div className="house-ad-left">
-              <div className="house-ad-icon-badge">
-                <Crown size={15} color="#f59e0b" />
+              <div className="house-ad-crown-box">
+                <Crown size={16} className="house-crown-icon" />
               </div>
-              <div className="house-ad-text">
-                <span className="house-ad-title">
-                  ისიამოვნეთ მუსიკით <span className="highlight-green">რეკლამის გარეშე</span>
-                </span>
-                <span className="house-ad-subtitle">
-                  გადადით 4ANDONE Premium-ზე 🚀
-                </span>
+              <div className="house-ad-text-group">
+                <div className="house-ad-headline">
+                  <span>Enjoy Unlimited Music</span>
+                  <span className="house-accent-pill">Ad-Free</span>
+                </div>
+                <div className="house-ad-subline">
+                  <Sparkles size={11} className="house-sparkle" />
+                  <span>Unlimited Downloads • High Fidelity Audio</span>
+                </div>
               </div>
             </div>
+
             <button 
               type="button"
-              className="house-ad-btn"
+              className="house-ad-cta-btn"
               onClick={(e) => {
                 e.stopPropagation();
                 setIsSubscriptionModalOpen(true);
               }}
             >
-              <Zap size={13} fill="currentColor" />
-              <span>Get Premium</span>
+              <span className="cta-btn-text">GET PREMIUM</span>
+              <ArrowRight size={14} className="cta-arrow" />
+              <div className="cta-shimmer" />
             </button>
           </div>
         )}

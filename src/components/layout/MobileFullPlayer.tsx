@@ -10,9 +10,8 @@ import {
   SkipForward,
   Shuffle,
   Repeat,
-  ThumbsUp,
-  ThumbsDown,
-  MessageSquare,
+  Heart,
+  Share2,
   Bookmark,
   Headphones,
   Video
@@ -34,7 +33,7 @@ interface MobileFullPlayerProps {
 }
 
 export default function MobileFullPlayer({ isOpen, onClose }: MobileFullPlayerProps) {
-  const { albums } = useStudio();
+  const { albums, tracks, toggleFavorite } = useStudio();
   const {
     isPlaying,
     togglePlay,
@@ -53,11 +52,11 @@ export default function MobileFullPlayer({ isOpen, onClose }: MobileFullPlayerPr
   } = useAudio();
 
   const [mode, setMode] = useState<'audio' | 'video'>('audio');
-  const [liked, setLiked] = useState(false);
-  const [disliked, setDisliked] = useState(false);
 
   if (!isOpen) return null;
 
+  const liveTrack = tracks.find((t) => t.id === currentTrack?.id) || currentTrack;
+  const isFavorite = liveTrack?.isFavorite || false;
   const coverImg = getTrackCover(currentTrack, albums);
   const progressPercent = duration > 0 ? (currentTime / duration) * 100 : 0;
 
@@ -124,34 +123,35 @@ export default function MobileFullPlayer({ isOpen, onClose }: MobileFullPlayerPr
         </p>
       </div>
 
-      {/* Action Buttons Pill Row (Like, Dislike, Comment, Save) */}
+      {/* Action Buttons Pill Row (Heart Liked Music, Share, Save) */}
       <div className="yt-mobile-actions-row">
         <button
           type="button"
-          className={`yt-action-pill ${liked ? 'active' : ''}`}
-          onClick={() => {
-            setLiked(!liked);
-            if (disliked) setDisliked(false);
+          className={`yt-action-pill ${isFavorite ? 'active-heart' : ''}`}
+          onClick={async () => {
+            if (currentTrack?.id) {
+              await toggleFavorite(currentTrack.id);
+            }
           }}
         >
-          <ThumbsUp size={16} />
-          <span>1.4k</span>
+          <Heart size={16} fill={isFavorite ? '#ef4444' : 'none'} color={isFavorite ? '#ef4444' : 'currentColor'} />
+          <span>{isFavorite ? 'Liked' : 'Like'}</span>
         </button>
 
         <button
           type="button"
-          className={`yt-action-pill ${disliked ? 'active' : ''}`}
+          className="yt-action-pill"
           onClick={() => {
-            setDisliked(!disliked);
-            if (liked) setLiked(false);
+            if (!currentTrack) return;
+            const shareUrl = `${window.location.origin}/track/${currentTrack.id}`;
+            if (navigator.clipboard) {
+              navigator.clipboard.writeText(shareUrl);
+            }
+            alert('Link copied to clipboard!');
           }}
         >
-          <ThumbsDown size={16} />
-        </button>
-
-        <button type="button" className="yt-action-pill">
-          <MessageSquare size={16} />
-          <span>12</span>
+          <Share2 size={16} />
+          <span>Share</span>
         </button>
 
         <button type="button" className="yt-action-pill">

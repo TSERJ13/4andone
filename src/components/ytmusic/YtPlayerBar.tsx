@@ -11,8 +11,8 @@ import {
   Volume2,
   VolumeX,
   ChevronDown,
-  ThumbsUp,
-  ThumbsDown,
+  Heart,
+  Share2,
   MoreVertical,
   Minus,
   Plus,
@@ -34,7 +34,7 @@ interface YtPlayerBarProps {
 }
 
 export default function YtPlayerBar({ onExpandPlayer }: YtPlayerBarProps) {
-  const { albums } = useStudio();
+  const { albums, tracks, toggleFavorite } = useStudio();
   const {
     isPlaying,
     togglePlay,
@@ -56,12 +56,11 @@ export default function YtPlayerBar({ onExpandPlayer }: YtPlayerBarProps) {
     setBpm
   } = useAudio();
 
-  const [isLiked, setIsLiked] = useState(false);
-  const [isDisliked, setIsDisliked] = useState(false);
   const [isSpeedPopoverOpen, setIsSpeedPopoverOpen] = useState(false);
+  const [showCopiedToast, setShowCopiedToast] = useState(false);
   const popoverRef = useRef<HTMLDivElement>(null);
 
-  // Close popover when clicking outside
+  // Close speed popover when clicking outside
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
       if (popoverRef.current && !popoverRef.current.contains(event.target as Node)) {
@@ -80,6 +79,8 @@ export default function YtPlayerBar({ onExpandPlayer }: YtPlayerBarProps) {
     return null;
   }
 
+  const liveTrack = tracks.find((t) => t.id === currentTrack?.id) || currentTrack;
+  const isFavorite = liveTrack?.isFavorite || false;
   const coverImg = getTrackCover(currentTrack, albums);
   const progressPercent = duration > 0 ? (currentTime / duration) * 100 : 0;
 
@@ -100,10 +101,27 @@ export default function YtPlayerBar({ onExpandPlayer }: YtPlayerBarProps) {
     setBpm(100, true);
   };
 
+  const handleToggleFavorite = async (e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (currentTrack?.id) {
+      await toggleFavorite(currentTrack.id);
+    }
+  };
+
+  const handleShare = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (!currentTrack) return;
+    const shareUrl = `${window.location.origin}/track/${currentTrack.id}`;
+    if (navigator.clipboard) {
+      navigator.clipboard.writeText(shareUrl);
+    }
+    setShowCopiedToast(true);
+    setTimeout(() => setShowCopiedToast(false), 2500);
+  };
+
   const currentBpm = bpm || 100;
   const bpmDelta = currentBpm - 100;
   const isBpmChanged = currentBpm !== 100;
-
   const bpmDisplay = bpmDelta === 0 ? '0%' : (bpmDelta > 0 ? `+${bpmDelta}%` : `${bpmDelta}%`);
 
   return (
@@ -155,7 +173,7 @@ export default function YtPlayerBar({ onExpandPlayer }: YtPlayerBarProps) {
           </span>
         </div>
 
-        {/* CENTER: Thumbnail, Title, Artist, Likes */}
+        {/* CENTER: Thumbnail, Title, Artist, Heart (Liked Music), Share, More Options */}
         <div className="yt-player-center-meta" onClick={onExpandPlayer}>
           <img
             src={coverImg}
@@ -173,30 +191,39 @@ export default function YtPlayerBar({ onExpandPlayer }: YtPlayerBarProps) {
           </div>
 
           <div className="yt-player-actions" onClick={(e) => e.stopPropagation()}>
+            {/* Heart Save Button */}
             <button
               type="button"
-              className={`yt-player-icon-btn ${isLiked ? 'active' : ''}`}
-              onClick={() => {
-                setIsLiked(!isLiked);
-                if (isDisliked) setIsDisliked(false);
-              }}
-              title="Like"
+              className={`yt-player-icon-btn ${isFavorite ? 'active-heart' : ''}`}
+              onClick={handleToggleFavorite}
+              title={isFavorite ? 'Remove from Liked Music' : 'Save to Liked Music'}
             >
-              <ThumbsUp size={18} fill={isLiked ? 'currentColor' : 'none'} />
+              <Heart
+                size={18}
+                fill={isFavorite ? '#ef4444' : 'none'}
+                color={isFavorite ? '#ef4444' : 'currentColor'}
+              />
             </button>
 
-            <button
-              type="button"
-              className={`yt-player-icon-btn ${isDisliked ? 'active' : ''}`}
-              onClick={() => {
-                setIsDisliked(!isDisliked);
-                if (isLiked) setIsLiked(false);
-              }}
-              title="Dislike"
-            >
-              <ThumbsDown size={18} fill={isDisliked ? 'currentColor' : 'none'} />
-            </button>
+            {/* Share Button */}
+            <div className="yt-share-btn-wrapper">
+              <button
+                type="button"
+                className="yt-player-icon-btn"
+                onClick={handleShare}
+                title="Share track link"
+              >
+                <Share2 size={18} />
+              </button>
 
+              {showCopiedToast && (
+                <div className="yt-copied-toast">
+                  Link copied!
+                </div>
+              )}
+            </div>
+
+            {/* More Options */}
             <button
               type="button"
               className="yt-player-icon-btn"

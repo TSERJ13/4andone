@@ -727,11 +727,11 @@ const FinalsPage = () => {
             height: 38px !important;
             border-radius: 50% !important;
             justify-content: center;
-            background: rgba(29, 185, 84, 0.1) !important;
-            border: 1px solid rgba(29, 185, 84, 0.3) !important;
+            background: rgba(255, 0, 51, 0.1) !important;
+            border: 1px solid rgba(255, 0, 51, 0.3) !important;
           }
           .settings-icon {
-            color: #1db954 !important;
+            color: #ff0033 !important;
             width: 20px !important;
             height: 20px !important;
           }
@@ -796,13 +796,13 @@ const FinalsPage = () => {
 
         .option-card:hover {
           background: rgba(255, 255, 255, 0.08);
-          border-color: rgba(29, 185, 84, 0.4);
+          border-color: rgba(255, 0, 51, 0.4);
         }
 
         .option-card.active {
-          background: rgba(29, 185, 84, 0.15);
-          border-color: #1db954;
-          box-shadow: 0 4px 15px rgba(29, 185, 84, 0.3);
+          background: rgba(255, 0, 51, 0.15);
+          border-color: #ff0033;
+          box-shadow: 0 4px 15px rgba(255, 0, 51, 0.3);
         }
 
         .option-card .opt-title {
@@ -823,18 +823,18 @@ const FinalsPage = () => {
           border-radius: 30px;
           font-weight: 800;
           font-size: 1rem;
-          background: #1db954;
-          color: #000000;
+          background: #ff0033;
+          color: #ffffff;
           border: none;
           cursor: pointer;
           margin-top: 20px;
           transition: transform 0.2s ease, background 0.2s ease;
-          box-shadow: 0 4px 20px rgba(29, 185, 84, 0.4);
+          box-shadow: 0 4px 20px rgba(255, 0, 51, 0.4);
         }
 
         .done-green-btn:hover {
           transform: scale(1.02);
-          background: #1ed760;
+          background: #cc0029;
         }
 
         .programs-section {
@@ -948,7 +948,7 @@ const FinalsPage = () => {
 
         .prog-card.latin .card-icon { color: #f7971e; background: rgba(247, 151, 30, 0.1); }
         .prog-card.standard .card-icon { color: #00d2ff; background: rgba(0, 210, 255, 0.1); }
-        .prog-card.all-dance .card-icon { color: #1db954; background: rgba(29, 185, 84, 0.1); }
+        .prog-card.all-dance .card-icon { color: #ff0033; background: rgba(255, 0, 51, 0.1); }
         .prog-card.eight-dance .card-icon { color: #ffeb3b; background: rgba(255, 235, 59, 0.1); }
         .prog-card.six-dance .card-icon { color: #e91e63; background: rgba(233, 30, 99, 0.1); }
         .prog-card.inst-latin .card-icon { color: #9c27b0; background: rgba(156, 39, 176, 0.1); }
@@ -1039,7 +1039,7 @@ const FinalsPage = () => {
           padding: 32px;
           text-align: center;
           border-radius: 16px;
-          border: 1px solid rgba(29, 185, 84, 0.5) !important;
+          border: 1px solid rgba(255, 0, 51, 0.5) !important;
         }
 
         .modal-header {
@@ -1090,9 +1090,9 @@ const FinalsPage = () => {
         }
 
         .duration-input:focus {
-          border-color: #1db954;
-          box-shadow: 0 0 0 4px rgba(29, 185, 84, 0.2);
-          background: rgba(29, 185, 84, 0.05);
+          border-color: #ff0033;
+          box-shadow: 0 0 0 4px rgba(255, 0, 51, 0.2);
+          background: rgba(255, 0, 51, 0.05);
         }
         
         .duration-input::-webkit-outer-spin-button,
@@ -1341,7 +1341,7 @@ const FinalsPage = () => {
         <div className="modal-overlay" onClick={() => setShowSettingsModal(false)}>
           <div className="modal-content finals-settings-modal glass" onClick={e => e.stopPropagation()}>
             <div className="modal-header">
-              <Settings size={36} style={{ color: '#1db954', marginBottom: '8px' }} />
+              <Settings size={36} style={{ color: '#ff0033', marginBottom: '8px' }} />
               <h2>Finals Settings</h2>
               <p>Configure your practice preferences</p>
             </div>

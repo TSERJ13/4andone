@@ -12,15 +12,15 @@
 }
 
 :root {
-  --background: #121212;
-  --surface: #121212;
-  --surface-hover: #282828;
-  --primary: #1db954;
-  --primary-hover: #1ed760;
+  --background: #030303;
+  --surface: #0f0f0f;
+  --surface-hover: #272727;
+  --primary: #ff0033;
+  --primary-hover: #cc0029;
   --text: #ffffff;
-  --text-secondary: #b3b3b3;
-  --border: #282828;
-  --accent: #1db954;
+  --text-secondary: #aaaaaa;
+  --border: #272727;
+  --accent: #ff0033;
   --sidebar-width: 280px;
   --player-height: 90px;
 }
@@ -398,9 +398,9 @@ button {
 }
 
 .track-row.is-active {
-  background: rgba(29, 185, 84, 0.1);
+  background: rgba(255, 0, 51, 0.12);
   /* inset shadow instead of border-left: the playing row no longer shifts 3px */
-  box-shadow: inset 3px 0 0 var(--primary);
+  box-shadow: inset 3px 0 0 #ff0033;
 }
 
 .track-index {

@@ -123,7 +123,7 @@ export default function LibraryPage() {
   }));
 
   // Non-fitness tracks for Songs view
-  const libraryTracks = tracks.filter(t => t.style?.toLowerCase() !== 'fitness');
+  const libraryTracks = tracks.filter(t => t.style?.toLowerCase() !== 'fitness' && !t.tags?.some(tag => tag.toLowerCase() === 'closed' || tag === 'დახურული'));
 
   return (
     <div className="yt-library-page animate-in">

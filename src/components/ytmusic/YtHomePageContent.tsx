@@ -52,6 +52,10 @@ export default function YtHomePageContent() {
   // Filter tracks by category or search query and sort recently played first
   const filteredTracks = useMemo(() => {
     const filtered = tracks.filter((t) => {
+      // Same rule as the old home page: closed and fitness tracks are not listed
+      if (t.style?.toLowerCase() === 'fitness') return false;
+      if (t.tags?.some(tag => tag.toLowerCase() === 'closed' || tag === 'დახურული')) return false;
+
       const matchesSearch =
         !searchQuery ||
         t.title.toLowerCase().includes(searchQuery.toLowerCase()) ||

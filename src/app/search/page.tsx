@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState, useEffect, useRef, Fragment } from 'react';
+import { HEADER_SEARCH_EVENT } from '@/components/ytmusic/YtHeader';
 import { useRouter } from 'next/navigation';
 import {
   ArrowLeft,
@@ -95,6 +96,17 @@ const SearchPage = () => {
       localStorage.setItem('4andone_search_history', JSON.stringify([]));
     } catch (e) {}
   };
+
+  // Query from the header search: ?q= on arrival, then live updates
+  useEffect(() => {
+    try {
+      const q = new URLSearchParams(window.location.search).get('q');
+      if (q) setQuery(q);
+    } catch { /* ignore */ }
+    const onHeaderSearch = (e: Event) => setQuery(String((e as CustomEvent).detail ?? ''));
+    window.addEventListener(HEADER_SEARCH_EVENT, onHeaderSearch);
+    return () => window.removeEventListener(HEADER_SEARCH_EVENT, onHeaderSearch);
+  }, []);
 
   const handleSearchClick = (term: string) => {
     setQuery(term);

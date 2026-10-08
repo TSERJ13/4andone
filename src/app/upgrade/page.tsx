@@ -4,7 +4,7 @@ import React, { useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { PayPalScriptProvider, PayPalButtons } from '@paypal/react-paypal-js';
-import { ShieldCheck, ArrowLeft, Check } from 'lucide-react';
+import { ShieldCheck, ArrowLeft, Check, Sparkles } from 'lucide-react';
 import { useAuth } from '@/context/AuthContext';
 import { TelegramLogin } from '@/components/auth/TelegramLogin';
 
@@ -34,6 +34,9 @@ export default function UpgradePage() {
 
       {/* Main Hero Container */}
       <main className="yt-prem-hero-container">
+        {/* Ambient Glow */}
+        <div className="yt-prem-glow" />
+
         {/* Site 4ANDONE Official Brand Logo */}
         <div className="yt-prem-brand-header">
           <img
@@ -158,7 +161,8 @@ export default function UpgradePage() {
       <style jsx>{`
         .yt-premium-landing-page {
           min-height: 100vh;
-          background: linear-gradient(180deg, #072619 0%, #03140d 40%, #030303 100%);
+          width: 100%;
+          background: linear-gradient(180deg, #0f3d2e 0%, #0a2d22 45%, #08261c 100%);
           color: #ffffff;
           padding-bottom: 120px;
         }
@@ -170,17 +174,18 @@ export default function UpgradePage() {
           position: sticky;
           top: 0;
           z-index: 50;
-          background: rgba(3, 3, 3, 0.7);
-          backdrop-filter: blur(12px);
-          -webkit-backdrop-filter: blur(12px);
+          background: rgba(15, 61, 46, 0.75);
+          border-bottom: 1px solid rgba(52, 211, 153, 0.15);
+          backdrop-filter: blur(16px);
+          -webkit-backdrop-filter: blur(16px);
         }
 
         .yt-prem-back-btn {
           display: inline-flex;
           align-items: center;
           gap: 8px;
-          background: rgba(255, 255, 255, 0.08);
-          border: 1px solid rgba(255, 255, 255, 0.12);
+          background: rgba(255, 255, 255, 0.12);
+          border: 1px solid rgba(255, 255, 255, 0.2);
           color: #ffffff;
           font-size: 13px;
           font-weight: 600;
@@ -189,16 +194,17 @@ export default function UpgradePage() {
           text-decoration: none;
           cursor: pointer;
           transition: all 0.2s ease;
-          box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
+          box-shadow: 0 4px 14px rgba(0, 0, 0, 0.25);
         }
 
         .yt-prem-back-btn:hover {
-          background: rgba(255, 255, 255, 0.16);
-          border-color: rgba(255, 255, 255, 0.25);
+          background: rgba(255, 255, 255, 0.22);
+          border-color: rgba(255, 255, 255, 0.35);
           transform: translateY(-1px);
         }
 
         .yt-prem-hero-container {
+          position: relative;
           width: 100%;
           max-width: 900px;
           margin: 20px auto 0;
@@ -209,7 +215,21 @@ export default function UpgradePage() {
           padding: 0 24px;
         }
 
+        .yt-prem-glow {
+          position: absolute;
+          top: -40px;
+          left: 50%;
+          transform: translateX(-50%);
+          width: 600px;
+          height: 350px;
+          background: radial-gradient(circle, rgba(52, 211, 153, 0.25) 0%, rgba(16, 185, 129, 0) 70%);
+          pointer-events: none;
+          z-index: 0;
+        }
+
         .yt-prem-brand-header {
+          position: relative;
+          z-index: 1;
           display: flex;
           align-items: center;
           gap: 12px;
@@ -217,12 +237,12 @@ export default function UpgradePage() {
         }
 
         .yt-prem-site-logo {
-          width: 44px;
-          height: 44px;
+          width: 46px;
+          height: 46px;
           border-radius: 12px;
           object-fit: cover;
-          border: 1px solid rgba(16, 185, 129, 0.4);
-          box-shadow: 0 6px 20px rgba(16, 185, 129, 0.3);
+          border: 1px solid rgba(52, 211, 153, 0.5);
+          box-shadow: 0 6px 20px rgba(16, 185, 129, 0.4);
         }
 
         .yt-prem-logo-text {
@@ -233,22 +253,29 @@ export default function UpgradePage() {
         }
 
         .yt-prem-hero-headline {
+          position: relative;
+          z-index: 1;
           font-size: 2.5rem;
           font-weight: 900;
           line-height: 1.15;
           letter-spacing: -1px;
           max-width: 720px;
           margin: 0 0 16px 0;
+          text-shadow: 0 2px 20px rgba(0, 0, 0, 0.3);
         }
 
         .yt-prem-pricing-sub {
+          position: relative;
+          z-index: 1;
           font-size: 15px;
-          color: rgba(255, 255, 255, 0.75);
+          color: rgba(255, 255, 255, 0.85);
           margin: 0 0 32px 0;
           font-weight: 500;
         }
 
         .yt-prem-cta-section {
+          position: relative;
+          z-index: 1;
           width: 100%;
           max-width: 380px;
           margin-bottom: 24px;
@@ -265,7 +292,7 @@ export default function UpgradePage() {
           border: none;
           cursor: pointer;
           transition: background-color 0.15s, transform 0.15s, box-shadow 0.15s;
-          box-shadow: 0 4px 20px rgba(16, 185, 129, 0.4);
+          box-shadow: 0 6px 24px rgba(16, 185, 129, 0.45);
           text-decoration: none;
           display: inline-block;
         }
@@ -273,7 +300,7 @@ export default function UpgradePage() {
         .yt-prem-main-btn:hover {
           background: #059669;
           transform: scale(1.03);
-          box-shadow: 0 6px 25px rgba(16, 185, 129, 0.6);
+          box-shadow: 0 8px 30px rgba(16, 185, 129, 0.65);
         }
 
         .yt-prem-auth-box, .yt-prem-paypal-box, .yt-prem-success-box {
@@ -282,23 +309,25 @@ export default function UpgradePage() {
           flex-direction: column;
           align-items: center;
           gap: 16px;
-          background: rgba(255, 255, 255, 0.04);
-          border: 1px solid rgba(16, 185, 129, 0.2);
+          background: rgba(255, 255, 255, 0.07);
+          border: 1px solid rgba(52, 211, 153, 0.35);
           border-radius: 20px;
           padding: 24px;
-          box-shadow: 0 8px 32px rgba(0, 0, 0, 0.5);
+          box-shadow: 0 12px 36px rgba(0, 0, 0, 0.35);
+          backdrop-filter: blur(12px);
+          -webkit-backdrop-filter: blur(12px);
         }
 
         .yt-prem-hint {
           font-size: 14px;
-          color: rgba(255, 255, 255, 0.85);
+          color: rgba(255, 255, 255, 0.9);
           margin: 0;
         }
 
         .yt-prem-err {
-          background: rgba(255, 0, 51, 0.15);
-          border: 1px solid rgba(255, 0, 51, 0.3);
-          color: #ff4b2b;
+          background: rgba(255, 0, 51, 0.2);
+          border: 1px solid rgba(255, 0, 51, 0.4);
+          color: #ff6b6b;
           font-size: 13px;
           padding: 10px 16px;
           border-radius: 10px;
@@ -306,6 +335,8 @@ export default function UpgradePage() {
         }
 
         .yt-prem-secondary-links {
+          position: relative;
+          z-index: 1;
           display: flex;
           flex-direction: column;
           align-items: center;
@@ -315,18 +346,21 @@ export default function UpgradePage() {
 
         .yt-prem-disclaimer {
           font-size: 12px;
-          color: rgba(255, 255, 255, 0.5);
+          color: rgba(255, 255, 255, 0.65);
           margin: 0;
           max-width: 480px;
           line-height: 1.5;
         }
 
         .yt-prem-link-span {
-          color: #10b981;
+          color: #34d399;
           cursor: pointer;
+          text-decoration: underline;
         }
 
         .yt-prem-features-grid {
+          position: relative;
+          z-index: 1;
           display: grid;
           grid-template-columns: repeat(3, 1fr);
           gap: 24px;
@@ -337,17 +371,26 @@ export default function UpgradePage() {
         }
 
         .yt-prem-feature-card {
-          background: rgba(255, 255, 255, 0.03);
-          border: 1px solid rgba(16, 185, 129, 0.15);
-          border-radius: 16px;
+          background: rgba(255, 255, 255, 0.06);
+          border: 1px solid rgba(52, 211, 153, 0.25);
+          border-radius: 18px;
           padding: 24px;
           display: flex;
           gap: 16px;
           align-items: flex-start;
+          backdrop-filter: blur(10px);
+          -webkit-backdrop-filter: blur(10px);
+          transition: all 0.2s ease;
+        }
+
+        .yt-prem-feature-card:hover {
+          background: rgba(255, 255, 255, 0.09);
+          border-color: rgba(52, 211, 153, 0.45);
+          transform: translateY(-2px);
         }
 
         .yt-prem-feature-check {
-          color: #10b981;
+          color: #34d399;
           flex-shrink: 0;
           margin-top: 2px;
         }
@@ -361,7 +404,7 @@ export default function UpgradePage() {
 
         .yt-prem-feature-card p {
           font-size: 13px;
-          color: rgba(255, 255, 255, 0.6);
+          color: rgba(255, 255, 255, 0.7);
           margin: 0;
           line-height: 1.4;
         }

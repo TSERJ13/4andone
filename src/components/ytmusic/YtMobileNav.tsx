@@ -12,7 +12,7 @@ export default function YtMobileNav() {
     { label: 'Home', href: '/', icon: Home },
     { label: 'Finals', href: '/library/finals', icon: Trophy },
     { label: 'Search', href: '/search', icon: Search },
-    { label: 'Library', href: '/library/favorites', icon: Library },
+    { label: 'Library', href: '/library', icon: Library },
     { label: 'Upgrade', href: '/#upgrade', icon: Sparkles },
   ];
 

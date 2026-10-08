@@ -667,54 +667,60 @@ const FinalsPage = () => {
           box-shadow: 0 4px 20px rgba(33, 147, 176, 0.2);
         }
         .finals-container {
-          padding: 32px;
-          padding-bottom: 140px;
+          padding: 24px 32px 140px 32px;
+          max-width: 1400px;
+          margin: 0 auto;
           display: flex;
           flex-direction: column;
-          gap: 40px;
+          gap: 28px;
         }
 
         .page-header-unified {
           display: flex;
           align-items: center;
           justify-content: space-between;
+          padding: 32px;
+          border-radius: 20px;
+          background: radial-gradient(circle at 85% 20%, #3d1248 0%, #0c0c0e 65%);
+          border: 1px solid rgba(255, 255, 255, 0.12);
+          box-shadow: 0 20px 50px rgba(0, 0, 0, 0.8);
           margin-bottom: 8px;
         }
 
         .page-header-unified h1 {
-          font-size: 32px;
+          font-size: 2rem;
           font-weight: 900;
-          letter-spacing: -1.5px;
+          letter-spacing: -0.5px;
+          color: #ffffff;
         }
 
         .learn-finals-btn {
           display: flex;
           align-items: center;
-          gap: 10px;
-          padding: 10px 18px;
-          background: rgba(255, 255, 255, 0.05) !important;
-          border: 1px solid rgba(255,255,255,0.05) !important;
-          border-radius: 99px;
+          gap: 8px;
+          padding: 9px 18px;
+          background: rgba(255, 255, 255, 0.1) !important;
+          border: 1px solid rgba(255, 255, 255, 0.12) !important;
+          border-radius: 20px;
           font-size: 13px;
           font-weight: 700;
-          color: var(--primary);
+          color: #ffffff;
           transition: all 0.2s;
         }
 
         .learn-finals-btn:hover {
-          background: rgba(255, 255, 255, 0.08);
-          border-color: var(--primary);
-          transform: translateX(4px);
+          background: rgba(255, 255, 255, 0.2) !important;
+          transform: translateY(-1px);
         }
 
         .learn-finals-btn .arrow {
-          opacity: 0.5;
+          opacity: 0.7;
           transition: transform 0.2s;
         }
 
         .learn-finals-btn:hover .arrow {
           opacity: 1;
-          transform: translateX(4px);
+          transform: translateX(3px);
         }
 
         @media (max-width: 768px) {

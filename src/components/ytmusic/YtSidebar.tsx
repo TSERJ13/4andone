@@ -28,7 +28,7 @@ export default function YtSidebar({ isCollapsed = false }: YtSidebarProps) {
   const navItems = [
     { label: 'Home', href: '/', icon: Home },
     { label: 'Final Mode', href: '/library/finals', icon: Trophy },
-    { label: 'Library', href: '/library/favorites', icon: Library },
+    { label: 'Library', href: '/library', icon: Library },
     { label: 'Upgrade', href: '/#upgrade', icon: Sparkles },
   ];
 

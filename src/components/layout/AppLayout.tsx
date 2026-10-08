@@ -2,113 +2,41 @@
 
 import React, { useState, useEffect } from 'react';
 import { usePathname } from 'next/navigation';
-import Sidebar from "@/components/layout/Sidebar";
-import MobileNav from "@/components/layout/MobileNav";
-import PlayerBar from "@/components/layout/PlayerBar";
+import YtHeader from '@/components/ytmusic/YtHeader';
+import YtSidebar from '@/components/ytmusic/YtSidebar';
+import YtPlayerBar from '@/components/ytmusic/YtPlayerBar';
+import YtMobileNav from '@/components/ytmusic/YtMobileNav';
+import DesktopFullPlayer from './DesktopFullPlayer';
+import MobileFullPlayer from './MobileFullPlayer';
 import { useAuth } from '@/context/AuthContext';
 import { useAudioControls } from '@/components/audio/AudioProvider';
 import { AuthModal } from '@/components/auth/AuthModal';
-import { KofiModal } from '@/components/kofi/KofiModal';
 import { ContactModal } from '@/components/modals/ContactModal';
-import MobileFullPlayer from './MobileFullPlayer';
-import DesktopFullPlayer from './DesktopFullPlayer';
 import OfflineBanner from './OfflineBanner';
 import { SubscriptionModal } from '@/components/subscription/SubscriptionModal';
 import { TrackLimitAdModal } from '@/components/ads/TrackLimitAdModal';
 import AdSenseLoader from '@/components/ads/AdSenseLoader';
 import { ListAdAnchorTracker } from '@/components/ads/ListAd';
 import AdDebugPanel from '@/components/ads/AdDebugPanel';
+import '@/styles/ytmusic.css';
 
 export default function AppLayout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const [mounted, setMounted] = useState(false);
   const [isFullPlayerOpen, setIsFullPlayerOpen] = useState(false);
   const [isDesktopExpanded, setIsDesktopExpanded] = useState(false);
+  const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
 
-  // Hooks must ALWAYS be at the top level and in the same order
-  // Page visits are recorded once by <AnalyticsTracker>. useVisitTracker() used to
-  // insert a second row for the same visit, so every visit was counted twice.
   const { title, isAdModalOpen, setIsAdModalOpen } = useAudioControls();
   const { isAuthModalOpen, setIsAuthModalOpen, isSubscriptionModalOpen, setIsSubscriptionModalOpen } = useAuth();
-  
-  // SCROLL GUARD: AdSense responsive ads set inline "height: auto !important"
-  // (and similar) on the elements above them. On this app the page scrolls
-  // inside .main-content while html/body are locked, so that inline height
-  // made the whole page impossible to scroll. Strip only those inline
-  // sizing rules from the app shell whenever they appear.
-  useEffect(() => {
-    if (!mounted) return; // the app shell isn't rendered before mount
-    const HEIGHT_PROPS = ['height', 'min-height', 'max-height'];
-    const SHELL_PROPS = [...HEIGHT_PROPS, 'overflow', 'overflow-y'];
-    const shell = [document.querySelector('.app-container'), document.querySelector('.main-content')]
-      .filter(Boolean) as HTMLElement[];
-    // html/body: only sizing (modals legitimately set body overflow)
-    const targets = [document.documentElement, document.body, ...shell];
-    const clean = (el: HTMLElement) => {
-      const props = shell.includes(el) ? SHELL_PROPS : HEIGHT_PROPS;
-      for (const prop of props) {
-        if (el.style.getPropertyValue(prop)) el.style.removeProperty(prop);
-      }
-    };
-    targets.forEach(clean);
-    const observer = new MutationObserver((mutations) => {
-      mutations.forEach((m) => clean(m.target as HTMLElement));
-    });
-    targets.forEach((el) => observer.observe(el, { attributes: true, attributeFilter: ['style'] }));
-    return () => observer.disconnect();
-  }, [mounted]);
 
   useEffect(() => {
     setMounted(true);
-    // Detect PWA standalone mode (more reliable than CSS media query on iOS)
-    const isPWA = window.matchMedia('(display-mode: standalone)').matches
-      || (window.navigator as { standalone?: boolean }).standalone === true;
+    const isPWA =
+      window.matchMedia('(display-mode: standalone)').matches ||
+      (window.navigator as { standalone?: boolean }).standalone === true;
     if (isPWA) {
       document.body.classList.add('pwa-standalone');
-    }
-
-    // Force service worker update and purge stale cached styles from previous builds
-    if (typeof window !== 'undefined' && 'serviceWorker' in navigator) {
-      navigator.serviceWorker.getRegistrations().then((registrations) => {
-        for (const reg of registrations) {
-          reg.update();
-        }
-      });
-    }
-
-    if (typeof window !== 'undefined' && 'caches' in window) {
-      const CURRENT_VERSION = '4andone-cache-v35';
-      let lastVersion: string | null = null;
-      try {
-        lastVersion = localStorage.getItem('4andone_pwa_version');
-      } catch (e) {
-        // localStorage inaccessible (private mode / storage disabled) — treat
-        // as "already current" rather than looping forever on every load.
-        lastVersion = CURRENT_VERSION;
-      }
-      if (lastVersion !== CURRENT_VERSION) {
-        // Record the new version BEFORE attempting the reload. This is the
-        // circuit breaker: once the flag is written, next load's
-        // lastVersion check short-circuits regardless of whether
-        // cache-clearing itself succeeded, so a caches-API failure can
-        // never turn into a reload loop.
-        let flagPersisted = true;
-        try {
-          localStorage.setItem('4andone_pwa_version', CURRENT_VERSION);
-        } catch (e) {
-          flagPersisted = false;
-        }
-        if (flagPersisted) {
-          caches.keys()
-            .then((keys) => Promise.all(keys.map((key) => caches.delete(key))))
-            .catch(() => {})
-            .then(() => {
-              window.location.reload();
-            });
-        }
-        // If the flag couldn't be persisted, skip the reload entirely
-        // rather than risk repeating it on every subsequent load.
-      }
     }
   }, []);
 
@@ -129,27 +57,10 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
     return () => window.removeEventListener('open-full-player', handleOpenFullPlayer);
   }, [pathname]);
 
-  // Orientation/Resize-Aware State Synchronization - MUST be before conditional returns
-  useEffect(() => {
-    const handleResize = () => {
-      const isMobile = window.innerWidth <= 1024;
-      if (isMobile && isDesktopExpanded) {
-        setIsDesktopExpanded(false);
-        setIsFullPlayerOpen(true);
-      } else if (!isMobile && isFullPlayerOpen) {
-        setIsFullPlayerOpen(false);
-        setIsDesktopExpanded(true);
-      }
-    };
-    window.addEventListener('resize', handleResize);
-    return () => window.removeEventListener('resize', handleResize);
-  }, [isDesktopExpanded, isFullPlayerOpen]);
-
   const isNoLayout = pathname?.startsWith('/admin') || pathname === '/sa-login';
-  const isPlayerActive = title !== "No Track Selected";
 
   if (!mounted) {
-    return <div className="layout-stabilizer" style={{ background: '#000', height: '100vh', width: '100vw' }} />;
+    return <div className="layout-stabilizer" style={{ background: '#030303', height: '100vh', width: '100vw' }} />;
   }
 
   if (isNoLayout) {
@@ -165,24 +76,36 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
   };
 
   return (
-    <>
+    <div className="yt-app-layout yt-music-app-body">
       <AdSenseLoader />
       <ListAdAnchorTracker />
       <AdDebugPanel />
-      <div className={`app-container ${mounted && isPlayerActive ? 'player-active' : ''}`}>
-        <OfflineBanner />
-        <Sidebar />
-        <main className="main-content">
+      <OfflineBanner />
+
+      {/* YouTube Music Header */}
+      <YtHeader
+        onToggleSidebar={() => setIsSidebarCollapsed((prev) => !prev)}
+      />
+
+      {/* Main Body Wrap: Sidebar + Main Content Page */}
+      <div className="yt-app-body-wrap">
+        <YtSidebar isCollapsed={isSidebarCollapsed} />
+
+        <main className="yt-main-content-scroll">
           {children}
         </main>
-        <PlayerBar onExpand={handleExpand} />
       </div>
 
-      <MobileNav onExpand={() => setIsFullPlayerOpen(true)} />
-      
-      <AuthModal 
-        isOpen={isAuthModalOpen} 
-        onClose={() => setIsAuthModalOpen(false)} 
+      {/* YouTube Music Player Bar */}
+      <YtPlayerBar onExpandPlayer={handleExpand} />
+
+      {/* Mobile 5-Tab Navigation Bar */}
+      <YtMobileNav />
+
+      {/* Modals */}
+      <AuthModal
+        isOpen={isAuthModalOpen}
+        onClose={() => setIsAuthModalOpen(false)}
       />
 
       <SubscriptionModal
@@ -195,20 +118,20 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
         onClose={() => setIsAdModalOpen(false)}
       />
 
-      <KofiModal />
       <ContactModal />
-      
-      <MobileFullPlayer 
+
+      {/* Mobile Full Screen Player */}
+      <MobileFullPlayer
         isOpen={isFullPlayerOpen}
         onClose={() => setIsFullPlayerOpen(false)}
       />
 
-      {/* Desktop/iPad Full Player Overlay */}
+      {/* Desktop Web Full Player Overlay */}
       {isDesktopExpanded && (
         <DesktopFullPlayer
-            onClose={() => setIsDesktopExpanded(false)}
+          onClose={() => setIsDesktopExpanded(false)}
         />
       )}
-    </>
+    </div>
   );
 }

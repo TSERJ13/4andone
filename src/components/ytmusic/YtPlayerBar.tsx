@@ -150,11 +150,8 @@ export default function YtPlayerBar({ onExpandPlayer }: YtPlayerBarProps) {
           </span>
         </div>
 
-        {/* Right: Cast, Volume & Expand */}
+        {/* Right: Volume & Expand */}
         <div className="yt-player-right">
-          <button type="button" className="yt-player-icon-btn" title="Cast">
-            <Cast size={18} />
-          </button>
 
           <div className="yt-volume-control">
             <button

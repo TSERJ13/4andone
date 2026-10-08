@@ -72,12 +72,8 @@ export default function YtHeader({ onToggleSidebar, onSearch, searchQuery = '' }
         </div>
       </div>
 
-      {/* Right: Cast, Notifications & User Profile */}
+      {/* Right: Notifications & User Profile */}
       <div className="yt-header-right">
-        <button type="button" className="yt-icon-btn yt-cast-btn" title="Cast">
-          <Cast size={20} />
-        </button>
-
         <button type="button" className="yt-icon-btn yt-bell-btn" title="Notifications">
           <Bell size={20} />
           <span className="yt-bell-dot" />

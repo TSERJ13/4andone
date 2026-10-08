@@ -1,8 +1,8 @@
 "use client";
 
 import React from 'react';
-import YtMainView from '@/components/ytmusic/YtMainView';
+import YtHomePageContent from '@/components/ytmusic/YtHomePageContent';
 
 export default function Home() {
-  return <YtMainView />;
+  return <YtHomePageContent />;
 }

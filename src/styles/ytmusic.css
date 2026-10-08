@@ -1916,10 +1916,9 @@
   }
 }
 
-/* STICKY AD BANNER ABOVE PLAYER BAR */
+/* STICKY AD BANNER (DYNAMIC INACTIVE / ACTIVE PLAYER POSITIONING) */
 .player-sticky-ad-container {
   position: fixed;
-  bottom: var(--yt-player-height, 72px);
   left: 0;
   right: 0;
   display: flex;
@@ -1928,11 +1927,33 @@
   z-index: 145;
   pointer-events: none;
   background: transparent;
-  padding: 4px 0;
+  padding: 0;
+  transition: bottom 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* DESKTOP (> 768px): bottom: 0 when player inactive, bottom: 72px when active */
+.player-sticky-ad-container.player-inactive {
+  bottom: 0;
+}
+
+.player-sticky-ad-container.player-active {
+  bottom: var(--yt-player-height, 72px);
+}
+
+/* MOBILE (<= 768px): bottom: 56px when inactive, bottom: 116px when active */
+@media (max-width: 768px) {
+  .player-sticky-ad-container.player-inactive {
+    bottom: var(--yt-mobile-nav-height, 56px);
+  }
+
+  .player-sticky-ad-container.player-active {
+    bottom: calc(var(--yt-mobile-nav-height, 56px) + 60px);
+  }
 }
 
 .player-sticky-ad-inner {
   pointer-events: auto;
+  min-height: 50px;
   max-height: 60px;
   overflow: hidden;
   display: flex;
@@ -1940,15 +1961,110 @@
   align-items: center;
   background: rgba(15, 15, 15, 0.95);
   border-radius: 8px 8px 0 0;
-  border-top: 1px solid rgba(255, 255, 255, 0.1);
-  border-left: 1px solid rgba(255, 255, 255, 0.1);
-  border-right: 1px solid rgba(255, 255, 255, 0.1);
-  box-shadow: 0 -4px 15px rgba(0, 0, 0, 0.5);
+  border-top: 1px solid rgba(255, 255, 255, 0.12);
+  border-left: 1px solid rgba(255, 255, 255, 0.08);
+  border-right: 1px solid rgba(255, 255, 255, 0.08);
+  box-shadow: 0 -4px 20px rgba(0, 0, 0, 0.6);
+  max-width: 728px;
+  width: 100%;
 }
 
-@media (max-width: 768px) {
-  .player-sticky-ad-container {
-    bottom: calc(var(--yt-mobile-nav-height, 56px) + 60px);
+/* HOUSE PREMIUM AD FALLBACK BANNER */
+.house-premium-ad-banner {
+  width: 100%;
+  height: 50px;
+  padding: 0 16px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  background: linear-gradient(90deg, rgba(20, 35, 25, 0.95) 0%, rgba(15, 15, 15, 0.98) 50%, rgba(35, 20, 20, 0.95) 100%);
+  cursor: pointer;
+  user-select: none;
+  transition: background 0.2s ease;
+}
+
+.house-premium-ad-banner:hover {
+  background: linear-gradient(90deg, rgba(25, 45, 30, 0.98) 0%, rgba(20, 20, 20, 0.98) 50%, rgba(45, 25, 25, 0.98) 100%);
+}
+
+.house-ad-left {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+}
+
+.house-ad-icon-badge {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  background: rgba(245, 158, 11, 0.15);
+  border: 1px solid rgba(245, 158, 11, 0.3);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.house-ad-text {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.house-ad-title {
+  font-size: 13px;
+  font-weight: 700;
+  color: #fff;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.house-ad-title .highlight-green {
+  color: #22c55e;
+}
+
+.house-ad-subtitle {
+  font-size: 11px;
+  color: var(--yt-text-secondary, #aaa);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.house-ad-btn {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  background: linear-gradient(135deg, #22c55e 0%, #16a34a 100%);
+  color: #fff;
+  font-size: 12px;
+  font-weight: 800;
+  padding: 6px 14px;
+  border-radius: 20px;
+  border: none;
+  cursor: pointer;
+  flex-shrink: 0;
+  box-shadow: 0 2px 10px rgba(34, 197, 94, 0.3);
+  transition: transform 0.15s ease, box-shadow 0.15s ease;
+}
+
+.house-ad-btn:hover {
+  transform: scale(1.04);
+  box-shadow: 0 4px 15px rgba(34, 197, 94, 0.45);
+}
+
+@media (max-width: 640px) {
+  .house-ad-subtitle {
+    display: none;
+  }
+  .house-ad-title {
+    font-size: 12px;
+  }
+  .house-ad-btn {
+    padding: 5px 10px;
+    font-size: 11px;
   }
 }
 

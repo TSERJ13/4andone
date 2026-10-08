@@ -58,8 +58,18 @@ function mapDbToAlbum(row: any): Album {
   };
 }
 
+import { DEFAULT_ALBUMS } from '@/types/album';
+
 export async function GET() {
   try {
+    const localAlbums = readLocalAlbums();
+    // Ensure all DEFAULT_ALBUMS are in localAlbums
+    for (const defAlb of DEFAULT_ALBUMS) {
+      if (!localAlbums.some(a => a.id === defAlb.id || a.slug === defAlb.slug)) {
+        localAlbums.push(defAlb);
+      }
+    }
+
     // 1. Try Supabase first
     const { data: dbData, error } = await supabase
       .from('albums')
@@ -67,16 +77,28 @@ export async function GET() {
       .order('order_index', { ascending: true });
 
     if (!error && dbData && dbData.length > 0) {
-      const albums = dbData.map(mapDbToAlbum);
-      return NextResponse.json({ albums, source: 'supabase' });
+      const dbAlbums = dbData.map(mapDbToAlbum);
+      // Merge missing local/default albums
+      for (const locAlb of localAlbums) {
+        if (!dbAlbums.some(a => a.id === locAlb.id || a.slug === locAlb.slug)) {
+          dbAlbums.push(locAlb);
+        }
+      }
+      dbAlbums.sort((a, b) => (a.orderIndex ?? 0) - (b.orderIndex ?? 0));
+      return NextResponse.json({ albums: dbAlbums, source: 'supabase+merged' });
     }
 
     // 2. Fallback to local JSON file
-    const localAlbums = readLocalAlbums();
     localAlbums.sort((a, b) => (a.orderIndex ?? 0) - (b.orderIndex ?? 0));
     return NextResponse.json({ albums: localAlbums, source: 'local' });
   } catch (err: any) {
     const localAlbums = readLocalAlbums();
+    for (const defAlb of DEFAULT_ALBUMS) {
+      if (!localAlbums.some(a => a.id === defAlb.id || a.slug === defAlb.slug)) {
+        localAlbums.push(defAlb);
+      }
+    }
+    localAlbums.sort((a, b) => (a.orderIndex ?? 0) - (b.orderIndex ?? 0));
     return NextResponse.json({ albums: localAlbums, error: err.message, source: 'fallback' });
   }
 }

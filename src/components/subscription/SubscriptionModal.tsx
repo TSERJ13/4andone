@@ -135,7 +135,7 @@ export const SubscriptionModal: React.FC<SubscriptionModalProps> = ({ isOpen, on
         </div>
 
         <p className="yt-prem-footer-disclaimer">
-          You'll be reminded 7 days before your trial ends. Recurring billing. Cancel anytime.
+          Recurring billing. Cancel anytime.
         </p>
       </div>
 

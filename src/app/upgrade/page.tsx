@@ -125,7 +125,7 @@ export default function UpgradePage() {
           )}
 
           <p className="yt-prem-disclaimer">
-            You'll be reminded 7 days before your trial ends. Recurring billing. <span className="yt-prem-link">Restrictions apply.</span>
+            Recurring billing. Cancel anytime.
           </p>
         </div>
 

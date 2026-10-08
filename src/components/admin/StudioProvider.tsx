@@ -243,14 +243,15 @@ export const StudioProvider: React.FC<{ children: React.ReactNode }> = ({ childr
 
       setFolderTracksMap(newFolderTracksMap);
 
-      // 3. User Favorites Cloud Sync
+      // 3. User Favorites Cloud & Local Sync
       let userLikes: string[] = [];
-      try {
-        const saved = localStorage.getItem('4andone_liked_tracks');
-        if (saved) userLikes = JSON.parse(saved);
-      } catch (e) {}
-
       if (isAuthenticated && user?.id) {
+        const userKey = `4andone_liked_tracks_${user.id}`;
+        try {
+          const saved = localStorage.getItem(userKey) || localStorage.getItem('4andone_liked_tracks');
+          if (saved) userLikes = JSON.parse(saved);
+        } catch (e) {}
+
         try {
           const { data: favData } = await supabase
             .from('user_favorites')
@@ -269,7 +270,8 @@ export const StudioProvider: React.FC<{ children: React.ReactNode }> = ({ childr
             }
             userLikes = combined;
             try {
-              localStorage.setItem('4andone_liked_tracks', JSON.stringify(userLikes));
+              localStorage.setItem(userKey, JSON.stringify(userLikes));
+              localStorage.removeItem('4andone_liked_tracks');
             } catch (e) {}
           } else if (userLikes.length > 0) {
             // First time cloud sync for existing local likes
@@ -280,6 +282,12 @@ export const StudioProvider: React.FC<{ children: React.ReactNode }> = ({ childr
         } catch (favErr) {
           console.error('[STUDIO-ERROR] sync user_favorites failed:', favErr);
         }
+      } else {
+        // Unauthenticated / Logged Out: 0 liked songs!
+        userLikes = [];
+        try {
+          localStorage.removeItem('4andone_liked_tracks');
+        } catch (e) {}
       }
 
       if (tracksData) {

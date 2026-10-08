@@ -221,6 +221,15 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     setUser(null);
     setIsPremium(false);
     localStorage.removeItem('4andone-user');
+    try {
+      localStorage.removeItem('4andone_liked_tracks');
+      // Also clear user-scoped keys
+      Object.keys(localStorage).forEach(key => {
+        if (key.startsWith('4andone_liked_tracks')) {
+          localStorage.removeItem(key);
+        }
+      });
+    } catch (e) {}
   };
 
   return (

@@ -310,7 +310,16 @@ export const StudioProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       if (stylesData) setStyles(stylesData);
       if (tagsData) setTags(tagsData);
       // Albums (Dynamic Album Builder)
-      if (aData?.albums) setAlbums(aData.albums);
+      if (aData?.albums && Array.isArray(aData.albums)) {
+        const merged = [...aData.albums];
+        for (const defAlb of DEFAULT_ALBUMS) {
+          if (!merged.some(a => a.id === defAlb.id || a.slug === defAlb.slug)) {
+            merged.push(defAlb);
+          }
+        }
+        merged.sort((a, b) => (a.orderIndex ?? 0) - (b.orderIndex ?? 0));
+        setAlbums(merged);
+      }
     } finally {
       setIsLoading(false);
     }

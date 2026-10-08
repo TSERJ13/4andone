@@ -6,21 +6,17 @@ import { getTrackSlug } from '@/utils/seo';
 import { formatDuration } from '@/utils/format';
 import { getMPMFromBPM } from '@/utils/audio';
 import { displayStyleName } from '@/utils/styleNames';
-
-// ONE track row for every list in the app (home, dance pages, search,
-// library, playlists, liked, downloaded, finals, albums). It uses the global
-// .track-row styles from globals.css — the "New Arrivals" design on the home
-// page — so every list looks the same.
-//
-// Kept deliberately light for old phones: plain text with ellipsis (no
-// per-row marquee measuring/resize listeners, no mask gradients, no backdrop
-// blur) and content-visibility so off-screen rows are not painted.
+import { getTrackCover } from '@/utils/trackCover';
+import { useStudio } from '@/components/admin/StudioProvider';
 
 export interface TrackRowTrack {
   id: string;
   title: string;
   artist?: string;
   style?: string;
+  album?: string;
+  coverUrl?: string;
+  artworkUrl?: string;
   bpm?: string | number | null;
   duration?: number | null;
   isFavorite?: boolean;
@@ -56,10 +52,14 @@ export const TrackRow = React.memo(function TrackRow({
   extraAction,
   href,
 }: TrackRowProps) {
+  const { albums, styles } = useStudio();
   const isFitness = track.style?.toLowerCase() === 'fitness';
   const duration = track.duration ? formatDuration(track.duration) : '';
   const mpm = !isFitness && track.bpm ? `${getMPMFromBPM(Number(track.bpm), track.style || '')} MPM` : '';
   const showStyleBadge = badge === 'style' && !!track.style;
+
+  const coverImage = getTrackCover(track as any, albums, styles);
+  const styleTitle = track.style ? displayStyleName(track.style) : '';
 
   return (
     <div
@@ -70,12 +70,22 @@ export const TrackRow = React.memo(function TrackRow({
       onKeyDown={(e) => { if (e.key === 'Enter') onPlay(); }}
     >
       <div className="track-icon-col">
-        <Disc size={18} />
+        {coverImage ? (
+          <img 
+            src={coverImage} 
+            alt={track.title}
+            className="track-row-cover"
+            onError={(e) => {
+              (e.target as HTMLElement).style.display = 'none';
+            }}
+          />
+        ) : (
+          <Disc size={18} />
+        )}
       </div>
 
       <div className="track-info-col">
         <div className="track-title-row">
-          {/* Crawlable link for search engines; a normal tap only plays. */}
           <a
             href={href || `/music/${getTrackSlug({ id: track.id, title: track.title, artist: track.artist, style: track.style || '' })}`}
             className="track-title-seo-link track-name"
@@ -93,8 +103,14 @@ export const TrackRow = React.memo(function TrackRow({
           )}
         </div>
         <p className="track-artist">
-          {track.artist || '4and.one Music'}
-          {badge === 'style' && duration ? ` • ${duration}` : ''}
+          <span>{track.artist || '4and.one Music'}</span>
+          {styleTitle && (
+            <>
+              {' • '}
+              <span className="style-highlight-bold">{styleTitle}</span>
+            </>
+          )}
+          {duration && <span className="track-duration-sub"> • {duration}</span>}
         </p>
       </div>
 

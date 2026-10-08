@@ -1,4 +1,4 @@
-import { saveAudioFile, getAudioFile } from './storage';
+import { saveAudioFile, getAudioFile, deleteAudioFile } from './storage';
 
 const OFFLINE_KEY = '4andone_offline_tracks';
 
@@ -97,6 +97,18 @@ export const markTrackDownloaded = (trackId: string) => {
       window.dispatchEvent(new CustomEvent('4andone_offline_updated', { detail: { trackId, downloaded: true } }));
     }
   } catch {}
+};
+
+export const removeOfflineTrack = async (trackId: string): Promise<void> => {
+  if (typeof window === 'undefined' || !trackId) return;
+  try {
+    const list = getOfflineTrackIds().filter(id => id !== trackId);
+    localStorage.setItem(OFFLINE_KEY, JSON.stringify(list));
+    await deleteAudioFile(trackId);
+    window.dispatchEvent(new CustomEvent('4andone_offline_updated', { detail: { trackId, downloaded: false } }));
+  } catch (e) {
+    console.error('[OFFLINE] Remove track failed:', e);
+  }
 };
 
 export const subscribeToOfflineUpdates = (callback: () => void): (() => void) => {

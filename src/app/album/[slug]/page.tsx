@@ -488,7 +488,9 @@ export default function DynamicAlbumPage() {
 
       <style jsx>{`
         .goc-page-wrapper {
-          padding-bottom: 140px;
+          padding: 24px 32px 140px 32px;
+          max-width: 1200px;
+          margin: 0 auto;
         }
 
         .goc-container {
@@ -496,46 +498,25 @@ export default function DynamicAlbumPage() {
           margin: 0 auto;
         }
 
-        .not-found-state {
-          padding: 60px 20px;
-          border-radius: 20px;
-          text-align: center;
-          display: flex;
-          flex-direction: column;
-          align-items: center;
-          gap: 16px;
-          margin-top: 40px;
-        }
-
-        .back-home-btn {
-          display: flex;
-          align-items: center;
-          gap: 8px;
-          padding: 10px 20px;
-          border-radius: 20px;
-          background: rgba(255, 255, 255, 0.1);
-          color: white;
-          text-decoration: none;
-          font-weight: 700;
-        }
-
         .goc-hero {
-          padding: 32px;
-          border-radius: 24px;
+          padding: 0;
+          border-radius: 0;
           display: flex;
-          align-items: center;
-          gap: 32px;
+          align-items: flex-end;
+          gap: 28px;
           margin-bottom: 32px;
-          border: 1px solid rgba(255, 255, 255, 0.1);
+          border: none;
+          background: transparent !important;
         }
 
         .goc-cover-box {
-          width: 240px;
-          height: 140px;
-          border-radius: 16px;
+          width: 180px;
+          height: 180px;
+          border-radius: 8px;
           overflow: hidden;
           flex-shrink: 0;
-          border: 1px solid rgba(255, 255, 255, 0.15);
+          box-shadow: 0 10px 30px rgba(0, 0, 0, 0.6);
+          border: 1px solid rgba(255, 255, 255, 0.1);
         }
 
         .goc-cover-img {
@@ -547,30 +528,36 @@ export default function DynamicAlbumPage() {
 
         .goc-hero-info {
           flex: 1;
+          display: flex;
+          flex-direction: column;
+          gap: 6px;
         }
 
         .goc-pill-badge {
-          color: white;
-          padding: 4px 12px;
-          border-radius: 20px;
-          font-size: 10px;
-          font-weight: 900;
-          letter-spacing: 1px;
-          margin-bottom: 12px;
-          display: inline-block;
+          color: #ff0033 !important;
+          background: transparent !important;
+          box-shadow: none !important;
+          padding: 0;
+          font-size: 11px;
+          font-weight: 800;
+          letter-spacing: 1.2px;
+          margin-bottom: 0;
         }
 
         .goc-title {
-          font-size: 2.4rem;
-          font-weight: 900;
-          letter-spacing: -1px;
-          margin-bottom: 8px;
+          font-size: 2.4rem !important;
+          font-weight: 900 !important;
+          letter-spacing: -0.5px !important;
+          margin-bottom: 0;
+          background: none !important;
+          -webkit-text-fill-color: #ffffff !important;
+          color: #ffffff !important;
         }
 
         .goc-subtitle {
-          font-size: 0.95rem;
-          color: var(--text-secondary);
-          margin-bottom: 16px;
+          font-size: 13px;
+          color: #aaa;
+          margin-bottom: 8px;
         }
 
         .goc-stats-row {

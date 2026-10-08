@@ -235,9 +235,8 @@ export const ContactModal: React.FC = () => {
         .contact-modal-overlay {
           position: fixed;
           inset: 0;
-          background: rgba(0, 0, 0, 0.82);
-          backdrop-filter: blur(10px);
-          -webkit-backdrop-filter: blur(10px);
+          background: rgba(0, 0, 0, 0.75);
+          backdrop-filter: blur(12px);
           display: flex;
           align-items: center;
           justify-content: center;
@@ -248,25 +247,26 @@ export const ContactModal: React.FC = () => {
 
         .contact-modal-content {
           width: 100%;
-          max-width: 480px;
-          background: #111111;
-          border-radius: 24px;
-          border: 1px solid rgba(255, 255, 255, 0.12);
-          box-shadow: 0 40px 100px rgba(0, 0, 0, 0.9), 0 0 0 1px rgba(99, 102, 241, 0.2);
+          max-width: 440px;
+          background: #212121;
+          border-radius: 16px;
+          border: 1px solid rgba(255, 255, 255, 0.1);
+          box-shadow: 0 16px 40px rgba(0, 0, 0, 0.85);
           display: flex;
           flex-direction: column;
           overflow: hidden;
           cursor: default;
           position: relative;
+          color: #ffffff;
         }
 
         .contact-modal-header {
           display: flex;
           align-items: center;
           justify-content: space-between;
-          padding: 14px 18px;
+          padding: 16px 20px;
           border-bottom: 1px solid rgba(255, 255, 255, 0.08);
-          background: #161616;
+          background: #272727;
           flex-shrink: 0;
         }
 
@@ -280,29 +280,27 @@ export const ContactModal: React.FC = () => {
         .contact-icon-box {
           width: 36px;
           height: 36px;
-          border-radius: 10px;
-          background: rgba(99, 102, 241, 0.15);
-          border: 1px solid rgba(99, 102, 241, 0.3);
+          border-radius: 50%;
+          background: rgba(255, 0, 51, 0.12);
           display: flex;
           align-items: center;
           justify-content: center;
-          color: #818cf8;
+          color: #ff0033;
           flex-shrink: 0;
         }
 
         .contact-title-box h3 {
           margin: 0;
-          font-size: 15px;
-          font-weight: 800;
+          font-size: 16px;
+          font-weight: 700;
           color: #ffffff;
           line-height: 1.2;
-          letter-spacing: -0.3px;
         }
 
         .contact-title-box p {
           margin: 2px 0 0;
-          font-size: 11.5px;
-          color: #888;
+          font-size: 12px;
+          color: rgba(255, 255, 255, 0.6);
           line-height: 1.2;
         }
 
@@ -310,9 +308,9 @@ export const ContactModal: React.FC = () => {
           width: 32px;
           height: 32px;
           border-radius: 50%;
-          background: rgba(255, 255, 255, 0.06);
-          border: 1px solid rgba(255, 255, 255, 0.08);
-          color: #aaa;
+          background: rgba(255, 255, 255, 0.08);
+          border: none;
+          color: rgba(255, 255, 255, 0.6);
           display: flex;
           align-items: center;
           justify-content: center;
@@ -321,9 +319,8 @@ export const ContactModal: React.FC = () => {
         }
 
         .contact-close-btn:hover {
-          background: rgba(255, 75, 43, 0.15);
-          color: #ff4b2b;
-          border-color: rgba(255, 75, 43, 0.3);
+          background: rgba(255, 255, 255, 0.16);
+          color: #ffffff;
         }
 
         .contact-modal-body {
@@ -354,21 +351,21 @@ export const ContactModal: React.FC = () => {
         .field-label {
           font-size: 11.5px;
           font-weight: 700;
-          color: #a1a1aa;
+          color: rgba(255, 255, 255, 0.7);
           letter-spacing: 0.3px;
         }
 
         .field-label .req {
-          color: #ef4444;
+          color: #ff0033;
         }
 
         .topic-tabs {
           display: grid;
           grid-template-columns: repeat(3, 1fr);
           gap: 6px;
-          background: rgba(255, 255, 255, 0.04);
+          background: #272727;
           padding: 4px;
-          border-radius: 12px;
+          border-radius: 10px;
           border: 1px solid rgba(255, 255, 255, 0.06);
         }
 
@@ -377,7 +374,7 @@ export const ContactModal: React.FC = () => {
           border-radius: 8px;
           border: none;
           background: transparent;
-          color: #888;
+          color: rgba(255, 255, 255, 0.6);
           font-size: 12px;
           font-weight: 700;
           cursor: pointer;
@@ -391,31 +388,29 @@ export const ContactModal: React.FC = () => {
 
         .topic-tab:hover {
           color: #fff;
-          background: rgba(255, 255, 255, 0.05);
+          background: rgba(255, 255, 255, 0.08);
         }
 
         .topic-tab.active {
           color: #fff;
-          background: rgba(99, 102, 241, 0.25);
-          border: 1px solid rgba(99, 102, 241, 0.4);
-          box-shadow: 0 2px 8px rgba(99, 102, 241, 0.25);
+          background: rgba(255, 0, 51, 0.15);
+          border: 1px solid #ff0033;
         }
 
         .contact-input, .contact-textarea {
-          background: rgba(255, 255, 255, 0.04);
+          background: #272727;
           border: 1px solid rgba(255, 255, 255, 0.1);
-          border-radius: 12px;
+          border-radius: 10px;
           padding: 10px 14px;
           color: #fff;
           font-size: 13px;
           font-family: inherit;
-          transition: border-color 0.2s, background 0.2s;
+          transition: border-color 0.2s;
           outline: none;
         }
 
         .contact-input:focus, .contact-textarea:focus {
-          border-color: #6366f1;
-          background: rgba(99, 102, 241, 0.06);
+          border-color: #ff0033;
         }
 
         .contact-textarea {
@@ -430,9 +425,9 @@ export const ContactModal: React.FC = () => {
           gap: 8px;
           padding: 10px 12px;
           border-radius: 10px;
-          background: rgba(239, 68, 68, 0.12);
-          border: 1px solid rgba(239, 68, 68, 0.25);
-          color: #ef4444;
+          background: rgba(255, 0, 51, 0.12);
+          border: 1px solid rgba(255, 0, 51, 0.25);
+          color: #ff4b2b;
           font-size: 12px;
           font-weight: 600;
         }
@@ -440,41 +435,29 @@ export const ContactModal: React.FC = () => {
         .contact-footer {
           display: flex;
           align-items: center;
-          justify-content: space-between;
+          justify-content: flex-end;
           padding-top: 4px;
-          gap: 12px;
-        }
-
-        .direct-email-hint {
-          font-size: 11px;
-          color: #71717a;
-        }
-
-        .direct-email-hint a {
-          color: #818cf8;
-          text-decoration: underline;
         }
 
         .submit-btn {
           display: inline-flex;
           align-items: center;
           gap: 8px;
-          padding: 10px 20px;
-          border-radius: 9999px;
+          padding: 10px 24px;
+          border-radius: 20px;
           border: none;
-          background: #6366f1;
+          background: #ff0033;
           color: #ffffff;
-          font-size: 13px;
+          font-size: 14px;
           font-weight: 700;
           cursor: pointer;
           transition: all 0.2s ease;
-          box-shadow: 0 4px 14px rgba(99, 102, 241, 0.4);
+          box-shadow: 0 4px 14px rgba(255, 0, 51, 0.3);
         }
 
         .submit-btn:hover:not(:disabled) {
-          background: #4f46e5;
-          transform: translateY(-1px);
-          box-shadow: 0 6px 20px rgba(99, 102, 241, 0.6);
+          background: #cc0029;
+          transform: scale(1.02);
         }
 
         .submit-btn:disabled {
@@ -495,49 +478,44 @@ export const ContactModal: React.FC = () => {
           width: 56px;
           height: 56px;
           border-radius: 50%;
-          background: rgba(16, 185, 129, 0.15);
-          border: 1px solid rgba(16, 185, 129, 0.3);
+          background: rgba(34, 197, 94, 0.15);
           display: flex;
           align-items: center;
           justify-content: center;
-          color: #10b981;
+          color: #22c55e;
           margin-bottom: 4px;
         }
 
         .contact-success-state h4 {
           margin: 0;
           font-size: 17px;
-          font-weight: 800;
+          font-weight: 700;
           color: #fff;
         }
 
         .contact-success-state p {
           margin: 0;
           font-size: 13px;
-          color: #a1a1aa;
+          color: rgba(255, 255, 255, 0.7);
           line-height: 1.5;
           max-width: 360px;
         }
 
-        .contact-success-state strong {
-          color: #fff;
-        }
-
         .btn-done {
           margin-top: 8px;
-          padding: 9px 28px;
-          border-radius: 9999px;
-          background: rgba(255, 255, 255, 0.08);
-          border: 1px solid rgba(255, 255, 255, 0.15);
+          padding: 10px 24px;
+          border-radius: 20px;
+          background: #ff0033;
+          border: none;
           color: #fff;
-          font-size: 13px;
+          font-size: 14px;
           font-weight: 700;
           cursor: pointer;
           transition: all 0.2s ease;
         }
 
         .btn-done:hover {
-          background: rgba(255, 255, 255, 0.15);
+          background: #cc0029;
         }
 
         .spin {
@@ -552,7 +530,7 @@ export const ContactModal: React.FC = () => {
         @keyframes contactModalFadeIn {
           from {
             opacity: 0;
-            transform: scale(0.94) translateY(20px);
+            transform: scale(0.95) translateY(10px);
           }
           to {
             opacity: 1;
@@ -561,42 +539,16 @@ export const ContactModal: React.FC = () => {
         }
 
         .animate-in-contact {
-          animation: contactModalFadeIn 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+          animation: contactModalFadeIn 0.25s cubic-bezier(0.19, 1, 0.22, 1);
         }
 
         @media (max-width: 640px) {
-          .contact-modal-overlay {
-            padding: 8px 6px;
-            padding-top: max(env(safe-area-inset-top, 0px), 16px);
-            padding-bottom: 0;
-            align-items: flex-end;
-          }
           .contact-modal-content {
-            max-height: calc(100dvh - env(safe-area-inset-top, 0px) - 24px);
-            border-radius: 24px 24px 0 0;
-            margin-bottom: 0;
-            padding-bottom: max(env(safe-area-inset-bottom, 0px), 16px);
-            overflow-y: auto;
-            -webkit-overflow-scrolling: touch;
-          }
-          .contact-modal-header {
-            padding: 12px 14px;
-          }
-          .contact-modal-body {
-            padding: 16px 16px;
+            border-radius: 16px;
           }
           .form-row {
             flex-direction: column;
             gap: 12px;
-          }
-        }
-
-        @media (max-height: 700px) {
-          .contact-modal-overlay {
-            padding: 4px;
-          }
-          .contact-modal-content {
-            border-radius: 16px;
           }
         }
       `}</style>

@@ -77,6 +77,9 @@ const finalLimitFor = (track: { style?: string; duration?: number } | undefined,
 
 // Every 5 qualified tracks (15s+ of real listening) a free user gets an ad break.
 const AD_EVERY_TRACKS = 5;
+// The ad break (sponsored strip + Premium popup) is switched off for now —
+// the list ad under the playing track is the only ad. Set true to bring it back.
+const AD_BREAK_ENABLED = false;
 // A track counts toward the ad break after this many seconds of real playback.
 const QUALIFY_SECONDS = 15;
 const AD_COUNT_KEY = '4andone-ad-track-count';
@@ -634,6 +637,7 @@ export const AudioProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   }, []);
 
   const registerQualifiedTrack = () => {
+    if (!AD_BREAK_ENABLED) return;
     songsPlayedRef.current += 1;
     if (songsPlayedRef.current >= AD_EVERY_TRACKS) {
       songsPlayedRef.current = 0;
@@ -672,6 +676,18 @@ export const AudioProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     if (!isRetry && trackIdRef.current === track.id && isLoaded) {
       togglePlay();
       return;
+    }
+
+    if (track?.id) {
+      try {
+        const saved = localStorage.getItem('4andone_recently_played');
+        let recent: string[] = saved ? JSON.parse(saved) : [];
+        recent = [track.id, ...recent.filter((id: string) => id !== track.id)].slice(0, 50);
+        localStorage.setItem('4andone_recently_played', JSON.stringify(recent));
+        if (typeof window !== 'undefined') {
+          window.dispatchEvent(new Event('4andone_recently_played_updated'));
+        }
+      } catch (e) {}
     }
 
     const currentToken = ++loadingTokenRef.current;
@@ -1411,8 +1427,19 @@ export const AudioProvider: React.FC<{ children: React.ReactNode }> = ({ childre
 
           if (isFinalModeRef.current) {
             // Calculate Session-wide metrics for display if in a program
-            const currentIdx = sessionTracksRef.current.findIndex(t => t.id === trackIdRef.current || t.title === title);
-            if (currentIdx !== -1) {
+            // Duplicate-safe: prefer the tracked session index (same track can repeat)
+            let currentIdx = sessionIndexRef.current;
+            if (currentIdx < 0 || currentIdx >= sessionTracksRef.current.length ||
+                sessionTracksRef.current[currentIdx]?.id !== trackIdRef.current) {
+              currentIdx = sessionTracksRef.current.findIndex(t => t.id === trackIdRef.current || t.title === title);
+            }
+            // While the next dance is still loading, the element is paused at the
+            // previous dance's end (1:45). Reading it then made the session line
+            // jump forward and back ("grows, then shrinks") — skip those ticks.
+            const staleElement = !isPauseCountdownRef.current && nativePlayerRef.current.paused;
+            if (currentIdx !== -1 && staleElement) {
+              // keep the last session time
+            } else if (currentIdx !== -1) {
               const getLimitForTrack = (track: Track) => finalLimitFor(track, isFitnessRef.current);
 
               let sessionElapsed = 0;
@@ -1422,7 +1449,9 @@ export const AudioProvider: React.FC<{ children: React.ReactNode }> = ({ childre
               }
 
               const currentTrackLimit = getLimitForTrack(sessionTracksRef.current[currentIdx]);
-              sessionElapsed += isPauseCountdownRef.current ? (currentTrackLimit + (15 - pauseTimeRef.current)) : currentTimeVal;
+              sessionElapsed += isPauseCountdownRef.current
+                ? (currentTrackLimit + (15 - pauseTimeRef.current))
+                : Math.min(currentTimeVal, currentTrackLimit); // never past this dance's slot
 
               const safeSessionElapsed = Number.isFinite(sessionElapsed) ? Math.max(0, sessionElapsed) : 0;
               if (Math.abs((currentTimeRef.current ?? -1) - safeSessionElapsed) >= 0.2) {
@@ -1687,6 +1716,8 @@ export const AudioProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   const toggleFinalMode = React.useCallback(() => {
     setIsFinalMode(prev => {
       const nextVal = !prev;
+      // Same rule as loadTrack: loop in normal mode, end (→ limit/onended) in Final
+      if (nativePlayerRef.current) nativePlayerRef.current.loop = !nextVal;
       if (nextVal) {
         // Turning ON: if we are already past (standardLimit - 2), set custom time limit
         const audio = nativePlayerRef.current;

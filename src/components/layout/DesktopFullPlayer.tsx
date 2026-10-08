@@ -1,1266 +1,570 @@
 "use client";
 
-import React, { useEffect, useState, useRef, useCallback } from 'react';
-import { createPortal } from 'react-dom';
-import { 
-  X, 
-  Disc, 
-  Play, 
-  Pause, 
-  SkipBack, 
-  SkipForward, 
-  Heart,
-  Volume2,
-  LayoutGrid,
-  Timer,
-  ChevronLeft,
-  ChevronRight,
-  Gauge,
+import React, { useState, useRef, useEffect } from 'react';
+import { useRouter } from 'next/navigation';
+import {
+  Play,
+  Pause,
+  SkipBack,
+  SkipForward,
   Shuffle,
   Repeat,
-  Repeat1,
-  ArrowLeft,
-  Infinity,
-  ListMusic,
-  Music2,
+  Volume2,
+  VolumeX,
+  ChevronDown,
+  Heart,
   Share2,
+  MoreVertical,
+  Minus,
   Plus,
+  Gauge,
+  Download,
+  ListPlus,
+  Disc,
+  Trophy
 } from 'lucide-react';
-import { Marquee } from '@/components/layout/Marquee';
 import { useAudio } from '@/components/audio/AudioProvider';
 import { FinalStopButton } from '@/components/audio/FinalStopButton';
-import { useStudio } from '@/components/admin/StudioProvider';
-import { useAuth } from '@/context/AuthContext';
-import SpeedSelector from '@/components/audio/SpeedSelector';
-import { formatDuration } from '@/utils/format';
-import AddToPlaylistModal from '@/components/audio/AddToPlaylistModal';
-import OfflineDownloadButton from '@/components/audio/OfflineDownloadButton';
-import AdBanner from '@/components/ads/AdBanner';
+import { useStudio, Track } from '@/components/admin/StudioProvider';
+import { getTrackCover } from '@/utils/trackCover';
 
-const LATIN_FIRST_ORDER: Record<string, number> = {
-  // Latin First
-  'Samba': 1,
-  'Cha-Cha-Cha': 2,
-  'Cha-cha-cha': 2,
-  'Rumba': 3,
-  'Paso Doble': 4,
-  'Jive': 5,
-  // Standard Second
-  'Slow Waltz': 6,
-  'Tango': 7,
-  'Viennese Waltz': 8,
-  'Slow Foxtrot': 9,
-  'Quickstep': 10
+const formatTime = (seconds: number): string => {
+  if (!seconds || isNaN(seconds)) return '0:00';
+  const mins = Math.floor(seconds / 60);
+  const secs = Math.floor(seconds % 60);
+  return `${mins}:${secs.toString().padStart(2, '0')}`;
 };
 
-export default function DesktopFullPlayer({ onClose }: { onClose: () => void }) {
-  const [mounted, setMounted] = useState(false);
-  const [selectedStyle, setSelectedStyle] = useState<string | null>(null);
-  const [showSpeed, setShowSpeed] = useState(false);
-  const [isDragging, setIsDragging] = useState(false);
-  const [dragProgress, setDragProgress] = useState(0);
-  const [isAddToPlaylistOpen, setIsAddToPlaylistOpen] = useState(false);
-  const progressRef = useRef<HTMLDivElement>(null);
-  const lastSeekRef = useRef<number>(0);
-  const speedPopoverRef = useRef<HTMLDivElement>(null);
+interface DesktopFullPlayerProps {
+  onClose: () => void;
+}
 
-  // Click outside to close speed selector
-  useEffect(() => {
-    const handleClickOutside = (event: MouseEvent) => {
-      if (speedPopoverRef.current && !speedPopoverRef.current.contains(event.target as Node)) {
-        // Also check if we didn't click the trigger button
-        const trigger = document.querySelector('.gauge-trigger-v19');
-        if (trigger && trigger.contains(event.target as Node)) return;
-        
-        setShowSpeed(false);
-      }
-    };
-
-    if (showSpeed) {
-      document.addEventListener('mousedown', handleClickOutside);
-    }
-    return () => document.removeEventListener('mousedown', handleClickOutside);
-  }, [showSpeed]);
-
-  useEffect(() => {
-    setMounted(true);
-    return () => setMounted(false);
-  }, []);
-
+export default function DesktopFullPlayer({ onClose }: DesktopFullPlayerProps) {
+  const router = useRouter();
   const {
     isPlaying,
     togglePlay,
-    title,
-    artist,
-    trackId,
-    currentTrack: audioCurrentTrack,
-    currentTime,
-    duration,
     playNext,
     playPrevious,
+    title,
+    artist,
+    currentTrack,
+    isShuffle,
+    toggleShuffle,
+    isRepeat,
+    toggleRepeat,
     volume,
     setVolume,
+    currentTime,
+    duration,
+    seek,
+    loadTrack,
     isFinalMode,
     toggleFinalMode,
-    bpm,
-    setBpm,
+    activeMode,
     isPauseCountdown,
     pauseTime,
-    loadTrack,
-    seek,
-    isShuffle,
-    isRepeat,
-    toggleShuffle,
-    toggleRepeat,
     sessionDuration,
-    isLoaded,
-    activeMode,
-    sessionTracks,
-    stop
+    stop,
+    bpm,
+    setBpm
   } = useAudio();
+  // A Final program ends completely; Final on a single track just turns off and keeps playing
+  const endFinal = () => (activeMode ? stop() : toggleFinalMode());
 
-  const { tracks, styles, toggleFavorite } = useStudio();
+  const { tracks, albums, toggleFavorite } = useStudio();
+  const [activeTab, setActiveTab] = useState<'upnext' | 'lyrics' | 'comments' | 'related'>('upnext');
+  const [isSpeedPopoverOpen, setIsSpeedPopoverOpen] = useState(false);
+  const [isMenuOpen, setIsMenuOpen] = useState(false);
+  const [showCopiedToast, setShowCopiedToast] = useState(false);
   
-  // Latin First Sorting
-  const sortedStyles = [...styles].sort((a, b) => {
-    const orderA = LATIN_FIRST_ORDER[a.title] || 99;
-    const orderB = LATIN_FIRST_ORDER[b.title] || 99;
-    return orderA - orderB;
-  });
+  const popoverRef = useRef<HTMLDivElement>(null);
+  const menuRef = useRef<HTMLDivElement>(null);
 
-  const danceStyles = sortedStyles.filter(s => s.program?.toLowerCase() !== 'fitness' && s.title.toLowerCase() !== 'fitness');
-  const latinStyles = danceStyles.filter(s => s.program === 'Latin');
-  const standardStyles = danceStyles.filter(s => s.program === 'Standard');
-  const fitnessStyles = sortedStyles.filter(s => s.program?.toLowerCase() === 'fitness' || s.title.toLowerCase() === 'fitness');
-
-  const currentTrack = (trackId ? tracks.find(t => t.id === trackId) : null) || audioCurrentTrack || tracks.find(t => t.title === title);
-
-  const filteredTracks = selectedStyle 
-    ? tracks.filter(t => t.style === selectedStyle)
-    : [];
-
-  const totalDur = isFinalMode ? sessionDuration : duration;
-  const displayProgress = isDragging ? dragProgress : (currentTime / (totalDur || 1)) * 100;
-
-  const handleSeek = (clientX: number) => {
-    if (!progressRef.current || !totalDur) return;
-    const rect = progressRef.current.getBoundingClientRect();
-    const x = Math.max(0, Math.min(clientX - rect.left, rect.width));
-    const percentage = rect.width > 0 ? x / rect.width : 0;
-    const newTime = percentage * totalDur;
-    setDragProgress(percentage * 100);
-    return newTime;
-  };
-
-  const handlePointerDown = (e: React.PointerEvent<HTMLDivElement>) => {
-    if (isFinalMode) return;
-    e.preventDefault();
-    e.stopPropagation();
-    try {
-      e.currentTarget.setPointerCapture(e.pointerId);
-    } catch {}
-    setIsDragging(true);
-    const newTime = handleSeek(e.clientX);
-    if (newTime !== undefined && !isPlaying) {
-      seek(newTime);
-    }
-  };
-
-  const handlePointerMove = (e: React.PointerEvent<HTMLDivElement>) => {
-    if (!isDragging || isFinalMode) return;
-    e.preventDefault();
-    e.stopPropagation();
-    const newTime = handleSeek(e.clientX);
-    if (isPlaying && newTime !== undefined) {
-      const now = Date.now();
-      if (now - lastSeekRef.current > 120) {
-        seek(newTime);
-        lastSeekRef.current = now;
-      }
-    }
-  };
-
-  const handlePointerUp = (e: React.PointerEvent<HTMLDivElement>) => {
-    if (!isDragging || isFinalMode) return;
-    e.preventDefault();
-    e.stopPropagation();
-    try {
-      e.currentTarget.releasePointerCapture(e.pointerId);
-    } catch {}
-    const newTime = handleSeek(e.clientX);
-    if (newTime !== undefined) seek(newTime);
-    setIsDragging(false);
-  };
-
-  const handlePointerCancel = (e: React.PointerEvent<HTMLDivElement>) => {
-    if (!isDragging) return;
-    try {
-      e.currentTarget.releasePointerCapture(e.pointerId);
-    } catch {}
-    setIsDragging(false);
-  };
-
+  // Close popovers on outside click
   useEffect(() => {
-    if (!isDragging || isFinalMode) return;
-
-    const handleWindowPointerMove = (e: PointerEvent) => {
-      e.preventDefault();
-      const newTime = handleSeek(e.clientX);
-      if (isPlaying && newTime !== undefined) {
-        const now = Date.now();
-        if (now - lastSeekRef.current > 120) {
-          seek(newTime);
-          lastSeekRef.current = now;
-        }
+    const handleClickOutside = (event: MouseEvent) => {
+      if (popoverRef.current && !popoverRef.current.contains(event.target as Node)) {
+        setIsSpeedPopoverOpen(false);
+      }
+      if (menuRef.current && !menuRef.current.contains(event.target as Node)) {
+        setIsMenuOpen(false);
       }
     };
-
-    const handleWindowPointerUp = (e: PointerEvent) => {
-      const newTime = handleSeek(e.clientX);
-      if (newTime !== undefined) seek(newTime);
-      setIsDragging(false);
-    };
-
-    window.addEventListener('pointermove', handleWindowPointerMove, { passive: false });
-    window.addEventListener('pointerup', handleWindowPointerUp);
-    window.addEventListener('pointercancel', handleWindowPointerUp);
-
+    if (isSpeedPopoverOpen || isMenuOpen) {
+      document.addEventListener('mousedown', handleClickOutside);
+    }
     return () => {
-      window.removeEventListener('pointermove', handleWindowPointerMove);
-      window.removeEventListener('pointerup', handleWindowPointerUp);
-      window.removeEventListener('pointercancel', handleWindowPointerUp);
+      document.removeEventListener('mousedown', handleClickOutside);
     };
-  }, [isDragging, isPlaying, totalDur, seek, isFinalMode]);
+  }, [isSpeedPopoverOpen, isMenuOpen]);
 
-  // V13 Cycle: Repeat -> Repeat1 -> Shuffle -> None
-  const [cycleState, setCycleState] = useState<'none' | 'repeat' | 'repeat1' | 'shuffle'>('none');
-  
-  const handleCycleMode = () => {
-    if (cycleState === 'none') {
-       toggleRepeat();
-       setCycleState('repeat');
-    } else if (cycleState === 'repeat') {
-       setCycleState('repeat1');
-    } else if (cycleState === 'repeat1') {
-       toggleRepeat(); // Stop repeat (logic for repeat1 is same as repeat for now)
-       toggleShuffle(); // Start shuffle
-       setCycleState('shuffle');
-    } else {
-       toggleShuffle(); // Stop shuffle
-       setCycleState('none');
+  const liveTrack = tracks.find((t) => t.id === currentTrack?.id) || currentTrack;
+  const isFavorite = liveTrack?.isFavorite || false;
+  const coverImg = getTrackCover(currentTrack, albums);
+  // Final Mode: whole-session bar, read-only
+  const totalDur = isFinalMode && sessionDuration > 0 ? sessionDuration : duration;
+  const progressPercent = totalDur > 0 ? Math.min(100, (currentTime / totalDur) * 100) : 0;
+
+  const handleSeekClick = (e: React.MouseEvent<HTMLDivElement>) => {
+    if (isFinalMode) return;
+    const rect = e.currentTarget.getBoundingClientRect();
+    const clickX = e.clientX - rect.left;
+    const ratio = clickX / rect.width;
+    seek(ratio * duration);
+  };
+
+  const handleBpmChange = (delta: number) => {
+    const currentVal = bpm || 100;
+    const newBpm = Math.min(150, Math.max(50, currentVal + delta));
+    setBpm(newBpm, true);
+  };
+
+  const resetBpm = () => {
+    setBpm(100, true);
+  };
+
+  const handleToggleFavorite = async (e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (currentTrack?.id) {
+      await toggleFavorite(currentTrack.id);
     }
   };
 
-  const handleShareTrack = () => {
-    const trackParam = currentTrack?.id || encodeURIComponent(title);
-    const shareUrl = `${window.location.origin}/track/${trackParam}`;
-    if (typeof navigator !== 'undefined' && navigator.share) {
-      navigator.share({
-        title: `4and.one - ${title}`,
-        text: `Listen to ${title} on 4and.one Free Web Music Player!`,
-        url: shareUrl,
-      }).catch(() => {});
-    } else if (typeof navigator !== 'undefined' && navigator.clipboard) {
+  const handleShare = () => {
+    if (!currentTrack) return;
+    const shareUrl = `${window.location.origin}/track/${currentTrack.id}`;
+    if (navigator.clipboard) {
       navigator.clipboard.writeText(shareUrl);
-      alert('Track link copied to clipboard!');
+    }
+    setShowCopiedToast(true);
+    setTimeout(() => setShowCopiedToast(false), 2500);
+  };
+
+  const handleDownload = () => {
+    if (!currentTrack) return;
+    const url = currentTrack.audioUrl || currentTrack.audio_url;
+    if (url) {
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `${currentTrack.title || 'track'}.mp3`;
+      a.target = '_blank';
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
     }
   };
 
-  if (!mounted) return null;
+  const currentBpm = bpm || 100;
+  const bpmDelta = currentBpm - 100;
+  const isBpmChanged = currentBpm !== 100;
+  const bpmDisplay = bpmDelta === 0 ? '0%' : (bpmDelta > 0 ? `+${bpmDelta}%` : `${bpmDelta}%`);
 
-  return createPortal(
-    <div className={`desktop-player-overlay animate-fade-in ${isFinalMode ? 'final-active' : ''}`} style={{ zIndex: 9999, background: '#121212' }}>
-      <div className="dp-console-wrapper">
-        <main className="dp-player-console">
-          <div className="dp-top-header-group">
-            <div className="dp-top-actions">
-              <button 
-                onClick={handleShareTrack} 
-                className="dp-share-corner-btn glass" 
-                title="Share Track"
-                aria-label="Share Track"
-              >
-                <Share2 size={18} />
-              </button>
-            </div>
+  return (
+    <div className="yt-full-player-desktop-overlay">
+      {/* Main Split Body: 60% Left Video/Art + 40% Right Queue */}
+      <div className="yt-full-player-body">
+        {/* Left Side: Large 16:9 Artwork / Video Stage */}
+        <div className="yt-player-left-stage">
+          <div className="yt-player-artwork-box">
+            <img
+              src={coverImg}
+              alt={title}
+              className="yt-player-stage-img"
+            />
+            <div className="yt-stage-gradient-overlay" />
+          </div>
+        </div>
+
+        {/* Right Side: Up Next / Lyrics / Related Panel */}
+        <div className="yt-player-right-panel">
+          {/* Top Tabs Header */}
+          <div className="yt-panel-tabs-bar">
+            <button
+              type="button"
+              className={`yt-panel-tab ${activeTab === 'upnext' ? 'active' : ''}`}
+              onClick={() => setActiveTab('upnext')}
+            >
+              UP NEXT
+            </button>
+            <button
+              type="button"
+              className={`yt-panel-tab ${activeTab === 'lyrics' ? 'active' : ''}`}
+              onClick={() => setActiveTab('lyrics')}
+            >
+              LYRICS
+            </button>
+            <button
+              type="button"
+              className={`yt-panel-tab ${activeTab === 'comments' ? 'active' : ''}`}
+              onClick={() => setActiveTab('comments')}
+            >
+              COMMENTS
+            </button>
+            <button
+              type="button"
+              className={`yt-panel-tab ${activeTab === 'related' ? 'active' : ''}`}
+              onClick={() => setActiveTab('related')}
+            >
+              RELATED
+            </button>
           </div>
 
-          <div className="console-body">
-             <div className="visualizer-stage-v8">
-                <div 
-                  className={`vinyl-disc-v8 glass ${isFinalMode ? 'final-active' : 'standard-active'}`} 
-                  style={isPlaying && !isPauseCountdown ? { animation: 'spin 12s linear infinite' } : {}}
-                >
-                  {currentTrack?.artworkUrl && (
-                    <img src={currentTrack.artworkUrl} alt="Track Artwork" className="disc-art-img-v8" />
-                  )}
-                  <div className="disc-inner-glow-v8"></div>
-                </div>
-
-                {isPauseCountdown && (
-                  <div className="countdown-ring animate-in">
-                    <span className="count">{pauseTime}</span>
-                    <span className="label">Next Round</span>
-                  </div>
-                )}
-             </div>
-
-             <div className="metadata-stage">
-                <div className="text-center min-w-0 mb-3">
-                   <h1 className="refined-title-v8 truncate">{title}</h1>
-                   <p className="refined-artist-v8 truncate">{artist}</p>
-                </div>
-
-                <div className="metadata-actions-refined">
-                   {/* 1. Heart */}
-                   <button 
-                     className={`console-action-btn-v13 favorite-btn-pro ${currentTrack?.isFavorite ? 'active' : ''}`}
-                     onClick={() => currentTrack && toggleFavorite(currentTrack.id)}
-                     aria-label="Add to Favorites"
-                     title="Favorite"
-                   >
-                     <Heart size={30} fill={currentTrack?.isFavorite ? "#ef4444" : "none"} />
-                   </button>
-
-                   {/* 2. Plus */}
-                   <button 
-                     className="console-action-btn-v13"
-                     onClick={() => setIsAddToPlaylistOpen(true)}
-                     aria-label="Add to Playlist"
-                     title="Add to Playlist"
-                   >
-                     <Plus size={30} />
-                   </button>
-
-                   {/* 3. Style & BPM Pill (Clickable -> toggles BPM Speed) */}
-                   {currentTrack && (
-                     <button
-                       type="button"
-                       className={`bpm-pill glass ${showSpeed ? 'active-pill' : ''}`}
-                       onClick={(e) => {
-                         e.stopPropagation();
-                         setShowSpeed(!showSpeed);
-                       }}
-                       title="Toggle Playback Speed"
-                       style={{
-                         cursor: 'pointer',
-                         transition: 'all 0.2s',
-                         ...(isFinalMode ? { color: '#ef4444', borderColor: 'rgba(239, 68, 68, 0.3)' } : {})
-                       }}
-                     >
-                       {currentTrack.style} • {currentTrack.bpm} BPM
-                     </button>
-                   )}
-
-                   {/* 4. Download — in Final Mode: STOP Final Mode */}
-                   {isFinalMode ? (
-                     <FinalStopButton onStop={() => stop()} className="console-action-btn-v13" iconSize={30} />
-                   ) : (
-                     <div className="console-action-btn-v13">
-                       <OfflineDownloadButton track={currentTrack} iconSize={30} />
-                     </div>
-                   )}
-
-                   {/* 5. BPM Changer / Speed Selector */}
-                   <div className="relative">
-                      <button 
-                        className={`console-action-btn-v13 gauge-trigger-v19 ${showSpeed ? 'active' : ''}`}
-                        style={isFinalMode ? { color: '#ef4444' } : undefined}
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          setShowSpeed(!showSpeed);
-                        }}
-                        title="Playback Speed"
-                      >
-                         <Gauge size={30} />
-                      </button>
-
-                      {showSpeed && (
-                        <div className="speed-popover-v17 animate-in" ref={speedPopoverRef} onClick={(e) => e.stopPropagation()}>
-                           <SpeedSelector 
-                             currentBpm={bpm} 
-                             onSelect={val => setBpm(val)} 
-                             onClose={() => setShowSpeed(false)} 
-                             isFinalMode={isFinalMode}
-                           />
+          {/* Tab 1: UP NEXT Track Queue */}
+          {activeTab === 'upnext' && (
+            <div className="yt-panel-queue-list">
+              {tracks.slice(0, 35).map((track: Track) => {
+                const isThisPlaying = currentTrack?.id === track.id;
+                const trkCover = getTrackCover(track, albums);
+                return (
+                  <div
+                    key={track.id}
+                    className={`yt-queue-item ${isThisPlaying ? 'active' : ''}`}
+                    onClick={() => loadTrack(track)}
+                  >
+                    <div className="yt-queue-thumb-box">
+                      <img
+                        src={trkCover}
+                        alt={track.title}
+                        className="yt-queue-thumb"
+                      />
+                      {isThisPlaying && (
+                        <div className="yt-queue-playing-icon">
+                          {isPlaying ? <Pause size={14} fill="#ffffff" /> : <Play size={14} fill="#ffffff" />}
                         </div>
                       )}
-                   </div>
-                </div>
-             </div>
+                    </div>
 
-             <div className="control-stage">
-                <div className="timeline-strip-pro-v13">
-                   <span className="time-code">{formatDuration(isDragging ? (dragProgress / 100) * (totalDur || 1) : currentTime)}</span>
-                    <div 
-                      className="timeline-track-thick" 
-                      ref={progressRef}
-                      onPointerDown={handlePointerDown}
-                      onPointerMove={handlePointerMove}
-                      onPointerUp={handlePointerUp}
-                      onPointerCancel={handlePointerCancel}
-                      style={{ touchAction: 'none' }}
-                    >
-                     <div className="timeline-bg"></div>
-                     <div className="timeline-fill" style={{ width: `${displayProgress}%` }}></div>
-                     <div className="timeline-head-bold" style={{ left: `${displayProgress}%` }}></div>
-                   </div>
-                   <span className="time-code">{formatDuration(totalDur)}</span>
-                </div>
+                    <div className="yt-queue-info">
+                      <span className="yt-queue-title">{track.title}</span>
+                      <span className="yt-queue-artist">
+                        {track.artist || '4ANDONE Music'}
+                        {track.style && <span className="yt-style-highlight"> • {track.style}</span>}
+                      </span>
+                    </div>
 
-                <div className="transport-deck-v17">
-                   <div className="side-params-v17 left-side">
-                      <button 
-                        className={`universal-mode-btn-v17 ${cycleState !== 'none' ? 'active' : ''}`}
-                        onClick={handleCycleMode}
-                        disabled={isFinalMode}
-                      >
-                        {cycleState === 'repeat' ? <Repeat size={28} /> : 
-                         cycleState === 'repeat1' ? <Repeat1 size={28} /> : 
-                         cycleState === 'shuffle' ? <Shuffle size={28} /> :
-                         <div className="opacity-10 scale-90"><Repeat size={28} /></div>}
-                      </button>
-                   </div>
-                   
-                   <div className="main-nav-deck-v17">
-                     <button onClick={playPrevious} className="nav-icon-btn" disabled={isFinalMode}>
-                       <SkipBack size={36} fill="currentColor" />
-                     </button>
-                     <button onClick={togglePlay} className="play-giant-v17">
-                       {!isLoaded && !isFinalMode && currentTrack ? (
-                         <div className="deck-spinner"></div>
-                       ) : isPlaying ? (
-                         <Pause size={44} fill="currentColor" />
-                       ) : (
-                         <Play size={44} fill="currentColor" className="ml-1" />
-                       )}
-                     </button>
-                     <button onClick={playNext} className="nav-icon-btn" disabled={isFinalMode}>
-                       <SkipForward size={36} fill="currentColor" />
-                     </button>
-                   </div>
+                    <span className="yt-queue-duration">
+                      {track.duration ? formatTime(track.duration) : '3:15'}
+                    </span>
+                  </div>
+                );
+              })}
+            </div>
+          )}
 
-                   <div className="side-params-v17 right-side relative">
-                      <div className="vol-v17-row">
-                        <Volume2 size={24} className="opacity-40" />
-                        <input 
-                          type="range" 
-                          min="0" 
-                          max="1" 
-                          step="0.01" 
-                          value={volume}
-                          onChange={(e) => setVolume(parseFloat(e.target.value))}
-                          className="vol-v17-slider"
-                          style={{ '--volume-perc': `${volume * 100}%` } as any}
-                        />
-                      </div>
+          {/* Tab 2: LYRICS / Track Info */}
+          {activeTab === 'lyrics' && (
+            <div className="yt-panel-info-content">
+              <h3 className="yt-info-track-title">{title}</h3>
+              <p className="yt-info-artist-name">{artist}</p>
+              <div className="yt-info-tags-row">
+                <span className="yt-info-badge">Style: {currentTrack?.style || 'Dance'}</span>
+                {currentTrack?.bpm && <span className="yt-info-badge">BPM: {currentTrack.bpm}</span>}
+              </div>
+              <div className="yt-info-text-box">
+                <p>Lyrics and track details available for 4ANDONE premium members.</p>
+              </div>
+            </div>
+          )}
 
-                      <div className="final-mode-lockdown-v17">
-                         <div className="practice-info-v13">
-                            <Timer size={16} className={isFinalMode ? 'text-danger' : 'opacity-20'} />
-                            <span className={isFinalMode ? 'text-danger' : 'opacity-20'}>Final Mode</span>
-                         </div>
-                         <label className="switch-v13">
-                           <input 
-                             type="checkbox" 
-                             checked={isFinalMode} 
-                             onChange={toggleFinalMode} 
-                             disabled={!!activeMode}
-                           />
-                           <span className="slider-v13 round-v11"></span>
-                         </label>
-                      </div>
-                   </div>
-                </div>
-             </div>
+          {/* Tab 3: COMMENTS */}
+          {activeTab === 'comments' && (
+            <div className="yt-panel-info-content">
+              <h4>Community Comments</h4>
+              <p className="yt-info-text-box">No comments yet. Be the first dancer to leave a note!</p>
+            </div>
+          )}
+
+          {/* Tab 4: RELATED */}
+          {activeTab === 'related' && (
+            <div className="yt-panel-queue-list">
+              {tracks.slice(5, 20).map((track: Track) => {
+                const trkCover = getTrackCover(track, albums);
+                return (
+                  <div
+                    key={`rel-${track.id}`}
+                    className="yt-queue-item"
+                    onClick={() => loadTrack(track)}
+                  >
+                    <div className="yt-queue-thumb-box">
+                      <img
+                        src={trkCover}
+                        alt={track.title}
+                        className="yt-queue-thumb"
+                      />
+                    </div>
+                    <div className="yt-queue-info">
+                      <span className="yt-queue-title">{track.title}</span>
+                      <span className="yt-queue-artist">
+                        {track.style && <span className="yt-style-highlight">• {track.style}</span>}
+                      </span>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </div>
+      </div>
+
+      {/* Bottom Full Player Bar */}
+      <div className="yt-player-bar-container yt-full-player-bar-override">
+        {/* Progress Line */}
+        <div className="yt-progress-line-track" onClick={handleSeekClick} style={isFinalMode ? { cursor: 'default' } : undefined}>
+          <div className="yt-progress-line-fill" style={{ width: `${progressPercent}%`, ...(isFinalMode ? { background: '#ef4444' } : {}) }} />
+        </div>
+
+        <div className="yt-player-bar-content">
+          {/* Left: Prev, Play/Pause, Next & Time Display */}
+          <div className="yt-player-left-controls">
+            <button type="button" className="yt-player-icon-btn" onClick={playPrevious} title="Previous" disabled={isFinalMode} style={isFinalMode ? { opacity: 0.3, cursor: 'not-allowed' } : undefined}>
+              <SkipBack size={20} fill="currentColor" />
+            </button>
+            <button type="button" className="yt-player-icon-btn yt-main-play-btn" onClick={togglePlay} title={isPlaying ? 'Pause' : 'Play'}>
+              {isPlaying ? <Pause size={22} fill="currentColor" color="currentColor" /> : <Play size={22} fill="currentColor" color="currentColor" style={{ marginLeft: 2 }} />}
+            </button>
+            <button type="button" className="yt-player-icon-btn" onClick={playNext} title="Next" disabled={isFinalMode} style={isFinalMode ? { opacity: 0.3, cursor: 'not-allowed' } : undefined}>
+              <SkipForward size={20} fill="currentColor" />
+            </button>
+            {isFinalMode ? (
+              <FinalStopButton onStop={endFinal} className="yt-player-icon-btn" iconSize={20} />
+            ) : (
+              // Final Mode for the current track: cuts at 1:45 (Viennese 1:25) with a fade, like main
+              <button
+                type="button"
+                className="yt-player-icon-btn"
+                onClick={toggleFinalMode}
+                disabled={!!activeMode}
+                title="Final Mode (1:45 Timer)"
+                aria-label="Final Mode"
+              >
+                <Trophy size={20} />
+              </button>
+            )}
+            {isPauseCountdown ? (
+              <span className="yt-player-time-display" style={{ color: '#ef4444', fontWeight: 800 }} aria-live="polite">Rest {pauseTime}s</span>
+            ) : (
+              <span className="yt-player-time-display" style={isFinalMode ? { color: '#ef4444' } : undefined}>
+                {formatTime(currentTime)} / {formatTime(totalDur)}
+              </span>
+            )}
           </div>
-        </main>
 
-        <aside className="dp-sidebar-console-v8 glass">
-           <header className="sidebar-header-minimal-v8">
-             {selectedStyle ? (
-               <button onClick={() => setSelectedStyle(null)} className="better-back-btn">
-                 <ArrowLeft size={16} />
-                 <span>Back</span>
-               </button>
-             ) : (
-               <div style={{ height: '32px' }}></div>
-             )}
-             <button onClick={onClose} className="console-exit-btn glass" title="Close"><X size={18} /></button>
-           </header>
-           
-           <div className="sidebar-scroll custom-scrollbar">
-              {activeMode ? (
-                <div className="competition-queue-v32">
-                   <div className="px-1" style={{ marginBottom: '24px', paddingTop: '16px' }}>
-                     <span className="program-badge active-session">Competition Queue: {activeMode}</span>
-                   </div>
-                   <div className="queue-list-v32">
-                      {sessionTracks.map((t, i) => {
-                        const isActive = trackId ? t.id === trackId : (t.title === title && t.artist === artist);
-                        const currentTrackIdx = sessionTracks.findIndex(tr => trackId ? tr.id === trackId : tr.title === title);
-                        const isUpcoming = !isActive && currentTrackIdx !== -1 && i > currentTrackIdx;
-                        const isPlayed = !isActive && currentTrackIdx !== -1 && i < currentTrackIdx;
-                        
-                        return (
-                          <div 
-                            key={`${t.id}-${i}`} 
-                            className={`session-track-row ${isActive ? 'is-active' : ''} ${isPlayed ? 'is-played' : ''}`}
-                            onClick={() => loadTrack(t, false, true)}
-                          >
-                            <span className="queue-idx">{(i + 1).toString().padStart(2, '0')}</span>
-                            <div className="queue-blob">
-                              {isActive ? (
-                                <div className="queue-marquee-wrap">
-                                  <Marquee text={t.title} speed={45} isActive={true} className="track-name-marquee" />
-                                </div>
-                              ) : (
-                                <span className="track-name truncate">{t.title}</span>
-                              )}
-                              <div className="artist-badge-row">
-                                <span className="track-origin truncate">{t.artist}</span>
-                                {styles.find(s => s.title.toLowerCase() === t.style?.toLowerCase()) && (
-                                  <span 
-                                    className="style-badge-pill" 
-                                    style={{ backgroundColor: styles.find(s => s.title.toLowerCase() === t.style?.toLowerCase())?.color }}
-                                  >
-                                    {t.style}
-                                  </span>
-                                )}
-                              </div>
-                            </div>
-                            <div className="queue-status">
-                               {isActive ? <div className="playing-pulse"></div> : 
-                                isPlayed ? <span className="text-[10px] opacity-30 italic">Played</span> :
-                                <span className="text-[10px] opacity-30">Next</span>}
-                            </div>
-                          </div>
-                        );
-                      })}
-                   </div>
-                </div>
-              ) : !selectedStyle ? (
-                <div className="catalog-sections flex flex-col" style={{ gap: '40px' }}>
-                {/* Latin Section */}
-                {latinStyles.length > 0 && (
-                  <section>
-                    <div className="px-1" style={{ marginBottom: '16px', paddingTop: '16px' }}>
-                      <span className="program-badge latin">International Latin</span>
-                    </div>
-                    <div className="sidebar-catalog-grid">
-                      {latinStyles.map(style => {
-                        const count = tracks.filter(t => t.style === style.title).length;
-                        return (
-                          <div 
-                            key={style.id} 
-                            className="sidebar-style-card glass"
-                            style={{ backgroundColor: `${style.color}15` }}
-                            onClick={() => setSelectedStyle(style.title)}
-                          >
-                            <div className="card-inner-sidebar">
-                              <div className="style-icon-small">
-                                <Music2 size={16} color={style.color} />
-                              </div>
-                              <div className="style-info-sidebar">
-                                <h3>{style.title}</h3>
-                                <p>{count} {count === 1 ? 'Track' : 'Tracks'}</p>
-                              </div>
-                            </div>
-                          </div>
-                        );
-                      })}
-                    </div>
-                  </section>
+          {/* Center: Album Cover Thumb, Track Title, Subtitle, Heart (Liked), 3-Dots Menu */}
+          <div className="yt-player-center-meta">
+            <img
+              src={coverImg}
+              alt={title}
+              className="yt-player-thumb"
+            />
+            <div className="yt-player-meta">
+              <span className="yt-player-title">{title}</span>
+              <span className="yt-player-artist">
+                {artist}
+                {currentTrack?.style && <span className="yt-style-highlight"> • {currentTrack.style}</span>}
+              </span>
+            </div>
+
+            <div className="yt-player-actions" onClick={(e) => e.stopPropagation()}>
+              {/* Heart Save Button */}
+              <button
+                type="button"
+                className={`yt-player-icon-btn ${isFavorite ? 'active-heart' : ''}`}
+                onClick={handleToggleFavorite}
+                title={isFavorite ? 'Remove from Liked Music' : 'Save to Liked Music'}
+              >
+                <Heart
+                  size={18}
+                  fill={isFavorite ? '#ef4444' : 'none'}
+                  color={isFavorite ? '#ef4444' : 'currentColor'}
+                />
+              </button>
+
+              {/* 3-Dots Menu Button & Popover Menu */}
+              <div className="yt-menu-wrapper" ref={menuRef}>
+                <button
+                  type="button"
+                  className={`yt-player-icon-btn ${isMenuOpen ? 'active' : ''}`}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setIsMenuOpen(!isMenuOpen);
+                  }}
+                  title="More options"
+                >
+                  <MoreVertical size={18} />
+                </button>
+
+                {/* Toast for link copy */}
+                {showCopiedToast && (
+                  <div className="yt-copied-toast">
+                    Link copied to clipboard!
+                  </div>
                 )}
 
-                {/* Standard Section */}
-                {standardStyles.length > 0 && (
-                  <section>
-                    <div className="px-1" style={{ marginBottom: '16px', paddingTop: '16px' }}>
-                      <span className="program-badge standard">International Standard</span>
-                    </div>
-                    <div className="sidebar-catalog-grid">
-                      {standardStyles.map(style => {
-                        const count = tracks.filter(t => t.style === style.title).length;
-                        return (
-                          <div 
-                            key={style.id} 
-                            className="sidebar-style-card glass"
-                            style={{ backgroundColor: `${style.color}15` }}
-                            onClick={() => setSelectedStyle(style.title)}
-                          >
-                            <div className="card-inner-sidebar">
-                              <div className="style-icon-small">
-                                <Music2 size={16} color={style.color} />
-                              </div>
-                              <div className="style-info-sidebar">
-                                <h3>{style.title}</h3>
-                                <p>{count} {count === 1 ? 'Track' : 'Tracks'}</p>
-                              </div>
-                            </div>
-                          </div>
-                        );
-                      })}
-                    </div>
-                  </section>
-                )}
+                {/* YouTube Music Style 3-Dots Context Menu */}
+                {isMenuOpen && (
+                  <div className="yt-context-menu-popover">
+                    <button
+                      type="button"
+                      className="yt-context-menu-item"
+                      onClick={async () => {
+                        setIsMenuOpen(false);
+                        if (currentTrack?.id) await toggleFavorite(currentTrack.id);
+                      }}
+                    >
+                      <Heart size={16} fill={isFavorite ? '#ef4444' : 'none'} color={isFavorite ? '#ef4444' : 'currentColor'} />
+                      <span>{isFavorite ? 'Remove from Liked Songs' : 'Save to Liked Songs'}</span>
+                    </button>
 
-                {/* Fitness Section */}
-                {fitnessStyles.length > 0 && (
-                  <section>
-                    <div className="px-1" style={{ marginBottom: '16px', paddingTop: '16px' }}>
-                      <span className="program-badge fitness">Fitness</span>
-                    </div>
-                    <div className="sidebar-catalog-grid">
-                      {fitnessStyles.map(style => {
-                        const count = tracks.filter(t => t.style === style.title).length;
-                        return (
-                          <div 
-                            key={style.id} 
-                            className="sidebar-style-card glass"
-                            style={{ backgroundColor: `${style.color}15` }}
-                            onClick={() => setSelectedStyle(style.title)}
-                          >
-                            <div className="card-inner-sidebar">
-                              <div className="style-icon-small">
-                                <Music2 size={16} color={style.color} />
-                              </div>
-                              <div className="style-info-sidebar">
-                                <h3>{style.title}</h3>
-                                <p>{count} {count === 1 ? 'Track' : 'Tracks'}</p>
-                              </div>
-                            </div>
-                          </div>
-                        );
-                      })}
-                    </div>
-                  </section>
+                    <button
+                      type="button"
+                      className="yt-context-menu-item"
+                      onClick={() => {
+                        setIsMenuOpen(false);
+                        handleDownload();
+                      }}
+                    >
+                      <Download size={16} />
+                      <span>Download track</span>
+                    </button>
+
+                    <button
+                      type="button"
+                      className="yt-context-menu-item"
+                      onClick={() => {
+                        setIsMenuOpen(false);
+                        router.push('/library');
+                      }}
+                    >
+                      <ListPlus size={16} />
+                      <span>Save to playlist</span>
+                    </button>
+
+                    {currentTrack?.album && (
+                      <button
+                        type="button"
+                        className="yt-context-menu-item"
+                        onClick={() => {
+                          setIsMenuOpen(false);
+                          router.push(`/album/${currentTrack.album.toLowerCase().replace(/\s+/g, '-')}`);
+                        }}
+                      >
+                        <Disc size={16} />
+                        <span>Go to album</span>
+                      </button>
+                    )}
+
+                    <button
+                      type="button"
+                      className="yt-context-menu-item"
+                      onClick={() => {
+                        setIsMenuOpen(false);
+                        handleShare();
+                      }}
+                    >
+                      <Share2 size={16} />
+                      <span>Share track</span>
+                    </button>
+                  </div>
                 )}
               </div>
-             ) : (
-               <div className="tracklist-deck-v6">
-                  {filteredTracks.map((t, i) => (
-                    <button 
-                      key={t.id} 
-                      className={`deck-track-row ${(trackId ? t.id === trackId : (t.title === title && t.artist === artist)) ? 'is-active' : ''}`}
-                      onClick={() => loadTrack(t)}
-                    >
-                      <span className="track-idx-pro">{(i + 1).toString().padStart(2, '0')}</span>
-                      <div className="track-blob">
-                        {(trackId ? t.id === trackId : (t.title === title && t.artist === artist)) ? (
-                          <div className="track-marquee-wrap">
-                            <Marquee text={t.title} speed={45} isActive={true} className="track-name-marquee" />
-                          </div>
-                        ) : (
-                          <span className="track-name truncate">{t.title}</span>
-                        )}
-                        <div className="artist-badge-row">
-                          <span className="track-origin truncate">{t.artist}</span>
-                          {styles.find(s => s.title.toLowerCase() === t.style?.toLowerCase()) && (
-                            <span 
-                              className="style-badge-pill" 
-                              style={{ backgroundColor: styles.find(s => s.title.toLowerCase() === t.style?.toLowerCase())?.color }}
-                            >
-                              {t.style}
-                            </span>
-                          )}
-                        </div>
-                      </div>
-                      <span className="track-tag-pro">{t.bpm}</span>
-                    </button>
-                  ))}
-               </div>
-             )}
             </div>
-         </aside>
-       </div>
+          </div>
 
-       <AddToPlaylistModal
-         isOpen={isAddToPlaylistOpen}
-         onClose={() => setIsAddToPlaylistOpen(false)}
-         track={currentTrack || null}
-       />
+          {/* Right: Speedometer Popover, Volume, Repeat, Shuffle, Collapse Chevron */}
+          <div className="yt-player-right-controls" ref={popoverRef}>
+            {/* Speed Popover Card */}
+            {isSpeedPopoverOpen && (
+              <div className="yt-speed-popover-card">
+                <div className="yt-speed-popover-header">
+                  <span className="yt-speed-percentage-text">{bpmDisplay}</span>
+                  <button
+                    type="button"
+                    className="yt-speed-reset-btn"
+                    onClick={resetBpm}
+                  >
+                    RESET
+                  </button>
+                </div>
 
-       <style jsx>{`
-        .desktop-player-overlay {
-          position: fixed;
-          inset: 0;
-          z-index: 9999;
-          background: #121212;
-          display: flex;
-          overflow: hidden;
-          color: white;
-          --accent: #1db954;
-          font-family: 'Inter', sans-serif;
-        }
+                <div className="yt-speed-slider-row">
+                  <button
+                    type="button"
+                    className="yt-speed-step-btn"
+                    onClick={() => handleBpmChange(-5)}
+                    title="-5%"
+                  >
+                    <Minus size={15} />
+                  </button>
 
-        .final-active { --accent: #ef4444; }
-        .text-danger { color: #ef4444; }
+                  <input
+                    type="range"
+                    min={50}
+                    max={150}
+                    step={1}
+                    value={currentBpm}
+                    onChange={(e) => setBpm(parseInt(e.target.value), true)}
+                    className="yt-speed-range-slider"
+                  />
 
-        .dp-console-wrapper {
-          position: relative;
-          z-index: 3;
-          display: grid;
-          grid-template-columns: 1fr 440px;
-          width: 100%;
-          height: 100vh;
-          padding: 0 0 0 64px;
-          gap: 0;
-        }
+                  <button
+                    type="button"
+                    className="yt-speed-step-btn"
+                    onClick={() => handleBpmChange(5)}
+                    title="+5%"
+                  >
+                    <Plus size={15} />
+                  </button>
+                </div>
 
-        @media (max-width: 1360px) {
-          .dp-console-wrapper {
-            grid-template-columns: 1fr 340px;
-            padding: 0 0 0 32px;
-            gap: 0;
-          }
-        }
+                <div className="yt-speed-labels-row">
+                  <span>-50%</span>
+                  <span>NORMAL</span>
+                  <span>+50%</span>
+                </div>
+              </div>
+            )}
 
-        .dp-player-console {
-          display: flex;
-          flex-direction: column;
-          height: 100%;
-          justify-content: center;
-          position: relative;
-        }
+            {/* Single Speed Icon Button */}
+            <button
+              type="button"
+              className={`yt-player-icon-btn yt-speed-icon-btn ${isBpmChanged || isSpeedPopoverOpen ? 'active-speed' : ''}`}
+              onClick={() => setIsSpeedPopoverOpen(!isSpeedPopoverOpen)}
+              title="Playback Speed"
+            >
+              <Gauge size={20} />
+              {isBpmChanged && <span className="yt-speed-badge-dot" />}
+            </button>
 
-        .dp-top-header-group {
-          position: absolute;
-          top: 14px;
-          left: 0;
-          right: 0;
-          display: flex;
-          flex-direction: column;
-          align-items: center;
-          gap: 10px;
-          z-index: 50;
-          padding: 0 32px;
-        }
+            {/* Volume control */}
+            <div className="yt-volume-control">
+              <button type="button" className="yt-bar-btn" onClick={() => setVolume(volume > 0 ? 0 : 1)}>
+                {volume === 0 ? <VolumeX size={18} /> : <Volume2 size={18} />}
+              </button>
+              <input
+                type="range"
+                min={0}
+                max={1}
+                step={0.01}
+                value={volume}
+                onChange={(e) => setVolume(parseFloat(e.target.value))}
+                className="yt-volume-slider"
+              />
+            </div>
 
-        .dp-top-ads {
-          display: flex;
-          justify-content: center;
-          align-items: center;
-          gap: 16px;
-          width: 100%;
-        }
+            <button type="button" className={`yt-bar-btn ${isRepeat ? 'active' : ''}`} onClick={toggleRepeat} title="Repeat">
+              <Repeat size={18} />
+            </button>
+            <button type="button" className={`yt-bar-btn ${isShuffle ? 'active' : ''}`} onClick={toggleShuffle} title="Shuffle">
+              <Shuffle size={18} />
+            </button>
 
-        .dp-top-actions {
-          width: 100%;
-          display: flex;
-          justify-content: flex-end;
-          align-items: center;
-        }
-
-        .dp-share-corner-btn {
-          width: 44px;
-          height: 44px;
-          border-radius: 12px;
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          color: rgba(255, 255, 255, 0.7);
-          cursor: pointer;
-          transition: all 0.2s ease;
-        }
-        .dp-share-corner-btn:hover {
-          color: #ffffff;
-          transform: scale(1.08);
-        }
-
-        @media (max-width: 1360px) {
-          .dp-secondary-ad {
-            display: none !important;
-          }
-        }
-
-        @media (max-height: 950px) {
-          .console-body { gap: 32px !important; }
-          .metadata-stage { transform: scale(0.95); }
-        }
-
-        @media (max-height: 850px) {
-          .console-body { transform: scale(0.9) translateY(-6%) !important; gap: 24px !important; transform-origin: center center; }
-          .metadata-stage { transform: scale(0.9); margin-top: -10px; }
-          .transport-section { margin-top: 10px; }
-        }
-        
-        @media (max-height: 750px) {
-          .console-body { transform: scale(0.85) translateY(-6%) !important; gap: 16px !important; transform-origin: center center; }
-          .metadata-stage { transform: scale(0.85); margin-top: -20px; }
-          .transport-section { margin-top: 0; }
-        }
-
-        @media (max-height: 680px) {
-          .console-body { transform: scale(0.75) translateY(-6%) !important; transform-origin: center center; }
-          .console-header-v3 { margin-bottom: 0 !important; }
-        }
-
-        .console-body { 
-          flex: 1; 
-          display: flex; 
-          flex-direction: column; 
-          align-items: center; 
-          justify-content: center; 
-          gap: 64px; 
-          position: relative;
-          transform: translateY(-6%); /* Raised total 6% per user request */
-        }
-
-         .visualizer-stage-v8 { position: relative; }
-
-        .vinyl-disc-v8 { 
-          width: 288px; 
-          height: 288px; 
-          border-radius: 50%; 
-          background: #121212; 
-          position: relative; 
-          overflow: hidden; 
-          transition: all 0.5s cubic-bezier(0.16, 1, 0.3, 1);
-          border: 4px solid var(--accent);
-        }
-        .vinyl-disc-v8.final-active { --accent: #ef4444; border-color: #ef4444; box-shadow: 0 20px 60px rgba(0,0,0,0.6), inset 0 0 0 1px rgba(255,255,255,0.1); }
-        .vinyl-disc-v8.standard-active { border-color: #1db954; box-shadow: 0 20px 60px rgba(0,0,0,0.6), inset 0 0 0 1px rgba(255,255,255,0.1); }
-
-        @media (max-width: 1360px) {
-          .vinyl-disc-v8 { width: 220px; height: 220px; }
-        }
-        
-        @media (max-height: 900px) {
-          .vinyl-disc-v8 { width: 180px; height: 180px; }
-        }
-        
-        @media (max-height: 800px) {
-          .vinyl-disc-v8 { width: 140px; height: 140px; }
-        }
-
-        .disc-inner-glow-v8 {
-          position: absolute;
-          inset: 0;
-          background: radial-gradient(circle at center, rgba(29, 185, 84, 0.3) 0%, transparent 70%);
-          z-index: 2;
-        }
-        .final-active .disc-inner-glow-v8 { background: radial-gradient(circle at center, rgba(239, 68, 68, 0.3) 0%, transparent 70%); }
-
-        .disc-art-img-v8 { width: 100%; height: 100%; object-fit: cover; opacity: 0.9; position: relative; z-index: 1; }
-        
-        .countdown-ring {
-          position: absolute;
-          inset: 0;
-          background: rgba(0,0,0,0.98);
-          border-radius: 50%;
-          display: flex;
-          flex-direction: column;
-          align-items: center;
-          justify-content: center;
-          z-index: 10;
-          backdrop-filter: blur(30px);
-          border: 2px solid #ef4444; /* Final Mode rest ring: red */
-          box-shadow: 0 0 30px rgba(239, 68, 68, 0.35);
-        }
-        .countdown-ring .count { font-size: 80px; font-weight: 900; color: #ef4444; }
-        .countdown-ring .label { font-size: 10px; font-weight: 900; text-transform: uppercase; letter-spacing: 5px; opacity: 0.2; }
-
-        .metadata-stage { width: 100%; max-width: 900px; display: flex; flex-direction: column; align-items: center; position: relative; z-index: 1000; }
-        .metadata-actions-refined { 
-          display: flex; 
-          align-items: center; 
-          justify-content: center; 
-          gap: 28px; 
-          width: 100%; 
-          margin-top: 18px;
-        }
-        
-        .refined-title-v8 { font-size: 23px; font-weight: 900; letter-spacing: -0.4px; line-height: 1.2; color: white; text-align: center; }
-        .refined-artist-v8 { font-size: 13px; text-transform: uppercase; font-weight: 800; letter-spacing: 4px; opacity: 0.4; margin-top: 6px; text-align: center; color: white; }
-
-        @media (max-width: 1360px) {
-          .refined-title-v8 { font-size: 18px; }
-          .refined-artist-v8 { font-size: 11px; letter-spacing: 3px; }
-        }
-        
-        .console-action-btn-v13 { 
-          color: rgba(255,255,255,0.7); 
-          transition: all 0.2s; 
-          padding: 10px; 
-          cursor: pointer; 
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          border-radius: 50%;
-        }
-        .console-action-btn-v13:hover { 
-          color: white; 
-          transform: scale(1.15); 
-        }
-        .console-action-btn-v13.active { color: var(--accent); opacity: 1; }
-        .favorite-btn-pro.active { color: #ef4444 !important; }
-
-        .speed-popover-v17 {
-          position: absolute;
-          bottom: calc(100% + 16px);
-          left: 50%;
-          transform: translateX(-50%);
-          z-index: 99999;
-          background: #0d0d0d;
-          border: 1px solid rgba(255,255,255,0.1);
-          border-radius: 20px;
-          padding: 24px;
-          box-shadow: 0 16px 48px rgba(0,0,0,0.8);
-          width: 380px;
-        }
-
-        .program-badge {
-          font-size: 10.45px;
-          font-weight: 800;
-          text-transform: uppercase;
-          padding: 6px 12px;
-          border-radius: 10px;
-          background: rgba(255, 255, 255, 0.03);
-          letter-spacing: 1.2px;
-          display: inline-block;
-        }
-        .program-badge.latin { color: #f7971e; border: 1px solid rgba(247, 151, 30, 0.3); }
-        .program-badge.standard { color: #2193b0; border: 1px solid rgba(33, 147, 176, 0.3); }
-        .program-badge.fitness { color: #1db954; border: 1px solid rgba(29, 185, 84, 0.3); }
-
-        .sidebar-catalog-grid {
-          display: grid;
-          grid-template-columns: repeat(2, 1fr);
-          gap: 10px;
-        }
-
-        .sidebar-style-card {
-          padding: 12px 10px;
-          border-radius: 14px;
-          display: flex;
-          align-items: center;
-          position: relative;
-          transition: all 0.3s ease;
-          background: rgba(255, 255, 255, 0.03);
-          border: 1px solid rgba(255, 255, 255, 0.05);
-          cursor: pointer;
-        }
-        .sidebar-style-card:hover { transform: translateY(-2px); background: rgba(255, 255, 255, 0.08); }
-
-        .card-inner-sidebar {
-          display: flex;
-          align-items: center;
-          gap: 10px;
-          width: 100%;
-        }
-
-        .style-icon-small {
-          width: 32px;
-          height: 32px;
-          border-radius: 8px;
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          background: rgba(0, 0, 0, 0.2);
-          flex-shrink: 0;
-        }
-
-        .style-info-sidebar h3 {
-          font-size: 10.45px;
-          font-weight: 700;
-          margin: 0;
-          line-height: 1.2;
-          white-space: nowrap;
-          overflow: hidden;
-          text-overflow: ellipsis;
-          max-width: 90px;
-        }
-        .style-info-sidebar p {
-          font-size: 8.55px;
-          color: rgba(255,255,255,0.4);
-          margin-top: 1px;
-        }
-
-        .bpm-pill { 
-          padding: 12px 36px; 
-          border-radius: 40px; 
-          font-weight: 900; 
-          font-size: 11.5px; 
-          text-transform: uppercase; 
-          letter-spacing: 3px;
-          color: var(--accent); 
-          background: rgba(255,255,255,0.06);
-          border: 1px solid rgba(255,255,255,0.12);
-          cursor: pointer;
-          transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
-        }
-        .bpm-pill:hover, .bpm-pill.active-pill {
-          background: rgba(255,255,255,0.12);
-          border-color: var(--accent);
-          transform: scale(1.05);
-          box-shadow: 0 0 25px rgba(29, 185, 84, 0.3);
-        }
-
-        /* CONTROL STAGE: stacks the timeline and the transport deck with a
-           guaranteed vertical gap. Previously control-stage had no styling, so
-           the progress bar and the buttons could collide on shorter screens
-           (e.g. iPad, or a desktop window with the bookmarks bar showing). */
-        .control-stage {
-          display: flex;
-          flex-direction: column;
-          align-items: center;
-          gap: 28px;
-          width: 100%;
-        }
-        @media (max-height: 850px) { .control-stage { gap: 20px; } }
-        @media (max-height: 750px) { .control-stage { gap: 14px; } }
-
-        /* TIMELINE V13 */
-        .timeline-strip-pro-v13 { 
-          display: flex; 
-          align-items: center; 
-          gap: 24px; 
-          width: 740px; 
-          margin-bottom: 0;
-          transform: none;
-        }
-
-        @media (max-width: 1360px) {
-          .timeline-strip-pro-v13 { width: 100%; max-width: 600px; gap: 16px; }
-        }
-        .time-code { font-family: 'JetBrains Mono', monospace; font-size: 10.45px; opacity: 0.15; width: 44px; text-align: center; }
-        .timeline-track-thick { 
-          flex: 1; 
-          height: 10px; 
-          background: rgba(255,255,255,0.06); 
-          border-radius: 5px; 
-          position: relative; 
-          cursor: pointer; 
-          display: flex; 
-          align-items: center; 
-          touch-action: none;
-          user-select: none;
-          -webkit-user-select: none;
-        }
-        .timeline-track-thick::after {
-          content: '';
-          position: absolute;
-          top: -18px;
-          bottom: -18px;
-          left: -10px;
-          right: -10px;
-          z-index: 20;
-          cursor: pointer;
-        }
-        .timeline-fill { height: 100%; background: var(--accent); border-radius: 5px; transition: width 0.1s linear; }
-        .timeline-head-bold { width: 18px; height: 18px; background: white; border-radius: 50%; position: absolute; transform: translate(-50%, -50%); top: 50%; box-shadow: 0 4px 16px rgba(0,0,0,1); }
-
-        /* V17: Parametric Lockdown CSS */
-        .transport-deck-v17 { 
-          display: flex; 
-          align-items: center; 
-          gap: 48px; 
-          width: 740px; 
-          justify-content: space-between; 
-          height: 90px;
-          position: relative;
-        }
-
-        @media (max-width: 1360px) {
-          .transport-deck-v17 { width: 100%; max-width: 600px; gap: 24px; height: 70px; }
-          .side-params-v17 { width: 160px; }
-          .main-nav-deck-v17 { gap: 32px; }
-          .play-giant-v17 { width: 70px; height: 70px; }
-          .play-giant-v17 :global(svg) { width: 32px; height: 32px; }
-        }
-        
-        .side-params-v17 { width: 220px; height: 100%; display: flex; align-items: center; }
-        .side-params-v17.left-side { justify-content: flex-start; }
-        .side-params-v17.right-side { justify-content: flex-end; }
-
-        .universal-mode-btn-v17 { color: rgba(255,255,255,0.2); transition: all 0.2s; }
-        .universal-mode-btn-v17.active { color: var(--accent); opacity: 1; }
-
-        .main-nav-deck-v17 { display: flex; align-items: center; gap: 48px; height: 100%; }
-        .play-giant-v17 { 
-          width: 90px; height: 90px; background: var(--accent); border-radius: 50%; display: flex; align-items: center; justify-content: center; color: black; box-shadow: 0 16px 40px rgba(0,0,0,0.6); transition: all 0.3s; 
-        }
-
-        .vol-v17-row { display: flex; align-items: center; gap: 16px; width: 100%; justify-content: flex-end; }
-        .vol-v17-slider { 
-          width: 120px; 
-          height: 4px; 
-          -webkit-appearance: none; 
-          background: linear-gradient(to right, 
-            var(--accent) 0%, 
-            var(--accent) var(--volume-perc), 
-            rgba(255,255,255,0.1) var(--volume-perc), 
-            rgba(255,255,255,0.1) 100%
-          );
-          border-radius: 2px; 
-          outline: none;
-        }
-        .vol-v17-slider::-webkit-slider-thumb { 
-          -webkit-appearance: none; 
-          width: 14px; 
-          height: 14px; 
-          border-radius: 50%; 
-          background: white; 
-          cursor: pointer; 
-          border: 2px solid black; 
-          box-shadow: 0 0 5px rgba(0,0,0,0.5);
-          transition: transform 0.2s;
-        }
-        .vol-v17-slider:hover::-webkit-slider-thumb {
-          transform: scale(1.15);
-        }
-
-        /* DECOUPLED FINAL MODE - The key fix */
-        .final-mode-lockdown-v17 { 
-          position: absolute;
-          top: 100%;
-          right: 0;
-          margin-top: 48px; /* High margin for clear separation */
-          display: flex; 
-          align-items: center; 
-          gap: 12px; 
-          padding: 8px 16px; 
-          border-radius: 20px; 
-          background: rgba(255,255,255,0.03); 
-          border: 1px solid rgba(255,255,255,0.05);
-          white-space: nowrap;
-        }
-
-        .stage-footer-v15-absolute { 
-          position: absolute; 
-          bottom: -20px; 
-          right: 0; 
-          width: 740px; 
-          left: 50%; 
-          transform: translateX(-50%);
-          display: flex;
-          justify-content: flex-end;
-          z-index: 50;
-        }
-
-        .switch-v13 { position: relative; display: inline-block; width: 32px; height: 18px; }
-        .switch-v13 input { opacity: 0; width: 0; height: 0; }
-        .slider-v13 { position: absolute; cursor: pointer; inset: 0; background-color: rgba(255,255,255,0.1); transition: .3s; }
-        .slider-v13:before { position: absolute; content: ""; height: 10px; width: 10px; left: 4px; bottom: 4px; background-color: white; transition: .3s; }
-        input:checked + .slider-v13 { background-color: var(--accent); }
-        input:checked + .slider-v13:before { transform: translateX(14px); }
-
-        .round-v11 { border-radius: 30px; }
-        .round-v11:before { border-radius: 50%; }
-
-        /* SIDEBAR - Straight Divider Redesign */
-        .dp-sidebar-console-v8 { 
-          border-radius: 0; 
-          display: flex; 
-          flex-direction: column; 
-          overflow: hidden; 
-          border: none;
-          border-left: 1px solid rgba(255,255,255,0.15); /* THE STRAIGHT DIVIDER */
-          background: rgba(0,0,0,0.3); 
-          backdrop-filter: blur(40px); 
-          height: 100vh;
-        }
-        .sidebar-header-minimal-v8 { 
-          padding: 16px 32px; 
-          display: flex; 
-          justify-content: space-between; 
-          align-items: center; 
-          border-bottom: none; 
-          min-height: 70px; /* Reduced to help lift content */
-          transform: translateY(5px); /* Lowered 2% for better button ergonomics */
-        }
-        
-        .better-back-btn { display: flex; align-items: center; gap: 12px; padding: 10px 24px; border-radius: 16px; background: rgba(255,255,255,0.06); font-size: 10.45px; font-weight: 900; text-transform: uppercase; color: var(--accent); transition: all 0.3s; }
-        .better-back-btn:hover { background: var(--accent); color: black; }
-
-        .console-exit-btn { width: 48px; height: 48px; border-radius: 14px; display: flex; align-items: center; justify-content: center; }
-
-        .sidebar-scroll { 
-          flex: 1; 
-          overflow-y: auto; 
-          padding: 16px 32px 32px 32px; /* Reduced top padding to lift containers */
-          transform: translateY(-12px); /* Lowered 2% from previous -20px position */
-        }
-        .section-label-v9 { font-size: 10.45px; font-weight: 900; text-transform: uppercase; letter-spacing: 4px; opacity: 0.1; }
-
-        .catalog-grid-v8 { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
-        .catalog-box-v8 { 
-          padding: 20px 24px; 
-          border-radius: 16px; 
-          text-align: left; 
-          display: flex; 
-          justify-content: space-between; 
-          align-items: center; 
-          background: rgba(255,255,255,0.04); 
-          border: 1px solid rgba(255,255,255,0.03);
-        }
-        .catalog-box-v8:hover { background: rgba(255,255,255,0.08); transform: translateY(-2px); }
-        .style-name-v8 { font-weight: 900; font-size: 13.3px; color: white; }
-        .style-count-v8 { font-size: 9.5px; font-weight: 800; opacity: 0.3; }
-
-        .tracklist-deck-v6 { display: flex; flex-direction: column; gap: 4px; }
-        .deck-track-row { 
-          display: flex; 
-          align-items: center; 
-          gap: 16px; 
-          padding: 16px 24px; 
-          border-radius: 12px; /* Standard refined radius from other pages */
-          width: 100%; 
-          text-align: left; 
-          background: rgba(255,255,255,0.03); /* Matched to global row style */
-          border: 1px solid rgba(255,255,255,0.05); /* Added border to match other list styles */
-          transition: all 0.2s;
-        }
-        .deck-track-row:hover { background: rgba(255,255,255,0.08); }
-        .deck-track-row.is-active { 
-          background: rgba(29, 185, 84, 0.1); 
-          border: 1px solid rgba(29, 185, 84, 0.4);
-          color: white; /* Changed from green to white for better contrast */
-        }
-        .track-idx-pro { font-weight: 900; opacity: 0.15; font-size: 11.4px; width: 24px; }
-        .track-blob { flex: 1; min-width: 0; display: flex; flex-direction: column; overflow: hidden; }
-        .track-name { font-weight: 900; font-size: 13.3px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; display: block; }
-        .queue-marquee-wrap, .track-marquee-wrap { width: 100%; overflow: hidden; height: 1.2em; display: flex; align-items: center; }
-        .track-name-marquee { font-weight: 900 !important; font-size: 13.3px; color: inherit; width: 100%; }
-        .track-name-marquee :global(.marquee-text) { font-weight: 900 !important; display: inline-block; }
-        .track-origin { font-size: 10.45px; opacity: 0.4; text-transform: uppercase; font-weight: 700; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-        .track-tag-pro { font-weight: 900; font-size: 9.5px; opacity: 0.3; flex-shrink: 0; }
-        .track-name-marquee :global(.marquee-content) { font-weight: 900 !important; }
-
-        .deck-spinner { width: 24px; height: 24px; border: 3px solid rgba(0,0,0,0.1); border-top: 3px solid black; border-radius: 50%; animation: spin 1s linear infinite; }
-        @keyframes smooth-spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
-        @keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
-        @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
-
-        .custom-scrollbar::-webkit-scrollbar { width: 2px; }
-        .custom-scrollbar::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.06); border-radius: 10px; }
-        .competition-queue-v32 { padding-bottom: 40px; }
-        .queue-list-v32 { display: flex; flex-direction: column; gap: 8px; }
-        .session-track-row { 
-          display: flex; align-items: center; gap: 16px; padding: 14px 16px; 
-          background: rgba(255,255,255,0.03); border-radius: 16px; 
-          border: 1px solid rgba(255,255,255,0.05); transition: all 0.2s;
-          cursor: pointer;
-        }
-        .session-track-row:hover {
-          background: rgba(255,255,255,0.06);
-          transform: translateX(4px);
-        }
-        .session-track-row.is-active { 
-          background: rgba(29, 185, 84, 0.1); border-color: rgba(29, 185, 84, 0.4); 
-          box-shadow: 0 0 20px rgba(0,0,0,0.3);
-          transform: none; /* No shift for active track */
-        }
-        .session-track-row.is-played { opacity: 0.4; filter: grayscale(1); }
-        .queue-idx { font-size: 11px; font-weight: 900; opacity: 0.3; font-family: 'JetBrains Mono', monospace; min-width: 20px; }
-        .queue-blob { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
-        .queue-status { min-width: 50px; text-align: right; }
-        .playing-pulse { width: 8px; height: 8px; background: #1db954; border-radius: 50%; display: inline-block; animation: pulse 1.5s infinite; }
-        @keyframes pulse { 0% { transform: scale(1); opacity: 1; } 50% { transform: scale(1.5); opacity: 0.5; } 100% { transform: scale(1); opacity: 1; } }
-        .program-badge.active-session { background: rgba(29, 185, 84, 0.2); color: #1db954; border: 1px solid rgba(29, 185, 84, 0.4); }
-      `}</style>
-    </div>,
-    document.body
+            <button type="button" className="yt-bar-btn yt-collapse-btn" onClick={onClose} title="Collapse player">
+              <ChevronDown size={22} />
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
   );
 }

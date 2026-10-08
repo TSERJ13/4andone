@@ -67,6 +67,23 @@ export const getAudioFile = async (id: string): Promise<Blob | null> => {
   }
 };
 
+export const deleteAudioFile = async (id: string): Promise<void> => {
+  if (!id) return;
+  try {
+    const db = await openDB();
+    if (!db.objectStoreNames.contains(STORE_NAME)) return;
+    return new Promise((resolve, reject) => {
+      const transaction = db.transaction([STORE_NAME], 'readwrite');
+      const store = transaction.objectStore(STORE_NAME);
+      const request = store.delete(id);
+      request.onsuccess = () => resolve();
+      request.onerror = () => reject();
+    });
+  } catch (err) {
+    console.error('Delete audio file failed:', err);
+  }
+};
+
 export const clearAllAudio = async (): Promise<void> => {
   const db = await openDB();
   return new Promise((resolve, reject) => {

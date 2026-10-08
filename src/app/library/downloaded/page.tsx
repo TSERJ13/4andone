@@ -26,6 +26,7 @@ const DownloadedPage = () => {
   }, []);
 
   const downloadedTracks = tracks.filter(t => downloadedIds.includes(t.id));
+  const totalMinutes = Math.round(downloadedTracks.reduce((sum, t) => sum + (Number(t.duration) || 0), 0) / 60);
 
   const checkAuthAndExecute = (action: () => void, actionName: string) => {
     if (!isAuthenticated) {
@@ -43,47 +44,55 @@ const DownloadedPage = () => {
 
   return (
     <div className="downloaded-page animate-in">
-      <header className="page-header">
-        <div className="icon-large glass">
-          <ArrowDownToLine size={64} color="#22c55e" />
+      <header className="downloaded-hero">
+        <div className="downloaded-cover">
+          <ArrowDownToLine size={48} color="#ffffff" />
         </div>
-        <div className="head-content">
-          <span className="label">Offline Storage</span>
-          <h1 className="title">Downloaded</h1>
-          <p className="stats">
-            <span style={{ color: '#22c55e' }}>Available Offline</span> • {downloadedTracks.length} Tracks On Device
+        <div className="downloaded-info">
+          <span className="downloaded-label">Auto Playlist</span>
+          <h1 className="downloaded-title">Downloaded</h1>
+          <p className="downloaded-stats">
+            {downloadedTracks.length} {downloadedTracks.length === 1 ? 'track' : 'tracks'}
+            {totalMinutes > 0 && <> · {totalMinutes} min</>}
           </p>
         </div>
-        <div className="header-actions">
-          <button className="play-btn-large main-play-trigger" onClick={handlePlayAll} title="Play All Downloaded">
-            <Play fill="currentColor" size={24} />
-          </button>
-        </div>
+        <button
+          className="downloaded-play"
+          onClick={handlePlayAll}
+          disabled={downloadedTracks.length === 0}
+          aria-label="Play downloaded tracks"
+        >
+          <Play fill="currentColor" size={20} />
+          <span>Play</span>
+        </button>
       </header>
 
       {downloadedTracks.length > 0 ? (
         <div className="tracks-list">
-          {downloadedTracks.map((track, i) => {
+          {downloadedTracks.map((track) => {
             const isTrackActive = isPlaying && (playingTrackId ? playingTrackId === track.id : (playingTitle === track.title || playingTitle === track.id));
 
             return (
-            <TrackRow
-              key={track.id}
-              track={track}
-              isActive={isTrackActive}
-              onPlay={() => loadTrack(track)}
-              onToggleFavorite={() => checkAuthAndExecute(() => toggleFavorite(track.id), 'favorite tracks')}
-              badge="style"
-              styleColor={styles.find(s => s.title.toLowerCase() === track.style?.toLowerCase())?.color}
-            />
+              <TrackRow
+                key={track.id}
+                track={track}
+                isActive={isTrackActive}
+                onPlay={() => loadTrack(track)}
+                onToggleFavorite={() => checkAuthAndExecute(() => toggleFavorite(track.id), 'favorite tracks')}
+                badge="style"
+                styleColor={styles.find(s => s.title.toLowerCase() === track.style?.toLowerCase())?.color}
+                isDownloaded={true}
+              />
             );
           })}
         </div>
       ) : (
         <div className="empty-state">
-          <ArrowDownToLine size={48} className="text-secondary" />
+          <div className="empty-icon-circle">
+            <ArrowDownToLine size={48} color="#22c55e" />
+          </div>
           <h3>No downloaded tracks</h3>
-          <p>Save tracks to this device by clicking the download button (⬇️) while listening or browsing.</p>
+          <p>Save tracks to your device by clicking the download icon while listening or browsing to practice offline without internet connection.</p>
         </div>
       )}
 
@@ -101,74 +110,170 @@ const DownloadedPage = () => {
       />
 
       <style jsx>{`
-        .downloaded-page { padding: 40px; padding-bottom: 120px; }
-        .page-header { display: flex; align-items: flex-end; gap: 32px; margin-bottom: 40px; }
-        .head-content { display: flex; flex-direction: column; gap: 8px; flex: 1; }
-        .icon-large { 
-          width: 180px; height: 180px; border-radius: 20px; 
-          background: linear-gradient(135deg, rgba(34, 197, 94, 0.35), #191414);
-          display: flex; align-items: center; justify-content: center;
+        .downloaded-page {
+          padding: 24px 32px 140px 32px;
+          max-width: 1200px;
+          margin: 0 auto;
+        }
+
+        .downloaded-hero {
+          display: flex;
+          align-items: flex-end;
+          gap: 28px;
+          margin-bottom: 32px;
+          background: transparent;
+          border: none;
+        }
+
+        .downloaded-cover {
+          position: relative;
+          width: 180px;
+          height: 180px;
           flex-shrink: 0;
-          box-shadow: 0 12px 32px rgba(0,0,0,0.5);
-          border: 1px solid rgba(255,255,255,0.05);
-        }
-        .label { text-transform: uppercase; font-size: 11px; font-weight: 800; letter-spacing: 1px; color: #71717a; }
-        .title { font-size: 5rem; font-weight: 950; margin: 0; letter-spacing: -2px; line-height: 1; }
-        .stats { font-size: 14px; font-weight: 600; color: #71717a; }
-        
-        .play-btn-large { 
-          width: 56px; height: 56px; border-radius: 50%; background: var(--primary, #1db954); 
-          color: black; display: flex; align-items: center; justify-content: center; 
-          transition: transform 0.2s;
-        }
-        .play-btn-large:hover { transform: scale(1.05); }
-
-        .tracks-list { display: flex; flex-direction: column; gap: 8px; }
-
-        .track-info-col { min-width: 0; overflow: hidden; display: flex; flex-direction: column; justify-content: center; }
-        .track-title-row {
-          display: inline-flex;
+          border-radius: 8px;
+          display: flex;
           align-items: center;
+          justify-content: center;
+          color: #ffffff;
+          background: linear-gradient(135deg, #22c55e 0%, #0d421d 100%);
+          box-shadow: 0 10px 30px rgba(0, 0, 0, 0.6);
+          border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        .downloaded-info {
+          position: relative;
+          display: flex;
+          flex-direction: column;
           gap: 6px;
-          max-width: 100%;
-        }
-        .track-title-marquee-wrapper {
+          flex: 1;
           min-width: 0;
-          max-width: fit-content;
-          flex-shrink: 1;
         }
-        .track-downloaded-badge {
+
+        .downloaded-label {
+          font-size: 11px;
+          font-weight: 800;
+          letter-spacing: 1.2px;
+          text-transform: uppercase;
           color: #22c55e;
+        }
+
+        .downloaded-title {
+          margin: 0;
+          font-size: 2.4rem;
+          font-weight: 900;
+          letter-spacing: -0.5px;
+          line-height: 1.1;
+          color: #ffffff;
+        }
+
+        .downloaded-stats {
+          margin: 2px 0 12px 0;
+          font-size: 13px;
+          font-weight: 500;
+          color: #aaaaaa;
+        }
+
+        .downloaded-play {
+          position: relative;
           display: inline-flex;
           align-items: center;
-          flex-shrink: 0;
+          gap: 8px;
+          padding: 11px 24px;
+          border: none;
+          border-radius: 999px;
+          background: #22c55e;
+          color: #ffffff;
+          font-weight: 700;
+          font-size: 14px;
+          cursor: pointer;
+          transition: transform 0.15s, background-color 0.15s;
         }
-        .track-name { font-weight: 600; font-size: 14.25px; }
-        .track-artist { font-size: 12px; opacity: 0.5; margin-top: 2px; }
 
-        .track-only-fav { display: flex; align-items: center; justify-content: flex-end; }
-        .fav-action { opacity: 0.8; transition: all 0.2s; background: none; border: none; cursor: pointer; color: #555; padding: 10px; }
-        .fav-action:hover, .fav-action.active-heart { opacity: 1; transform: scale(1.1); }
-        .fav-action.active-heart { color: #f43f5e; }
+        .downloaded-play:hover {
+          background: #16a34a;
+          transform: scale(1.02);
+        }
+
+        .downloaded-play:active {
+          transform: scale(0.96);
+        }
+
+        .downloaded-play:disabled {
+          opacity: 0.4;
+          cursor: default;
+          transform: none;
+        }
+
+        .tracks-list {
+          display: flex;
+          flex-direction: column;
+          gap: 4px;
+        }
 
         .empty-state {
-          display: flex; flex-direction: column; align-items: center; justify-content: center;
-          padding: 80px 0; color: #71717a; gap: 20px; text-align: center;
+          display: flex;
+          flex-direction: column;
+          align-items: center;
+          justify-content: center;
+          padding: 80px 0;
+          color: #717171;
+          gap: 16px;
+          text-align: center;
         }
-        .empty-state h3 { color: white; font-size: 24px; font-weight: 800; }
-        .empty-state p { max-width: 300px; line-height: 1.5; font-size: 14px; }
+
+        .empty-icon-circle {
+          width: 80px;
+          height: 80px;
+          border-radius: 50%;
+          background: rgba(34, 197, 94, 0.1);
+          border: 1px solid rgba(34, 197, 94, 0.2);
+          display: flex;
+          align-items: center;
+          justify-content: center;
+        }
+
+        .empty-state h3 {
+          color: #ffffff;
+          font-size: 24px;
+          font-weight: 800;
+          margin: 0;
+        }
+
+        .empty-state p {
+          max-width: 360px;
+          line-height: 1.5;
+          font-size: 14px;
+          margin: 0;
+          color: #aaaaaa;
+        }
 
         @media (max-width: 768px) {
-          .downloaded-page { padding: 12px 0 20px; }
-          .page-header { flex-direction: row; align-items: center; text-align: left; gap: 12px; margin-top: 20px; margin-bottom: 24px; position: relative; }
-          .icon-large { width: 80px; height: 80px; border-radius: 12px; }
-          .title { font-size: 20px; font-weight: 950; letter-spacing: -0.5px; }
-          .head-content { gap: 1px; min-width: 0; }
-          .head-content .label { font-size: 8px; }
-          .head-content .stats { font-size: 10px; }
-          .header-actions { padding-bottom: 0; margin-left: 10px; }
-          .play-btn-large { width: 44px; height: 44px; }
-          .play-btn-large svg { width: 18px; height: 18px; }
+          .downloaded-page {
+            padding: 12px 16px 120px 16px;
+          }
+          .downloaded-hero {
+            gap: 16px;
+            margin-bottom: 20px;
+          }
+          .downloaded-cover {
+            width: 110px;
+            height: 110px;
+            border-radius: 6px;
+          }
+          .downloaded-cover :global(svg) {
+            width: 32px;
+            height: 32px;
+          }
+          .downloaded-title {
+            font-size: 1.6rem;
+          }
+          .downloaded-stats {
+            font-size: 12px;
+          }
+          .downloaded-play {
+            padding: 9px 18px;
+            font-size: 13px;
+          }
         }
       `}</style>
     </div>

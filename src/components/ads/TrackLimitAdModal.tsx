@@ -154,7 +154,7 @@ const AdBreak: React.FC<{ onClose: () => void }> = ({ onClose }) => {
           <div className="track-ad-premium-cta" onClick={handleOpenSubscription}>
             <div className="cta-left">
               <div className="cta-icon">
-                <Sparkles size={18} className="text-emerald" />
+                <Sparkles size={18} className="text-red" />
               </div>
               <div className="cta-text">
                 <strong>Ad-Free Premium</strong>
@@ -175,7 +175,7 @@ const AdBreak: React.FC<{ onClose: () => void }> = ({ onClose }) => {
         .track-ad-modal-overlay {
           position: fixed;
           inset: 0;
-          background: rgba(0, 0, 0, 0.88);
+          background: rgba(0, 0, 0, 0.75);
           backdrop-filter: blur(12px);
           display: flex;
           align-items: center;
@@ -184,47 +184,18 @@ const AdBreak: React.FC<{ onClose: () => void }> = ({ onClose }) => {
           padding: 16px;
         }
 
-        .track-ad-fullscreen {
-          position: fixed;
-          inset: 0;
-          z-index: 10000;
-          display: flex;
-          flex-direction: column;
-          background: #000;
-          padding: max(12px, env(safe-area-inset-top)) 12px max(12px, env(safe-area-inset-bottom));
-          gap: 12px;
-        }
-        .track-ad-top--bar {
-          flex-shrink: 0;
-          min-height: 40px;
-        }
-        .track-ad-fullscreen-slot {
-          flex: 1;
-          width: 100%;
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          overflow: hidden;
-          border-radius: 12px;
-          background: #0b0b0c;
-        }
-
         .track-ad-card {
-          background: #121214;
-          border: 1px solid rgba(255, 255, 255, 0.12);
+          background: #212121;
+          border: 1px solid rgba(255, 255, 255, 0.1);
           width: 100%;
           max-width: 420px;
-          border-radius: 24px;
+          border-radius: 16px;
           padding: 24px;
           display: flex;
           flex-direction: column;
           gap: 16px;
           color: white;
-          box-shadow: 0 30px 70px rgba(0, 0, 0, 0.95);
-        }
-        .track-ad-card--ad {
-          max-width: 520px;
-          padding: 16px;
+          box-shadow: 0 16px 40px rgba(0, 0, 0, 0.85);
         }
 
         .track-ad-top {
@@ -240,37 +211,29 @@ const AdBreak: React.FC<{ onClose: () => void }> = ({ onClose }) => {
           font-size: 0.72rem;
           text-transform: uppercase;
           letter-spacing: 0.5px;
-          color: #a1a1aa;
-          background: rgba(255, 255, 255, 0.05);
+          color: rgba(255, 255, 255, 0.6);
+          background: #272727;
           padding: 4px 10px;
-          border-radius: 12px;
+          border-radius: 10px;
           border: 1px solid rgba(255, 255, 255, 0.08);
-        }
-
-        .track-ad-timer {
-          font-size: 0.8rem;
-          color: #a1a1aa;
-          font-weight: 600;
-          white-space: nowrap;
         }
 
         .track-ad-skip-btn {
           display: inline-flex;
           align-items: center;
-          gap: 4px;
-          background: #10b981;
-          color: black;
+          justify-content: center;
+          background: rgba(255, 255, 255, 0.08);
+          color: rgba(255, 255, 255, 0.6);
           border: none;
-          font-weight: 700;
-          font-size: 0.85rem;
-          padding: 6px 14px;
-          border-radius: 16px;
+          width: 32px;
+          height: 32px;
+          border-radius: 50%;
           cursor: pointer;
           transition: all 0.15s;
         }
         .track-ad-skip-btn:hover {
-          background: #34d399;
-          transform: scale(1.02);
+          background: rgba(255, 255, 255, 0.16);
+          color: #ffffff;
         }
 
         .track-ad-heading {
@@ -284,23 +247,13 @@ const AdBreak: React.FC<{ onClose: () => void }> = ({ onClose }) => {
           margin: 0;
           font-size: 1.25rem;
           font-weight: 700;
+          color: #ffffff;
         }
         .track-ad-heading p {
           margin: 0;
           font-size: 0.88rem;
           line-height: 1.45;
-          color: #a1a1aa;
-        }
-
-        .track-ad-banner-box {
-          width: 100%;
-          min-height: 250px;
-          background: rgba(0, 0, 0, 0.3);
-          border-radius: 16px;
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          overflow: hidden;
+          color: rgba(255, 255, 255, 0.7);
         }
 
         .track-ad-premium-cta {
@@ -309,15 +262,15 @@ const AdBreak: React.FC<{ onClose: () => void }> = ({ onClose }) => {
           justify-content: space-between;
           gap: 12px;
           padding: 12px 14px;
-          background: linear-gradient(135deg, rgba(16, 185, 129, 0.15), rgba(16, 185, 129, 0.05));
-          border: 1px solid rgba(16, 185, 129, 0.3);
-          border-radius: 16px;
+          background: rgba(255, 0, 51, 0.08);
+          border: 1px solid rgba(255, 0, 51, 0.3);
+          border-radius: 14px;
           cursor: pointer;
           transition: all 0.2s;
         }
         .track-ad-premium-cta:hover {
-          border-color: rgba(16, 185, 129, 0.6);
-          background: linear-gradient(135deg, rgba(16, 185, 129, 0.22), rgba(16, 185, 129, 0.08));
+          border-color: #ff0033;
+          background: rgba(255, 0, 51, 0.15);
         }
 
         .cta-left {
@@ -327,13 +280,14 @@ const AdBreak: React.FC<{ onClose: () => void }> = ({ onClose }) => {
           text-align: left;
         }
         .cta-icon {
-          width: 32px;
-          height: 32px;
+          width: 34px;
+          height: 34px;
           border-radius: 50%;
-          background: rgba(16, 185, 129, 0.2);
+          background: rgba(255, 0, 51, 0.15);
           display: flex;
           align-items: center;
           justify-content: center;
+          color: #ff0033;
           flex-shrink: 0;
         }
         .cta-text {
@@ -346,17 +300,17 @@ const AdBreak: React.FC<{ onClose: () => void }> = ({ onClose }) => {
         }
         .cta-text span {
           font-size: 0.75rem;
-          color: #10b981;
+          color: #ff0033;
         }
 
         .cta-btn {
-          background: #10b981;
-          color: black;
+          background: #ff0033;
+          color: #ffffff;
           font-weight: 700;
           font-size: 0.82rem;
           border: none;
-          padding: 8px 14px;
-          border-radius: 14px;
+          padding: 8px 16px;
+          border-radius: 20px;
           cursor: pointer;
           flex-shrink: 0;
         }
@@ -367,18 +321,18 @@ const AdBreak: React.FC<{ onClose: () => void }> = ({ onClose }) => {
           justify-content: center;
           gap: 8px;
           width: 100%;
-          background: rgba(255, 255, 255, 0.06);
+          background: rgba(255, 255, 255, 0.08);
           color: white;
-          border: 1px solid rgba(255, 255, 255, 0.12);
+          border: none;
           font-weight: 600;
           font-size: 0.9rem;
           padding: 12px 16px;
-          border-radius: 16px;
+          border-radius: 20px;
           cursor: pointer;
           transition: background 0.15s;
         }
         .track-ad-continue-btn:hover {
-          background: rgba(255, 255, 255, 0.12);
+          background: rgba(255, 255, 255, 0.15);
         }
       `}</style>
     </>

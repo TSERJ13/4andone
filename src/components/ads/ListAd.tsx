@@ -14,7 +14,7 @@ import { recordAdEvent } from '@/lib/adEvents';
 
 // "სიის რეკლამა" (Responsive) — its own unit so Reports show list revenue separately.
 const LIST_AD_SLOT = process.env.NEXT_PUBLIC_ADSENSE_LIST_SLOT || '4624552899';
-export const LIST_AD_EVERY = 3; // every 3rd started track gets the ad under it
+export const LIST_AD_EVERY = 1; // the ad moves under every started track
 const PLAY_COUNT_KEY = '4andone-list-ad-plays';
 
 // Tiny shared store: which track the ad sits under.
@@ -87,7 +87,9 @@ export const ListAd: React.FC = () => {
       <AdBanner
         slot={LIST_AD_SLOT}
         responsive
-        height={100}
+        // Fixed 100px-tall slot: on phones a responsive "auto" unit picked a big
+        // 300×250 box that broke the track list. 100px → a slim banner.
+        fillHeight="100px"
         onStatusChange={(s) => {
           recordAdEvent('list', s === 'filled' ? 'filled' : 'unfilled');
           if (s === 'unfilled') logAdEvent(LIST_AD_SLOT, 'no Google ad → Premium card');

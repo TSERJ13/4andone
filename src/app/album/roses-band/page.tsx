@@ -543,19 +543,24 @@ export default function RosesBandPage() {
         }
 
         .goc-cover-box {
-          width: 240px;
-          height: 140px;
+          width: 180px;
+          height: 180px;
+          aspect-ratio: 1 / 1;
           border-radius: 16px;
           overflow: hidden;
           flex-shrink: 0;
           box-shadow: 0 10px 25px rgba(0, 0, 0, 0.6), 0 0 20px rgba(34, 197, 94, 0.3);
           border: 1px solid rgba(255, 255, 255, 0.15);
+          background: rgba(0, 0, 0, 0.4);
+          display: flex;
+          align-items: center;
+          justify-content: center;
         }
 
         .goc-cover-img {
           width: 100%;
           height: 100%;
-          object-fit: cover;
+          object-fit: contain;
           object-position: center;
         }
 

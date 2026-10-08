@@ -1952,3 +1952,34 @@
   }
 }
 
+/* GLOBAL ALBUM HERO COVER - UNCROPPED FULL COVER (1:1 ASPECT RATIO) */
+.goc-cover-box {
+  width: 180px !important;
+  height: 180px !important;
+  aspect-ratio: 1 / 1 !important;
+  border-radius: 16px !important;
+  overflow: hidden !important;
+  flex-shrink: 0 !important;
+  border: 1px solid rgba(255, 255, 255, 0.15) !important;
+  background: rgba(0, 0, 0, 0.5) !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+}
+
+.goc-cover-img {
+  width: 100% !important;
+  height: 100% !important;
+  object-fit: contain !important;
+  object-position: center !important;
+}
+
+@media (max-width: 768px) {
+  .goc-cover-box {
+    width: 160px !important;
+    height: 160px !important;
+    margin: 0 auto !important;
+  }
+}
+
+

@@ -1,9 +1,23 @@
 "use client";
 
 import React, { useState, useRef, useEffect } from 'react';
-import { User, LogOut, ShieldCheck, Sparkles, Crown } from 'lucide-react';
+import Link from 'next/link';
+import { 
+  User, 
+  LogOut, 
+  Sparkles, 
+  Crown, 
+  Users, 
+  History, 
+  Settings, 
+  ShieldCheck, 
+  HelpCircle, 
+  MessageSquare, 
+  ChevronRight,
+  Upload,
+  LogIn
+} from 'lucide-react';
 import { useAuth } from '@/context/AuthContext';
-import { AuthModal } from '@/components/auth/AuthModal';
 
 export const UserBadge: React.FC<{ textColor?: string }> = ({ textColor = 'white' }) => {
   const { user, logout, isAuthenticated, setIsAuthModalOpen, isPremium, setIsSubscriptionModalOpen } = useAuth();
@@ -26,188 +40,342 @@ export const UserBadge: React.FC<{ textColor?: string }> = ({ textColor = 'white
   }, [showPopup]);
 
   return (
-    <div className="user-badge-wrapper">
+    <div className="yt-user-menu-wrapper" ref={popupRef}>
       {!isAuthenticated ? (
-        <>
-          <div className="login-trigger" onClick={() => setIsAuthModalOpen(true)}>
-            <div className="silhouette-wrapper glass">
-              <User size={20} />
-            </div>
+        <button 
+          type="button" 
+          className="yt-signin-btn" 
+          onClick={() => setIsAuthModalOpen(true)}
+        >
+          <div className="yt-signin-icon">
+            <User size={18} />
           </div>
-        </>
+          <span>Sign in</span>
+        </button>
       ) : (
-        <div className="user-profile-trigger" onClick={() => setShowPopup(!showPopup)}>
+        <div className="yt-profile-trigger" onClick={() => setShowPopup(!showPopup)}>
           {user?.photo_url ? (
-            <img src={user.photo_url} alt="Profile" className="profile-img shadow-xl" />
+            <img src={user.photo_url} alt="Profile" className="yt-avatar-img" />
           ) : (
-            <div className="profile-img-placeholder"><User size={20} /></div>
-          )}
-          
-          {showPopup && (
-            <div className="user-popup glass animate-in-popup" ref={popupRef}>
-              <div className="popup-header">
-                <div className="user-info">
-                  <p className="user-name">{user?.first_name} {user?.last_name}</p>
-                  <p className="user-meta">@{user?.username || 'user'}</p>
-                </div>
-                <ShieldCheck size={20} className="text-primary" />
-              </div>
-              <div className="popup-actions">
-                {isPremium ? (
-                  <div className="premium-badge-tag">
-                    <Crown size={14} className="text-emerald" />
-                    <span>Premium Member</span>
-                  </div>
-                ) : (
-                  <button 
-                    className="upgrade-btn-popup"
-                    onClick={() => {
-                      setShowPopup(false);
-                      setIsSubscriptionModalOpen(true);
-                    }}
-                  >
-                    <Sparkles size={15} />
-                    <span>Ad-Free Premium</span>
-                  </button>
-                )}
-                <p className="sync-status">✓ Cloud Synced</p>
-                <button className="logout-btn" onClick={logout}>
-                  <LogOut size={16} />
-                  <span>Logout</span>
-                </button>
-              </div>
+            <div className="yt-avatar-placeholder">
+              <User size={20} />
             </div>
           )}
         </div>
       )}
 
+      {showPopup && isAuthenticated && (
+        <div className="yt-dropdown-menu animate-in-dropdown">
+          {/* Top User Info Header */}
+          <div className="yt-menu-header">
+            {user?.photo_url ? (
+              <img src={user.photo_url} alt="Profile" className="yt-menu-avatar" />
+            ) : (
+              <div className="yt-menu-avatar-placeholder">
+                <User size={22} />
+              </div>
+            )}
+            <div className="yt-menu-user-details">
+              <p className="yt-menu-user-name">
+                {user?.first_name} {user?.last_name || ''}
+              </p>
+              <p className="yt-menu-user-handle">
+                @{user?.username || 'user'}
+              </p>
+              <a 
+                href="https://t.me" 
+                target="_blank" 
+                rel="noreferrer" 
+                className="yt-menu-manage-link"
+              >
+                Manage your Telegram Account
+              </a>
+            </div>
+          </div>
+
+          <div className="yt-menu-divider" />
+
+          {/* Section 1: Core Account Actions */}
+          <div className="yt-menu-section">
+            <Link 
+              href="/library" 
+              className="yt-menu-item"
+              onClick={() => setShowPopup(false)}
+            >
+              <User size={20} className="yt-menu-icon" />
+              <span>Your profile</span>
+            </Link>
+
+            <button 
+              type="button"
+              className="yt-menu-item"
+              onClick={() => {
+                setShowPopup(false);
+                setIsSubscriptionModalOpen(true);
+              }}
+            >
+              {isPremium ? (
+                <>
+                  <Crown size={20} className="yt-menu-icon text-amber-400" />
+                  <span>Premium Member</span>
+                </>
+              ) : (
+                <>
+                  <Sparkles size={20} className="yt-menu-icon text-primary" />
+                  <span>Get 4and.one Premium</span>
+                </>
+              )}
+            </button>
+
+            <button 
+              type="button"
+              className="yt-menu-item"
+              onClick={() => {
+                setShowPopup(false);
+                setIsAuthModalOpen(true);
+              }}
+            >
+              <Users size={20} className="yt-menu-icon" />
+              <span style={{ flex: 1, textAlign: 'left' }}>Switch account</span>
+              <ChevronRight size={16} className="yt-menu-arrow" />
+            </button>
+
+            <button 
+              type="button"
+              className="yt-menu-item"
+              onClick={() => {
+                setShowPopup(false);
+                logout();
+              }}
+            >
+              <LogOut size={20} className="yt-menu-icon" />
+              <span>Sign out</span>
+            </button>
+          </div>
+
+          <div className="yt-menu-divider" />
+
+          {/* Section 2: History & Preferences */}
+          <div className="yt-menu-section">
+            <Link 
+              href="/library/favorites" 
+              className="yt-menu-item"
+              onClick={() => setShowPopup(false)}
+            >
+              <History size={20} className="yt-menu-icon" />
+              <span>History</span>
+            </Link>
+
+            <Link 
+              href="/library/finals" 
+              className="yt-menu-item"
+              onClick={() => setShowPopup(false)}
+            >
+              <Settings size={20} className="yt-menu-icon" />
+              <span>Settings</span>
+            </Link>
+
+            <Link 
+              href="/learn-final-mode" 
+              className="yt-menu-item"
+              onClick={() => setShowPopup(false)}
+            >
+              <HelpCircle size={20} className="yt-menu-icon" />
+              <span>Help</span>
+            </Link>
+
+            <a 
+              href="mailto:support@4and.one" 
+              className="yt-menu-item"
+              onClick={() => setShowPopup(false)}
+            >
+              <MessageSquare size={20} className="yt-menu-icon" />
+              <span>Send feedback</span>
+            </a>
+          </div>
+        </div>
+      )}
+
       <style jsx>{`
-        .user-badge-wrapper {
+        .yt-user-menu-wrapper {
           position: relative;
-          z-index: 100;
+          z-index: 500;
         }
 
-        .login-trigger {
-          position: relative;
+        .yt-signin-btn {
+          display: flex;
+          align-items: center;
+          gap: 8px;
+          padding: 6px 14px;
+          border-radius: 18px;
+          background: transparent;
+          border: 1px solid rgba(62, 166, 255, 0.6);
+          color: #3ea6ff;
+          font-size: 14px;
+          font-weight: 700;
           cursor: pointer;
+          transition: all 0.2s ease;
         }
 
-        .silhouette-wrapper {
+        .yt-signin-btn:hover {
+          background: rgba(62, 166, 255, 0.12);
+          border-color: #3ea6ff;
+        }
+
+        .yt-signin-icon {
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          color: #3ea6ff;
+        }
+
+        .yt-profile-trigger {
+          cursor: pointer;
+          display: flex;
+          align-items: center;
+        }
+
+        .yt-avatar-img, .yt-avatar-placeholder {
+          width: 34px;
+          height: 34px;
+          border-radius: 50%;
+          transition: opacity 0.2s;
+        }
+
+        .yt-avatar-img {
+          object-fit: cover;
+        }
+
+        .yt-avatar-placeholder {
+          background: #272727;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          color: #ffffff;
+        }
+
+        .yt-profile-trigger:hover .yt-avatar-img,
+        .yt-profile-trigger:hover .yt-avatar-placeholder {
+          opacity: 0.85;
+        }
+
+        .yt-dropdown-menu {
+          position: absolute;
+          top: calc(100% + 8px);
+          right: 0;
+          width: 300px;
+          background: #212121;
+          border-radius: 12px;
+          border: 1px solid rgba(255, 255, 255, 0.1);
+          box-shadow: 0 16px 40px rgba(0, 0, 0, 0.85);
+          padding: 12px 0;
+          color: #ffffff;
+          z-index: 1000;
+        }
+
+        .yt-menu-header {
+          display: flex;
+          gap: 14px;
+          padding: 12px 16px 14px 16px;
+          align-items: flex-start;
+        }
+
+        .yt-menu-avatar, .yt-menu-avatar-placeholder {
           width: 40px;
           height: 40px;
           border-radius: 50%;
+          flex-shrink: 0;
+        }
+
+        .yt-menu-avatar-placeholder {
+          background: #333333;
           display: flex;
           align-items: center;
           justify-content: center;
-          opacity: 0.6;
-          transition: all 0.2s;
-        }
-        .silhouette-wrapper:hover { opacity: 1; transform: scale(1.05); }
-
-        .profile-img, .profile-img-placeholder {
-          width: 44px;
-          height: 44px;
-          border-radius: 50%;
-          cursor: pointer;
-          border: 2px solid rgba(255,255,255,0.1);
-          transition: all 0.2s;
-        }
-        .profile-img:hover { border-color: var(--primary); transform: scale(1.05); }
-        .profile-img-placeholder { 
-          background: #1a1a1a; display: flex; align-items: center; justify-content: center;
+          color: #aaaaaa;
         }
 
-        .user-popup {
-          position: absolute;
-          top: calc(100% + 12px);
-          right: 0;
-          width: 280px;
-          padding: 32px 24px;
-          border-radius: 24px;
+        .yt-menu-user-details {
           display: flex;
           flex-direction: column;
-          gap: 20px;
-          background: #0d0d0d;
-          box-shadow: 0 40px 100px rgba(0,0,0,0.9), 0 0 0 1px rgba(255,255,255,0.1);
-          color: white;
-          z-index: 2000;
+          gap: 2px;
+          overflow: hidden;
         }
-        .popup-header { display: flex; justify-content: space-between; align-items: center; }
-        .user-name { font-weight: 900; font-size: 16px; margin-bottom: 2px; }
-        .user-meta { font-size: 12px; opacity: 0.6; font-weight: 600; }
 
-        .popup-actions { display: flex; flex-direction: column; gap: 12px; }
-        .premium-badge-tag {
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          gap: 6px;
-          background: rgba(16, 185, 129, 0.12);
-          border: 1px solid rgba(16, 185, 129, 0.3);
-          color: #10b981;
-          font-size: 12px;
+        .yt-menu-user-name {
+          font-size: 15px;
           font-weight: 700;
-          letter-spacing: 0.3px;
-          padding: 8px 12px;
-          border-radius: 12px;
-          text-align: center;
+          color: #ffffff;
+          margin: 0;
+          white-space: nowrap;
+          overflow: hidden;
+          text-overflow: ellipsis;
         }
-        .upgrade-btn-popup {
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          gap: 8px;
-          background: #10b981;
-          border: none;
-          color: #000;
-          font-weight: 700;
+
+        .yt-menu-user-handle {
           font-size: 13px;
-          letter-spacing: -0.2px;
-          padding: 10px 16px;
-          border-radius: 12px;
-          cursor: pointer;
-          transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+          color: rgba(255, 255, 255, 0.6);
+          margin: 0 0 4px 0;
         }
-        .upgrade-btn-popup:hover {
-          background: #34d399;
-          transform: translateY(-1px);
-          box-shadow: 0 4px 14px rgba(16, 185, 129, 0.35);
-        }
-        .sync-status { font-size: 11px; font-weight: 700; color: #1db954; opacity: 0.9; }
-        .logout-btn {
-          display: flex; align-items: center; justify-content: center; gap: 10px;
-          padding: 12px; border-radius: 14px; background: rgba(255, 75, 43, 0.1);
-          color: #ff4b2b; border: 1px solid rgba(255, 75, 43, 0.2); 
-          font-weight: 800; font-size: 13px; cursor: pointer;
-          transition: all 0.2s;
-        }
-        .logout-btn:hover { background: rgba(255, 75, 43, 0.2); transform: scale(1.02); }
 
-        @keyframes popupFade { from { opacity: 0; transform: scale(0.95) translateY(10px); } to { opacity: 1; transform: scale(1) translateY(0); } }
-        .animate-in-popup { animation: popupFade 0.3s cubic-bezier(0.19, 1, 0.22, 1); }
+        .yt-menu-manage-link {
+          font-size: 13px;
+          color: #3ea6ff;
+          text-decoration: none;
+          font-weight: 500;
+        }
+        .yt-menu-manage-link:hover {
+          text-decoration: underline;
+        }
 
-        @media (max-width: 768px) {
-          .user-popup {
-            position: fixed;
-            top: 50%;
-            left: 50%;
-            transform: translate(-50%, -50%);
-            width: 90%;
-            max-width: 300px;
-            background: #0a0a0a;
-            backdrop-filter: none;
-            padding: 32px 20px;
-            box-shadow: 0 0 0 100vh rgba(0,0,0,0.85), 0 40px 100px rgba(0,0,0,1);
-            border: 1px solid rgba(255,255,255,0.15);
-          }
-          .logout-btn {
-            background: #ff4b2b;
-            color: white;
-            border: none;
-            box-shadow: 0 10px 20px rgba(255, 75, 43, 0.2);
-          }
-          @keyframes popupFadeMobile { from { opacity: 0; transform: translate(-50%, -40%) scale(0.9); } to { opacity: 1; transform: translate(-50%, -50%) scale(1); } }
-          .animate-in-popup { animation: popupFadeMobile 0.4s cubic-bezier(0.19, 1, 0.22, 1); }
+        .yt-menu-divider {
+          height: 1px;
+          background: rgba(255, 255, 255, 0.1);
+          margin: 4px 0;
+        }
+
+        .yt-menu-section {
+          display: flex;
+          flex-direction: column;
+        }
+
+        :global(.yt-menu-item) {
+          display: flex !important;
+          align-items: center !important;
+          gap: 16px !important;
+          padding: 10px 16px !important;
+          font-size: 14px !important;
+          font-weight: 500 !important;
+          color: #ffffff !important;
+          background: none !important;
+          border: none !important;
+          text-decoration: none !important;
+          cursor: pointer !important;
+          width: 100% !important;
+          text-align: left !important;
+          transition: background-color 0.15s ease !important;
+        }
+
+        :global(.yt-menu-item:hover) {
+          background: rgba(255, 255, 255, 0.08) !important;
+        }
+
+        :global(.yt-menu-icon) {
+          color: rgba(255, 255, 255, 0.7);
+          flex-shrink: 0;
+        }
+
+        :global(.yt-menu-arrow) {
+          color: rgba(255, 255, 255, 0.4);
+        }
+
+        @keyframes dropdownFade {
+          from { opacity: 0; transform: translateY(-8px); }
+          to { opacity: 1; transform: translateY(0); }
+        }
+
+        .animate-in-dropdown {
+          animation: dropdownFade 0.2s cubic-bezier(0.19, 1, 0.22, 1);
         }
       `}</style>
     </div>

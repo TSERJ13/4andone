@@ -150,24 +150,6 @@ export default function MobileFullPlayer({ isOpen, onClose }: MobileFullPlayerPr
           <ChevronDown size={24} />
         </button>
 
-        {/* Audio / Video Switcher Pill */}
-        <div className="yt-mode-switcher-pill">
-          <button
-            type="button"
-            className={`yt-mode-btn ${mode === 'audio' ? 'active' : ''}`}
-            onClick={() => setMode('audio')}
-          >
-            <Headphones size={14} />
-          </button>
-          <button
-            type="button"
-            className={`yt-mode-btn ${mode === 'video' ? 'active' : ''}`}
-            onClick={() => setMode('video')}
-          >
-            <Video size={14} />
-          </button>
-        </div>
-
         {/* Top Right 3-Dots Context Menu Button */}
         <div style={{ position: 'relative' }} ref={menuRef}>
           <button

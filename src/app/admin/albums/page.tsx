@@ -214,7 +214,7 @@ export default function AdminAlbumsPage() {
       const tArtist = (t.artist || '').toLowerCase();
       const hasTag = t.tags?.some(tag => {
         const l = tag.toLowerCase();
-        return albumTags.includes(l) || l.includes(albumSlug) || albumTitle.includes(l);
+        return albumTags.includes(l) || l.includes(albumSlug) || l === albumTitle;
       });
       return tAlbum.includes(albumSlug) || tAlbum.includes(albumTitle) || tArtist.includes(albumTitle) || hasTag;
     }).length;

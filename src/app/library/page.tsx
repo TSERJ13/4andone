@@ -111,12 +111,9 @@ export default function LibraryPage() {
   const likedTracksCount = tracks.filter(t => t.isFavorite && !t.tags?.some(tag => tag.toLowerCase() === 'closed' || tag === 'დახურული')).length;
 
   // Combine default static albums with DB albums
-  const allAlbumsMap = new Map<string, Album>();
-  DEFAULT_ALBUMS.forEach(a => allAlbumsMap.set(a.slug, a));
-  if (dbAlbums && dbAlbums.length > 0) {
-    dbAlbums.forEach(a => allAlbumsMap.set(a.slug, a));
-  }
-  const allAlbums: Album[] = Array.from(allAlbumsMap.values());
+  // The live list (/api/albums) already includes the built-in albums — minus
+  // the deleted ones — so DEFAULT_ALBUMS is only the offline fallback.
+  const allAlbums: Album[] = (dbAlbums && dbAlbums.length > 0 ? dbAlbums : DEFAULT_ALBUMS);
 
   // Unique artists for Artists view
   const artistList = allAlbums.map(album => ({

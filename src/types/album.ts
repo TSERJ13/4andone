@@ -178,7 +178,7 @@ export const DEFAULT_ALBUMS: Album[] = [
     gradient: 'linear-gradient(90deg, #a855f7, #7e22ce)',
     program: 'Both',
     allowedStyles: ['Samba', 'Cha-Cha-Cha', 'Rumba', 'Paso Doble', 'Jive', 'Slow Waltz', 'Tango', 'Viennese Waltz', 'Slow Foxtrot', 'Quickstep'],
-    tags: ['empress orchestra', 'empress', 'blackpool', 'empress orchestra big band'],
+    tags: ['empress orchestra', 'the empress orchestra', 'empress orchestra big band'],
     orderIndex: 8,
     isPublished: true,
   },
@@ -214,7 +214,8 @@ export const DEFAULT_ALBUMS: Album[] = [
     gradient: 'linear-gradient(90deg, #10b981, #059669)',
     program: 'Both',
     allowedStyles: ['Samba', 'Cha-Cha-Cha', 'Rumba', 'Paso Doble', 'Jive', 'Slow Waltz', 'Tango', 'Viennese Waltz', 'Slow Foxtrot', 'Quickstep'],
-    tags: ['4andone mix', '4andone', '4and.one', 'studio mix', '4andone studio', 'mix'],
+    // No generic tags like 'mix' — 200+ tracks of every band carry it
+    tags: ['4andone mix', '4and.one mix'],
     orderIndex: 10,
     isPublished: true,
   },

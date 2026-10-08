@@ -80,8 +80,10 @@ export default function DynamicAlbumPage() {
       const tAlbum = (t.album || '').toLowerCase();
       const tArtist = (t.artist || '').toLowerCase();
       const hasTag = t.tags?.some(tag => {
-        const l = tag.toLowerCase();
-        return albumTags.includes(l) || l.includes(albumSlug) || albumTitle.includes(l);
+        const l = tag.toLowerCase().trim();
+        // Whole-tag matches only: "title contains the tag" let a generic tag
+        // like "mix" (200+ tracks) pull every band into "4ANDONE Mix".
+        return albumTags.includes(l) || l.includes(albumSlug) || l === albumTitle;
       });
 
       return (

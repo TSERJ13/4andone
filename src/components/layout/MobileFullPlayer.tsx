@@ -332,8 +332,8 @@ export default function MobileFullPlayer({ isOpen, onClose }: MobileFullPlayerPr
               <button
                 type="button"
                 className="yt-speed-step-btn"
-                onClick={() => handleBpmChange(-1)}
-                title="-1%"
+                onClick={() => handleBpmChange(-5)}
+                title="-5%"
               >
                 <Minus size={15} />
               </button>
@@ -351,8 +351,8 @@ export default function MobileFullPlayer({ isOpen, onClose }: MobileFullPlayerPr
               <button
                 type="button"
                 className="yt-speed-step-btn"
-                onClick={() => handleBpmChange(1)}
-                title="+1%"
+                onClick={() => handleBpmChange(5)}
+                title="+5%"
               >
                 <Plus size={15} />
               </button>

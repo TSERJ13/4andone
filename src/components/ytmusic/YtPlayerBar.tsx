@@ -341,8 +341,8 @@ export default function YtPlayerBar({ onExpandPlayer }: YtPlayerBarProps) {
                 <button
                   type="button"
                   className="yt-speed-step-btn"
-                  onClick={() => handleBpmChange(-1)}
-                  title="-1%"
+                  onClick={() => handleBpmChange(-5)}
+                  title="-5%"
                 >
                   <Minus size={15} />
                 </button>
@@ -360,8 +360,8 @@ export default function YtPlayerBar({ onExpandPlayer }: YtPlayerBarProps) {
                 <button
                   type="button"
                   className="yt-speed-step-btn"
-                  onClick={() => handleBpmChange(1)}
-                  title="+1%"
+                  onClick={() => handleBpmChange(5)}
+                  title="+5%"
                 >
                   <Plus size={15} />
                 </button>

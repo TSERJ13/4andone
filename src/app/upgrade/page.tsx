@@ -4,7 +4,7 @@ import React, { useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { PayPalScriptProvider, PayPalButtons } from '@paypal/react-paypal-js';
-import { ShieldCheck, ArrowLeft, Check, Sparkles } from 'lucide-react';
+import { ShieldCheck, ArrowLeft, Check, Play, Music2 } from 'lucide-react';
 import { useAuth } from '@/context/AuthContext';
 import { TelegramLogin } from '@/components/auth/TelegramLogin';
 
@@ -19,72 +19,81 @@ export default function UpgradePage() {
   const [showPayment, setShowPayment] = useState(false);
 
   return (
-    <div className="yt-premium-landing-page">
+    <div className="yt-prem-canvas">
+      {/* Mesh Ambient Glow Layers matching official YT Music Premium */}
+      <div className="glow-mesh glow-top-right" />
+      <div className="glow-mesh glow-top-left" />
+      <div className="glow-mesh glow-center" />
+
       {/* Top Header Bar */}
-      <header className="yt-prem-nav">
+      <header className="yt-prem-top-bar">
         <button
           type="button"
-          className="yt-prem-back-btn"
+          className="yt-prem-back-chip"
           onClick={() => router.back()}
         >
           <ArrowLeft size={18} />
           <span>Back</span>
         </button>
+
+        <div className="yt-prem-header-brand">
+          <div className="yt-prem-play-badge">
+            <Play size={14} fill="#ffffff" color="#ffffff" style={{ marginLeft: '1px' }} />
+          </div>
+          <span className="yt-prem-brand-title">4ANDONE Music</span>
+        </div>
       </header>
 
-      {/* Main Hero Container */}
-      <main className="yt-prem-hero-container">
-        {/* Ambient Glow */}
-        <div className="yt-prem-glow" />
-
-        {/* Site 4ANDONE Official Brand Logo */}
-        <div className="yt-prem-brand-header">
-          <img
-            src="/logo-square.png"
-            alt="4ANDONE Logo"
-            className="yt-prem-site-logo"
-          />
-          <span className="yt-prem-logo-text">4ANDONE MUSIC</span>
+      {/* Main Content Area */}
+      <main className="yt-prem-hero-content">
+        {/* Large Logo Badge */}
+        <div className="yt-prem-hero-logo">
+          <div className="yt-logo-glow-ring">
+            <img src="/logo-square.png" alt="4ANDONE Logo" className="yt-logo-img" />
+          </div>
+          <span className="yt-logo-subtext">4ANDONE Music</span>
         </div>
 
-        {/* Hero Title */}
-        <h1 className="yt-prem-hero-headline">
+        {/* Main Headline */}
+        <h1 className="yt-prem-title">
           Get Music Premium to listen to music ad-free, offline &amp; with your screen off
         </h1>
 
-        {/* Pricing Subtitle */}
-        <p className="yt-prem-pricing-sub">
+        {/* Pricing Text */}
+        <p className="yt-prem-subtitle">
           1-month trial for $0 • Then $1.99/month • Cancel anytime
         </p>
 
-        {/* Action Button & Payment Flow */}
-        <div className="yt-prem-cta-section">
+        {/* Action Buttons & Auth */}
+        <div className="yt-prem-buttons-wrap">
           {!isAuthenticated ? (
-            <div className="yt-prem-auth-box">
-              <p className="yt-prem-hint">Sign in with Telegram first to activate your Premium</p>
+            <div className="yt-prem-auth-pill-box">
+              <p className="yt-prem-auth-hint">Sign in with Telegram first to activate your Premium</p>
               <TelegramLogin />
             </div>
           ) : isPremium || success ? (
-            <div className="yt-prem-success-box">
-              <ShieldCheck size={56} style={{ color: '#10b981' }} />
-              <h2>You have 4and.one Premium!</h2>
-              <p>Enjoy unlimited ad-free music, offline downloads, and uninterrupted Final Mode.</p>
-              <Link href="/library" className="yt-prem-main-btn">
+            <div className="yt-prem-active-box">
+              <ShieldCheck size={52} color="#10b981" />
+              <h2 className="yt-active-title">You have 4ANDONE Premium!</h2>
+              <p className="yt-active-sub">Enjoy unlimited ad-free music, offline downloads, and uninterrupted Final Mode.</p>
+              <Link href="/library" className="yt-prem-btn-primary">
                 Listen Now
               </Link>
             </div>
           ) : !showPayment ? (
-            <button
-              type="button"
-              className="yt-prem-main-btn"
-              onClick={() => setShowPayment(true)}
-            >
-              Try 1 month for $0
-            </button>
+            <div className="yt-prem-pill-stack">
+              <button
+                type="button"
+                className="yt-prem-btn-primary"
+                onClick={() => setShowPayment(true)}
+              >
+                Try 1 month for $0
+              </button>
+            </div>
           ) : (
-            <div className="yt-prem-paypal-box">
-              <p className="yt-prem-hint">Logged in as <strong>@{user?.username || user?.first_name}</strong></p>
-              {errorMsg && <div className="yt-prem-err">{errorMsg}</div>}
+            <div className="yt-prem-paypal-wrap">
+              <p className="yt-prem-auth-hint">Logged in as <strong>@{user?.username || user?.first_name}</strong></p>
+              {errorMsg && <div className="yt-prem-error">{errorMsg}</div>}
               
               <PayPalScriptProvider options={{
                 clientId: PAYPAL_CLIENT_ID,
@@ -98,7 +107,7 @@ export default function UpgradePage() {
                     color: 'gold',
                     layout: 'vertical',
                     label: 'subscribe',
-                    height: 48
+                    height: 52
                   }}
                   createSubscription={(data, actions) => {
                     return actions.subscription.create({
@@ -121,37 +130,40 @@ export default function UpgradePage() {
               </PayPalScriptProvider>
             </div>
           )}
-        </div>
 
-        {/* Disclaimer */}
-        <div className="yt-prem-secondary-links">
           <p className="yt-prem-disclaimer">
-            You'll be reminded 7 days before your trial ends. Recurring billing. <span className="yt-prem-link-span">Restrictions apply.</span>
+            You'll be reminded 7 days before your trial ends. Recurring billing. <span className="yt-prem-link">Restrictions apply.</span>
           </p>
         </div>
 
-        {/* 3 Key Features Grid */}
-        <div className="yt-prem-features-grid">
-          <div className="yt-prem-feature-card">
-            <div className="yt-prem-feature-check"><Check size={24} /></div>
-            <div>
-              <h4>Ad-free music</h4>
+        {/* Floating Feature Cards */}
+        <div className="yt-prem-features">
+          <div className="yt-prem-feature-item">
+            <div className="yt-feature-icon">
+              <Check size={22} color="#10b981" />
+            </div>
+            <div className="yt-feature-text">
+              <h3>Ad-free music</h3>
               <p>Listen to your favorite dance tracks without interruption.</p>
             </div>
           </div>
 
-          <div className="yt-prem-feature-card">
-            <div className="yt-prem-feature-check"><Check size={24} /></div>
-            <div>
-              <h4>Offline downloads</h4>
+          <div className="yt-prem-feature-item">
+            <div className="yt-feature-icon">
+              <Check size={22} color="#10b981" />
+            </div>
+            <div className="yt-feature-text">
+              <h3>Offline downloads</h3>
               <p>Download music directly to your device and practice anywhere.</p>
             </div>
           </div>
 
-          <div className="yt-prem-feature-card">
-            <div className="yt-prem-feature-check"><Check size={24} /></div>
-            <div>
-              <h4>Background play</h4>
+          <div className="yt-prem-feature-item">
+            <div className="yt-feature-icon">
+              <Check size={22} color="#10b981" />
+            </div>
+            <div className="yt-feature-text">
+              <h3>Background play</h3>
               <p>Keep the music playing with your screen locked or while using other apps.</p>
             </div>
           </div>
@@ -159,274 +171,338 @@ export default function UpgradePage() {
       </main>
 
       <style jsx>{`
-        .yt-premium-landing-page {
+        .yt-prem-canvas {
+          position: relative;
           min-height: 100vh;
           width: 100%;
-          background: linear-gradient(180deg, #0f3d2e 0%, #0a2d22 45%, #08261c 100%);
+          background: #030303;
           color: #ffffff;
+          overflow-x: hidden;
           padding-bottom: 120px;
         }
 
-        .yt-prem-nav {
-          padding: 16px 24px;
-          display: flex;
-          align-items: center;
+        /* Ambient Multi-color Mesh Gradient Glows */
+        .glow-mesh {
+          position: absolute;
+          border-radius: 50%;
+          pointer-events: none;
+          z-index: 0;
+          filter: blur(80px);
+          opacity: 0.85;
+        }
+
+        .glow-top-right {
+          top: -60px;
+          right: -10%;
+          width: 600px;
+          height: 600px;
+          background: radial-gradient(circle, rgba(236, 72, 153, 0.35) 0%, rgba(168, 85, 247, 0.25) 40%, rgba(3, 3, 3, 0) 70%);
+        }
+
+        .glow-top-left {
+          top: -40px;
+          left: -10%;
+          width: 650px;
+          height: 650px;
+          background: radial-gradient(circle, rgba(16, 185, 129, 0.4) 0%, rgba(6, 182, 212, 0.25) 45%, rgba(3, 3, 3, 0) 75%);
+        }
+
+        .glow-center {
+          top: 300px;
+          left: 50%;
+          transform: translateX(-50%);
+          width: 800px;
+          height: 500px;
+          background: radial-gradient(circle, rgba(5, 150, 105, 0.2) 0%, rgba(3, 3, 3, 0) 70%);
+        }
+
+        /* Header Bar */
+        .yt-prem-top-bar {
           position: sticky;
           top: 0;
           z-index: 50;
-          background: rgba(15, 61, 46, 0.75);
-          border-bottom: 1px solid rgba(52, 211, 153, 0.15);
+          display: flex;
+          align-items: center;
+          justify-content: space-between;
+          padding: 16px 28px;
+          background: rgba(3, 3, 3, 0.4);
           backdrop-filter: blur(16px);
           -webkit-backdrop-filter: blur(16px);
         }
 
-        .yt-prem-back-btn {
+        .yt-prem-back-chip {
           display: inline-flex;
           align-items: center;
           gap: 8px;
-          background: rgba(255, 255, 255, 0.12);
-          border: 1px solid rgba(255, 255, 255, 0.2);
+          background: rgba(255, 255, 255, 0.1);
+          border: 1px solid rgba(255, 255, 255, 0.15);
           color: #ffffff;
           font-size: 13px;
           font-weight: 600;
           padding: 8px 18px;
           border-radius: 20px;
-          text-decoration: none;
           cursor: pointer;
           transition: all 0.2s ease;
-          box-shadow: 0 4px 14px rgba(0, 0, 0, 0.25);
         }
 
-        .yt-prem-back-btn:hover {
-          background: rgba(255, 255, 255, 0.22);
-          border-color: rgba(255, 255, 255, 0.35);
+        .yt-prem-back-chip:hover {
+          background: rgba(255, 255, 255, 0.2);
           transform: translateY(-1px);
         }
 
-        .yt-prem-hero-container {
+        .yt-prem-header-brand {
+          display: flex;
+          align-items: center;
+          gap: 8px;
+        }
+
+        .yt-prem-play-badge {
+          width: 28px;
+          height: 28px;
+          border-radius: 50%;
+          background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          box-shadow: 0 2px 10px rgba(16, 185, 129, 0.4);
+        }
+
+        .yt-prem-brand-title {
+          font-size: 17px;
+          font-weight: 800;
+          letter-spacing: -0.3px;
+          color: #ffffff;
+        }
+
+        /* Hero Content */
+        .yt-prem-hero-content {
           position: relative;
+          z-index: 10;
           width: 100%;
-          max-width: 900px;
-          margin: 20px auto 0;
+          max-width: 800px;
+          margin: 40px auto 0;
+          padding: 0 24px;
           display: flex;
           flex-direction: column;
           align-items: center;
           text-align: center;
-          padding: 0 24px;
         }
 
-        .yt-prem-glow {
-          position: absolute;
-          top: -40px;
-          left: 50%;
-          transform: translateX(-50%);
-          width: 600px;
-          height: 350px;
-          background: radial-gradient(circle, rgba(52, 211, 153, 0.25) 0%, rgba(16, 185, 129, 0) 70%);
-          pointer-events: none;
-          z-index: 0;
-        }
-
-        .yt-prem-brand-header {
-          position: relative;
-          z-index: 1;
+        .yt-prem-hero-logo {
           display: flex;
           align-items: center;
           gap: 12px;
           margin-bottom: 24px;
         }
 
-        .yt-prem-site-logo {
-          width: 46px;
-          height: 46px;
-          border-radius: 12px;
-          object-fit: cover;
-          border: 1px solid rgba(52, 211, 153, 0.5);
-          box-shadow: 0 6px 20px rgba(16, 185, 129, 0.4);
+        .yt-logo-glow-ring {
+          position: relative;
+          width: 48px;
+          height: 48px;
+          border-radius: 14px;
+          overflow: hidden;
+          box-shadow: 0 8px 25px rgba(16, 185, 129, 0.4);
+          border: 1px solid rgba(255, 255, 255, 0.2);
         }
 
-        .yt-prem-logo-text {
-          font-size: 24px;
-          font-weight: 800;
+        .yt-logo-img {
+          width: 100%;
+          height: 100%;
+          object-fit: cover;
+        }
+
+        .yt-logo-subtext {
+          font-size: 26px;
+          font-weight: 900;
           letter-spacing: -0.5px;
           color: #ffffff;
         }
 
-        .yt-prem-hero-headline {
-          position: relative;
-          z-index: 1;
-          font-size: 2.5rem;
+        .yt-prem-title {
+          font-size: 2.75rem;
           font-weight: 900;
           line-height: 1.15;
-          letter-spacing: -1px;
-          max-width: 720px;
-          margin: 0 0 16px 0;
-          text-shadow: 0 2px 20px rgba(0, 0, 0, 0.3);
-        }
-
-        .yt-prem-pricing-sub {
-          position: relative;
-          z-index: 1;
-          font-size: 15px;
-          color: rgba(255, 255, 255, 0.85);
-          margin: 0 0 32px 0;
-          font-weight: 500;
-        }
-
-        .yt-prem-cta-section {
-          position: relative;
-          z-index: 1;
-          width: 100%;
-          max-width: 380px;
-          margin-bottom: 24px;
-        }
-
-        .yt-prem-main-btn {
-          width: 100%;
-          background: #10b981;
+          letter-spacing: -1.2px;
+          margin: 0 0 20px 0;
           color: #ffffff;
+          max-width: 720px;
+          text-shadow: 0 4px 30px rgba(0, 0, 0, 0.5);
+        }
+
+        .yt-prem-subtitle {
+          font-size: 16px;
+          font-weight: 500;
+          color: rgba(255, 255, 255, 0.85);
+          margin: 0 0 36px 0;
+          max-width: 600px;
+          line-height: 1.4;
+        }
+
+        /* Buttons & CTA Stack */
+        .yt-prem-buttons-wrap {
+          width: 100%;
+          max-width: 420px;
+          display: flex;
+          flex-direction: column;
+          align-items: center;
+          gap: 16px;
+          margin-bottom: 60px;
+        }
+
+        .yt-prem-pill-stack {
+          width: 100%;
+          display: flex;
+          flex-direction: column;
+          gap: 12px;
+        }
+
+        .yt-prem-btn-primary {
+          width: 100%;
+          height: 52px;
+          border-radius: 9999px;
+          background: #38bdf8;
+          color: #030303;
           font-size: 16px;
           font-weight: 700;
-          padding: 14px 36px;
-          border-radius: 28px;
           border: none;
           cursor: pointer;
-          transition: background-color 0.15s, transform 0.15s, box-shadow 0.15s;
-          box-shadow: 0 6px 24px rgba(16, 185, 129, 0.45);
+          display: flex;
+          align-items: center;
+          justify-content: center;
           text-decoration: none;
-          display: inline-block;
+          box-shadow: 0 6px 25px rgba(56, 189, 248, 0.4);
+          transition: all 0.2s ease;
         }
 
-        .yt-prem-main-btn:hover {
-          background: #059669;
-          transform: scale(1.03);
-          box-shadow: 0 8px 30px rgba(16, 185, 129, 0.65);
+        .yt-prem-btn-primary:hover {
+          background: #7dd3fc;
+          transform: scale(1.02);
+          box-shadow: 0 8px 30px rgba(56, 189, 248, 0.6);
         }
 
-        .yt-prem-auth-box, .yt-prem-paypal-box, .yt-prem-success-box {
+        .yt-prem-auth-pill-box, .yt-prem-paypal-wrap, .yt-prem-active-box {
           width: 100%;
           display: flex;
           flex-direction: column;
           align-items: center;
           gap: 16px;
-          background: rgba(255, 255, 255, 0.07);
-          border: 1px solid rgba(52, 211, 153, 0.35);
-          border-radius: 20px;
+          background: rgba(255, 255, 255, 0.05);
+          border: 1px solid rgba(255, 255, 255, 0.12);
+          border-radius: 24px;
           padding: 24px;
-          box-shadow: 0 12px 36px rgba(0, 0, 0, 0.35);
-          backdrop-filter: blur(12px);
-          -webkit-backdrop-filter: blur(12px);
+          backdrop-filter: blur(20px);
+          -webkit-backdrop-filter: blur(20px);
         }
 
-        .yt-prem-hint {
+        .yt-prem-auth-hint {
           font-size: 14px;
           color: rgba(255, 255, 255, 0.9);
           margin: 0;
         }
 
-        .yt-prem-err {
+        .yt-prem-error {
           background: rgba(255, 0, 51, 0.2);
           border: 1px solid rgba(255, 0, 51, 0.4);
           color: #ff6b6b;
           font-size: 13px;
           padding: 10px 16px;
-          border-radius: 10px;
+          border-radius: 12px;
           width: 100%;
         }
 
-        .yt-prem-secondary-links {
-          position: relative;
-          z-index: 1;
-          display: flex;
-          flex-direction: column;
-          align-items: center;
-          gap: 12px;
-          margin-bottom: 60px;
+        .yt-active-title {
+          font-size: 20px;
+          font-weight: 800;
+          margin: 0;
+        }
+        .yt-active-sub {
+          font-size: 14px;
+          color: rgba(255, 255, 255, 0.7);
+          margin: 0;
         }
 
         .yt-prem-disclaimer {
           font-size: 12px;
-          color: rgba(255, 255, 255, 0.65);
-          margin: 0;
-          max-width: 480px;
+          color: rgba(255, 255, 255, 0.55);
+          margin: 12px 0 0 0;
           line-height: 1.5;
+          max-width: 400px;
         }
 
-        .yt-prem-link-span {
-          color: #34d399;
+        .yt-prem-link {
+          color: #38bdf8;
           cursor: pointer;
           text-decoration: underline;
         }
 
-        .yt-prem-features-grid {
-          position: relative;
-          z-index: 1;
-          display: grid;
-          grid-template-columns: repeat(3, 1fr);
-          gap: 24px;
+        /* Features List */
+        .yt-prem-features {
           width: 100%;
-          max-width: 960px;
-          margin-top: 20px;
+          max-width: 720px;
+          display: flex;
+          flex-direction: column;
+          gap: 20px;
           text-align: left;
         }
 
-        .yt-prem-feature-card {
-          background: rgba(255, 255, 255, 0.06);
-          border: 1px solid rgba(52, 211, 153, 0.25);
-          border-radius: 18px;
-          padding: 24px;
+        .yt-prem-feature-item {
           display: flex;
-          gap: 16px;
           align-items: flex-start;
-          backdrop-filter: blur(10px);
-          -webkit-backdrop-filter: blur(10px);
-          transition: all 0.2s ease;
+          gap: 16px;
+          padding: 16px;
+          border-radius: 16px;
+          background: rgba(255, 255, 255, 0.03);
+          border: 1px solid rgba(255, 255, 255, 0.06);
+          backdrop-filter: blur(12px);
+          transition: background 0.2s ease;
         }
 
-        .yt-prem-feature-card:hover {
-          background: rgba(255, 255, 255, 0.09);
-          border-color: rgba(52, 211, 153, 0.45);
-          transform: translateY(-2px);
+        .yt-prem-feature-item:hover {
+          background: rgba(255, 255, 255, 0.06);
         }
 
-        .yt-prem-feature-check {
-          color: #34d399;
+        .yt-feature-icon {
+          width: 40px;
+          height: 40px;
+          border-radius: 50%;
+          background: rgba(16, 185, 129, 0.15);
+          display: flex;
+          align-items: center;
+          justify-content: center;
           flex-shrink: 0;
-          margin-top: 2px;
         }
 
-        .yt-prem-feature-card h4 {
+        .yt-feature-text h3 {
           font-size: 16px;
           font-weight: 700;
-          margin: 0 0 6px 0;
+          margin: 0 0 4px 0;
           color: #ffffff;
         }
 
-        .yt-prem-feature-card p {
-          font-size: 13px;
-          color: rgba(255, 255, 255, 0.7);
+        .yt-feature-text p {
+          font-size: 14px;
+          color: rgba(255, 255, 255, 0.65);
           margin: 0;
           line-height: 1.4;
         }
 
         @media (max-width: 768px) {
-          .yt-prem-nav {
+          .yt-prem-top-bar {
             padding: 12px 16px;
           }
-          .yt-prem-hero-headline {
-            font-size: 1.8rem;
+          .yt-prem-hero-content {
+            margin-top: 20px;
+            padding: 0 16px;
+          }
+          .yt-prem-title {
+            font-size: 1.85rem;
             letter-spacing: -0.5px;
           }
-          .yt-prem-pricing-sub {
+          .yt-prem-subtitle {
             font-size: 14px;
           }
-          .yt-prem-features-grid {
-            grid-template-columns: 1fr;
-            gap: 16px;
-          }
-          .yt-prem-hero-container {
-            margin-top: 10px;
-            padding: 0 16px;
+          .yt-prem-features {
+            gap: 12px;
           }
         }
       `}</style>

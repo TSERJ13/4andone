@@ -1812,9 +1812,10 @@
 
 .mobile-speed-card {
   position: absolute;
-  top: 38px;
-  left: 50%;
-  transform: translateX(-50%);
+  bottom: calc(100% + 10px) !important;
+  top: auto !important;
+  left: 50% !important;
+  transform: translateX(-50%) !important;
   width: 280px;
   background: #1c1c1c !important;
   border: 1px solid rgba(16, 185, 129, 0.4) !important;

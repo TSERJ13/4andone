@@ -67,7 +67,8 @@ export default function MobileFullPlayer({ isOpen, onClose }: MobileFullPlayerPr
     isPauseCountdown,
     pauseTime,
     sessionDuration,
-    stop
+    stop,
+    activeMode
   } = useAudio();
 
   const [mode, setMode] = useState<'audio' | 'video'>('audio');
@@ -109,11 +110,9 @@ export default function MobileFullPlayer({ isOpen, onClose }: MobileFullPlayerPr
   const isBpmChanged = currentBpm !== 100;
   const bpmDisplay = bpmDelta === 0 ? '0%' : (bpmDelta > 0 ? `+${bpmDelta}%` : `${bpmDelta}%`);
 
-  const trackStyle = currentTrack?.style?.toLowerCase() || '';
-  const isPasoDoble = trackStyle.includes('paso');
-  const isVW = trackStyle.includes('viennese') || (trackStyle.includes('waltz') && trackStyle.includes('v'));
-  const finalLimit = isPasoDoble ? (duration || 105) : (isVW ? 85 : 105);
-  const isFinalRedActive = isFinalMode && currentTime >= Math.max(0, finalLimit - 15);
+  // Light red tint for the whole of Final Mode. (It compared the session clock
+  // with one dance's limit, so in programs it went fully red after ~1:30.)
+  const isFinalRedActive = isFinalMode;
 
   const handleBpmChange = (delta: number) => {
     const currentVal = bpm || 100;
@@ -269,7 +268,6 @@ export default function MobileFullPlayer({ isOpen, onClose }: MobileFullPlayerPr
       <div className="yt-mobile-meta-section">
         <div className="yt-mobile-title-row">
           <h2 className="yt-mobile-track-title">{title}</h2>
-          <span className="yt-title-chevron">&gt;</span>
         </div>
         <p className="yt-mobile-track-artist">
           {artist}
@@ -313,7 +311,8 @@ export default function MobileFullPlayer({ isOpen, onClose }: MobileFullPlayerPr
               if (isFinalMode) {
                 // Ending Final Mode = the user's choice (no "Final Mode is Over" popup)
                 window.dispatchEvent(new Event(FINAL_USER_STOP_EVENT));
-                stop();
+                // A program ends completely; a single track keeps playing normally
+                if (activeMode) stop(); else toggleFinalMode();
               } else {
                 toggleFinalMode();
               }

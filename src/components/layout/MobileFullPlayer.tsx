@@ -21,7 +21,8 @@ import {
   Plus,
   Download,
   ListPlus,
-  Disc
+  Disc,
+  Trophy
 } from 'lucide-react';
 import { useAudio } from '@/components/audio/AudioProvider';
 import { useStudio } from '@/components/admin/StudioProvider';
@@ -58,7 +59,9 @@ export default function MobileFullPlayer({ isOpen, onClose }: MobileFullPlayerPr
     duration,
     seek,
     bpm,
-    setBpm
+    setBpm,
+    isFinalMode,
+    toggleFinalMode
   } = useAudio();
 
   const [mode, setMode] = useState<'audio' | 'video'>('audio');
@@ -140,7 +143,7 @@ export default function MobileFullPlayer({ isOpen, onClose }: MobileFullPlayerPr
   };
 
   return (
-    <div className="yt-mobile-full-player-overlay">
+    <div className={`yt-mobile-full-player-overlay ${isFinalMode ? 'final-mode-active' : ''}`}>
       {/* Top Bar */}
       <div className="yt-mobile-player-header">
         <button type="button" className="yt-mobile-icon-btn" onClick={onClose}>
@@ -279,7 +282,7 @@ export default function MobileFullPlayer({ isOpen, onClose }: MobileFullPlayerPr
         </p>
       </div>
 
-      {/* Action Buttons Pill Row (Like, BPM Speedometer, Save) */}
+      {/* Action Buttons Pill Row (Like, Speed, Final 1:45, Save) */}
       <div className="yt-mobile-actions-row" style={{ position: 'relative' }} ref={speedRef}>
         <button
           type="button"
@@ -294,14 +297,25 @@ export default function MobileFullPlayer({ isOpen, onClose }: MobileFullPlayerPr
           <span>{isFavorite ? 'Liked' : 'Like'}</span>
         </button>
 
-        {/* BPM Speedometer Pill Button */}
+        {/* Speedometer Pill Button */}
         <button
           type="button"
           className={`yt-action-pill ${isBpmChanged || isSpeedPopoverOpen ? 'active-speed' : ''}`}
           onClick={() => setIsSpeedPopoverOpen(!isSpeedPopoverOpen)}
         >
           <Gauge size={16} />
-          <span>{isBpmChanged ? `BPM ${bpmDisplay}` : 'BPM Speed'}</span>
+          <span>{isBpmChanged ? `Speed ${bpmDisplay}` : 'Speed'}</span>
+        </button>
+
+        {/* Final Mode Pill Button (1:45 Timer + Red Highlight) */}
+        <button
+          type="button"
+          className={`yt-action-pill ${isFinalMode ? 'active-final' : ''}`}
+          onClick={toggleFinalMode}
+          title="Final Mode (1:45 Timer)"
+        >
+          <Trophy size={16} color={isFinalMode ? '#ef4444' : 'currentColor'} />
+          <span>Final</span>
         </button>
 
         <button

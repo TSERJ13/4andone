@@ -12,7 +12,8 @@ import {
   ArrowDownToLine,
   Music2,
   Zap,
-  Info
+  Info,
+  Smartphone
 } from 'lucide-react';
 import { useStudio } from "@/components/admin/StudioProvider";
 import { useAuth } from '@/context/AuthContext';
@@ -68,6 +69,14 @@ const Sidebar = () => {
             <span>{item.label}</span>
           </Link>
         ))}
+        <button
+          className="nav-item no-bg"
+          onClick={() => window.dispatchEvent(new CustomEvent('open-pwa-install'))}
+          style={{ background: 'none', border: 'none', width: '100%', textAlign: 'left', cursor: 'pointer' }}
+        >
+          <div className="icon-box"><Smartphone size={24} className="text-purple-400" /></div>
+          <span>Install App</span>
+        </button>
       </nav>
 
       <nav className="nav-group" style={{ marginTop: '32px' }}>

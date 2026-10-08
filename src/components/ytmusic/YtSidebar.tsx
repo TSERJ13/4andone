@@ -49,6 +49,7 @@ export default function YtSidebar({ isCollapsed = false, isOpenMobile = false, o
     { label: 'Final Mode', href: '/library/finals', icon: Trophy },
     { label: 'Library', href: '/library', icon: Library },
     { label: 'Upgrade', href: '/upgrade', icon: Sparkles },
+    { label: 'Install App', href: '#install', icon: Smartphone, isInstall: true },
   ];
 
   return (
@@ -86,6 +87,23 @@ export default function YtSidebar({ isCollapsed = false, isOpenMobile = false, o
           {navItems.map((item) => {
             const Icon = item.icon;
             const isActive = pathname === item.href;
+            if (item.isInstall) {
+              return (
+                <button
+                  key={item.label}
+                  type="button"
+                  className="yt-nav-item"
+                  onClick={() => {
+                    window.dispatchEvent(new CustomEvent('open-pwa-install'));
+                    if (onCloseMobile) onCloseMobile();
+                  }}
+                  style={{ background: 'none', border: 'none', width: '100%', textAlign: 'left', cursor: 'pointer' }}
+                >
+                  <Icon size={20} className="yt-nav-icon text-purple-400" />
+                  <span className="yt-nav-label">{item.label}</span>
+                </button>
+              );
+            }
             return (
               <Link
                 key={item.label}
@@ -104,24 +122,11 @@ export default function YtSidebar({ isCollapsed = false, isOpenMobile = false, o
           <>
             <div className="yt-sidebar-divider" />
 
-            {/* New Playlist & Install App Action */}
-            <div className="yt-sidebar-action-row" style={{ display: 'flex', gap: '8px' }}>
-              <button type="button" className="yt-btn-new-playlist" onClick={handleNewPlaylist} style={{ flex: 1 }}>
+            {/* New Playlist Action */}
+            <div className="yt-sidebar-action-row">
+              <button type="button" className="yt-btn-new-playlist" onClick={handleNewPlaylist}>
                 <Plus size={18} />
                 <span>New playlist</span>
-              </button>
-              <button 
-                type="button" 
-                className="yt-btn-new-playlist" 
-                title="Add 4ANDONE to Home Screen"
-                onClick={() => {
-                  window.dispatchEvent(new CustomEvent('open-pwa-install'));
-                  if (onCloseMobile) onCloseMobile();
-                }}
-                style={{ background: 'rgba(168, 85, 247, 0.15)', border: '1px solid rgba(168, 85, 247, 0.3)', color: '#c084fc' }}
-              >
-                <Smartphone size={16} />
-                <span>App</span>
               </button>
             </div>
 

@@ -109,7 +109,7 @@ export default function PwaInstallPrompt() {
   return (
     <div className="pwa-install-overlay">
       <div className="pwa-install-card animate-slide-up">
-        <button className="pwa-close-btn" onClick={handleDismiss} title="დახურვა">
+        <button className="pwa-close-btn" onClick={handleDismiss} title="Close">
           <X size={18} />
         </button>
 
@@ -121,11 +121,11 @@ export default function PwaInstallPrompt() {
           <div className="pwa-text-box">
             <div className="pwa-badge">
               <Sparkles size={12} className="animate-spin-slow text-amber-300" />
-              <span>Web App / PWA</span>
+              <span>Official App</span>
             </div>
-            <h3 className="pwa-title">დაამატე 4ANDONE ეკრანზე</h3>
+            <h3 className="pwa-title">Install 4ANDONE App</h3>
             <p className="pwa-subtitle">
-              დააყენე აპლიკაცია სწრაფი წვდომისთვის, ოფლაინ მუსიკისთვის და სრულეკრანიანი პლეერისთვის.
+              Add 4ANDONE to your Home Screen for instant access, full screen player & offline mode.
             </p>
           </div>
         </div>
@@ -135,29 +135,29 @@ export default function PwaInstallPrompt() {
             <div className="pwa-step">
               <span className="step-num">1</span>
               <p>
-                დააჭირე გაზიარების ღილაკს <strong>Safari</strong> მენიუში:
+                Tap the <strong>Share</strong> button in Safari toolbar:
               </p>
               <Share size={20} className="text-sky-400 animate-bounce inline-block ml-1" />
             </div>
             <div className="pwa-step">
               <span className="step-num">2</span>
               <p>
-                ჩამოშალე და აირჩიე <strong>"Add to Home Screen"</strong> (მთავარ ეკრანზე დამატება):
+                Scroll and select <strong>"Add to Home Screen"</strong>:
               </p>
               <PlusSquare size={20} className="text-purple-400 inline-block ml-1" />
             </div>
             <button className="pwa-done-btn" onClick={handleDismiss}>
-              გავიგე, მადლობა
+              Got it
             </button>
           </div>
         ) : (
           <div className="pwa-actions">
             <button className="pwa-install-btn" onClick={handleInstallClick}>
               <Download size={18} />
-              <span>აპლიკაციის დაყენება</span>
+              <span>Install App</span>
             </button>
             <button className="pwa-later-btn" onClick={handleDismiss}>
-              მოგვიანებით
+              Not Now
             </button>
           </div>
         )}

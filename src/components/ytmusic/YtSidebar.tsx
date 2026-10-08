@@ -3,12 +3,14 @@
 import React from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { Home, Trophy, Library, Sparkles, Plus, Heart, Pin } from 'lucide-react';
+import { Home, Trophy, Library, Sparkles, Plus, Heart, Pin, X } from 'lucide-react';
 
 import { useAuth } from '@/context/AuthContext';
 
 interface YtSidebarProps {
   isCollapsed?: boolean;
+  isOpenMobile?: boolean;
+  onCloseMobile?: () => void;
 }
 
 const DANCE_PLAYLISTS = [
@@ -24,7 +26,7 @@ const DANCE_PLAYLISTS = [
   { slug: 'quickstep', name: 'Quickstep' },
 ];
 
-export default function YtSidebar({ isCollapsed = false }: YtSidebarProps) {
+export default function YtSidebar({ isCollapsed = false, isOpenMobile = false, onCloseMobile }: YtSidebarProps) {
   const pathname = usePathname();
 
   const navItems = [
@@ -35,71 +37,103 @@ export default function YtSidebar({ isCollapsed = false }: YtSidebarProps) {
   ];
 
   return (
-    <aside className={`yt-sidebar ${isCollapsed ? 'collapsed' : ''}`}>
-      {/* Top Nav Links */}
-      <nav className="yt-sidebar-main-nav">
-        {navItems.map((item) => {
-          const Icon = item.icon;
-          const isActive = pathname === item.href;
-          return (
-            <Link
-              key={item.label}
-              href={item.href}
-              className={`yt-nav-item ${isActive ? 'active' : ''}`}
-            >
-              <Icon size={20} className="yt-nav-icon" />
-              <span className="yt-nav-label">{item.label}</span>
+    <>
+      {/* Mobile Drawer Dark Backdrop Overlay */}
+      <div
+        className={`yt-sidebar-backdrop ${isOpenMobile ? 'active' : ''}`}
+        onClick={onCloseMobile}
+      />
+
+      <aside className={`yt-sidebar ${isCollapsed ? 'collapsed' : ''} ${isOpenMobile ? 'mobile-open' : ''}`}>
+        {/* Mobile Header Inside Drawer */}
+        {isOpenMobile && (
+          <div className="yt-sidebar-mobile-header">
+            <Link href="/" className="yt-logo-brand-link" onClick={onCloseMobile}>
+              <img
+                src="/logo-3d.png"
+                alt="4and.one Music"
+                style={{ height: '44px', width: 'auto', objectFit: 'contain' }}
+              />
             </Link>
-          );
-        })}
-      </nav>
-
-      {!isCollapsed && (
-        <>
-          <div className="yt-sidebar-divider" />
-
-          {/* New Playlist Action */}
-          <div className="yt-sidebar-action-row">
-            <button type="button" className="yt-btn-new-playlist">
-              <Plus size={18} />
-              <span>New playlist</span>
+            <button
+              type="button"
+              className="yt-icon-btn"
+              onClick={onCloseMobile}
+              aria-label="Close menu"
+            >
+              <X size={22} />
             </button>
           </div>
+        )}
 
-          {/* Playlists & Dance Categories List */}
-          <div className="yt-sidebar-playlist-section">
-            <Link
-              href="/library/favorites"
-              className={`yt-playlist-item ${pathname === '/library/favorites' ? 'active' : ''}`}
-            >
-              <div className="yt-playlist-icon-pin">
-                <Heart size={14} fill="#ffffff" color="#ffffff" />
-              </div>
-              <div className="yt-playlist-meta">
-                <span className="yt-playlist-title">Liked Music</span>
-                <span className="yt-playlist-sub">Auto playlist • <Pin size={10} className="inline-pin" /></span>
-              </div>
-            </Link>
+        {/* Top Nav Links */}
+        <nav className="yt-sidebar-main-nav">
+          {navItems.map((item) => {
+            const Icon = item.icon;
+            const isActive = pathname === item.href;
+            return (
+              <Link
+                key={item.label}
+                href={item.href}
+                className={`yt-nav-item ${isActive ? 'active' : ''}`}
+                onClick={onCloseMobile}
+              >
+                <Icon size={20} className="yt-nav-icon" />
+                <span className="yt-nav-label">{item.label}</span>
+              </Link>
+            );
+          })}
+        </nav>
 
-            {DANCE_PLAYLISTS.map((pl) => {
-              const href = `/style/${pl.slug}`;
-              const isActive = pathname === href;
-              return (
-                <Link
-                  key={pl.slug}
-                  href={href}
-                  className={`yt-playlist-item ${isActive ? 'active' : ''}`}
-                >
-                  <div className="yt-playlist-meta">
-                    <span className="yt-playlist-title">{pl.name}</span>
-                    <span className="yt-playlist-sub">4andone Music</span>
-                  </div>
-                </Link>
-              );
-            })}
-          </div>
-        </>
-      )}
-    </aside>
+        {(!isCollapsed || isOpenMobile) && (
+          <>
+            <div className="yt-sidebar-divider" />
+
+            {/* New Playlist Action */}
+            <div className="yt-sidebar-action-row">
+              <button type="button" className="yt-btn-new-playlist">
+                <Plus size={18} />
+                <span>New playlist</span>
+              </button>
+            </div>
+
+            {/* Playlists & Dance Categories List */}
+            <div className="yt-sidebar-playlist-section">
+              <Link
+                href="/library/favorites"
+                className={`yt-playlist-item ${pathname === '/library/favorites' ? 'active' : ''}`}
+                onClick={onCloseMobile}
+              >
+                <div className="yt-playlist-icon-pin">
+                  <Heart size={14} fill="#ffffff" color="#ffffff" />
+                </div>
+                <div className="yt-playlist-meta">
+                  <span className="yt-playlist-title">Liked Music</span>
+                  <span className="yt-playlist-sub">Auto playlist • <Pin size={10} className="inline-pin" /></span>
+                </div>
+              </Link>
+
+              {DANCE_PLAYLISTS.map((pl) => {
+                const href = `/style/${pl.slug}`;
+                const isActive = pathname === href;
+                return (
+                  <Link
+                    key={pl.slug}
+                    href={href}
+                    className={`yt-playlist-item ${isActive ? 'active' : ''}`}
+                    onClick={onCloseMobile}
+                  >
+                    <div className="yt-playlist-meta">
+                      <span className="yt-playlist-title">{pl.name}</span>
+                      <span className="yt-playlist-sub">4andone Music</span>
+                    </div>
+                  </Link>
+                );
+              })}
+            </div>
+          </>
+        )}
+      </aside>
+    </>
   );
 }

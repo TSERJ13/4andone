@@ -26,9 +26,14 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
   const [isFullPlayerOpen, setIsFullPlayerOpen] = useState(false);
   const [isDesktopExpanded, setIsDesktopExpanded] = useState(false);
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
+  const [isMobileDrawerOpen, setIsMobileDrawerOpen] = useState(false);
 
   const { title, isAdModalOpen, setIsAdModalOpen } = useAudioControls();
   const { isAuthModalOpen, setIsAuthModalOpen, isSubscriptionModalOpen, setIsSubscriptionModalOpen } = useAuth();
+
+  useEffect(() => {
+    setIsMobileDrawerOpen(false);
+  }, [pathname]);
 
   useEffect(() => {
     setMounted(true);
@@ -86,6 +91,14 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
     }
   };
 
+  const handleToggleSidebar = () => {
+    if (typeof window !== 'undefined' && window.innerWidth <= 768) {
+      setIsMobileDrawerOpen((prev) => !prev);
+    } else {
+      setIsSidebarCollapsed((prev) => !prev);
+    }
+  };
+
   return (
     <div className="yt-app-layout yt-music-app-body">
       <AdSenseLoader />
@@ -95,12 +108,16 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
 
       {/* YouTube Music Header */}
       <YtHeader
-        onToggleSidebar={() => setIsSidebarCollapsed((prev) => !prev)}
+        onToggleSidebar={handleToggleSidebar}
       />
 
       {/* Main Body Wrap: Sidebar + Main Content Page */}
       <div className="yt-app-body-wrap">
-        <YtSidebar isCollapsed={isSidebarCollapsed} />
+        <YtSidebar
+          isCollapsed={isSidebarCollapsed}
+          isOpenMobile={isMobileDrawerOpen}
+          onCloseMobile={() => setIsMobileDrawerOpen(false)}
+        />
 
         <main className="yt-main-content-scroll">
           {children}

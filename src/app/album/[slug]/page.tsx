@@ -500,25 +500,24 @@ export default function DynamicAlbumPage() {
           margin: 0 auto;
         }
 
+        /* Same card header as the Musheev page (theme colour comes inline) */
         .goc-hero {
-          padding: 0;
-          border-radius: 0;
+          padding: 32px;
+          border-radius: 24px;
           display: flex;
-          align-items: flex-end;
-          gap: 28px;
+          align-items: center;
+          gap: 32px;
           margin-bottom: 32px;
-          border: none;
-          background: transparent !important;
+          border: 1px solid rgba(255, 255, 255, 0.08);
         }
 
         .goc-cover-box {
-          width: 180px;
-          height: 180px;
-          border-radius: 8px;
+          width: 240px;
+          height: 140px;
+          border-radius: 16px;
           overflow: hidden;
           flex-shrink: 0;
-          box-shadow: 0 10px 30px rgba(0, 0, 0, 0.6);
-          border: 1px solid rgba(255, 255, 255, 0.1);
+          border: 1px solid rgba(255, 255, 255, 0.15);
         }
 
         .goc-cover-img {
@@ -530,41 +529,36 @@ export default function DynamicAlbumPage() {
 
         .goc-hero-info {
           flex: 1;
-          display: flex;
-          flex-direction: column;
-          gap: 6px;
         }
 
         .goc-pill-badge {
-          color: #ff0033 !important;
-          background: transparent !important;
-          box-shadow: none !important;
-          padding: 0;
-          font-size: 11px;
-          font-weight: 800;
-          letter-spacing: 1.2px;
-          margin-bottom: 0;
+          color: white;
+          padding: 4px 12px;
+          border-radius: 20px;
+          font-size: 10px;
+          font-weight: 900;
+          letter-spacing: 1px;
+          margin-bottom: 12px;
+          display: inline-block;
         }
 
         .goc-title {
-          font-size: 2.4rem !important;
-          font-weight: 900 !important;
-          letter-spacing: -0.5px !important;
-          margin-bottom: 0;
-          background: none !important;
-          -webkit-text-fill-color: #ffffff !important;
-          color: #ffffff !important;
+          font-size: 2.4rem;
+          font-weight: 900;
+          letter-spacing: -1px;
+          margin-bottom: 8px;
         }
 
         .goc-subtitle {
-          font-size: 13px;
-          color: #aaa;
-          margin-bottom: 8px;
+          font-size: 0.95rem;
+          color: var(--text-secondary, #aaaaaa);
+          margin-bottom: 16px;
         }
 
         .goc-stats-row {
           display: flex;
           gap: 10px;
+          flex-wrap: wrap;
         }
 
         .stat-pill {
@@ -867,6 +861,9 @@ export default function DynamicAlbumPage() {
           .goc-cover-box {
             width: 100%;
             height: 160px;
+          }
+          .goc-stats-row {
+            justify-content: center;
           }
           .goc-title {
             font-size: 1.8rem;

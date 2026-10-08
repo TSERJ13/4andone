@@ -786,7 +786,7 @@ export default function LibraryPage() {
 
         @media (max-width: 768px) {
           .yt-library-page {
-            padding: 12px 16px 140px 16px;
+            padding: 12px 0 140px 0; /* scroller already has 16px sides */
           }
           .yt-library-top-bar {
             margin-bottom: 16px;

@@ -249,7 +249,7 @@ const DownloadedPage = () => {
 
         @media (max-width: 768px) {
           .downloaded-page {
-            padding: 12px 16px 120px 16px;
+            padding: 12px 0 120px 0; /* scroller already has 16px sides */
           }
           .downloaded-hero {
             gap: 16px;

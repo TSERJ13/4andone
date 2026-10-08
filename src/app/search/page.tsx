@@ -889,7 +889,7 @@ const SearchPage = () => {
 
         @media (max-width: 768px) {
           .yt-native-search-page {
-            padding: 8px 12px 140px 12px;
+            padding: 8px 0 140px 0; /* the page scroller already has 16px sides */
           }
 
           .yt-history-row {

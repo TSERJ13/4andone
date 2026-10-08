@@ -1881,3 +1881,27 @@
     display: none !important;
   }
 }
+
+/* ONE TRACK-LIST STANDARD ON PHONES (every page with a song list):
+   cover | title + "artist • style" | like + play — the title gets all the
+   room. The style badge is dropped (the second line already names the
+   dance) and album pages lose their extra side padding. */
+@media (max-width: 768px) {
+  .track-row {
+    grid-template-columns: 40px minmax(0, 1fr) auto !important;
+    gap: 10px !important;
+    padding: 10px 10px 10px 10px !important;
+  }
+  .track-row .track-badge-col,
+  .track-row .track-meta-col {
+    display: none !important;
+  }
+  .track-row .track-info-col {
+    padding-right: 0;
+    min-width: 0;
+  }
+  .goc-page-wrapper {
+    padding-left: 0 !important;
+    padding-right: 0 !important;
+  }
+}

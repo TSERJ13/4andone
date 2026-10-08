@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { Play, Pause, ChevronLeft, ChevronRight, ThumbsUp, ChevronRight as ArrowRight } from 'lucide-react';
 import { Track, useStudio } from '@/components/admin/StudioProvider';
 import { useAudioControls } from '@/components/audio/AudioProvider';
+import { useAuth } from '@/context/AuthContext';
 import { getTrackCover } from '@/utils/trackCover';
 
 interface YtQuickPicksProps {
@@ -14,8 +15,13 @@ interface YtQuickPicksProps {
 
 export default function YtQuickPicks({ tracks, onPlayAll }: YtQuickPicksProps) {
   const { albums } = useStudio();
+  const { user } = useAuth();
   const { togglePlay, isPlaying, trackId: playingTrackId, loadTrack } = useAudioControls();
   const [pageIndex, setPageIndex] = useState(0);
+
+  const userName = user?.first_name
+    ? `${user.first_name} ${user.last_name || ''}`.trim().toUpperCase()
+    : '4ANDONE MUSIC';
 
   const mobileQuickPicks = tracks.slice(0, 8); // 8 cards + 1 liked music card = 9 (3x3 grid)
 
@@ -44,8 +50,8 @@ export default function YtQuickPicks({ tracks, onPlayAll }: YtQuickPicksProps) {
       {/* Header */}
       <div className="yt-section-header">
         <div className="yt-section-header-left">
-          <span className="yt-section-sub">S_T DANCE STUDIO</span>
-          <h2 className="yt-section-title">Quick picks</h2>
+          <span className="yt-section-sub">{userName}</span>
+          <h2 className="yt-section-title">Last Played</h2>
         </div>
         <div className="yt-section-header-right">
           <button type="button" className="yt-btn-play-all" onClick={onPlayAll}>

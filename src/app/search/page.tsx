@@ -9,13 +9,7 @@ import {
   History,
   ArrowUpLeft,
   SlidersHorizontal,
-  Sparkles,
-  TrendingUp,
-  Smile,
-  Music2,
-  Check,
-  Trash2,
-  ChevronDown
+  Music2
 } from 'lucide-react';
 import { useStudio } from '@/components/admin/StudioProvider';
 import { useAudioControls } from '@/components/audio/AudioProvider';
@@ -26,15 +20,6 @@ import Link from 'next/link';
 import ConfirmModal from '@/components/admin/ConfirmModal';
 import { TrackRow } from '@/components/tracks/TrackRow';
 import { ListAd, useListAdAnchor } from '@/components/ads/ListAd';
-
-const DEFAULT_HISTORY = [
-  '4andone music',
-  'slow waltz',
-  'cha cha cha',
-  'jive',
-  '4andone',
-  'quickstep music'
-];
 
 const FILTER_CHIPS = ['All', 'Songs', 'Styles', 'Albums'];
 const SORT_OPTIONS = [
@@ -67,23 +52,18 @@ const SearchPage = () => {
     onConfirm: () => { }
   });
 
-  // Load search history from localStorage
+  // Load actual search history from localStorage
   useEffect(() => {
     try {
       const saved = localStorage.getItem('4andone_search_history');
       if (saved) {
         const parsed = JSON.parse(saved);
-        if (Array.isArray(parsed) && parsed.length > 0) {
+        if (Array.isArray(parsed)) {
           setHistory(parsed);
-        } else {
-          setHistory(DEFAULT_HISTORY);
         }
-      } else {
-        setHistory(DEFAULT_HISTORY);
-        localStorage.setItem('4andone_search_history', JSON.stringify(DEFAULT_HISTORY));
       }
     } catch (e) {
-      setHistory(DEFAULT_HISTORY);
+      setHistory([]);
     }
   }, []);
 
@@ -314,101 +294,66 @@ const SearchPage = () => {
       {/* 3. Main Content Area */}
       <div className="yt-search-main-content">
         {!query ? (
-          /* DEFAULT STATE: YouTube Music Recent Search History + Explore Cards */
-          <div className="yt-history-explore-view">
-            {/* Header row for history */}
+          /* DEFAULT STATE: Actual User Search History Only */
+          <div className="yt-history-view">
             {history.length > 0 && (
-              <div className="yt-history-header-row">
-                <span className="yt-history-section-label">Recent Searches</span>
-                <button
-                  type="button"
-                  className="yt-clear-all-history-btn"
-                  onClick={clearAllHistory}
-                >
-                  Clear all
-                </button>
-              </div>
+              <>
+                <div className="yt-history-header-row">
+                  <span className="yt-history-section-label">Recent Searches</span>
+                  <button
+                    type="button"
+                    className="yt-clear-all-history-btn"
+                    onClick={clearAllHistory}
+                  >
+                    Clear all
+                  </button>
+                </div>
+
+                <div className="yt-history-list">
+                  {history.map((term, index) => (
+                    <div
+                      key={index}
+                      className="yt-history-row"
+                      onClick={() => handleSearchClick(term)}
+                    >
+                      <div className="yt-history-left">
+                        <History size={20} className="yt-history-clock" />
+                        <span className="yt-history-term">{term}</span>
+                      </div>
+
+                      <div className="yt-history-actions">
+                        <button
+                          type="button"
+                          className="yt-fill-arrow-btn"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setQuery(term);
+                            inputRef.current?.focus();
+                          }}
+                          title="Fill in search input"
+                          aria-label="Fill search term"
+                        >
+                          <ArrowUpLeft size={20} />
+                        </button>
+
+                        <button
+                          type="button"
+                          className="yt-remove-history-btn"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            removeHistoryItem(term);
+                          }}
+                          title="Remove from history"
+                          aria-label="Remove item"
+                        >
+                          <X size={16} />
+                        </button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </>
             )}
-
-            {/* Recent Searches List */}
-            <div className="yt-history-list">
-              {history.map((term, index) => (
-                <div
-                  key={index}
-                  className="yt-history-row"
-                  onClick={() => handleSearchClick(term)}
-                >
-                  <div className="yt-history-left">
-                    <History size={20} className="yt-history-clock" />
-                    <span className="yt-history-term">{term}</span>
-                  </div>
-
-                  <div className="yt-history-actions">
-                    <button
-                      type="button"
-                      className="yt-fill-arrow-btn"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        setQuery(term);
-                        inputRef.current?.focus();
-                      }}
-                      title="Fill in search input"
-                      aria-label="Fill search term"
-                    >
-                      <ArrowUpLeft size={20} />
-                    </button>
-
-                    <button
-                      type="button"
-                      className="yt-remove-history-btn"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        removeHistoryItem(term);
-                      }}
-                      title="Remove from history"
-                      aria-label="Remove item"
-                    >
-                      <X size={16} />
-                    </button>
-                  </div>
-                </div>
-              ))}
-            </div>
-
-            {/* Quick Category Cards Carousel at the bottom */}
-            <div className="yt-explore-cards-section">
-              <div className="yt-explore-cards-scroll">
-                <Link
-                  href="/library/favorites"
-                  className="yt-explore-square-card"
-                >
-                  <div className="yt-card-circle-icon">
-                    <Sparkles size={20} />
-                  </div>
-                  <span className="yt-card-label">New releases</span>
-                </Link>
-
-                <Link
-                  href="/library/finals"
-                  className="yt-explore-square-card"
-                >
-                  <div className="yt-card-circle-icon">
-                    <TrendingUp size={20} />
-                  </div>
-                  <span className="yt-card-label">Finals</span>
-                </Link>
-
-                <div
-                  className="yt-explore-square-card"
-                  onClick={() => handleSearchClick('waltz')}
-                >
-                  <div className="yt-card-circle-icon">
-                    <Smile size={20} />
-                  </div>
-                  <span className="yt-card-label">Moods & styles</span>
-                </div>
-              </div>
-            </div>
           </div>
         ) : (
           /* SEARCH ACTIVE STATE: Filter Chips + Matching Results */
@@ -806,64 +751,6 @@ const SearchPage = () => {
         .yt-remove-history-btn:hover {
           color: #ffffff;
           background: rgba(255, 255, 255, 0.1);
-        }
-
-        /* Explore Cards Row */
-        .yt-explore-cards-section {
-          margin-top: 16px;
-        }
-
-        .yt-explore-cards-scroll {
-          display: flex;
-          align-items: center;
-          gap: 12px;
-          overflow-x: auto;
-          scrollbar-width: none;
-          padding-bottom: 8px;
-        }
-
-        .yt-explore-cards-scroll::-webkit-scrollbar {
-          display: none;
-        }
-
-        .yt-explore-square-card {
-          background: #212121;
-          border-radius: 16px;
-          padding: 14px;
-          width: 115px;
-          height: 115px;
-          flex-shrink: 0;
-          display: flex;
-          flex-direction: column;
-          justify-content: space-between;
-          text-decoration: none;
-          color: #ffffff;
-          border: 1px solid rgba(255, 255, 255, 0.05);
-          cursor: pointer;
-          transition: transform 0.2s ease, background 0.2s ease;
-        }
-
-        .yt-explore-square-card:hover {
-          background: #2a2a2a;
-          transform: translateY(-2px);
-        }
-
-        .yt-card-circle-icon {
-          background: rgba(255, 255, 255, 0.1);
-          width: 36px;
-          height: 36px;
-          border-radius: 50%;
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          color: #ffffff;
-        }
-
-        .yt-card-label {
-          font-size: 13px;
-          font-weight: 700;
-          color: #ffffff;
-          line-height: 1.25;
         }
 
         /* Active Results View */

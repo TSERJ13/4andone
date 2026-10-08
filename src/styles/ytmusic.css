@@ -1771,4 +1771,31 @@
   }
 }
 
+/* MOBILE FULL PLAYER EXTRA POPOVERS & BPM CARD */
+.mobile-context-popover {
+  position: absolute;
+  top: 36px;
+  right: 0;
+  left: auto;
+  z-index: 800;
+}
+
+.mobile-speed-card {
+  position: absolute;
+  bottom: 48px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 270px;
+  z-index: 800;
+}
+
+.mobile-toast {
+  position: absolute;
+  top: 40px;
+  right: 0;
+  z-index: 850;
+  white-space: nowrap;
+}
+
+
 

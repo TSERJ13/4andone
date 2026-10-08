@@ -1,6 +1,7 @@
 "use client";
 
-import React, { useState } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
+import { useRouter } from 'next/navigation';
 import {
   ChevronDown,
   MoreVertical,
@@ -14,7 +15,13 @@ import {
   Share2,
   Bookmark,
   Headphones,
-  Video
+  Video,
+  Gauge,
+  Minus,
+  Plus,
+  Download,
+  ListPlus,
+  Disc
 } from 'lucide-react';
 import { useAudio } from '@/components/audio/AudioProvider';
 import { useStudio } from '@/components/admin/StudioProvider';
@@ -33,6 +40,7 @@ interface MobileFullPlayerProps {
 }
 
 export default function MobileFullPlayer({ isOpen, onClose }: MobileFullPlayerProps) {
+  const router = useRouter();
   const { albums, tracks, toggleFavorite } = useStudio();
   const {
     isPlaying,
@@ -48,10 +56,35 @@ export default function MobileFullPlayer({ isOpen, onClose }: MobileFullPlayerPr
     toggleRepeat,
     currentTime,
     duration,
-    seek
+    seek,
+    bpm,
+    setBpm
   } = useAudio();
 
   const [mode, setMode] = useState<'audio' | 'video'>('audio');
+  const [isMenuOpen, setIsMenuOpen] = useState(false);
+  const [isSpeedPopoverOpen, setIsSpeedPopoverOpen] = useState(false);
+  const [showCopiedToast, setShowCopiedToast] = useState(false);
+
+  const menuRef = useRef<HTMLDivElement>(null);
+  const speedRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (menuRef.current && !menuRef.current.contains(event.target as Node)) {
+        setIsMenuOpen(false);
+      }
+      if (speedRef.current && !speedRef.current.contains(event.target as Node)) {
+        setIsSpeedPopoverOpen(false);
+      }
+    };
+    if (isMenuOpen || isSpeedPopoverOpen) {
+      document.addEventListener('mousedown', handleClickOutside);
+    }
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, [isMenuOpen, isSpeedPopoverOpen]);
 
   if (!isOpen) return null;
 
@@ -60,11 +93,50 @@ export default function MobileFullPlayer({ isOpen, onClose }: MobileFullPlayerPr
   const coverImg = getTrackCover(currentTrack, albums);
   const progressPercent = duration > 0 ? (currentTime / duration) * 100 : 0;
 
+  const currentBpm = bpm || 100;
+  const bpmDelta = currentBpm - 100;
+  const isBpmChanged = currentBpm !== 100;
+  const bpmDisplay = bpmDelta === 0 ? '0%' : (bpmDelta > 0 ? `+${bpmDelta}%` : `${bpmDelta}%`);
+
+  const handleBpmChange = (delta: number) => {
+    const currentVal = bpm || 100;
+    const newBpm = Math.min(150, Math.max(50, currentVal + delta));
+    setBpm(newBpm, true);
+  };
+
+  const resetBpm = () => {
+    setBpm(100, true);
+  };
+
   const handleSeekClick = (e: React.MouseEvent<HTMLDivElement>) => {
     const rect = e.currentTarget.getBoundingClientRect();
     const clickX = e.clientX - rect.left;
     const ratio = clickX / rect.width;
     seek(ratio * duration);
+  };
+
+  const handleShare = () => {
+    if (!currentTrack) return;
+    const shareUrl = `${window.location.origin}/track/${currentTrack.id}`;
+    if (navigator.clipboard) {
+      navigator.clipboard.writeText(shareUrl);
+    }
+    setShowCopiedToast(true);
+    setTimeout(() => setShowCopiedToast(false), 2500);
+  };
+
+  const handleDownload = () => {
+    if (!currentTrack) return;
+    const url = currentTrack.audioUrl || currentTrack.audio_url;
+    if (url) {
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `${currentTrack.title || 'track'}.mp3`;
+      a.target = '_blank';
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+    }
   };
 
   return (
@@ -93,9 +165,93 @@ export default function MobileFullPlayer({ isOpen, onClose }: MobileFullPlayerPr
           </button>
         </div>
 
-        <button type="button" className="yt-mobile-icon-btn">
-          <MoreVertical size={20} />
-        </button>
+        {/* Top Right 3-Dots Context Menu Button */}
+        <div style={{ position: 'relative' }} ref={menuRef}>
+          <button
+            type="button"
+            className="yt-mobile-icon-btn"
+            onClick={() => setIsMenuOpen(!isMenuOpen)}
+            aria-label="More options"
+          >
+            <MoreVertical size={20} />
+          </button>
+
+          {/* Toast feedback */}
+          {showCopiedToast && (
+            <div className="yt-copied-toast mobile-toast">
+              Link copied to clipboard!
+            </div>
+          )}
+
+          {/* YouTube Music 3-Dots Context Menu Popover */}
+          {isMenuOpen && (
+            <div className="yt-context-menu-popover mobile-context-popover">
+              <button
+                type="button"
+                className="yt-context-menu-item"
+                onClick={async () => {
+                  setIsMenuOpen(false);
+                  if (currentTrack?.id) await toggleFavorite(currentTrack.id);
+                }}
+              >
+                <Heart size={16} fill={isFavorite ? '#ef4444' : 'none'} color={isFavorite ? '#ef4444' : 'currentColor'} />
+                <span>{isFavorite ? 'Remove from Liked Songs' : 'Save to Liked Songs'}</span>
+              </button>
+
+              <button
+                type="button"
+                className="yt-context-menu-item"
+                onClick={() => {
+                  setIsMenuOpen(false);
+                  handleDownload();
+                }}
+              >
+                <Download size={16} />
+                <span>Download track</span>
+              </button>
+
+              <button
+                type="button"
+                className="yt-context-menu-item"
+                onClick={() => {
+                  setIsMenuOpen(false);
+                  onClose();
+                  router.push('/library');
+                }}
+              >
+                <ListPlus size={16} />
+                <span>Save to playlist</span>
+              </button>
+
+              {currentTrack?.album && (
+                <button
+                  type="button"
+                  className="yt-context-menu-item"
+                  onClick={() => {
+                    setIsMenuOpen(false);
+                    onClose();
+                    router.push(`/album/${currentTrack.album.toLowerCase().replace(/\s+/g, '-')}`);
+                  }}
+                >
+                  <Disc size={16} />
+                  <span>Go to album</span>
+                </button>
+              )}
+
+              <button
+                type="button"
+                className="yt-context-menu-item"
+                onClick={() => {
+                  setIsMenuOpen(false);
+                  handleShare();
+                }}
+              >
+                <Share2 size={16} />
+                <span>Share track</span>
+              </button>
+            </div>
+          )}
+        </div>
       </div>
 
       {/* Main Cover Artwork */}
@@ -123,8 +279,8 @@ export default function MobileFullPlayer({ isOpen, onClose }: MobileFullPlayerPr
         </p>
       </div>
 
-      {/* Action Buttons Pill Row (Heart Liked Music, Share, Save) */}
-      <div className="yt-mobile-actions-row">
+      {/* Action Buttons Pill Row (Like, BPM Speedometer, Save) */}
+      <div className="yt-mobile-actions-row" style={{ position: 'relative' }} ref={speedRef}>
         <button
           type="button"
           className={`yt-action-pill ${isFavorite ? 'active-heart' : ''}`}
@@ -138,26 +294,79 @@ export default function MobileFullPlayer({ isOpen, onClose }: MobileFullPlayerPr
           <span>{isFavorite ? 'Liked' : 'Like'}</span>
         </button>
 
+        {/* BPM Speedometer Pill Button */}
+        <button
+          type="button"
+          className={`yt-action-pill ${isBpmChanged || isSpeedPopoverOpen ? 'active-speed' : ''}`}
+          onClick={() => setIsSpeedPopoverOpen(!isSpeedPopoverOpen)}
+        >
+          <Gauge size={16} />
+          <span>{isBpmChanged ? `BPM ${bpmDisplay}` : 'BPM Speed'}</span>
+        </button>
+
         <button
           type="button"
           className="yt-action-pill"
           onClick={() => {
-            if (!currentTrack) return;
-            const shareUrl = `${window.location.origin}/track/${currentTrack.id}`;
-            if (navigator.clipboard) {
-              navigator.clipboard.writeText(shareUrl);
-            }
-            alert('Link copied to clipboard!');
+            onClose();
+            router.push('/library');
           }}
         >
-          <Share2 size={16} />
-          <span>Share</span>
-        </button>
-
-        <button type="button" className="yt-action-pill">
           <Bookmark size={16} />
           <span>Save</span>
         </button>
+
+        {/* BPM Speed Popover Card Modal */}
+        {isSpeedPopoverOpen && (
+          <div className="yt-speed-popover-card mobile-speed-card">
+            <div className="yt-speed-popover-header">
+              <span className="yt-speed-percentage-text">{bpmDisplay}</span>
+              <button
+                type="button"
+                className="yt-speed-reset-btn"
+                onClick={resetBpm}
+              >
+                RESET
+              </button>
+            </div>
+
+            <div className="yt-speed-slider-row">
+              <button
+                type="button"
+                className="yt-speed-step-btn"
+                onClick={() => handleBpmChange(-1)}
+                title="-1%"
+              >
+                <Minus size={15} />
+              </button>
+
+              <input
+                type="range"
+                min={50}
+                max={150}
+                step={1}
+                value={currentBpm}
+                onChange={(e) => setBpm(parseInt(e.target.value), true)}
+                className="yt-speed-range-slider"
+              />
+
+              <button
+                type="button"
+                className="yt-speed-step-btn"
+                onClick={() => handleBpmChange(1)}
+                title="+1%"
+              >
+                <Plus size={15} />
+              </button>
+            </div>
+
+            <div className="yt-speed-labels-row">
+              <span>-50%</span>
+              <span>NORMAL</span>
+              <span>+50%</span>
+            </div>
+          </div>
+        )}
       </div>
 
       {/* Progress Slider */}

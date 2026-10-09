@@ -11,18 +11,29 @@ const withPWA = withPWAInit({
   register: true,
   skipWaiting: true,
   buildExcludes: [/.*\.css$/],
-  // Removed from the default runtime caching:
-  //  * 'cross-origin' — routed EVERY cross-origin request through the service
-  //    worker with NetworkFirst + a 10s timeout: the R2 audio streams (range
-  //    requests → stutter / failed playback on Safari), AdSense requests and
-  //    Supabase API calls. The browser now handles them natively.
-  //  * 'apis' — cached /api/* for 24h, so on a slow network the player could
-  //    get an old, expired signed audio URL from the cache → track won't play.
-  //  * 'static-style-assets' — see buildExcludes.
-  runtimeCaching: defaultCache.filter(
-    (entry: { options?: { cacheName?: string } }) =>
-      !['static-style-assets', 'cross-origin', 'apis'].includes(entry.options?.cacheName ?? '')
-  ),
+  fallbacks: {
+    document: '/_offline',
+  },
+  runtimeCaching: [
+    {
+      urlPattern: ({ request }: { request: Request }) => request.mode === 'navigate',
+      handler: 'NetworkFirst',
+      options: {
+        cacheName: 'start-url',
+        plugins: [
+          {
+            handlerDidError: async () => {
+              return (await caches.match('/_offline')) || (await caches.match('/')) || Response.error();
+            },
+          },
+        ],
+      },
+    },
+    ...defaultCache.filter(
+      (entry: { options?: { cacheName?: string } }) =>
+        !['static-style-assets', 'cross-origin', 'apis', 'start-url'].includes(entry.options?.cacheName ?? '')
+    ),
+  ],
 });
 
 const nextConfig: NextConfig = {

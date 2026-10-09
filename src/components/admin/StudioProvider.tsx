@@ -5,6 +5,7 @@ import { supabase } from '@/utils/supabase';
 import { adminDb } from '@/lib/admin-db';
 import { useAuth } from '@/context/AuthContext';
 import { Album, DEFAULT_ALBUMS } from '@/types/album';
+import { getOfflineTrackMeta } from '@/utils/offline';
 
 export type { Album } from '@/types/album';
 export { DEFAULT_ALBUMS } from '@/types/album';
@@ -164,7 +165,7 @@ const fetchAllTracks = async () => {
 };
 
 export const StudioProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const { user, isAuthenticated } = useAuth();
+  const { user, isAuthenticated, setIsAuthModalOpen } = useAuth();
   const [tracks, setTracks] = useState<Track[]>([]);
   const [folders, setFolders] = useState<Folder[]>([]);
   const [folderTracksMap, setFolderTracksMap] = useState<Record<string, string[]>>({});
@@ -290,7 +291,14 @@ export const StudioProvider: React.FC<{ children: React.ReactNode }> = ({ childr
         } catch (e) {}
       }
 
-      if (tracksData) {
+      // No internet (or Supabase unreachable): show the downloaded tracks so
+      // they can still be played offline.
+      if ((!tracksData || tracksData.length === 0) && typeof navigator !== 'undefined' && !navigator.onLine) {
+        const offlineTracks = getOfflineTrackMeta().map((t: any) => ({ ...t, isFavorite: userLikes.includes(t.id) }));
+        if (offlineTracks.length > 0) setTracks(prev => (prev.length > 0 ? prev : offlineTracks));
+      }
+
+      if (tracksData && tracksData.length > 0) {
         const mapped = tracksData.map(t => ({
           ...t,
           audioUrl: t.audio_url,
@@ -348,7 +356,7 @@ export const StudioProvider: React.FC<{ children: React.ReactNode }> = ({ childr
               // Check localStorage for this user's like status
               let isLiked = false;
               try {
-                const saved = localStorage.getItem('4andone_liked_tracks');
+                const saved = user?.id ? localStorage.getItem(`4andone_liked_tracks_${user.id}`) : null;
                 if (saved) isLiked = JSON.parse(saved).includes(nt.id);
               } catch (e) {}
               const newTrackItem = { 
@@ -597,6 +605,12 @@ export const StudioProvider: React.FC<{ children: React.ReactNode }> = ({ childr
   };
 
   const toggleFavorite = async (id: string) => {
+    // Likes belong to an account: guests are asked to sign in (the heart used
+    // to fill for a moment and then vanish on reload).
+    if (!isAuthenticated || !user?.id) {
+      setIsAuthModalOpen(true);
+      return;
+    }
     const track = tracks.find(t => t.id === id);
     if (!track) return;
 
@@ -605,20 +619,26 @@ export const StudioProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     // Update state optimistically
     setTracks(prev => prev.map(t => t.id === id ? { ...t, isFavorite: newVal } : t));
 
-    // Persist to localStorage
-    try {
-      let userLikes: string[] = [];
-      const saved = localStorage.getItem('4andone_liked_tracks');
-      if (saved) userLikes = JSON.parse(saved);
-      
-      if (newVal) {
-        if (!userLikes.includes(id)) userLikes.push(id);
-      } else {
-        userLikes = userLikes.filter(lid => lid !== id);
+    // Persist to this user's local cache — the same per-user key fetchData
+    // reads. (It wrote the old global key, so an unliked song came back from
+    // the stale per-user cache on reload and was re-uploaded to the cloud.)
+    // Guests keep no likes.
+    if (isAuthenticated && user?.id) {
+      try {
+        const key = `4andone_liked_tracks_${user.id}`;
+        let userLikes: string[] = [];
+        const saved = localStorage.getItem(key);
+        if (saved) userLikes = JSON.parse(saved);
+
+        if (newVal) {
+          if (!userLikes.includes(id)) userLikes.push(id);
+        } else {
+          userLikes = userLikes.filter(lid => lid !== id);
+        }
+        localStorage.setItem(key, JSON.stringify(userLikes));
+      } catch (e) {
+        console.error('[FAVORITES] localStorage save failed:', e);
       }
-      localStorage.setItem('4andone_liked_tracks', JSON.stringify(userLikes));
-    } catch (e) {
-      console.error('[FAVORITES] localStorage save failed:', e);
     }
 
     // Persist to Supabase cloud

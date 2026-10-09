@@ -64,6 +64,7 @@ export default function DesktopFullPlayer({ onClose }: DesktopFullPlayerProps) {
     isFinalMode,
     toggleFinalMode,
     activeMode,
+    sessionTracks,
     isPauseCountdown,
     pauseTime,
     sessionDuration,
@@ -80,24 +81,41 @@ export default function DesktopFullPlayer({ onClose }: DesktopFullPlayerProps) {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [showCopiedToast, setShowCopiedToast] = useState(false);
 
-  // 1. Recently Played Tracks
-  const recentTracks = React.useMemo(() => {
-    const ids = getRecentlyPlayedTrackIds();
-    if (!ids || ids.length === 0) return [];
-    return ids.map(id => tracks.find(t => t.id === id)).filter(Boolean) as Track[];
-  }, [tracks]);
+  // 0. Up Next = what playNext() will actually play: the Final session while
+  //    one runs, otherwise the tracks after the current one (wrapping around).
+  const upNextTracks = React.useMemo(() => {
+    const list: Track[] = isFinalMode && sessionTracks.length > 0 ? sessionTracks : tracks;
+    const idx = currentTrack ? list.findIndex(t => t.id === currentTrack.id) : -1;
+    if (idx === -1) return list.slice(0, 35);
+    return [...list.slice(idx), ...list.slice(0, idx)].slice(0, 35);
+  }, [tracks, sessionTracks, isFinalMode, currentTrack]);
 
-  // 2. Album / Artist Tracks
+  // 1. Recently Played Tracks — re-read whenever a track starts
+  const [recentIds, setRecentIds] = useState<string[]>(() => getRecentlyPlayedTrackIds());
+  useEffect(() => {
+    const refresh = () => setRecentIds(getRecentlyPlayedTrackIds());
+    window.addEventListener('4andone_recently_played_updated', refresh);
+    return () => window.removeEventListener('4andone_recently_played_updated', refresh);
+  }, []);
+  const recentTracks = React.useMemo(
+    () => recentIds.map(id => tracks.find(t => t.id === id)).filter(Boolean) as Track[],
+    [recentIds, tracks]
+  );
+
+  // 2. Album / Artist Tracks. Empty values and the generic "Bulk upload"
+  //    album are ignored ("".includes / "x".includes("") matched every track).
   const albumTracks = React.useMemo(() => {
     if (!currentTrack) return [];
-    const albLower = (currentTrack.album || '').toLowerCase().trim();
-    const artLower = (currentTrack.artist || '').toLowerCase().trim();
+    const norm = (v?: string) => (v || '').toLowerCase().trim();
+    const isRealAlbum = (v: string) => !!v && v !== 'bulk upload';
+    const albLower = norm(currentTrack.album);
+    const artLower = norm(currentTrack.artist);
 
     return tracks.filter(t => {
-      const tAlb = (t.album || '').toLowerCase().trim();
-      const tArt = (t.artist || '').toLowerCase().trim();
-      if (albLower && (tAlb === albLower || tAlb.includes(albLower) || albLower.includes(tAlb))) return true;
-      if (artLower && (tArt === artLower || tArt.includes(artLower) || artLower.includes(tArt))) return true;
+      const tAlb = norm(t.album);
+      const tArt = norm(t.artist);
+      if (isRealAlbum(albLower) && tAlb === albLower) return true;
+      if (artLower && tArt && tArt === artLower) return true;
       return false;
     });
   }, [tracks, currentTrack]);
@@ -227,7 +245,7 @@ export default function DesktopFullPlayer({ onClose }: DesktopFullPlayerProps) {
           {/* Tab 1: UP NEXT Track Queue */}
           {activeTab === 'upnext' && (
             <div className="yt-panel-queue-list">
-              {tracks.slice(0, 35).map((track: Track) => {
+              {upNextTracks.map((track: Track) => {
                 const isThisPlaying = currentTrack?.id === track.id;
                 const trkCover = getTrackCover(track, albums);
                 return (
@@ -322,7 +340,7 @@ export default function DesktopFullPlayer({ onClose }: DesktopFullPlayerProps) {
                   Album / Artist Collection
                 </div>
                 <div style={{ fontSize: '14px', fontWeight: 800, color: '#ffffff', marginTop: '2px' }}>
-                  {currentTrack?.album || currentTrack?.artist || '4ANDONE Collection'}
+                  {(currentTrack?.album && currentTrack.album.toLowerCase() !== 'bulk upload' ? currentTrack.album : currentTrack?.artist) || '4ANDONE Collection'}
                 </div>
                 <div style={{ fontSize: '12px', color: '#94a3b8', marginTop: '1px' }}>
                   {albumTracks.length} Tracks in this collection
@@ -378,7 +396,8 @@ export default function DesktopFullPlayer({ onClose }: DesktopFullPlayerProps) {
                   </div>
                   <button
                     type="button"
-                    onClick={toggleFinalMode}
+                    // Exit: a running program stops; a single track keeps playing
+                    onClick={isFinalMode ? endFinal : toggleFinalMode}
                     style={{
                       background: isFinalMode ? '#ef4444' : 'linear-gradient(135deg, #a855f7 0%, #7c3aed 100%)',
                       color: '#fff',

@@ -46,49 +46,72 @@ export default function SubscriptionManager() {
     fetchSubscribers();
   }, []);
 
-  const togglePremium = async (user: Subscriber, durationMonths: number = 1) => {
-    setActionLoading(user.telegram_id);
-    const newStatus = !user.is_premium;
-    
-    // Calculate expiry date if activating
-    let expiryDate: string | null = null;
-    if (newStatus) {
-      const d = new Date();
-      d.setMonth(d.getMonth() + durationMonths);
-      expiryDate = d.toISOString();
-    }
+  // How long a free (admin-gifted) Premium lasts — picked per row.
+  const DURATIONS: { key: string; label: string; days?: number; months?: number }[] = [
+    { key: '7d', label: '7 days', days: 7 },
+    { key: '1m', label: '1 month', months: 1 },
+    { key: '3m', label: '3 months', months: 3 },
+    { key: '6m', label: '6 months', months: 6 },
+    { key: '1y', label: '1 year', months: 12 },
+    { key: 'forever', label: 'Forever' },
+  ];
+  const [durationFor, setDurationFor] = useState<Record<number, string>>({});
 
+  const isActivePremium = (u: Subscriber) =>
+    u.is_premium && (!u.premium_until || new Date(u.premium_until).getTime() > Date.now());
+
+  type PremiumPatch = { is_premium: boolean; subscription_id: string | null; premium_until: string | null };
+  const updateUser = async (user: Subscriber, patch: PremiumPatch) => {
+    setActionLoading(user.telegram_id);
     try {
       const { error } = await adminDb
         .from('telegram_users')
-        .update({
-          is_premium: newStatus,
-          subscription_id: newStatus ? (user.subscription_id || `MANUAL_ADMIN_${Date.now()}`) : null,
-          premium_until: expiryDate
-        })
+        .update(patch)
         .eq('telegram_id', user.telegram_id);
-
-      if (!error) {
-        setSubscribers(prev => prev.map(s => {
-          if (s.telegram_id === user.telegram_id) {
-            return {
-              ...s,
-              is_premium: newStatus,
-              subscription_id: newStatus ? (user.subscription_id || 'MANUAL_ADMIN') : undefined,
-              premium_until: expiryDate || undefined
-            };
-          }
-          return s;
-        }));
+      if (error) {
+        alert('Could not save: ' + error.message);
+        return;
       }
+      setSubscribers(prev => prev.map(s => s.telegram_id === user.telegram_id
+        ? { ...s, is_premium: patch.is_premium, subscription_id: patch.subscription_id ?? undefined, premium_until: patch.premium_until ?? undefined }
+        : s));
     } catch (e) {
-      console.error('[TOGGLE-PREMIUM-ERROR]', e);
+      console.error('[PREMIUM-UPDATE-ERROR]', e);
     } finally {
       setActionLoading(null);
     }
   };
 
-  const premiumUsers = subscribers.filter(s => s.is_premium);
+  // Give or extend free Premium. Extending adds to the current end date
+  // (not to today), so a gifted month is never lost.
+  const grantPremium = (user: Subscriber) => {
+    const opt = DURATIONS.find(d => d.key === (durationFor[user.telegram_id] || '1m')) || DURATIONS[1];
+    let premiumUntil: string | null = null;
+    if (opt.key !== 'forever') {
+      const current = user.premium_until ? new Date(user.premium_until).getTime() : 0;
+      const d = new Date(isActivePremium(user) && current > Date.now() ? current : Date.now());
+      if (opt.days) d.setDate(d.getDate() + opt.days);
+      if (opt.months) d.setMonth(d.getMonth() + opt.months);
+      premiumUntil = d.toISOString();
+    }
+    const keepsPayPal = user.subscription_id?.startsWith('I-');
+    return updateUser(user, {
+      is_premium: true,
+      // A PayPal subscriber keeps their PayPal ID (renewals keep working)
+      subscription_id: keepsPayPal ? user.subscription_id! : `MANUAL_ADMIN_${Date.now()}`,
+      premium_until: premiumUntil,
+    });
+  };
+
+  const revokePremium = (user: Subscriber) => {
+    if (user.subscription_id?.startsWith('I-') &&
+        !confirm('This user pays through PayPal. Revoking here does NOT stop their PayPal payments — cancel the subscription in PayPal too. Revoke anyway?')) {
+      return;
+    }
+    return updateUser(user, { is_premium: false, subscription_id: null, premium_until: null });
+  };
+
+  const premiumUsers = subscribers.filter(isActivePremium);
   const paidSubs = premiumUsers.filter(s => s.subscription_id && !s.subscription_id.startsWith('LIFETIME_') && !s.subscription_id.startsWith('MANUAL_'));
   const manualSubs = premiumUsers.filter(s => s.subscription_id?.startsWith('MANUAL_') || s.subscription_id?.startsWith('LIFETIME_'));
 
@@ -198,7 +221,7 @@ export default function SubscriptionManager() {
               filtered.map(user => {
                 const isLifetime = user.subscription_id === 'LIFETIME_OWNER';
                 return (
-                  <tr key={user.telegram_id} className={user.is_premium ? 'is-premium-row' : ''}>
+                  <tr key={user.telegram_id} className={isActivePremium(user) ? 'is-premium-row' : ''}>
                     <td>
                       <div className="user-cell">
                         {user.photo_url ? (
@@ -213,10 +236,12 @@ export default function SubscriptionManager() {
                       </div>
                     </td>
                     <td>
-                      {user.is_premium ? (
+                      {isActivePremium(user) ? (
                         <span className="status-badge premium">
                           <Crown size={12} /> Active Premium
                         </span>
+                      ) : user.is_premium ? (
+                        <span className="status-badge free">Expired</span>
                       ) : (
                         <span className="status-badge free">Free User</span>
                       )}
@@ -240,6 +265,8 @@ export default function SubscriptionManager() {
                           'Never Expires'
                         ) : user.premium_until ? (
                           new Date(user.premium_until).toLocaleDateString()
+                        ) : user.is_premium && user.subscription_id?.startsWith('MANUAL_') ? (
+                          'Never Expires'
                         ) : user.is_premium ? (
                           'Auto-Renewing'
                         ) : (
@@ -251,23 +278,35 @@ export default function SubscriptionManager() {
                       {isLifetime ? (
                         <span className="owner-tag">Owner</span>
                       ) : (
-                        <button
-                          disabled={actionLoading === user.telegram_id}
-                          onClick={() => togglePremium(user)}
-                          className={`toggle-sub-btn ${user.is_premium ? 'deactivate' : 'activate'}`}
-                        >
-                          {user.is_premium ? (
-                            <>
+                        <div className="premium-actions">
+                          <select
+                            className="duration-select"
+                            value={durationFor[user.telegram_id] || '1m'}
+                            onChange={(e) => setDurationFor(prev => ({ ...prev, [user.telegram_id]: e.target.value }))}
+                            disabled={actionLoading === user.telegram_id}
+                            aria-label="Premium duration"
+                          >
+                            {DURATIONS.map(d => <option key={d.key} value={d.key}>{d.label}</option>)}
+                          </select>
+                          <button
+                            disabled={actionLoading === user.telegram_id}
+                            onClick={() => grantPremium(user)}
+                            className="toggle-sub-btn activate"
+                          >
+                            <Sparkles size={13} />
+                            <span>{isActivePremium(user) ? 'Extend' : 'Give Premium'}</span>
+                          </button>
+                          {user.is_premium && (
+                            <button
+                              disabled={actionLoading === user.telegram_id}
+                              onClick={() => revokePremium(user)}
+                              className="toggle-sub-btn deactivate"
+                            >
                               <X size={13} />
                               <span>Revoke</span>
-                            </>
-                          ) : (
-                            <>
-                              <Sparkles size={13} />
-                              <span>Give Premium Free</span>
-                            </>
+                            </button>
                           )}
-                        </button>
+                        </div>
                       )}
                     </td>
                   </tr>
@@ -562,6 +601,26 @@ export default function SubscriptionManager() {
         .toggle-sub-btn.deactivate:hover {
           background: #ef4444;
           color: white;
+        }
+
+        .premium-actions {
+          display: flex;
+          align-items: center;
+          gap: 6px;
+          flex-wrap: wrap;
+        }
+        .duration-select {
+          background: rgba(255, 255, 255, 0.06);
+          border: 1px solid rgba(255, 255, 255, 0.15);
+          color: #fff;
+          border-radius: 10px;
+          padding: 6px 8px;
+          font-size: 0.78rem;
+          font-weight: 600;
+          cursor: pointer;
+        }
+        .duration-select option {
+          background: #18181b;
         }
 
         .owner-tag {

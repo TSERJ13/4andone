@@ -25,13 +25,20 @@ export function getTrackCover(
 
   const artistLower = (track.artist || '').toLowerCase().trim();
   const albumLower = (track.album || '').toLowerCase().trim();
-  const titleLower = (track.title || '').toLowerCase().trim();
 
-  // 1. Direct Band Substring Checks (overrides missing or generic covers)
+  // 1. A track's own (non-generic) cover always wins
+  if (track.coverUrl && !isGenericCover(track.coverUrl)) {
+    return track.coverUrl;
+  }
+  if (track.artworkUrl && !isGenericCover(track.artworkUrl)) {
+    return track.artworkUrl;
+  }
+
+  // 2. Band name checks (for tracks with no cover or a generic logo).
+  //    Artist/album only — a song title like "Empress" must not pick a band cover.
   if (
     artistLower.includes('empress') ||
-    albumLower.includes('empress') ||
-    titleLower.includes('empress')
+    albumLower.includes('empress')
   ) {
     return '/empress-orchestra.jpg';
   }
@@ -110,14 +117,6 @@ export function getTrackCover(
     albumLower.includes('la grande')
   ) {
     return '/la-grande-orchestra-italiana.jpg';
-  }
-
-  // 2. Custom non-generic coverUrl / artworkUrl on track object
-  if (track.coverUrl && !isGenericCover(track.coverUrl)) {
-    return track.coverUrl;
-  }
-  if (track.artworkUrl && !isGenericCover(track.artworkUrl)) {
-    return track.artworkUrl;
   }
 
   // 3. Dynamic album matching against passed albums or DEFAULT_ALBUMS

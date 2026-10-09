@@ -673,6 +673,14 @@ export const AudioProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     // opts.startAt: continue the same track from this position (used when the
     // output element has to be swapped mid-track — see setBpm).
     const startAt = opts?.startAt && opts.startAt > 0 ? opts.startAt : 0;
+    // Final Mode is Premium-only. Checked here so every entry point is covered
+    // (Finals page, album "Start Final" buttons, the full player's FINALS tab).
+    if (forceFinalMode === true && !isPremiumRef.current) {
+      setActiveMode(null);
+      setSessionTracks([]);
+      setIsSubscriptionModalOpen(true);
+      return;
+    }
     // If the same track is clicked and it's already loaded, toggle play/pause instead of reloading
     if (!isRetry && trackIdRef.current === track.id && isLoaded) {
       togglePlay();
@@ -1289,9 +1297,10 @@ export const AudioProvider: React.FC<{ children: React.ReactNode }> = ({ childre
           artist: track.artist || '4ANDONE Artist',
           album: track.album || '4and.one Music',
           artwork: [
-            { src: absoluteCover, sizes: '512x512', type: 'image/jpeg' },
-            { src: absoluteCover, sizes: '192x192', type: 'image/png' },
-            { src: '/icons/icon-512x512.png', sizes: '512x512', type: 'image/png' },
+            // One entry with the cover's real type (a .png cover was declared
+            // as image/jpeg), then the app icon as a fallback.
+            { src: absoluteCover, sizes: '512x512', type: /\.png($|\?)/i.test(coverPath) ? 'image/png' : 'image/jpeg' },
+            { src: `${window.location.origin}/icons/icon-512x512.png`, sizes: '512x512', type: 'image/png' },
           ]
         });
 

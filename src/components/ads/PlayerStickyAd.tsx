@@ -4,6 +4,7 @@ import React, { useState, useEffect } from 'react';
 import { useAuth } from '@/context/AuthContext';
 import { useAudio } from '@/components/audio/AudioProvider';
 import { AdBanner } from './AdBanner';
+import { recordAdEvent } from '@/lib/adEvents';
 import { Crown, Ban, Trophy, Download, ArrowRight } from 'lucide-react';
 
 export default function PlayerStickyAd() {
@@ -13,11 +14,18 @@ export default function PlayerStickyAd() {
 
   const isPlayerActive = (isLoaded || !!currentTrack) && title !== "No Track Selected";
 
-  // Fallback timer: if AdSense hasn't reported 'filled' in 2 seconds, show our House Premium Banner
+  // No answer from AdSense (ad blocker / slow network) → our Premium banner.
+  // It used to switch after 2s and hide the ad slot with display:none; AdSense
+  // often answers later, and a hidden slot (width 0) is never filled — so the
+  // Google ad could never appear. 8s matches the list ad.
   useEffect(() => {
     const timer = setTimeout(() => {
-      setAdStatus((prev) => (prev === 'loading' ? 'unfilled' : prev));
-    }, 2000);
+      setAdStatus((prev) => {
+        if (prev !== 'loading') return prev;
+        recordAdEvent('strip', 'no_answer');
+        return 'unfilled';
+      });
+    }, 8000);
     return () => clearTimeout(timer);
   }, []);
 
@@ -34,7 +42,12 @@ export default function PlayerStickyAd() {
           <AdBanner 
             variant="auto" 
             className="player-ad-unit" 
-            onStatusChange={(status) => setAdStatus(status)}
+            onStatusChange={(status) => {
+              recordAdEvent('strip', status === 'filled' ? 'filled' : 'unfilled');
+              setAdStatus(status);
+            }}
+            onRequested={() => recordAdEvent('strip', 'requested')}
+            onAdClick={() => recordAdEvent('strip', 'click')}
           />
         </div>
 
@@ -42,7 +55,8 @@ export default function PlayerStickyAd() {
         {adStatus === 'unfilled' && (
           <div 
             className="house-premium-ad-banner"
-            onClick={() => setIsSubscriptionModalOpen(true)}
+            onClick={() => { recordAdEvent('strip', 'promo_click'); setIsSubscriptionModalOpen(true); }}
+            onKeyDown={(e) => { if (e.key === 'Enter') setIsSubscriptionModalOpen(true); }}
             role="button"
             tabIndex={0}
           >
@@ -75,6 +89,7 @@ export default function PlayerStickyAd() {
               className="house-ad-cta-btn"
               onClick={(e) => {
                 e.stopPropagation();
+                recordAdEvent('strip', 'promo_click');
                 setIsSubscriptionModalOpen(true);
               }}
             >

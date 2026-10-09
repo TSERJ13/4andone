@@ -44,9 +44,9 @@ export async function generateCategoryMetadata(slug: string): Promise<Metadata> 
       type: 'website',
       images: [
         {
-          url: 'https://4and.one/icon.png',
-          width: 512,
-          height: 512,
+          url: 'https://4and.one/og-image.jpg',
+          width: 1200,
+          height: 630,
           alt: `${category.name} Music on 4and.one`,
         },
       ],
@@ -55,7 +55,7 @@ export async function generateCategoryMetadata(slug: string): Promise<Metadata> 
       card: 'summary',
       title,
       description,
-      images: ['https://4and.one/icon.png'],
+      images: ['https://4and.one/og-image.jpg'],
     },
   };
 }

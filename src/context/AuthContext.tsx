@@ -27,6 +27,8 @@ interface AuthContextType {
   isSubscriptionModalOpen: boolean;
   setIsSubscriptionModalOpen: (open: boolean) => void;
   activatePremium: (subscriptionId: string) => Promise<void>;
+  /** Changes each time the server session (httpOnly cookie) is (re)established. */
+  sessionVersion: number;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -37,6 +39,27 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [isLoading, setIsLoading] = useState(true);
   const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
   const [isSubscriptionModalOpen, setIsSubscriptionModalOpen] = useState(false);
+  const [sessionVersion, setSessionVersion] = useState(0);
+
+  // Prove the Telegram login to the server (it checks Telegram's signature
+  // with the bot token) and get the httpOnly session cookie that unlocks this
+  // account's own data — listening history, profile — on any device.
+  const establishServerSession = async (userData: TelegramUser) => {
+    try {
+      const initData = (window as unknown as { Telegram?: { WebApp?: { initData?: string } } }).Telegram?.WebApp?.initData;
+      const body = typeof initData === 'string' && initData.includes('hash=')
+        ? { initData }
+        : userData;
+      const res = await fetch('/api/user/session', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify(body),
+      });
+      if (res.ok || res.status === 503) setSessionVersion(v => v + 1); // 503 = not configured yet
+    } catch {
+      // offline — the next visit tries again
+    }
+  };
 
   const syncWithSupabase = async (userData: TelegramUser) => {
     try {
@@ -116,6 +139,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         setUser(parsedUser);
         setIsPremium(hasLifetime || !!parsedUser.is_premium);
         syncWithSupabase(parsedUser);
+        establishServerSession(parsedUser);
         // The saved copy can be stale (subscription expired, or granted from the
         // admin panel on another device) — re-check the real status quietly.
         if (!hasLifetime && parsedUser.id) {
@@ -173,6 +197,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     setIsPremium(!!userData.is_premium);
     localStorage.setItem('4andone-user', JSON.stringify(userData));
     setIsAuthModalOpen(false);
+    await establishServerSession(userData);
     await syncWithSupabase(userData);
 
     // Record the profile/visit (server-side; premium columns are not writable here)
@@ -221,6 +246,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     setUser(null);
     setIsPremium(false);
     localStorage.removeItem('4andone-user');
+    fetch('/api/user/session', { method: 'DELETE' }).catch(() => {});
     try {
       localStorage.removeItem('4andone_liked_tracks');
       // Also clear user-scoped keys
@@ -244,7 +270,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       setIsAuthModalOpen,
       isSubscriptionModalOpen,
       setIsSubscriptionModalOpen,
-      activatePremium
+      activatePremium,
+      sessionVersion
     }}>
       {children}
     </AuthContext.Provider>

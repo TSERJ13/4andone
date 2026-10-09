@@ -29,7 +29,7 @@ const fmtDate = (iso?: string | null) =>
   iso ? new Date(iso).toLocaleDateString(undefined, { day: 'numeric', month: 'short', year: 'numeric' }) : '';
 
 export default function ProfilePage() {
-  const { user, isAuthenticated, isPremium, logout } = useAuth();
+  const { user, isAuthenticated, isPremium, logout, sessionVersion } = useAuth();
   const { tracks, folders } = useStudio();
   const { loadTrack, trackId: playingTrackId, isPlaying } = useAudioControls();
   const downloadedIds = useDownloadedTracks();
@@ -39,12 +39,16 @@ export default function ProfilePage() {
   useEffect(() => {
     if (!user?.id) return;
     let cancelled = false;
-    fetch(`/api/user/profile?tid=${user.id}`)
-      .then(r => (r.ok ? r.json() : Promise.reject(new Error(String(r.status)))))
-      .then(d => { if (!cancelled) setData(d); })
+    fetch(`/api/user/profile?tid=${user.id}`, { cache: 'no-store' })
+      .then(r => {
+        // 401 = the server session is still being set up; sessionVersion re-runs this
+        if (r.status === 401) return null;
+        return r.ok ? r.json() : Promise.reject(new Error(String(r.status)));
+      })
+      .then(d => { if (!cancelled && d) { setData(d); setFailed(false); } })
       .catch(() => { if (!cancelled) setFailed(true); });
     return () => { cancelled = true; };
-  }, [user?.id]);
+  }, [user?.id, sessionVersion]);
 
   if (!isAuthenticated || !user) {
     return (

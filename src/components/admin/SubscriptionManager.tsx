@@ -24,8 +24,8 @@ export default function SubscriptionManager() {
   const [search, setSearch] = useState('');
   const [actionLoading, setActionLoading] = useState<number | null>(null);
 
-  const fetchSubscribers = async () => {
-    setLoading(true);
+  const fetchSubscribers = async (silent = false) => {
+    if (!silent) setLoading(true);
     try {
       const { data, error } = await adminDb
         .from('telegram_users')
@@ -57,6 +57,17 @@ export default function SubscriptionManager() {
   ];
   const [durationFor, setDurationFor] = useState<Record<number, string>>({});
 
+  const [toast, setToast] = useState<{ ok: boolean; text: string } | null>(null);
+  const showToast = (ok: boolean, text: string) => {
+    setToast({ ok, text });
+    setTimeout(() => setToast(null), 4000);
+  };
+
+  // Gifted with no end date = Forever (the owner's LIFETIME row too)
+  const isForever = (u: Subscriber) =>
+    u.is_premium && !u.premium_until && !!u.subscription_id &&
+    (u.subscription_id.startsWith('MANUAL_') || u.subscription_id.startsWith('LIFETIME_'));
+
   const isActivePremium = (u: Subscriber) =>
     u.is_premium && (!u.premium_until || new Date(u.premium_until).getTime() > Date.now());
 
@@ -69,9 +80,15 @@ export default function SubscriptionManager() {
         .update(patch)
         .eq('telegram_id', user.telegram_id);
       if (error) {
-        alert('Could not save: ' + error.message);
+        showToast(false, `Could not save ${user.first_name}: ${error.message}`);
         return;
       }
+      const who = user.first_name || `#${user.telegram_id}`;
+      showToast(true, !patch.is_premium
+        ? `Saved — ${who}: Premium removed`
+        : patch.premium_until
+          ? `Saved — ${who}: Premium until ${new Date(patch.premium_until).toLocaleDateString()}`
+          : `Saved — ${who}: Premium forever`);
       setSubscribers(prev => prev.map(s => s.telegram_id === user.telegram_id
         ? { ...s, is_premium: patch.is_premium, subscription_id: patch.subscription_id ?? undefined, premium_until: patch.premium_until ?? undefined }
         : s));
@@ -79,14 +96,25 @@ export default function SubscriptionManager() {
       console.error('[PREMIUM-UPDATE-ERROR]', e);
     } finally {
       setActionLoading(null);
+      fetchSubscribers(true); // re-read from the database: the table shows what is really saved
     }
   };
+
+  // What the dropdown starts on: a Forever user's current plan, otherwise 1 month
+  const selectedDuration = (u: Subscriber) => durationFor[u.telegram_id] || (isForever(u) ? 'forever' : '1m');
 
   // Give or extend free Premium. Extending adds to the current end date
   // (not to today), so a gifted month is never lost.
   const grantPremium = (user: Subscriber) => {
-    const opt = DURATIONS.find(d => d.key === (durationFor[user.telegram_id] || '1m')) || DURATIONS[1];
+    const opt = DURATIONS.find(d => d.key === selectedDuration(user)) || DURATIONS[1];
     let premiumUntil: string | null = null;
+    // A Forever user switched to a fixed period: confirm (it shortens it)
+    if (isForever(user) && opt.key !== 'forever') {
+      const end = new Date();
+      if (opt.days) end.setDate(end.getDate() + opt.days);
+      if (opt.months) end.setMonth(end.getMonth() + opt.months);
+      if (!confirm(`${user.first_name} has Premium forever. Change it to ${opt.label} (ends ${end.toLocaleDateString()})?`)) return;
+    }
     if (opt.key !== 'forever') {
       const current = user.premium_until ? new Date(user.premium_until).getTime() : 0;
       const d = new Date(isActivePremium(user) && current > Date.now() ? current : Date.now());
@@ -145,7 +173,7 @@ export default function SubscriptionManager() {
         </div>
 
         <button 
-          onClick={fetchSubscribers} 
+          onClick={() => fetchSubscribers()} 
           className={`refresh-btn glass ${loading ? 'spinning' : ''}`}
           title="Refresh"
         >
@@ -266,7 +294,7 @@ export default function SubscriptionManager() {
                         ) : user.premium_until ? (
                           new Date(user.premium_until).toLocaleDateString()
                         ) : user.is_premium && user.subscription_id?.startsWith('MANUAL_') ? (
-                          'Never Expires'
+                          <strong className="text-emerald">Forever</strong>
                         ) : user.is_premium ? (
                           'Auto-Renewing'
                         ) : (
@@ -281,7 +309,7 @@ export default function SubscriptionManager() {
                         <div className="premium-actions">
                           <select
                             className="duration-select"
-                            value={durationFor[user.telegram_id] || '1m'}
+                            value={selectedDuration(user)}
                             onChange={(e) => setDurationFor(prev => ({ ...prev, [user.telegram_id]: e.target.value }))}
                             disabled={actionLoading === user.telegram_id}
                             aria-label="Premium duration"
@@ -289,12 +317,18 @@ export default function SubscriptionManager() {
                             {DURATIONS.map(d => <option key={d.key} value={d.key}>{d.label}</option>)}
                           </select>
                           <button
-                            disabled={actionLoading === user.telegram_id}
+                            disabled={actionLoading === user.telegram_id || (isForever(user) && selectedDuration(user) === 'forever')}
                             onClick={() => grantPremium(user)}
                             className="toggle-sub-btn activate"
                           >
                             <Sparkles size={13} />
-                            <span>{isActivePremium(user) ? 'Extend' : 'Give Premium'}</span>
+                            <span>
+                              {!isActivePremium(user)
+                                ? 'Give Premium'
+                                : isForever(user)
+                                  ? (selectedDuration(user) === 'forever' ? 'Forever ✓' : 'Change')
+                                  : selectedDuration(user) === 'forever' ? 'Make Forever' : 'Extend'}
+                            </span>
                           </button>
                           {user.is_premium && (
                             <button
@@ -316,6 +350,13 @@ export default function SubscriptionManager() {
           </tbody>
         </table>
       </div>
+
+      {toast && (
+        <div className={`admin-toast ${toast.ok ? 'ok' : 'err'}`} role="status">
+          {toast.ok ? <Check size={15} /> : <X size={15} />}
+          <span>{toast.text}</span>
+        </div>
+      )}
 
       <style jsx>{`
         .sub-manager-card {
@@ -601,6 +642,36 @@ export default function SubscriptionManager() {
         .toggle-sub-btn.deactivate:hover {
           background: #ef4444;
           color: white;
+        }
+
+        .admin-toast {
+          position: fixed;
+          bottom: 24px;
+          left: 50%;
+          transform: translateX(-50%);
+          z-index: 2000;
+          display: flex;
+          align-items: center;
+          gap: 8px;
+          padding: 10px 16px;
+          border-radius: 12px;
+          font-size: 0.85rem;
+          font-weight: 700;
+          box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
+        }
+        .admin-toast.ok {
+          background: #064e3b;
+          color: #a7f3d0;
+          border: 1px solid rgba(16, 185, 129, 0.5);
+        }
+        .admin-toast.err {
+          background: #450a0a;
+          color: #fecaca;
+          border: 1px solid rgba(239, 68, 68, 0.5);
+        }
+        .toggle-sub-btn:disabled {
+          opacity: 0.55;
+          cursor: default;
         }
 
         .premium-actions {

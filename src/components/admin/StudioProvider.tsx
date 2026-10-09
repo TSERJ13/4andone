@@ -5,6 +5,7 @@ import { supabase } from '@/utils/supabase';
 import { adminDb } from '@/lib/admin-db';
 import { useAuth } from '@/context/AuthContext';
 import { Album, DEFAULT_ALBUMS } from '@/types/album';
+import { getOfflineTrackMeta } from '@/utils/offline';
 
 export type { Album } from '@/types/album';
 export { DEFAULT_ALBUMS } from '@/types/album';
@@ -290,7 +291,14 @@ export const StudioProvider: React.FC<{ children: React.ReactNode }> = ({ childr
         } catch (e) {}
       }
 
-      if (tracksData) {
+      // No internet (or Supabase unreachable): show the downloaded tracks so
+      // they can still be played offline.
+      if ((!tracksData || tracksData.length === 0) && typeof navigator !== 'undefined' && !navigator.onLine) {
+        const offlineTracks = getOfflineTrackMeta().map((t: any) => ({ ...t, isFavorite: userLikes.includes(t.id) }));
+        if (offlineTracks.length > 0) setTracks(prev => (prev.length > 0 ? prev : offlineTracks));
+      }
+
+      if (tracksData && tracksData.length > 0) {
         const mapped = tracksData.map(t => ({
           ...t,
           audioUrl: t.audio_url,

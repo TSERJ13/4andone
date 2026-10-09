@@ -11,6 +11,10 @@ const withPWA = withPWAInit({
   register: true,
   skipWaiting: true,
   buildExcludes: [/.*\.css$/],
+  // Don't precache public/ — it holds ~100MB (ONNX wasm models, sample audio,
+  // big images) that every visitor would download on first load. Images and
+  // pages are still cached at runtime as people use them.
+  publicExcludes: ['!**/*'],
   // Removed from the default runtime caching:
   //  * 'cross-origin' — routed EVERY cross-origin request through the service
   //    worker with NetworkFirst + a 10s timeout: the R2 audio streams (range

@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState, useEffect, useRef } from 'react';
-import { Download, Share, PlusSquare, X, Sparkles, MoreVertical } from 'lucide-react';
+import { Download, Share, PlusSquare, X, MoreVertical } from 'lucide-react';
 
 const DISMISS_KEY = 'pwa_prompt_dismissed_time';
 const DISMISS_MS = 7 * 86400 * 1000;
@@ -113,78 +113,56 @@ export default function PwaInstallPrompt() {
 
   if (!isVisible) return null;
 
+  const steps: { text: React.ReactNode; icon: React.ReactNode }[] = showIosTutorial
+    ? [
+        { text: <>Tap <strong>Share</strong> in the Safari toolbar</>, icon: <Share size={18} /> },
+        { text: <>Choose <strong>Add to Home Screen</strong></>, icon: <PlusSquare size={18} /> },
+        { text: <>Tap <strong>Add</strong> in the top corner</>, icon: null },
+      ]
+    : [
+        { text: <>Open your browser <strong>menu</strong></>, icon: <MoreVertical size={18} /> },
+        { text: <>Choose <strong>Install app</strong> or <strong>Add to Home Screen</strong></>, icon: <PlusSquare size={18} /> },
+      ];
+  const showSteps = showIosTutorial || showManualSteps;
+
   return (
-    <div className="pwa-install-overlay">
-      <div className="pwa-install-card animate-slide-up">
-        <button className="pwa-close-btn" onClick={handleDismiss} title="Close">
+    <div className="pwa-install-overlay" role="dialog" aria-label="Install 4ANDONE">
+      <div className="pwa-card">
+        <button type="button" className="pwa-close" onClick={handleDismiss} aria-label="Close">
           <X size={18} />
         </button>
 
-        <div className="pwa-card-header">
-          <div className="pwa-icon-wrapper">
-            <img src="/icons/icon-192x192.png" alt="4ANDONE" className="pwa-app-icon" />
-            <div className="pwa-icon-glow" />
-          </div>
-          <div className="pwa-text-box">
-            <div className="pwa-badge">
-              <Sparkles size={12} className="animate-spin-slow text-amber-300" />
-              <span>Official App</span>
-            </div>
-            <h3 className="pwa-title">Install 4ANDONE App</h3>
-            <p className="pwa-subtitle">
-              Add 4ANDONE to your Home Screen for instant access, full screen player & offline mode.
-            </p>
+        <div className="pwa-head">
+          <img src="/icons/icon-192x192.png" alt="" className="pwa-icon" />
+          <div>
+            <h3 className="pwa-title">Add 4ANDONE to your Home Screen</h3>
+            <p className="pwa-sub">Opens full screen like an app and plays your downloads offline.</p>
           </div>
         </div>
 
-        {showIosTutorial ? (
-          <div className="pwa-ios-instructions">
-            <div className="pwa-step">
-              <span className="step-num">1</span>
-              <p>
-                Tap the <strong>Share</strong> button in Safari toolbar:
-              </p>
-              <Share size={20} className="text-sky-400 animate-bounce inline-block ml-1" />
-            </div>
-            <div className="pwa-step">
-              <span className="step-num">2</span>
-              <p>
-                Scroll and select <strong>&ldquo;Add to Home Screen&rdquo;</strong>:
-              </p>
-              <PlusSquare size={20} className="text-purple-400 inline-block ml-1" />
-            </div>
-            <button className="pwa-done-btn" onClick={handleDismiss}>
+        {showSteps ? (
+          <>
+            <ol className="pwa-steps">
+              {steps.map((step, i) => (
+                <li key={i} className="pwa-step">
+                  <span className="pwa-num">{i + 1}</span>
+                  <span className="pwa-step-text">{step.text}</span>
+                  {step.icon && <span className="pwa-step-icon">{step.icon}</span>}
+                </li>
+              ))}
+            </ol>
+            <button type="button" className="pwa-primary" onClick={handleDismiss}>
               Got it
             </button>
-          </div>
-        ) : showManualSteps ? (
-          <div className="pwa-ios-instructions">
-            <div className="pwa-step">
-              <span className="step-num">1</span>
-              <p>
-                Open your browser <strong>menu</strong>:
-              </p>
-              <MoreVertical size={20} className="text-sky-400 inline-block ml-1" />
-            </div>
-            <div className="pwa-step">
-              <span className="step-num">2</span>
-              <p>
-                Choose <strong>&ldquo;Install app&rdquo;</strong> or <strong>&ldquo;Add to Home Screen&rdquo;</strong>.
-              </p>
-              <PlusSquare size={20} className="text-purple-400 inline-block ml-1" />
-            </div>
-            <button className="pwa-done-btn" onClick={handleDismiss}>
-              Got it
-            </button>
-          </div>
+          </>
         ) : (
           <div className="pwa-actions">
-            <button className="pwa-install-btn" onClick={handleInstallClick}>
-              <Download size={18} />
-              <span>Install App</span>
+            <button type="button" className="pwa-secondary" onClick={handleDismiss}>
+              Not now
             </button>
-            <button className="pwa-later-btn" onClick={handleDismiss}>
-              Not Now
+            <button type="button" className="pwa-primary" onClick={handleInstallClick}>
+              <Download size={16} />
+              <span>Install</span>
             </button>
           </div>
         )}
@@ -197,11 +175,9 @@ export default function PwaInstallPrompt() {
           bottom: 148px;
           right: 24px;
           z-index: 9999;
-          max-width: 420px;
-          width: calc(100vw - 32px);
-          pointer-events: auto;
+          width: 360px;
+          max-width: calc(100vw - 32px);
         }
-
         @media (max-width: 768px) {
           .pwa-install-overlay {
             /* above bottom nav (56) + mini player (60) + ad strip (~60) */
@@ -209,213 +185,147 @@ export default function PwaInstallPrompt() {
             left: 16px;
             right: 16px;
             width: auto;
-            max-width: 100%;
+            max-width: none;
           }
         }
 
-        .pwa-install-card {
-          background: rgba(18, 18, 26, 0.92);
-          backdrop-filter: blur(20px);
-          -webkit-backdrop-filter: blur(20px);
-          border: 1px solid rgba(168, 85, 247, 0.35);
-          border-radius: 20px;
-          padding: 20px;
-          box-shadow: 0 12px 40px rgba(0, 0, 0, 0.6), 0 0 30px rgba(168, 85, 247, 0.2);
+        .pwa-card {
           position: relative;
-          color: #fff;
-          overflow: hidden;
-          animation: slideUp 0.4s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+          background: #1f1f1f;
+          border: 1px solid rgba(255, 255, 255, 0.08);
+          border-radius: 16px;
+          padding: 20px;
+          color: #ffffff;
+          box-shadow: 0 16px 40px rgba(0, 0, 0, 0.55);
+          animation: pwaIn 0.25s ease-out;
+        }
+        @keyframes pwaIn {
+          from { opacity: 0; transform: translateY(8px); }
+          to { opacity: 1; transform: translateY(0); }
         }
 
-        @keyframes slideUp {
-          from {
-            opacity: 0;
-            transform: translateY(30px) scale(0.95);
-          }
-          to {
-            opacity: 1;
-            transform: translateY(0) scale(1);
-          }
-        }
-
-        .pwa-close-btn {
+        .pwa-close {
           position: absolute;
-          top: 14px;
-          right: 14px;
-          background: rgba(255, 255, 255, 0.1);
-          border: none;
-          color: #aaa;
-          border-radius: 50%;
-          width: 28px;
-          height: 28px;
+          top: 12px;
+          right: 12px;
+          width: 32px;
+          height: 32px;
           display: flex;
           align-items: center;
           justify-content: center;
+          border: none;
+          border-radius: 50%;
+          background: transparent;
+          color: #aaaaaa;
           cursor: pointer;
-          transition: all 0.15s ease;
         }
-        .pwa-close-btn:hover {
-          background: rgba(255, 255, 255, 0.2);
-          color: #fff;
+        .pwa-close:hover {
+          background: rgba(255, 255, 255, 0.08);
+          color: #ffffff;
         }
 
-        .pwa-card-header {
+        .pwa-head {
           display: flex;
-          gap: 16px;
-          align-items: flex-start;
+          gap: 14px;
+          align-items: center;
+          padding-right: 28px;
         }
-
-        .pwa-icon-wrapper {
-          position: relative;
-          flex-shrink: 0;
-        }
-
-        .pwa-app-icon {
+        .pwa-icon {
           width: 52px;
           height: 52px;
-          border-radius: 14px;
-          box-shadow: 0 4px 15px rgba(0, 0, 0, 0.4);
-          position: relative;
-          z-index: 1;
+          border-radius: 12px;
+          flex-shrink: 0;
         }
-
-        .pwa-icon-glow {
-          position: absolute;
-          inset: -4px;
-          border-radius: 18px;
-          background: linear-gradient(135deg, #a855f7, #06b6d4);
-          opacity: 0.6;
-          filter: blur(8px);
-          animation: pulseGlow 2.5s infinite alternate;
-        }
-
-        @keyframes pulseGlow {
-          from { opacity: 0.4; filter: blur(6px); }
-          to { opacity: 0.8; filter: blur(12px); }
-        }
-
-        .pwa-text-box {
-          flex: 1;
-          padding-right: 20px;
-        }
-
-        .pwa-badge {
-          display: inline-flex;
-          align-items: center;
-          gap: 6px;
-          font-size: 11px;
-          font-weight: 700;
-          letter-spacing: 0.5px;
-          color: #d8b4fe;
-          background: rgba(168, 85, 247, 0.15);
-          padding: 2px 8px;
-          border-radius: 10px;
-          margin-bottom: 6px;
-          border: 1px solid rgba(168, 85, 247, 0.3);
-        }
-
         .pwa-title {
+          margin: 0;
           font-size: 16px;
           font-weight: 700;
-          color: #fff;
-          margin: 0 0 4px 0;
-          line-height: 1.25;
+          line-height: 1.3;
+        }
+        .pwa-sub {
+          margin: 4px 0 0;
+          font-size: 13px;
+          line-height: 1.45;
+          color: #aaaaaa;
         }
 
-        .pwa-subtitle {
+        .pwa-steps {
+          list-style: none;
+          margin: 18px 0 0;
+          padding: 0;
+          border-top: 1px solid rgba(255, 255, 255, 0.08);
+        }
+        .pwa-step {
+          display: flex;
+          align-items: center;
+          gap: 12px;
+          padding: 12px 0;
+          border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+          font-size: 14px;
+          color: #e5e5e5;
+        }
+        .pwa-num {
+          width: 24px;
+          height: 24px;
+          flex-shrink: 0;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          border-radius: 50%;
+          background: rgba(255, 255, 255, 0.1);
           font-size: 12px;
-          color: #94a3b8;
-          margin: 0;
-          line-height: 1.4;
+          font-weight: 700;
+          color: #ffffff;
+        }
+        .pwa-step-text {
+          flex: 1;
+        }
+        .pwa-step-text :global(strong) {
+          color: #ffffff;
+          font-weight: 600;
+        }
+        .pwa-step-icon {
+          display: flex;
+          color: #aaaaaa;
         }
 
         .pwa-actions {
           display: flex;
-          gap: 10px;
-          margin-top: 16px;
-        }
-
-        .pwa-install-btn {
-          flex: 1;
-          display: flex;
-          align-items: center;
-          justify-content: center;
+          justify-content: flex-end;
           gap: 8px;
-          background: linear-gradient(135deg, #a855f7 0%, #7c3aed 100%);
-          color: #fff;
-          font-size: 13px;
-          font-weight: 700;
-          border: none;
-          padding: 10px 16px;
-          border-radius: 12px;
-          cursor: pointer;
-          box-shadow: 0 4px 15px rgba(168, 85, 247, 0.4);
-          transition: transform 0.15s ease, box-shadow 0.15s ease;
+          margin-top: 18px;
         }
-
-        .pwa-install-btn:hover {
-          transform: translateY(-1px);
-          box-shadow: 0 6px 20px rgba(168, 85, 247, 0.6);
-        }
-
-        .pwa-later-btn {
-          background: rgba(255, 255, 255, 0.08);
-          color: #cbd5e1;
-          font-size: 13px;
-          font-weight: 600;
-          border: 1px solid rgba(255, 255, 255, 0.12);
-          padding: 10px 16px;
-          border-radius: 12px;
-          cursor: pointer;
-          transition: background 0.15s ease;
-        }
-
-        .pwa-later-btn:hover {
-          background: rgba(255, 255, 255, 0.16);
-          color: #fff;
-        }
-
-        .pwa-ios-instructions {
-          margin-top: 16px;
-          padding-top: 12px;
-          border-top: 1px solid rgba(255, 255, 255, 0.1);
-          display: flex;
-          flex-direction: column;
-          gap: 10px;
-        }
-
-        .pwa-step {
-          display: flex;
-          align-items: center;
-          gap: 10px;
-          font-size: 13px;
-          color: #e2e8f0;
-        }
-
-        .step-num {
-          width: 22px;
-          height: 22px;
-          border-radius: 50%;
-          background: #a855f7;
-          color: #fff;
-          font-weight: 700;
-          font-size: 12px;
-          display: flex;
+        .pwa-primary,
+        .pwa-secondary {
+          display: inline-flex;
           align-items: center;
           justify-content: center;
-          flex-shrink: 0;
-        }
-
-        .pwa-done-btn {
-          margin-top: 6px;
-          background: rgba(255, 255, 255, 0.12);
-          border: 1px solid rgba(255, 255, 255, 0.2);
-          color: #fff;
+          gap: 6px;
+          height: 40px;
+          padding: 0 18px;
+          border-radius: 20px;
+          font-size: 14px;
           font-weight: 600;
-          font-size: 13px;
-          padding: 8px 16px;
-          border-radius: 10px;
           cursor: pointer;
+          border: none;
+        }
+        .pwa-primary {
+          background: #ffffff;
+          color: #0f0f0f;
+        }
+        .pwa-primary:hover {
+          background: #e5e5e5;
+        }
+        .pwa-secondary {
+          background: transparent;
+          color: #ffffff;
+        }
+        .pwa-secondary:hover {
+          background: rgba(255, 255, 255, 0.08);
+        }
+        .pwa-steps + .pwa-primary {
+          width: 100%;
+          margin-top: 16px;
         }
       `}</style>
     </div>

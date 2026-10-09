@@ -1,6 +1,36 @@
 import { saveAudioFile, getAudioFile, deleteAudioFile } from './storage';
 
 const OFFLINE_KEY = '4andone_offline_tracks';
+// Track details (title, artist, style…) of downloaded tracks, so the
+// Downloaded page and the player work with no internet (the full track list
+// comes from Supabase, which is unreachable offline).
+const OFFLINE_META_KEY = '4andone_offline_tracks_meta';
+
+export const getOfflineTrackMeta = (): any[] => {
+  if (typeof window === 'undefined') return [];
+  try {
+    const saved = localStorage.getItem(OFFLINE_META_KEY);
+    return saved ? JSON.parse(saved) : [];
+  } catch {
+    return [];
+  }
+};
+
+const saveOfflineTrackMeta = (track: any) => {
+  try {
+    const list = getOfflineTrackMeta().filter((t: any) => t.id !== track.id);
+    // keep it small: no audio blobs, just what the lists and player show
+    const { id, title, artist, album, style, duration, audioUrl, artworkUrl, coverUrl, tags, bpm } = track;
+    list.push({ id, title, artist, album, style, duration, audioUrl, artworkUrl, coverUrl, tags, bpm });
+    localStorage.setItem(OFFLINE_META_KEY, JSON.stringify(list));
+  } catch { /* ignore */ }
+};
+
+const removeOfflineTrackMeta = (trackId: string) => {
+  try {
+    localStorage.setItem(OFFLINE_META_KEY, JSON.stringify(getOfflineTrackMeta().filter((t: any) => t.id !== trackId)));
+  } catch { /* ignore */ }
+};
 
 export const getOfflineTrackIds = (): string[] => {
   if (typeof window === 'undefined') return [];
@@ -55,13 +85,14 @@ export const resolveAudioDownloadUrl = async (audioUrl?: string): Promise<string
   return finalUrl;
 };
 
-export const downloadTrackOffline = async (track: { id: string; audioUrl?: string }): Promise<boolean> => {
+export const downloadTrackOffline = async (track: { id: string; audioUrl?: string; [key: string]: any }): Promise<boolean> => {
   if (!track || !track.id) return false;
 
   try {
     // 1. Check if already stored in IndexedDB
     const existing = await getAudioFile(track.id);
     if (existing && existing.size > 0) {
+      saveOfflineTrackMeta(track);
       markTrackDownloaded(track.id);
       return true;
     }
@@ -78,7 +109,8 @@ export const downloadTrackOffline = async (track: { id: string; audioUrl?: strin
     // 4. Save into IndexedDB
     await saveAudioFile(track.id, blob);
 
-    // 5. Update offline registry
+    // 5. Update offline registry (+ details for offline listing)
+    saveOfflineTrackMeta(track);
     markTrackDownloaded(track.id);
     return true;
   } catch (err) {
@@ -104,6 +136,7 @@ export const removeOfflineTrack = async (trackId: string): Promise<void> => {
   try {
     const list = getOfflineTrackIds().filter(id => id !== trackId);
     localStorage.setItem(OFFLINE_KEY, JSON.stringify(list));
+    removeOfflineTrackMeta(trackId);
     await deleteAudioFile(trackId);
     window.dispatchEvent(new CustomEvent('4andone_offline_updated', { detail: { trackId, downloaded: false } }));
   } catch (e) {

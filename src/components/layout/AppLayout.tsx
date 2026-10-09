@@ -77,9 +77,15 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
 
   useEffect(() => {
     setMounted(true);
-    // Pick up a new service worker so old cached builds don't linger
-    if ('serviceWorker' in navigator) {
-      navigator.serviceWorker.getRegistrations().then((regs) => regs.forEach((reg) => reg.update())).catch(() => {});
+    // Service worker (offline support). next-pwa's auto-register script only
+    // runs in the pages-router bundle, which this App Router site never loads,
+    // so /sw.js was never registered and nothing worked offline. Register it
+    // here (production builds only — dev has no sw.js); update() picks up new
+    // builds so old cached ones don't linger.
+    if ('serviceWorker' in navigator && process.env.NODE_ENV === 'production') {
+      navigator.serviceWorker.register('/sw.js', { scope: '/' })
+        .then((reg) => reg.update())
+        .catch((e) => console.warn('[PWA] service worker registration failed:', e));
     }
     const isPWA =
       window.matchMedia('(display-mode: standalone)').matches ||

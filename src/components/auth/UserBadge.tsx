@@ -104,7 +104,7 @@ export const UserBadge: React.FC<{ textColor?: string }> = ({ textColor = 'white
           {/* Section 1: Core Account Actions */}
           <div className="yt-menu-section">
             <Link 
-              href="/library" 
+              href="/profile" 
               className="yt-menu-item"
               onClick={() => setShowPopup(false)}
             >

@@ -3,6 +3,7 @@
 import React, { createContext, useContext, useState, useEffect, useRef, useMemo, useCallback } from 'react';
 import { getAudioFile } from '@/utils/storage';
 import { getTrackCover } from '@/utils/trackCover';
+import { getStyleQueue } from '@/utils/playQueue';
 
 interface AudioContextType {
   isPlaying: boolean;
@@ -984,7 +985,19 @@ export const AudioProvider: React.FC<{ children: React.ReactNode }> = ({ childre
               // This handler now covers BOTH cases:
               //  1. Paso Doble — plays the full track, ends naturally.
               //  2. Any track shorter than 1:45 — ends before reaching the 105s limit.
-              // In both cases we must advance the session (or finish it).
+              // In a program we advance the session (or finish it).
+              if (!activeModeRef.current) {
+                // Single-track Final: same as the 1:45 stop — rewind and wait
+                // (stop() used to wipe the track from the player).
+                audio.pause();
+                setIsPlaying(false);
+                isPlayingRef.current = false;
+                audio.currentTime = 0;
+                setCurrentTime(0);
+                cancelFadeAndRestore();
+                finalEndHandledRef.current = false;
+                return;
+              }
               advanceFinalSession();
             } else {
               if (!isRepeatRef.current) {
@@ -1200,11 +1213,13 @@ export const AudioProvider: React.FC<{ children: React.ReactNode }> = ({ childre
 
                 if (toggledPastLimitRef.current) {
                   toggledPastLimitRef.current = false;
+                  customTimeLimitRef.current = null;
                   audio.currentTime = 0;
                   setCurrentTime(0);
                   trackCurrentTimeRef.current = 0;
                   // Restore volume (iOS-safe)
                   cancelFadeAndRestore();
+                  finalEndHandledRef.current = false;
                   return;
                 }
 
@@ -1216,6 +1231,8 @@ export const AudioProvider: React.FC<{ children: React.ReactNode }> = ({ childre
                   setCurrentTime(0);
                   // Restore volume (iOS-safe)
                   cancelFadeAndRestore();
+                  // Ready for the next play of this track to stop at 1:45 again
+                  finalEndHandledRef.current = false;
                 }
               }
             }
@@ -1732,41 +1749,56 @@ export const AudioProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       setIsSubscriptionModalOpen(true);
       return;
     }
-    setIsFinalMode(prev => {
-      const nextVal = !prev;
-      // Same rule as loadTrack: loop in normal mode, end (→ limit/onended) in Final
-      if (nativePlayerRef.current) nativePlayerRef.current.loop = !nextVal;
-      if (nextVal) {
-        // Turning ON: if we are already past (standardLimit - 2), set custom time limit
-        const audio = nativePlayerRef.current;
-        if (audio && playingTrackRef.current) {
-          const style = playingTrackRef.current.style?.toLowerCase() || '';
-          const isPasoDoble = style.includes('paso');
-          const isVW = style.includes('viennese') || (style.includes('waltz') && style.includes('v'));
-          const standardLimit = isPasoDoble ? Infinity : (isVW ? 85 : 105);
-          
-          if (!isPasoDoble && audio.currentTime > (standardLimit - 2)) {
-            customTimeLimitRef.current = audio.currentTime + 2;
-            if (audio.currentTime >= standardLimit) {
-              toggledPastLimitRef.current = true;
-            }
+    const nextVal = !isFinalModeRef.current;
+    isFinalModeRef.current = nextVal;
+    setIsFinalMode(nextVal);
+    // A new Final run on this track may end again (the guard stayed set after
+    // the previous 1:45 stop, so the next play ran past 1:45 — "wrong timing").
+    finalEndHandledRef.current = false;
+
+    const audio = nativePlayerRef.current;
+    // Same rule as loadTrack: loop in normal mode, end (→ limit/onended) in Final
+    if (audio) audio.loop = !nextVal;
+    if (nextVal) {
+      // Turning ON: if we are already past (standardLimit - 2), set custom time limit
+      if (audio && playingTrackRef.current) {
+        const style = playingTrackRef.current.style?.toLowerCase() || '';
+        const isPasoDoble = style.includes('paso');
+        const isVW = style.includes('viennese') || (style.includes('waltz') && style.includes('v'));
+        const standardLimit = isPasoDoble ? Infinity : (isVW ? 85 : 105);
+        if (!isPasoDoble && audio.currentTime > (standardLimit - 2)) {
+          customTimeLimitRef.current = audio.currentTime + 2;
+          if (audio.currentTime >= standardLimit) {
+            toggledPastLimitRef.current = true;
           }
         }
-      } else {
-        // Turning OFF: clear it
-        customTimeLimitRef.current = null;
-        toggledPastLimitRef.current = false;
-        // Restore volume in case it was fading
-        if (nativePlayerRef.current) {
-          cancelFadeAndRestore();
-        }
       }
-      return nextVal;
-    });
+    } else {
+      // Turning OFF: clear it and restore volume in case it was fading
+      customTimeLimitRef.current = null;
+      toggledPastLimitRef.current = false;
+      if (audio) cancelFadeAndRestore();
+    }
+
+    // iPhone/iPad: element volume is read-only, so the 1:42→1:45 fade only
+    // works on the gain-routed element. Final switched on mid-track stayed on
+    // the plain element → no fade at normal speed. Hand the track over at the
+    // same position (same as setBpm does): gain element for Final at 100%,
+    // plain element otherwise.
+    const track = playingTrackRef.current;
+    if (audio && track && audio.src && !isVolumeWritable() && !isPauseCountdownRef.current) {
+      const wantGain = nextVal && Math.abs(bpmRef.current - 100) < 0.5;
+      const onGain = audio === finalPlayerRef.current;
+      if (wantGain !== onGain) {
+        loadTrackRef.current(track, true, nextVal, { startAt: audio.currentTime || 0, paused: audio.paused });
+      }
+    }
   }, []);
 
+  // Normal mode: Next/Previous stay in the current dance (all albums) —
+  // the same list the full player shows under UP NEXT.
   const playNext = React.useCallback(() => {
-    const list = isFinalModeRef.current ? sessionTracksRef.current : tracks;
+    const list = isFinalModeRef.current ? sessionTracksRef.current : getStyleQueue(tracks, playingTrackRef.current);
     if (list.length === 0) return;
 
     let currentIndex = list.findIndex(t => t.id === trackIdRef.current || t.title === playingTrackRef.current?.title);
@@ -1787,7 +1819,7 @@ export const AudioProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   }, [tracks]);
 
   const playPrevious = React.useCallback(() => {
-    const list = isFinalModeRef.current ? sessionTracksRef.current : tracks;
+    const list = isFinalModeRef.current ? sessionTracksRef.current : getStyleQueue(tracks, playingTrackRef.current);
     if (list.length === 0) return;
 
     const currentIndex = list.findIndex(t => t.id === trackIdRef.current || t.title === playingTrackRef.current?.title);

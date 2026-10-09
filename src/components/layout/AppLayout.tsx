@@ -93,7 +93,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
     // builds so old cached ones don't linger.
     if ('serviceWorker' in navigator && process.env.NODE_ENV === 'production') {
       navigator.serviceWorker.register('/sw.js', { scope: '/' })
-        .then((reg) => reg.update())
+        .then((reg) => reg?.update())
         .catch((e) => console.warn('[PWA] service worker registration failed:', e));
     }
     const isPWA =

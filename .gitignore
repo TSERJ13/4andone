@@ -45,3 +45,4 @@ next-env.d.ts
 # them just adds noisy diffs and can look "stale" when browsing the repo
 public/sw.js
 public/workbox-*.js
+public/fallback-*.js

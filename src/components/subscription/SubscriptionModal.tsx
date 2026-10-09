@@ -1,13 +1,11 @@
 "use client";
 
 import React, { useState, useEffect } from 'react';
-import { PayPalScriptProvider, PayPalButtons } from '@paypal/react-paypal-js';
+import { PayPalPreload, PayPalSubscribeButton } from '@/components/subscription/PayPalCheckout';
 import { X, ShieldCheck, Check, Play } from 'lucide-react';
 import { useAuth } from '@/context/AuthContext';
 import { TelegramLogin } from '@/components/auth/TelegramLogin';
 
-const PAYPAL_CLIENT_ID = process.env.NEXT_PUBLIC_PAYPAL_CLIENT_ID || 'AR7DFDs4W3LqJNeFTELaFs06b8vuc3tcE6FZSmloQgAmtM05ZaR2_cRJosyOFGWF5ZEsXRAGNQVlFkDn';
-const PAYPAL_PLAN_ID = process.env.NEXT_PUBLIC_PAYPAL_PLAN_ID || 'P-2P321243C53094157NLCL5WI';
 
 interface SubscriptionModalProps {
   isOpen: boolean;
@@ -56,6 +54,7 @@ export const SubscriptionModal: React.FC<SubscriptionModalProps> = ({ isOpen, on
         </p>
 
         {/* Main CTA / Authentication & Payment Step */}
+        <PayPalPreload enabled={isAuthenticated && !isPremium}>
         {!isAuthenticated ? (
           <div className="yt-prem-auth-step">
             <p className="yt-prem-step-hint">Sign in with Telegram first to link your Premium subscription</p>
@@ -84,39 +83,15 @@ export const SubscriptionModal: React.FC<SubscriptionModalProps> = ({ isOpen, on
             <p className="yt-prem-step-hint">Logged in as <strong>@{user?.username || user?.first_name}</strong></p>
             {errorMsg && <div className="yt-prem-err">{errorMsg}</div>}
             
-            <PayPalScriptProvider options={{
-              clientId: PAYPAL_CLIENT_ID,
-              components: "buttons",
-              intent: "subscription",
-              vault: true
-            }}>
-              <PayPalButtons
-                style={{
-                  shape: 'pill',
-                  color: 'blue',
-                  layout: 'vertical',
-                  label: 'subscribe',
-                  height: 44
-                }}
-                createSubscription={(data, actions) => {
-                  return actions.subscription.create({
-                    plan_id: PAYPAL_PLAN_ID
-                  });
-                }}
-                onApprove={async (data) => {
-                  if (data.subscriptionID) {
-                    await activatePremium(data.subscriptionID);
-                    setSuccess(true);
-                  }
-                }}
-                onError={(err) => {
-                  console.error("[PAYPAL-ERROR]", err);
-                  setErrorMsg("Subscription processing failed. Please try again.");
-                }}
-              />
-            </PayPalScriptProvider>
+            <PayPalSubscribeButton
+              color="blue"
+              height={44}
+              onApproved={async (id) => { await activatePremium(id); setSuccess(true); }}
+              onError={setErrorMsg}
+            />
           </div>
         )}
+        </PayPalPreload>
 
         {/* Perks List */}
         <div className="yt-prem-perks">

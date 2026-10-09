@@ -3,13 +3,11 @@
 import React, { useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { PayPalScriptProvider, PayPalButtons } from '@paypal/react-paypal-js';
+import { PayPalPreload, PayPalSubscribeButton } from '@/components/subscription/PayPalCheckout';
 import { ShieldCheck, ArrowLeft, Check, Play, Music2 } from 'lucide-react';
 import { useAuth } from '@/context/AuthContext';
 import { TelegramLogin } from '@/components/auth/TelegramLogin';
 
-const PAYPAL_CLIENT_ID = process.env.NEXT_PUBLIC_PAYPAL_CLIENT_ID || 'AR7DFDs4W3LqJNeFTELaFs06b8vuc3tcE6FZSmloQgAmtM05ZaR2_cRJosyOFGWF5ZEsXRAGNQVlFkDn';
-const PAYPAL_PLAN_ID = process.env.NEXT_PUBLIC_PAYPAL_PLAN_ID || 'P-2P321243C53094157NLCL5WI';
 
 export default function UpgradePage() {
   const router = useRouter();
@@ -59,6 +57,9 @@ export default function UpgradePage() {
 
         {/* Action Buttons & Auth */}
         <div className="yt-prem-buttons-wrap">
+          {/* Signed-in, not yet Premium: the PayPal SDK starts loading now,
+              so the button is ready by the time "Get Premium" is pressed */}
+          <PayPalPreload enabled={isAuthenticated && !isPremium}>
           {!isAuthenticated ? (
             <div className="yt-prem-auth-pill-box">
               <p className="yt-prem-auth-hint">Sign in with Telegram first to activate your Premium</p>
@@ -88,41 +89,15 @@ export default function UpgradePage() {
               <p className="yt-prem-auth-hint">Logged in as <strong>@{user?.username || user?.first_name}</strong></p>
               {errorMsg && <div className="yt-prem-error">{errorMsg}</div>}
               
-              <PayPalScriptProvider options={{
-                clientId: PAYPAL_CLIENT_ID,
-                components: "buttons",
-                intent: "subscription",
-                vault: true
-              }}>
-                <PayPalButtons
-                  style={{
-                    shape: 'pill',
-                    color: 'gold',
-                    layout: 'vertical',
-                    label: 'subscribe',
-                    height: 52
-                  }}
-                  createSubscription={(data, actions) => {
-                    return actions.subscription.create({
-                      plan_id: PAYPAL_PLAN_ID
-                    });
-                  }}
-                  onApprove={async (data) => {
-                    if (data.subscriptionID) {
-                      await activatePremium(data.subscriptionID);
-                      setSuccess(true);
-                    } else {
-                      setErrorMsg("Subscription approved, but no subscription ID returned.");
-                    }
-                  }}
-                  onError={(err) => {
-                    console.error("PayPal Subscription Error:", err);
-                    setErrorMsg("Payment processing failed. Please try again.");
-                  }}
-                />
-              </PayPalScriptProvider>
+              <PayPalSubscribeButton
+                color="gold"
+                height={52}
+                onApproved={async (id) => { await activatePremium(id); setSuccess(true); }}
+                onError={setErrorMsg}
+              />
             </div>
           )}
+          </PayPalPreload>
 
           <p className="yt-prem-disclaimer">
             Recurring billing. Cancel anytime.

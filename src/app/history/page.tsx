@@ -448,18 +448,42 @@ export default function HistoryPage() {
 
         @media (max-width: 768px) {
           .history-page {
-            padding: 12px 16px 120px 16px;
+            padding: 12px 0 120px 0; /* the page scroller already has 16px sides */
           }
+          /* Phone: cover + title side by side, buttons in their own row below */
           .history-hero {
+            flex-wrap: wrap;
+            align-items: center;
             gap: 16px;
-            margin-bottom: 24px;
+            margin-bottom: 28px;
           }
           .history-cover {
-            width: 100px;
-            height: 100px;
+            width: 88px;
+            height: 88px;
+            border-radius: 12px;
+          }
+          .history-cover :global(svg) {
+            width: 38px;
+            height: 38px;
+          }
+          .history-label {
+            white-space: nowrap;
           }
           .history-title {
             font-size: 1.6rem;
+            white-space: nowrap;
+          }
+          .history-hero-actions {
+            width: 100%;
+            gap: 10px;
+          }
+          .history-play-btn {
+            flex: 1;
+            justify-content: center;
+            white-space: nowrap;
+          }
+          .history-clear-btn {
+            flex-shrink: 0;
           }
           .albums-grid {
             grid-template-columns: repeat(2, 1fr);

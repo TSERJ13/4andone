@@ -7,13 +7,11 @@ import {
   LogOut, 
   Sparkles, 
   Crown, 
-  Users, 
   History, 
   Settings, 
   ShieldCheck, 
   HelpCircle, 
   MessageSquare, 
-  ChevronRight,
   Upload,
   LogIn,
   Lock
@@ -131,19 +129,6 @@ export const UserBadge: React.FC<{ textColor?: string }> = ({ textColor = 'white
                 </>
               )}
             </Link>
-
-            <button 
-              type="button"
-              className="yt-menu-item"
-              onClick={() => {
-                setShowPopup(false);
-                setIsAuthModalOpen(true);
-              }}
-            >
-              <Users size={20} className="yt-menu-icon" />
-              <span style={{ flex: 1, textAlign: 'left' }}>Switch account</span>
-              <ChevronRight size={16} className="yt-menu-arrow" />
-            </button>
 
             <button 
               type="button"

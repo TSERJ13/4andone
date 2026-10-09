@@ -44,6 +44,27 @@ export const getOfflineTrackIds = (): string[] => {
 
 export const getDownloadedTrackIds = getOfflineTrackIds;
 
+export const getFullOfflineTracks = (studioTracks: any[] = []): any[] => {
+  const downloadedIds = getDownloadedTrackIds();
+  const offlineMeta = getOfflineTrackMeta();
+  
+  const map = new Map<string, any>();
+  
+  for (const meta of offlineMeta) {
+    if (meta && meta.id && downloadedIds.includes(meta.id)) {
+      map.set(meta.id, meta);
+    }
+  }
+  
+  for (const track of studioTracks) {
+    if (track && track.id && downloadedIds.includes(track.id)) {
+      map.set(track.id, { ...map.get(track.id), ...track });
+    }
+  }
+
+  return Array.from(map.values());
+};
+
 export const isTrackDownloaded = (trackId: string): boolean => {
   if (!trackId || typeof window === 'undefined') return false;
   const list = getOfflineTrackIds();

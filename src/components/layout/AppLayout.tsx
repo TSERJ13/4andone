@@ -23,11 +23,13 @@ import AddToPlaylistModal from '@/components/audio/AddToPlaylistModal';
 import { OPEN_ADD_TO_PLAYLIST_EVENT } from '@/components/audio/playerActions';
 import type { Track } from '@/components/admin/StudioProvider';
 import PwaInstallPrompt from '@/components/pwa/PwaInstallPrompt';
+import OfflineHub from '@/components/offline/OfflineHub';
 import '@/styles/ytmusic.css';
 
 export default function AppLayout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const [mounted, setMounted] = useState(false);
+  const [isOffline, setIsOffline] = useState(false);
   const [isFullPlayerOpen, setIsFullPlayerOpen] = useState(false);
   const [isDesktopExpanded, setIsDesktopExpanded] = useState(false);
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
@@ -77,6 +79,13 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
 
   useEffect(() => {
     setMounted(true);
+    if (typeof window !== 'undefined') {
+      setIsOffline(!navigator.onLine);
+      const goOffline = () => setIsOffline(true);
+      const goOnline  = () => setIsOffline(false);
+      window.addEventListener('offline', goOffline);
+      window.addEventListener('online',  goOnline);
+    }
     // Service worker (offline support). next-pwa's auto-register script only
     // runs in the pages-router bundle, which this App Router site never loads,
     // so /sw.js was never registered and nothing worked offline. Register it
@@ -93,6 +102,10 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
     if (isPWA) {
       document.body.classList.add('pwa-standalone');
     }
+    return () => {
+      window.removeEventListener('offline', () => setIsOffline(true));
+      window.removeEventListener('online',  () => setIsOffline(false));
+    };
   }, []);
 
   useEffect(() => {
@@ -170,7 +183,11 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
         />
 
         <main className="yt-main-content-scroll">
-          {children}
+          {isOffline && pathname !== '/_offline' && pathname !== '/library/downloaded' ? (
+            <OfflineHub />
+          ) : (
+            children
+          )}
         </main>
       </div>
 

@@ -175,7 +175,10 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
       </div>
 
       {/* Sticky Ad Banner above Player Bar (Free Users) */}
-      {!isFullPlayerOpen && !isDesktopExpanded && <PlayerStickyAd />}
+      {/* Always mounted: unmounting it while a full player is open made a new
+          ad request every time the player closed (= ad refresh). The full
+          players cover it while open. */}
+      <PlayerStickyAd />
 
       {/* YouTube Music Player Bar */}
       <YtPlayerBar onExpandPlayer={handleExpand} />

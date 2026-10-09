@@ -2,20 +2,23 @@
 
 import React, { useEffect, useRef, useState, useSyncExternalStore } from 'react';
 import { useAudioControls } from '@/components/audio/AudioProvider';
+import { usePathname } from 'next/navigation';
 import { Sparkles } from 'lucide-react';
 import { useAuth } from '@/context/AuthContext';
 import { AdBanner, logAdEvent } from '@/components/ads/AdBanner';
 import { recordAdEvent } from '@/lib/adEvents';
 
-// ONE in-list ad, shown directly under the track the user starts as their
-// 3rd, 6th, 9th… track. Only one at a time: when the next one comes, the ad
-// moves under that track. It is a banner between tracks (no sound, nothing
-// blocks the screen), clearly labelled. Premium users never see it.
+// ONE in-list ad per page view. It appears under the 2nd track the user
+// starts on a page and then STAYS there — it is never moved or re-requested
+// on the same page (AdSense does not allow refreshing ads; moving it under
+// every new track re-requested an ad each time). A new page (another style,
+// album, search…) is a new page view and gets its own ad. It is a banner
+// between tracks (no sound, nothing blocks the screen), clearly labelled.
+// Premium users never see it.
 
 // "სიის რეკლამა" (Responsive) — its own unit so Reports show list revenue separately.
 const LIST_AD_SLOT = process.env.NEXT_PUBLIC_ADSENSE_LIST_SLOT || '4624552899';
-export const LIST_AD_EVERY = 1; // the ad moves under every started track
-const PLAY_COUNT_KEY = '4andone-list-ad-plays';
+export const LIST_AD_AFTER_PLAYS = 2; // shown under the 2nd track started on a page
 
 // Tiny shared store: which track the ad sits under.
 let anchorTrackId: string | null = null;
@@ -26,21 +29,27 @@ const setAnchor = (id: string | null) => { anchorTrackId = id; listeners.forEach
 /** Id of the track the single list ad is shown under (or null). */
 export const useListAdAnchor = () => useSyncExternalStore(subscribe, () => anchorTrackId, () => null);
 
-/** Mounted once (AppLayout): counts started tracks and moves the ad every 3rd one. */
+/** Mounted once (AppLayout): places the page's single list ad, then keeps it put. */
 export const ListAdAnchorTracker: React.FC = () => {
   const { trackId, isFinalMode } = useAudioControls();
+  const pathname = usePathname();
   const lastId = useRef<string | null>(null);
+  const playsOnPage = useRef(0);
+
+  // New page view → the next page gets its own ad
+  useEffect(() => {
+    playsOnPage.current = 0;
+    setAnchor(null);
+  }, [pathname]);
 
   useEffect(() => {
     if (!trackId || trackId === lastId.current) return;
     lastId.current = trackId;
     if (isFinalMode) return; // Final sessions don't count
-    let n = 0;
-    try { n = Number(sessionStorage.getItem(PLAY_COUNT_KEY) || 0); } catch { /* ignore */ }
-    n += 1;
-    try { sessionStorage.setItem(PLAY_COUNT_KEY, String(n)); } catch { /* ignore */ }
-    if (n % LIST_AD_EVERY === 0) {
-      logAdEvent(LIST_AD_SLOT, `play #${n} → list ad under this track`);
+    if (anchorTrackId) return; // this page already has its ad — never move it
+    playsOnPage.current += 1;
+    if (playsOnPage.current >= LIST_AD_AFTER_PLAYS) {
+      logAdEvent(LIST_AD_SLOT, `play #${playsOnPage.current} on this page → list ad under this track (stays)`);
       setAnchor(trackId);
     }
   }, [trackId, isFinalMode]);

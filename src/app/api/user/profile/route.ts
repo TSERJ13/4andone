@@ -12,6 +12,26 @@ export async function GET(request: NextRequest) {
   const db = getSupabaseAdmin();
   if (!db) return serviceRoleMissing();
 
+  // Light mode for the "recently played" lists (Home, History, player)
+  if (request.nextUrl.searchParams.get('only') === 'recent') {
+    const { data, error } = await db.from('track_plays')
+      .select('track_id, created_at')
+      .eq('user_ref', String(telegramId))
+      .or('event_type.is.null,event_type.eq.play')
+      .order('created_at', { ascending: false })
+      .limit(300);
+    if (error) return NextResponse.json({ error: 'Lookup failed' }, { status: 502 });
+    const seen = new Set<string>();
+    const recent: { trackId: string; playedAt: string }[] = [];
+    for (const p of data ?? []) {
+      if (!p.track_id || seen.has(p.track_id)) continue;
+      seen.add(p.track_id);
+      recent.push({ trackId: p.track_id, playedAt: p.created_at });
+      if (recent.length >= 50) break;
+    }
+    return NextResponse.json({ recent }, { headers: { 'cache-control': 'no-store' } });
+  }
+
   const [{ data: account }, premium, { data: plays, error: playsError }, { count: likes }] = await Promise.all([
     db.from('telegram_users')
       .select('first_name, last_name, username, photo_url, created_at, last_seen')

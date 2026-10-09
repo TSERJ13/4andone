@@ -1,7 +1,8 @@
 "use client";
 
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useMemo } from 'react';
 import { useStudio } from '@/components/admin/StudioProvider';
+import { useRecentlyPlayed } from '@/hooks/useRecentlyPlayed';
 import { useAudioControls } from '@/components/audio/AudioProvider';
 import YtFilterChips from './YtFilterChips';
 import YtQuickPicks from './YtQuickPicks';
@@ -27,27 +28,8 @@ export default function YtHomePageContent() {
 
   const [activeCategory, setActiveCategory] = useState('all');
   const [searchQuery, setSearchQuery] = useState('');
-  const [recentlyPlayedIds, setRecentlyPlayedIds] = useState<string[]>([]);
-
-  useEffect(() => {
-    const loadRecentlyPlayed = () => {
-      try {
-        const saved = localStorage.getItem('4andone_recently_played');
-        if (saved) {
-          setRecentlyPlayedIds(JSON.parse(saved));
-        }
-      } catch (e) {}
-    };
-
-    loadRecentlyPlayed();
-
-    window.addEventListener('4andone_recently_played_updated', loadRecentlyPlayed);
-    window.addEventListener('storage', loadRecentlyPlayed);
-    return () => {
-      window.removeEventListener('4andone_recently_played_updated', loadRecentlyPlayed);
-      window.removeEventListener('storage', loadRecentlyPlayed);
-    };
-  }, []);
+  // This device + the signed-in account's plays from the database
+  const recentlyPlayedIds = useRecentlyPlayed();
 
   // Filter tracks by category or search query and sort recently played first
   const filteredTracks = useMemo(() => {

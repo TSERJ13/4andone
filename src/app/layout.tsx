@@ -233,10 +233,10 @@ export const metadata: Metadata = {
     siteName: "4and.one Music",
     images: [
       {
-        url: "https://4and.one/icon.png",
-        width: 512,
-        height: 512,
-        alt: "4and.one music player logo",
+        url: "https://4and.one/og-image.jpg",
+        width: 1200,
+        height: 630,
+        alt: "4and.one Music logo",
       },
     ],
     locale: "en_US",
@@ -246,15 +246,15 @@ export const metadata: Metadata = {
     card: "summary_large_image",
     title: "4and.one - Free Web Music Player | Dancesport & Ballroom Music",
     description: "Free powerful web music player for Dancesport and Ballroom dancers. Listen to Cha Cha Cha, Samba, Rumba, Paso Doble, Jive, Slow Waltz, Tango, Viennese Waltz, Slow Foxtrot, and Quickstep music with BPM tempo control.",
-    images: ["https://4and.one/icon.png"],
+    images: ["https://4and.one/og-image.jpg"],
   },
-  manifest: "/manifest.json?v=4",
+  manifest: "/manifest.json?v=5",
   icons: {
     icon: [
-      { url: "/favicon.ico" },
-      { url: "/icon.png?v=3" },
+      { url: "/favicon.ico?v=4", sizes: "48x48" },
+      { url: "/icon.png?v=4", type: "image/png", sizes: "512x512" },
     ],
-    apple: "/apple-icon.png?v=3",
+    apple: { url: "/apple-icon.png?v=4", sizes: "180x180" },
   },
   appleWebApp: {
     capable: true,

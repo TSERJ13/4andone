@@ -64,18 +64,12 @@ export default function YtSidebar({ isCollapsed = false, isOpenMobile = false, o
         {/* Mobile Header Inside Drawer */}
         {isOpenMobile && (
           <div className="yt-sidebar-mobile-header">
-            <Link href="/" className="yt-logo-brand-link" onClick={onCloseMobile}>
-              <img
-                src="/logo-3d.png"
-                alt="4and.one Music"
-                style={{ height: '44px', width: 'auto', objectFit: 'contain' }}
-              />
-            </Link>
             <button
               type="button"
               className="yt-icon-btn"
               onClick={onCloseMobile}
               aria-label="Close menu"
+              style={{ marginLeft: 'auto' }}
             >
               <X size={22} />
             </button>

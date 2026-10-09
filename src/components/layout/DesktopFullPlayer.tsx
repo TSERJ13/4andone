@@ -28,7 +28,7 @@ import { useAudio } from '@/components/audio/AudioProvider';
 import { FinalStopButton } from '@/components/audio/FinalStopButton';
 import { useStudio, Track } from '@/components/admin/StudioProvider';
 import { getTrackCover } from '@/utils/trackCover';
-import { getRecentlyPlayedTrackIds } from '@/utils/history';
+import { useRecentlyPlayed } from '@/hooks/useRecentlyPlayed';
 import { getStyleQueue, upNextFrom } from '@/utils/playQueue';
 
 const formatTime = (seconds: number): string => {
@@ -95,12 +95,7 @@ export default function DesktopFullPlayer({ onClose }: DesktopFullPlayerProps) {
   }, [tracks, sessionTracks, isFinalMode, currentTrack]);
 
   // 1. Recently Played Tracks — re-read whenever a track starts
-  const [recentIds, setRecentIds] = useState<string[]>(() => getRecentlyPlayedTrackIds());
-  useEffect(() => {
-    const refresh = () => setRecentIds(getRecentlyPlayedTrackIds());
-    window.addEventListener('4andone_recently_played_updated', refresh);
-    return () => window.removeEventListener('4andone_recently_played_updated', refresh);
-  }, []);
+  const recentIds = useRecentlyPlayed();
   const recentTracks = React.useMemo(
     () => recentIds.map(id => tracks.find(t => t.id === id)).filter(Boolean) as Track[],
     [recentIds, tracks]

@@ -1,16 +1,41 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getSupabaseAdmin, serviceRoleMissing } from '@/lib/supabase-admin';
-import { parseTelegramId, readPremiumStatus } from '@/lib/premium';
+import { readPremiumStatus } from '@/lib/premium';
+import { resolveReadableTelegramId } from '@/lib/user-session';
 
 // A signed-in user's profile: account, Premium and listening stats, plus the
 // recently played tracks — read from the database, so they follow the
 // Telegram account to every device (they used to live only in the browser).
+// Only the signed-in account itself can read it (see lib/user-session).
 export async function GET(request: NextRequest) {
-  const telegramId = parseTelegramId(request.nextUrl.searchParams.get('tid'));
-  if (!telegramId) return NextResponse.json({ error: 'tid required' }, { status: 400 });
+  const who = await resolveReadableTelegramId(request.nextUrl.searchParams.get('tid'));
+  if ('status' in who) {
+    return NextResponse.json({ error: who.status === 400 ? 'tid required' : 'Sign in again' }, { status: who.status });
+  }
+  const { telegramId } = who;
 
   const db = getSupabaseAdmin();
   if (!db) return serviceRoleMissing();
+
+  // Light mode for the "recently played" lists (Home, History, player)
+  if (request.nextUrl.searchParams.get('only') === 'recent') {
+    const { data, error } = await db.from('track_plays')
+      .select('track_id, created_at')
+      .eq('user_ref', String(telegramId))
+      .or('event_type.is.null,event_type.eq.play')
+      .order('created_at', { ascending: false })
+      .limit(300);
+    if (error) return NextResponse.json({ error: 'Lookup failed' }, { status: 502 });
+    const seen = new Set<string>();
+    const recent: { trackId: string; playedAt: string }[] = [];
+    for (const p of data ?? []) {
+      if (!p.track_id || seen.has(p.track_id)) continue;
+      seen.add(p.track_id);
+      recent.push({ trackId: p.track_id, playedAt: p.created_at });
+      if (recent.length >= 50) break;
+    }
+    return NextResponse.json({ recent }, { headers: { 'cache-control': 'no-store' } });
+  }
 
   const [{ data: account }, premium, { data: plays, error: playsError }, { count: likes }] = await Promise.all([
     db.from('telegram_users')

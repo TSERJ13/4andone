@@ -10,6 +10,17 @@ export interface RecentAlbumItem {
 
 const RECENT_TRACKS_KEY = '4andone_recently_played';
 const RECENT_ALBUMS_KEY = '4andone_recently_played_albums';
+const RECENT_TIMES_KEY = '4andone_recently_played_at'; // { trackId: ms } — orders device + account plays together
+
+export const getRecentlyPlayedTimes = (): Record<string, number> => {
+  if (typeof window === 'undefined') return {};
+  try {
+    const saved = localStorage.getItem(RECENT_TIMES_KEY);
+    return saved ? JSON.parse(saved) : {};
+  } catch {
+    return {};
+  }
+};
 
 export const getRecentlyPlayedTrackIds = (): string[] => {
   if (typeof window === 'undefined') return [];
@@ -27,6 +38,11 @@ export const recordTrackPlayed = (trackId: string) => {
     const list = getRecentlyPlayedTrackIds();
     const filtered = [trackId, ...list.filter(id => id !== trackId)].slice(0, 50);
     localStorage.setItem(RECENT_TRACKS_KEY, JSON.stringify(filtered));
+    const times = getRecentlyPlayedTimes();
+    const keptTimes: Record<string, number> = {};
+    for (const id of filtered) if (times[id]) keptTimes[id] = times[id];
+    keptTimes[trackId] = Date.now();
+    localStorage.setItem(RECENT_TIMES_KEY, JSON.stringify(keptTimes));
     window.dispatchEvent(new Event('4andone_recently_played_updated'));
   } catch {}
 };
@@ -65,6 +81,7 @@ export const clearListeningHistory = () => {
   try {
     localStorage.removeItem(RECENT_TRACKS_KEY);
     localStorage.removeItem(RECENT_ALBUMS_KEY);
+    localStorage.removeItem(RECENT_TIMES_KEY);
     window.dispatchEvent(new Event('4andone_recently_played_updated'));
   } catch {}
 };

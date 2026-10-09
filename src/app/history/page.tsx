@@ -10,29 +10,25 @@ import { useDownloadedTracks } from '@/hooks/useDownloadedTracks';
 import ConfirmModal from '@/components/admin/ConfirmModal';
 import { TrackRow } from '@/components/tracks/TrackRow';
 import { 
-  getRecentlyPlayedTrackIds, 
   getRecentlyPlayedAlbums, 
   clearListeningHistory,
   RecentAlbumItem
 } from '@/utils/history';
 import { DEFAULT_ALBUMS } from '@/types/album';
-
-const HISTORY_CLEARED_KEY = '4andone_history_cleared_at';
+import { useRecentlyPlayed, HISTORY_CLEARED_KEY } from '@/hooks/useRecentlyPlayed';
 
 export default function HistoryPage() {
   const router = useRouter();
   const { isPlaying, title: playingTitle, trackId: playingTrackId, loadTrack } = useAudioControls();
   const { tracks, styles, albums: dbAlbums, toggleFavorite } = useStudio();
-  const { user, isAuthenticated, setIsAuthModalOpen } = useAuth();
+  const { isAuthenticated, setIsAuthModalOpen } = useAuth();
   const downloadedIds = useDownloadedTracks();
 
-  const [recentTrackIds, setRecentTrackIds] = useState<string[]>([]);
   const [recentAlbums, setRecentAlbums] = useState<RecentAlbumItem[]>([]);
   const [authPrompt, setAuthPrompt] = useState({ isOpen: false, action: '' });
   const [showClearConfirm, setShowClearConfirm] = useState(false);
 
   const refreshHistory = () => {
-    setRecentTrackIds(getRecentlyPlayedTrackIds());
     setRecentAlbums(getRecentlyPlayedAlbums());
   };
 
@@ -47,29 +43,8 @@ export default function HistoryPage() {
     };
   }, []);
 
-  // Account history from the database (same Telegram account on any device).
-  // Merged after this device's own list; "Clear" hides everything played
-  // before that moment on this device.
-  const [cloudRecent, setCloudRecent] = useState<{ trackId: string; playedAt: string }[]>([]);
-  useEffect(() => {
-    if (!user?.id) { setCloudRecent([]); return; }
-    let cancelled = false;
-    const load = () => fetch(`/api/user/profile?tid=${user.id}`)
-      .then(r => (r.ok ? r.json() : null))
-      .then(d => { if (!cancelled && Array.isArray(d?.recent)) setCloudRecent(d.recent); })
-      .catch(() => {});
-    load();
-    window.addEventListener('4andone_recently_played_updated', load);
-    return () => { cancelled = true; window.removeEventListener('4andone_recently_played_updated', load); };
-  }, [user?.id]);
-
-  const clearedAt = (() => {
-    try { return Number(localStorage.getItem(HISTORY_CLEARED_KEY) || 0); } catch { return 0; }
-  })();
-  const cloudIds = cloudRecent.filter(r => new Date(r.playedAt).getTime() > clearedAt).map(r => r.trackId);
-  const mergedIds = [...recentTrackIds, ...cloudIds]
-    .filter((id, i, arr) => arr.indexOf(id) === i)
-    .slice(0, 50);
+  // This device + the signed-in account's plays from the database
+  const mergedIds = useRecentlyPlayed();
 
   // Map track IDs to Track objects
   const historyTracks = mergedIds
@@ -100,7 +75,7 @@ export default function HistoryPage() {
   const handleClear = () => {
     clearListeningHistory();
     try { localStorage.setItem(HISTORY_CLEARED_KEY, String(Date.now())); } catch { /* ignore */ }
-    setCloudRecent([]);
+    window.dispatchEvent(new Event('4andone_recently_played_updated'));
     refreshHistory();
     setShowClearConfirm(false);
   };

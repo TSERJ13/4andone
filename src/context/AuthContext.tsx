@@ -28,6 +28,7 @@ interface AuthContextType {
   isSubscriptionModalOpen: boolean;
   setIsSubscriptionModalOpen: (open: boolean) => void;
   activatePremium: (subscriptionId: string) => Promise<void>;
+  cancelSubscription: () => Promise<void>;
   /** Changes each time the server session (httpOnly cookie) is (re)established. */
   sessionVersion: number;
   /** Re-read Premium from the server (e.g. right after an invite gave Premium). */
@@ -264,6 +265,26 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     setIsSubscriptionModalOpen(false);
   };
 
+  const cancelSubscription = async () => {
+    setIsPremium(false);
+    if (user) {
+      const updatedUser = { ...user, is_premium: false, subscription_id: undefined };
+      setUser(updatedUser);
+      try {
+        localStorage.setItem('4andone-user', JSON.stringify(updatedUser));
+        await fetch('/api/subscription/cancel', {
+          method: 'POST',
+          headers: { 'content-type': 'application/json' },
+          body: JSON.stringify({ telegramId: user.id }),
+        });
+      } catch (e) {
+        console.warn('[PREMIUM] Failed to cancel on server:', e);
+      }
+    } else {
+      localStorage.removeItem('4andone_guest_premium');
+    }
+  };
+
   const logout = () => {
     setUser(null);
     setIsPremium(false);
@@ -294,6 +315,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       isSubscriptionModalOpen,
       setIsSubscriptionModalOpen,
       activatePremium,
+      cancelSubscription,
       sessionVersion,
       refreshPremium
     }}>

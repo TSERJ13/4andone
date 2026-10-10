@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useRef, useState } from 'react';
+import React, { useRef, useState, useMemo } from 'react';
 import Link from 'next/link';
 import { Play, Pause, ChevronLeft, ChevronRight, ThumbsUp, ChevronRight as ArrowRight } from 'lucide-react';
 import { Track, useStudio } from '@/components/admin/StudioProvider';
@@ -19,7 +19,7 @@ export default function YtQuickPicks({ tracks, onPlayAll, loading = false }: YtQ
   const { albums } = useStudio();
   const { user } = useAuth();
   const { togglePlay, isPlaying, trackId: playingTrackId, loadTrack } = useAudioControls();
-  const [pageIndex, setPageIndex] = useState(0);
+  const scrollRef = useRef<HTMLDivElement>(null);
 
   const userName = user?.first_name
     ? `${user.first_name} ${user.last_name || ''}`.trim().toUpperCase()
@@ -38,23 +38,29 @@ export default function YtQuickPicks({ tracks, onPlayAll, loading = false }: YtQ
     el.scrollTo({ left: Math.max(0, Math.min(mobilePages.length - 1, p)) * el.clientWidth, behavior: 'smooth' });
   };
 
-  const itemsPerPage = 12; // 3 columns x 4 rows
-  const maxPages = Math.ceil(tracks.length / itemsPerPage);
-
-  const currentPageTracks = tracks.slice(pageIndex * itemsPerPage, (pageIndex + 1) * itemsPerPage);
-
-  // Split current page into 3 columns (4 items each)
-  const columns = [
-    currentPageTracks.slice(0, 4),
-    currentPageTracks.slice(4, 8),
-    currentPageTracks.slice(8, 12),
-  ];
+  // Group all tracks into columns of 4 items each for horizontal scrolling on desktop
+  const allColumns = useMemo(() => {
+    const cols: Track[][] = [];
+    for (let i = 0; i < tracks.length; i += 4) {
+      cols.push(tracks.slice(i, i + 4));
+    }
+    return cols;
+  }, [tracks]);
 
   const handleTrackClick = (track: Track) => {
     if (playingTrackId === track.id) {
       togglePlay();
     } else {
       loadTrack(track);
+    }
+  };
+
+  const handleScroll = (direction: 'left' | 'right') => {
+    if (isPhoneLayout()) {
+      goMobilePage(direction === 'left' ? mobilePage - 1 : mobilePage + 1);
+    } else if (scrollRef.current) {
+      const scrollAmount = direction === 'left' ? -420 : 420;
+      scrollRef.current.scrollBy({ left: scrollAmount, behavior: 'smooth' });
     }
   };
 
@@ -74,8 +80,7 @@ export default function YtQuickPicks({ tracks, onPlayAll, loading = false }: YtQ
             <button
               type="button"
               className="yt-arrow-btn"
-              disabled={pageIndex === 0 && mobilePage === 0}
-              onClick={() => (isPhoneLayout() ? goMobilePage(mobilePage - 1) : setPageIndex((p) => Math.max(0, p - 1)))}
+              onClick={() => handleScroll('left')}
               aria-label="Previous picks"
             >
               <ChevronLeft size={20} />
@@ -83,8 +88,7 @@ export default function YtQuickPicks({ tracks, onPlayAll, loading = false }: YtQ
             <button
               type="button"
               className="yt-arrow-btn"
-              disabled={pageIndex >= maxPages - 1 && mobilePage >= mobilePages.length - 1}
-              onClick={() => (isPhoneLayout() ? goMobilePage(mobilePage + 1) : setPageIndex((p) => Math.min(maxPages - 1, p + 1)))}
+              onClick={() => handleScroll('right')}
               aria-label="Next picks"
             >
               <ChevronRight size={20} />
@@ -174,9 +178,9 @@ export default function YtQuickPicks({ tracks, onPlayAll, loading = false }: YtQ
         ))}
       </div>
 
-      {/* DESKTOP 3-COLUMN LIST LAYOUT */}
-      <div className="yt-desktop-quick-columns">
-        {columns.map((col, colIdx) => (
+      {/* DESKTOP HORIZONTAL SCROLLING COLUMNS LAYOUT */}
+      <div className="yt-desktop-quick-columns" ref={scrollRef}>
+        {allColumns.map((col, colIdx) => (
           <div key={`col-${colIdx}`} className="yt-quick-col">
             {col.map((track) => {
               const isThisPlaying = playingTrackId === track.id && isPlaying;

@@ -605,15 +605,25 @@
 
 /* DESKTOP 3-COLUMN LIST (Image 2 & 4) */
 .yt-desktop-quick-columns {
-  display: grid;
-  grid-template-columns: repeat(3, 1fr);
+  display: flex;
+  overflow-x: auto;
+  scroll-behavior: smooth;
   gap: 16px;
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+  padding-bottom: 8px;
+}
+
+.yt-desktop-quick-columns::-webkit-scrollbar {
+  display: none;
 }
 
 .yt-quick-col {
   display: flex;
   flex-direction: column;
   gap: 8px;
+  min-width: 320px;
+  flex-shrink: 0;
 }
 
 .yt-track-row-item {

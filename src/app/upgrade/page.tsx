@@ -11,10 +11,11 @@ import { TelegramLogin } from '@/components/auth/TelegramLogin';
 
 export default function UpgradePage() {
   const router = useRouter();
-  const { user, isAuthenticated, isPremium, activatePremium } = useAuth();
+  const { user, isAuthenticated, isPremium, activatePremium, cancelSubscription } = useAuth();
   const [success, setSuccess] = useState(false);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const [showPayment, setShowPayment] = useState(false);
+  const [showCancelConfirm, setShowCancelConfirm] = useState(false);
 
   return (
     <div className="yt-prem-canvas">
@@ -70,9 +71,48 @@ export default function UpgradePage() {
               <ShieldCheck size={52} color="#10b981" />
               <h2 className="yt-active-title">You have 4ANDONE Premium!</h2>
               <p className="yt-active-sub">Enjoy unlimited ad-free music, offline downloads, and uninterrupted Final Mode.</p>
-              <Link href="/library" className="yt-prem-btn-primary">
-                Listen Now
-              </Link>
+              
+              <div className="yt-prem-active-actions" style={{ width: '100%', display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                <Link href="/library" className="yt-prem-btn-primary">
+                  Listen Now
+                </Link>
+
+                {!showCancelConfirm ? (
+                  <button
+                    type="button"
+                    className="yt-prem-btn-cancel"
+                    onClick={() => setShowCancelConfirm(true)}
+                  >
+                    Cancel Subscription
+                  </button>
+                ) : (
+                  <div className="yt-prem-cancel-box">
+                    <p className="yt-prem-cancel-confirm-text">
+                      Are you sure you want to cancel your Premium subscription?
+                    </p>
+                    <div className="yt-prem-cancel-btns-row">
+                      <button
+                        type="button"
+                        className="yt-prem-btn-danger"
+                        onClick={async () => {
+                          await cancelSubscription();
+                          setShowCancelConfirm(false);
+                          setSuccess(false);
+                        }}
+                      >
+                        Yes, Cancel Subscription
+                      </button>
+                      <button
+                        type="button"
+                        className="yt-prem-btn-secondary"
+                        onClick={() => setShowCancelConfirm(false)}
+                      >
+                        Keep Premium
+                      </button>
+                    </div>
+                  </div>
+                )}
+              </div>
             </div>
           ) : !showPayment ? (
             <div className="yt-prem-pill-stack">
@@ -331,6 +371,73 @@ export default function UpgradePage() {
           background: #7dd3fc;
           transform: scale(1.02);
           box-shadow: 0 8px 30px rgba(56, 189, 248, 0.6);
+        }
+
+        .yt-prem-btn-cancel {
+          width: 100%;
+          height: 44px;
+          border-radius: 9999px;
+          background: rgba(239, 68, 68, 0.12);
+          border: 1px solid rgba(239, 68, 68, 0.3);
+          color: #ef4444;
+          font-size: 14px;
+          font-weight: 700;
+          cursor: pointer;
+          transition: all 0.2s ease;
+        }
+
+        .yt-prem-btn-cancel:hover {
+          background: rgba(239, 68, 68, 0.25);
+          color: #ffffff;
+        }
+
+        .yt-prem-cancel-box {
+          background: rgba(239, 68, 68, 0.1);
+          border: 1px solid rgba(239, 68, 68, 0.3);
+          border-radius: 16px;
+          padding: 16px;
+          display: flex;
+          flex-direction: column;
+          gap: 12px;
+          width: 100%;
+          margin-top: 4px;
+        }
+
+        .yt-prem-cancel-confirm-text {
+          font-size: 13px;
+          color: #fca5a5;
+          margin: 0;
+          font-weight: 600;
+        }
+
+        .yt-prem-cancel-btns-row {
+          display: flex;
+          gap: 10px;
+          width: 100%;
+        }
+
+        .yt-prem-btn-danger {
+          flex: 1;
+          height: 40px;
+          border-radius: 10px;
+          background: #ef4444;
+          color: #ffffff;
+          font-size: 13px;
+          font-weight: 700;
+          border: none;
+          cursor: pointer;
+        }
+
+        .yt-prem-btn-secondary {
+          flex: 1;
+          height: 40px;
+          border-radius: 10px;
+          background: rgba(255, 255, 255, 0.1);
+          color: #ffffff;
+          font-size: 13px;
+          font-weight: 600;
+          border: 1px solid rgba(255, 255, 255, 0.2);
+          cursor: pointer;
         }
 
         .yt-prem-auth-pill-box, .yt-prem-paypal-wrap, .yt-prem-active-box {

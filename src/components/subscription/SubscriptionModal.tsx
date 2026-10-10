@@ -13,16 +13,18 @@ interface SubscriptionModalProps {
 }
 
 export const SubscriptionModal: React.FC<SubscriptionModalProps> = ({ isOpen, onClose }) => {
-  const { user, isAuthenticated, isPremium, activatePremium } = useAuth();
+  const { user, isAuthenticated, isPremium, activatePremium, cancelSubscription } = useAuth();
   const [success, setSuccess] = useState(false);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const [showPayment, setShowPayment] = useState(false);
+  const [showCancelConfirm, setShowCancelConfirm] = useState(false);
 
   useEffect(() => {
     if (!isOpen) {
       setSuccess(false);
       setErrorMsg(null);
       setShowPayment(false);
+      setShowCancelConfirm(false);
     }
   }, [isOpen]);
 
@@ -67,7 +69,65 @@ export const SubscriptionModal: React.FC<SubscriptionModalProps> = ({ isOpen, on
             <ShieldCheck size={48} style={{ color: '#3ea6ff' }} />
             <h3>You have 4and.one Premium!</h3>
             <p>Enjoy unlimited ad-free music across all your devices.</p>
-            <button className="yt-prem-cta-btn" onClick={onClose}>Continue Listening</button>
+            
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', width: '100%' }}>
+              <button className="yt-prem-cta-btn" onClick={onClose}>Continue Listening</button>
+              
+              {!showCancelConfirm ? (
+                <button
+                  type="button"
+                  style={{
+                    background: 'transparent',
+                    border: '1px solid rgba(239, 68, 68, 0.4)',
+                    color: '#ef4444',
+                    fontSize: '13px',
+                    fontWeight: 600,
+                    padding: '8px 16px',
+                    borderRadius: '20px',
+                    cursor: 'pointer',
+                    marginTop: '4px'
+                  }}
+                  onClick={() => setShowCancelConfirm(true)}
+                >
+                  Cancel Subscription
+                </button>
+              ) : (
+                <div style={{
+                  background: 'rgba(239, 68, 68, 0.1)',
+                  border: '1px solid rgba(239, 68, 68, 0.3)',
+                  borderRadius: '14px',
+                  padding: '12px',
+                  display: 'flex',
+                  flexDirection: 'column',
+                  gap: '8px',
+                  width: '100%'
+                }}>
+                  <p style={{ fontSize: '12px', color: '#fca5a5', margin: 0 }}>
+                    Are you sure you want to cancel your Premium subscription?
+                  </p>
+                  <div style={{ display: 'flex', gap: '8px' }}>
+                    <button
+                      type="button"
+                      style={{ flex: 1, background: '#ef4444', color: '#fff', border: 'none', borderRadius: '8px', padding: '6px 12px', fontSize: '12px', fontWeight: 700, cursor: 'pointer' }}
+                      onClick={async () => {
+                        await cancelSubscription();
+                        setShowCancelConfirm(false);
+                        onClose();
+                      }}
+                    >
+                      Cancel Subscription
+                    </button>
+                    <button
+                      type="button"
+                      style={{ flex: 1, background: 'rgba(255,255,255,0.1)', color: '#fff', border: '1px solid rgba(255,255,255,0.2)', borderRadius: '8px', padding: '6px 12px', fontSize: '12px', fontWeight: 600, cursor: 'pointer' }}
+                      onClick={() => setShowCancelConfirm(false)}
+                    >
+                      Keep Premium
+                    </button>
+                  </div>
+                </div>
+              )}
+            </div>
           </div>
         ) : !showPayment ? (
           <div className="yt-prem-action-wrap">

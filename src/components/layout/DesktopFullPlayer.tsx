@@ -29,7 +29,6 @@ import { FinalStopButton } from '@/components/audio/FinalStopButton';
 import { useStudio, Track } from '@/components/admin/StudioProvider';
 import { getTrackCover } from '@/utils/trackCover';
 import { useRecentlyPlayed } from '@/hooks/useRecentlyPlayed';
-import { playOrder, upNextFrom } from '@/utils/playQueue';
 import { albumOfTrack } from '@/utils/albumMatch';
 import { displayStyleName } from '@/utils/styleNames';
 import { SeekBar } from '@/components/audio/SeekBar';
@@ -58,7 +57,6 @@ export default function DesktopFullPlayer({ onClose }: DesktopFullPlayerProps) {
     artist,
     currentTrack,
     isShuffle,
-    shuffleSeed,
     toggleShuffle,
     isRepeat,
     toggleRepeat,
@@ -83,24 +81,21 @@ export default function DesktopFullPlayer({ onClose }: DesktopFullPlayerProps) {
   const endFinal = () => (activeMode ? stop() : toggleFinalMode());
 
   const { tracks, albums, toggleFavorite } = useStudio();
-  const [activeTab, setActiveTab] = useState<'recent' | 'style' | 'album' | 'artist'>('recent');
+  const [activeTab, setActiveTab] = useState<'recent' | 'style' | 'album' | 'artist'>('style');
   const [scrubTime, setScrubTime] = useState<number | null>(null);
   const [isSpeedPopoverOpen, setIsSpeedPopoverOpen] = useState(false);
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [showCopiedToast, setShowCopiedToast] = useState(false);
 
-  // STYLE = what Next will actually play: the Final program's list while one
-  // runs (from the current dance), otherwise every song of the same dance —
-  // the exact queue playNext() follows (Shuffle's order when Shuffle is on),
-  // starting at the current song and wrapping around.
+  // STYLE = Static list of songs for current style (or final program) in fixed order so clicking tracks does not jump items under cursor
   const styleTracks = React.useMemo(() => {
     if (isFinalMode && sessionTracks.length > 0) {
-      const idx = currentTrack ? sessionTracks.findIndex(t => t.id === currentTrack.id) : -1;
-      return idx === -1 ? sessionTracks : sessionTracks.slice(idx);
+      return sessionTracks;
     }
-    const queue = playOrder(tracks, currentTrack as Track | null, shuffleSeed);
-    return currentTrack ? [currentTrack as Track, ...upNextFrom(queue, currentTrack as Track, Infinity)] : queue;
-  }, [tracks, sessionTracks, isFinalMode, currentTrack, shuffleSeed]);
+    if (!currentTrack?.style) return tracks;
+    return tracks.filter(t => t.style?.toLowerCase() === currentTrack.style?.toLowerCase());
+  }, [tracks, sessionTracks, isFinalMode, currentTrack?.style]);
+
   const styleLabel = isFinalMode && sessionTracks.length > 0 ? 'Final program' : displayStyleName(currentTrack?.style || '');
 
   const recentIds = useRecentlyPlayed(100);
@@ -109,9 +104,6 @@ export default function DesktopFullPlayer({ onClose }: DesktopFullPlayerProps) {
     [recentIds, tracks]
   );
 
-  // ALBUM = the album page this song is on (same matching as the album pages —
-  // most songs have no "album" text, they belong by band/tag); ARTIST = the
-  // same performer.
   const norm = (v?: string) => (v || '').toLowerCase().trim();
   const currentAlbum = React.useMemo(() => albumOfTrack(currentTrack, albums), [currentTrack, albums]);
   const albumTracks = React.useMemo(() => {
@@ -121,10 +113,11 @@ export default function DesktopFullPlayer({ onClose }: DesktopFullPlayerProps) {
     return tracks.filter(t => norm(t.album) === own);
   }, [tracks, albums, currentAlbum, currentTrack]);
   const albumTitle = currentAlbum?.title || (albumTracks.length ? currentTrack?.album : null);
+
   const artistTracks = React.useMemo(() => {
-    const artist = norm(currentTrack?.artist);
-    if (!artist) return [];
-    return tracks.filter(t => norm(t.artist) === artist);
+    const artistName = norm(currentTrack?.artist);
+    if (!artistName) return [];
+    return tracks.filter(t => norm(t.artist) === artistName);
   }, [tracks, currentTrack]);
 
   const popoverRef = useRef<HTMLDivElement>(null);
@@ -248,7 +241,7 @@ export default function DesktopFullPlayer({ onClose }: DesktopFullPlayerProps) {
               currentTrackId={currentTrack?.id}
               isPlaying={isPlaying}
               onSelect={loadTrack}
-              kicker={isShuffle && !isFinalMode ? 'Style · Shuffle' : 'Style'}
+              kicker="Style"
               heading={styleLabel || 'Up next'}
               emptyText="Play a song to see the songs of its dance."
             />

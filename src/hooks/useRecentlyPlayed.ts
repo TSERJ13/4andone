@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react';
 import { useAuth } from '@/context/AuthContext';
 import { getRecentlyPlayedTimes, getRecentlyPlayedTrackIds } from '@/utils/history';
+import { sessionFetch } from '@/utils/userSession';
 
 export const HISTORY_CLEARED_KEY = '4andone_history_cleared_at';
 const RECENT_EVENT = '4andone_recently_played_updated';
@@ -47,7 +48,7 @@ export function useRecentlyPlayed(limit = 50): string[] {
     const load = (force = false) => {
       if (!force && Date.now() - lastFetch < REFRESH_MS) return;
       lastFetch = Date.now();
-      fetch(`/api/user/profile?tid=${user.id}&only=recent`, { cache: 'no-store' })
+      sessionFetch(`/api/user/profile?tid=${user.id}&only=recent`, { cache: 'no-store' })
         .then(r => (r.ok ? r.json() : null))
         .then(d => {
           if (cancelled || !Array.isArray(d?.recent)) return;

@@ -2,6 +2,7 @@
 
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { supabase } from '@/utils/supabase';
+import { saveSessionToken } from '@/utils/userSession';
 
 export interface TelegramUser {
   id: number;
@@ -49,15 +50,24 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const establishServerSession = async (userData: TelegramUser) => {
     try {
       const initData = (window as unknown as { Telegram?: { WebApp?: { initData?: string } } }).Telegram?.WebApp?.initData;
+      // Send every proof we have: Mini App initData and the Login Widget data
       const body = typeof initData === 'string' && initData.includes('hash=')
-        ? { initData }
-        : userData;
+        ? { initData, user: userData }
+        : { user: userData };
       const res = await fetch('/api/user/session', {
         method: 'POST',
         headers: { 'content-type': 'application/json' },
         body: JSON.stringify(body),
       });
-      if (res.ok || res.status === 503) setSessionVersion(v => v + 1); // 503 = not configured yet
+      if (res.ok) {
+        const data = await res.json().catch(() => null);
+        saveSessionToken(data?.token);
+        setSessionVersion(v => v + 1);
+      } else if (res.status === 503) {
+        setSessionVersion(v => v + 1); // not configured yet → old ?tid= mode
+      } else if (res.status === 401) {
+        console.warn('[4and.one] Telegram sign-in could not be verified — sign in again to sync your history');
+      }
     } catch {
       // offline — the next visit tries again
     }
@@ -259,6 +269,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     setIsPremium(false);
     localStorage.removeItem('4andone-user');
     fetch('/api/user/session', { method: 'DELETE' }).catch(() => {});
+    saveSessionToken(null);
     try {
       localStorage.removeItem('4andone_liked_tracks');
       // Also clear user-scoped keys

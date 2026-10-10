@@ -25,7 +25,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const title = `${track.title}${artistLine} – ${danceName}${bpmSuffix} | 4and.one`;
   const description = `Listen to ${track.title} by ${track.artist || '4and.one Music'} (${danceName}${track.bpm ? `, ${track.bpm} BPM` : ''}) on 4and.one, DanceSport and ballroom music with adjustable speed.`;
   const canonicalUrl = `https://4and.one/music/${canonicalSlug}`;
-  const ogImage = track.artworkUrl || 'https://4and.one/og-image.jpg';
+  const ogImage = track.artworkUrl || 'https://4and.one/og-image-v2.jpg';
 
   return {
     title,

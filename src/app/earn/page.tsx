@@ -112,7 +112,7 @@ export default function EarnPremiumPage() {
                 target="_blank"
                 rel="noopener noreferrer"
               >
-                <Send size={16} /><span>Send in Telegram</span>
+                <Send size={16} /><span>Invite</span>
               </a>
               <button type="button" className="btn" onClick={share}><Share2 size={16} /><span>Share</span></button>
             </div>

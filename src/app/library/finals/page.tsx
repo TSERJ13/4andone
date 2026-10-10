@@ -28,6 +28,7 @@ import { useAuth } from '@/context/AuthContext';
 import { useDownloadedTracks } from '@/hooks/useDownloadedTracks';
 import ConfirmModal from '@/components/admin/ConfirmModal';
 import { TrackRow } from '@/components/tracks/TrackRow';
+import { isFourAndOneMix } from '@/utils/playQueue';
 
 // Clock formatting helper
 const formatClock = (seconds: number) => {
@@ -467,23 +468,9 @@ const FinalsPage = () => {
         order = latinOrder;
     }
 
-    const is4andoneMix = (t: Track) => {
-      const albumName = (t.album || '').toLowerCase();
-      const artistName = (t.artist || '').toLowerCase();
-      const titleName = (t.title || '').toLowerCase();
-      const tagsStr = (t.tags || []).join(' ').toLowerCase();
-      return (
-        albumName.includes('4andone mix') ||
-        albumName.includes('4 and one mix') ||
-        artistName.includes('4andone mix') ||
-        titleName.includes('4andone mix') ||
-        tagsStr.includes('4andone mix')
-      );
-    };
-
     const availableTracks = tracks.filter(t =>
       !t.tags?.some(tag => tag.toLowerCase() === 'closed' || tag === 'დახურული') &&
-      !is4andoneMix(t) &&
+      !isFourAndOneMix(t) &&
       filterFn(t)
     );
 
@@ -563,14 +550,7 @@ const FinalsPage = () => {
       return;
     }
     updateLastPlayed('LikedSongs');
-    const liked = tracks.filter(t => {
-      const albumName = (t.album || '').toLowerCase();
-      const artistName = (t.artist || '').toLowerCase();
-      const titleName = (t.title || '').toLowerCase();
-      const tagsStr = (t.tags || []).join(' ').toLowerCase();
-      const isMix = albumName.includes('4andone mix') || albumName.includes('4 and one mix') || artistName.includes('4andone mix') || titleName.includes('4andone mix') || tagsStr.includes('4andone mix');
-      return t.isFavorite && !isMix;
-    });
+    const liked = tracks.filter(t => t.isFavorite && !isFourAndOneMix(t));
     if (liked.length === 0) {
       setInfoModal({
         isOpen: true,
@@ -871,7 +851,7 @@ const FinalsPage = () => {
       {/* 2. Session Over Celebration Modal */}
       <ConfirmModal
         isOpen={showFinalOver}
-        title="🎉 Session Completed!"
+        title="Session Completed!"
         message="Great job! You finished your final practice session."
         confirmText="Practice Again"
         variant="primary"

@@ -37,7 +37,7 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ recent }, { headers: { 'cache-control': 'no-store' } });
   }
 
-  const [{ data: account }, premium, { data: plays, error: playsError }, { count: likes }] = await Promise.all([
+  const [{ data: account }, premium, { data: plays, error: playsError }, { count: likes }, invitedBy, invitedCount] = await Promise.all([
     db.from('telegram_users')
       .select('first_name, last_name, username, photo_url, created_at, last_seen')
       .eq('telegram_id', telegramId)
@@ -50,7 +50,15 @@ export async function GET(request: NextRequest) {
       .order('created_at', { ascending: false })
       .limit(3000),
     db.from('user_favorites').select('track_id', { count: 'exact', head: true }).eq('telegram_id', telegramId),
+    // Invites (empty until the referrals table exists)
+    db.from('referrals').select('inviter_id, created_at, invitee_premium_until').eq('invitee_id', telegramId).maybeSingle()
+      .then(r => r.data),
+    db.from('referrals').select('id', { count: 'exact', head: true }).eq('inviter_id', telegramId)
+      .then(r => r.count ?? 0),
   ]);
+  const inviter = invitedBy
+    ? (await db.from('telegram_users').select('first_name, last_name, username').eq('telegram_id', invitedBy.inviter_id).maybeSingle()).data
+    : null;
   if (playsError) return NextResponse.json({ error: 'Lookup failed' }, { status: 502 });
 
   const rows = plays ?? [];
@@ -89,6 +97,14 @@ export async function GET(request: NextRequest) {
       },
       recentTrackIds,
       recent,
+      referral: {
+        invitedBy: invitedBy ? {
+          name: [inviter?.first_name, inviter?.last_name].filter(Boolean).join(' ') || (inviter?.username ? `@${inviter.username}` : 'A friend'),
+          at: invitedBy.created_at,
+          premiumUntil: invitedBy.invitee_premium_until,
+        } : null,
+        invitedCount,
+      },
     },
     { headers: { 'cache-control': 'no-store' } }
   );

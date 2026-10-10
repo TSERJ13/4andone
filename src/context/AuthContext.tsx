@@ -29,6 +29,8 @@ interface AuthContextType {
   activatePremium: (subscriptionId: string) => Promise<void>;
   /** Changes each time the server session (httpOnly cookie) is (re)established. */
   sessionVersion: number;
+  /** Re-read Premium from the server (e.g. right after an invite gave Premium). */
+  refreshPremium: () => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -224,6 +226,16 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   };
 
+  const refreshPremium = async () => {
+    if (!user || isOwnerOrAdmin(user)) return;
+    const status = await fetchPremiumStatus(user.id);
+    if (!status) return;
+    const refreshed = { ...user, is_premium: status.active, subscription_id: status.subscriptionId ?? undefined };
+    setUser(refreshed);
+    setIsPremium(status.active);
+    try { localStorage.setItem('4andone-user', JSON.stringify(refreshed)); } catch { /* ignore */ }
+  };
+
   const activatePremium = async (subscriptionId: string) => {
     setIsPremium(true);
     if (user) {
@@ -271,7 +283,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       isSubscriptionModalOpen,
       setIsSubscriptionModalOpen,
       activatePremium,
-      sessionVersion
+      sessionVersion,
+      refreshPremium
     }}>
       {children}
     </AuthContext.Provider>

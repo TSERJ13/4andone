@@ -23,6 +23,7 @@ import AddToPlaylistModal from '@/components/audio/AddToPlaylistModal';
 import { OPEN_ADD_TO_PLAYLIST_EVENT } from '@/components/audio/playerActions';
 import type { Track } from '@/components/admin/StudioProvider';
 import PwaInstallPrompt from '@/components/pwa/PwaInstallPrompt';
+import ReferralHandler from '@/components/referral/ReferralHandler';
 import OfflineHub from '@/components/offline/OfflineHub';
 import '@/styles/ytmusic.css';
 
@@ -228,6 +229,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
 
       {/* PWA Home Screen Install Banner */}
       <PwaInstallPrompt />
+      <ReferralHandler />
 
       {/* Mobile Full Screen Player */}
       <MobileFullPlayer

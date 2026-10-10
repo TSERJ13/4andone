@@ -61,6 +61,8 @@ export default function AdminUsersPage() {
   const [avgSession, setAvgSession] = useState(0);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
+  // Invites: who invited whom (empty until the referrals table exists)
+  const [invites, setInvites] = useState<{ inviter_id: number; invitee_id: number }[]>([]);
 
   const fetchData = useCallback(async () => {
     setLoading(true);
@@ -73,6 +75,7 @@ export default function AdminUsersPage() {
       ]);
 
       const allUsers = (usersRes.data || []) as TelegramUser[];
+      adminDb.from('referrals').select('inviter_id, invitee_id').then(r => setInvites(r.data || []));
       setUsers(allUsers);
       setTotalVisits(visitsRes.count ?? 0);
 
@@ -276,6 +279,21 @@ export default function AdminUsersPage() {
                       </div>
                       <div className="user-meta">
                         {u.username && <span className="tg-handle">@{u.username}</span>}
+                        {(() => {
+                          const by = invites.find(x => Number(x.invitee_id) === Number(u.telegram_id));
+                          const inviter = by && users.find(x => Number(x.telegram_id) === Number(by.inviter_id));
+                          const count = invites.filter(x => Number(x.inviter_id) === Number(u.telegram_id)).length;
+                          return (
+                            <>
+                              {by && (
+                                <span className="invite-tag" title="Joined with an invite (1 month free Premium)">
+                                  invited by {inviter ? `${inviter.first_name || ''}${inviter.username ? ` @${inviter.username}` : ''}`.trim() : by.inviter_id}
+                                </span>
+                              )}
+                              {count > 0 && <span className="invite-tag inviter">invited {count}</span>}
+                            </>
+                          );
+                        })()}
                         {u.country_name && (
                           <span className="user-country">
                             {FLAG[u.country_code || ''] || '🌍'} {u.country_name}
@@ -478,7 +496,20 @@ export default function AdminUsersPage() {
           .panel-header { flex-direction:column; align-items:flex-start; }
           .search-input { width:100%; }
         }
-      `}</style>
+              .invite-tag {
+          font-size: 11px;
+          font-weight: 700;
+          padding: 1px 8px;
+          border-radius: 999px;
+          background: rgba(16, 185, 129, 0.15);
+          color: #34d399;
+          white-space: nowrap;
+        }
+        .invite-tag.inviter {
+          background: rgba(168, 85, 247, 0.15);
+          color: #c084fc;
+        }
+`}</style>
     </div>
   );
 }

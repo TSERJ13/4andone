@@ -3,7 +3,7 @@
 import React, { useState } from 'react';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
-import { Home, Trophy, Library, Sparkles, Plus, Heart, Pin, X, ListMusic, Download, MessageSquare, Smartphone } from 'lucide-react';
+import { Home, Trophy, Library, Sparkles, Plus, Heart, Pin, X, ListMusic, Download, MessageSquare, Smartphone, Gift } from 'lucide-react';
 
 import { useAuth } from '@/context/AuthContext';
 import { useStudio } from '@/components/admin/StudioProvider';
@@ -49,6 +49,7 @@ export default function YtSidebar({ isCollapsed = false, isOpenMobile = false, o
     { label: 'Final Mode', href: '/library/finals', icon: Trophy },
     { label: 'Library', href: '/library', icon: Library },
     { label: 'Upgrade', href: '/upgrade', icon: Sparkles },
+    { label: 'Earn Premium', href: '/earn', icon: Gift },
     { label: 'Install App', href: '#install', icon: Smartphone, isInstall: true },
   ];
 

@@ -2,7 +2,7 @@
 
 import React, { useEffect, useState } from 'react';
 import Link from 'next/link';
-import { Crown, Music2, Headphones, CalendarDays, Heart, ListMusic, Download, ChevronRight, LogOut, ExternalLink } from 'lucide-react';
+import { Gift, Crown, Music2, Headphones, CalendarDays, Heart, ListMusic, Download, ChevronRight, LogOut, ExternalLink } from 'lucide-react';
 import { useAuth } from '@/context/AuthContext';
 import { useStudio } from '@/components/admin/StudioProvider';
 import { useAudioControls } from '@/components/audio/AudioProvider';
@@ -23,6 +23,7 @@ interface ProfileData {
     topStyles: { style: string; count: number }[];
     topTracks: { trackId: string; count: number }[];
   };
+  referral?: { invitedBy: { name: string; at: string; premiumUntil: string | null } | null; invitedCount: number };
 }
 
 const fmtDate = (iso?: string | null) =>
@@ -70,6 +71,8 @@ export default function ProfilePage() {
     ? { label: 'Free plan', detail: 'Ads between tracks · Final Mode locked' }
     : subId.startsWith('LIFETIME_')
       ? { label: 'Premium · Lifetime', detail: 'Never expires' }
+      : subId.startsWith('REFERRAL_')
+        ? { label: 'Premium · Free from an invite', detail: premium?.premiumUntil ? `Free until ${fmtDate(premium.premiumUntil)}` : 'Active' }
       : subId.startsWith('MANUAL_')
         ? { label: 'Premium · Gift', detail: premium?.premiumUntil ? `Until ${fmtDate(premium.premiumUntil)}` : 'Forever' }
         : subId.startsWith('I-')
@@ -123,6 +126,32 @@ export default function ProfilePage() {
           <Link className="plan-btn primary" href="/upgrade">Get Premium</Link>
         ) : null}
       </section>
+
+      {/* Invites */}
+      <Link href="/earn" className="invite-card">
+        <span className="invite-icon"><Gift size={18} /></span>
+        <span className="invite-text">
+          {data?.referral?.invitedBy ? (
+            <>
+              <span className="invite-label">You received free Premium</span>
+              <span className="invite-detail">
+                Invited by {data.referral.invitedBy.name} · {fmtDate(data.referral.invitedBy.at)}
+                {data.referral.invitedBy.premiumUntil ? ` · 1 month free until ${fmtDate(data.referral.invitedBy.premiumUntil)}` : ''}
+              </span>
+            </>
+          ) : (
+            <>
+              <span className="invite-label">Earn Premium</span>
+              <span className="invite-detail">
+                {data?.referral?.invitedCount
+                  ? `You invited ${data.referral.invitedCount} ${data.referral.invitedCount === 1 ? 'friend' : 'friends'}`
+                  : 'Invite a friend — you both get 1 month of Premium'}
+              </span>
+            </>
+          )}
+        </span>
+        <ChevronRight size={18} className="invite-arrow" />
+      </Link>
 
       {/* Stats */}
       <h2 className="section-title">Your listening</h2>
@@ -216,6 +245,16 @@ const styles = `
     background: #1f1f1f; border: 1px solid rgba(255,255,255,0.08);
     margin-bottom: 28px;
   }
+  .invite-card {
+    display: flex; align-items: center; gap: 12px; margin: -14px 0 28px;
+    padding: 12px 16px; border-radius: 14px; text-decoration: none; color: #fff;
+    background: #1f1f1f; border: 1px solid rgba(255,255,255,0.08);
+  }
+  .invite-icon { width: 36px; height: 36px; border-radius: 10px; display: flex; align-items: center; justify-content: center; background: rgba(16,185,129,0.15); color: #34d399; flex-shrink: 0; }
+  .invite-text { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
+  .invite-label { font-weight: 800; font-size: 14px; }
+  .invite-detail { color: #aaa; font-size: 13px; line-height: 1.4; }
+  .invite-card :global(.invite-arrow) { color: #717171; flex-shrink: 0; }
   .plan-card.is-premium { border-color: rgba(16,185,129,0.45); background: linear-gradient(135deg, rgba(16,185,129,0.12), #1f1f1f 60%); }
   .plan-icon { width: 44px; height: 44px; border-radius: 12px; display: flex; align-items: center; justify-content: center; background: rgba(255,255,255,0.08); color: #aaa; flex-shrink: 0; }
   .is-premium .plan-icon { background: rgba(16,185,129,0.18); color: #10b981; }

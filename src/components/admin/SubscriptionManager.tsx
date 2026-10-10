@@ -140,8 +140,9 @@ export default function SubscriptionManager() {
   };
 
   const premiumUsers = subscribers.filter(isActivePremium);
-  const paidSubs = premiumUsers.filter(s => s.subscription_id && !s.subscription_id.startsWith('LIFETIME_') && !s.subscription_id.startsWith('MANUAL_'));
-  const manualSubs = premiumUsers.filter(s => s.subscription_id?.startsWith('MANUAL_') || s.subscription_id?.startsWith('LIFETIME_'));
+  const paidSubs = premiumUsers.filter(s => s.subscription_id?.startsWith('I-'));
+  // Free Premium: admin gifts, the owner, and invite rewards (REFERRAL_)
+  const manualSubs = premiumUsers.filter(s => s.subscription_id?.startsWith('MANUAL_') || s.subscription_id?.startsWith('LIFETIME_') || s.subscription_id?.startsWith('REFERRAL_'));
 
   const monthlyRevenue = paidSubs.length * 1.99;
 
@@ -280,6 +281,8 @@ export default function SubscriptionManager() {
                           <strong className="text-emerald">Lifetime Owner</strong>
                         ) : user.subscription_id?.startsWith('MANUAL_') ? (
                           'Admin Gifted'
+                        ) : user.subscription_id?.startsWith('REFERRAL_') ? (
+                          'Invite reward (1 month)'
                         ) : user.subscription_id ? (
                           'PayPal ($1.99/mo)'
                         ) : (

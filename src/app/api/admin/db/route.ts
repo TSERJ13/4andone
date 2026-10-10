@@ -10,7 +10,7 @@ import { getSupabaseAdmin, serviceRoleMissing } from '@/lib/supabase-admin';
 const TABLES = new Set([
   'tracks', 'styles', 'tags', 'albums', 'telegram_users',
   'track_plays', 'page_visits', 'folders', 'folder_tracks', 'user_favorites',
-  'final_tracks', 'final_folders', 'final_folder_tracks',
+  'final_tracks', 'final_folders', 'final_folder_tracks', 'referrals',
 ]);
 const OPS = new Set(['select', 'insert', 'update', 'upsert', 'delete', 'rpc']);
 // Analytics functions are no longer executable with the public key.

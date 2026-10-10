@@ -31,6 +31,7 @@ import { FINAL_USER_STOP_EVENT } from '@/components/audio/FinalStopButton';
 import { useStudio } from '@/components/admin/StudioProvider';
 import { getTrackCover } from '@/utils/trackCover';
 import { SeekBar } from '@/components/audio/SeekBar';
+import FullPlayerAd from '@/components/ads/FullPlayerAd';
 
 const formatTime = (seconds: number): string => {
   if (!seconds || isNaN(seconds)) return '0:00';
@@ -234,6 +235,9 @@ export default function MobileFullPlayer({ isOpen, onClose }: MobileFullPlayerPr
           )}
         </div>
       </div>
+
+      {/* Ad at the top, away from the controls and the seek bar (free plan) */}
+      <FullPlayerAd className="yt-mobile-full-ad" />
 
       {/* Main Cover Artwork */}
       <div className="yt-mobile-stage">

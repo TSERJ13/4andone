@@ -279,7 +279,7 @@ export const AudioProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       const ctx = new Ctx({ latencyHint: 'playback' });
       const source = ctx.createMediaElementSource(el);
       const gain = ctx.createGain();
-      gain.gain.value = volumeRef.current * 0.8;
+      gain.gain.value = volumeRef.current;
       source.connect(gain);
       gain.connect(ctx.destination);
 
@@ -341,7 +341,7 @@ export const AudioProvider: React.FC<{ children: React.ReactNode }> = ({ childre
 
   // Cancel any in-flight fade and restore normal loudness (new track, seek back, stop…)
   const cancelFadeAndRestore = React.useCallback(() => {
-    applyVolume(volumeRef.current * 0.8);
+    applyVolume(volumeRef.current);
   }, [applyVolume]);
 
   useEffect(() => { isPlayingRef.current = isPlaying; }, [isPlaying]);
@@ -1097,7 +1097,7 @@ export const AudioProvider: React.FC<{ children: React.ReactNode }> = ({ childre
               const remainingSessionSecs = fitnessTargetTimeRef.current - totalSessionElapsed;
 
               if (remainingSessionSecs <= 3 && remainingSessionSecs > 0) {
-                const baseVol = volumeRef.current * 0.8;
+                const baseVol = volumeRef.current;
                 const g = gainNodeRef.current;
                 const ctx = audioCtxRef.current;
                 if (isGainActive() && g && ctx) {
@@ -1168,7 +1168,7 @@ export const AudioProvider: React.FC<{ children: React.ReactNode }> = ({ childre
               if (audio && !isPasoDoble && isFinite(effectiveEnd)) {
                 const FADE_DURATION = 3; // track-seconds before the effective end
                 const timeLeft = effectiveEnd - currentTimeVal;
-                const baseVol = volumeRef.current * 0.8;
+                const baseVol = volumeRef.current;
                 const g = gainNodeRef.current;
                 const ctx = audioCtxRef.current;
 
@@ -1741,7 +1741,7 @@ export const AudioProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     setVolumeState(v);
     localStorage.setItem('4andone-volume', v.toString());
     // Route through the gain chain so the slider also works on iOS.
-    applyVolume(v * 0.8);
+    applyVolume(v);
   }, []);
 
   const savePlayOrder = () => {

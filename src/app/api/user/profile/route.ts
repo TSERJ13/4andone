@@ -24,7 +24,7 @@ export async function GET(request: NextRequest) {
       .eq('user_ref', String(telegramId))
       .or('event_type.is.null,event_type.eq.play')
       .order('created_at', { ascending: false })
-      .limit(300);
+      .limit(600);
     if (error) return NextResponse.json({ error: 'Lookup failed' }, { status: 502 });
     const seen = new Set<string>();
     const recent: { trackId: string; playedAt: string }[] = [];
@@ -32,7 +32,7 @@ export async function GET(request: NextRequest) {
       if (!p.track_id || seen.has(p.track_id)) continue;
       seen.add(p.track_id);
       recent.push({ trackId: p.track_id, playedAt: p.created_at });
-      if (recent.length >= 50) break;
+      if (recent.length >= 100) break;
     }
     return NextResponse.json({ recent }, { headers: { 'cache-control': 'no-store' } });
   }

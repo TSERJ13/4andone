@@ -19,11 +19,16 @@ const readLocal = () => ({ ids: getRecentlyPlayedTrackIds(), times: getRecentlyP
  * every device that uses the same Telegram account. The server only returns
  * the history of the account proven by the session cookie. "Clear" on the
  * History page hides account plays from before that moment (on this device).
+ *
+ * The order stays put while the list is on screen: a song tapped in the list
+ * doesn't jump to the top under the finger; it moves there the next time the
+ * list is opened. Songs that weren't in the list yet appear at the top.
  */
 export function useRecentlyPlayed(limit = 50): string[] {
   const { user, sessionVersion } = useAuth();
   const [local, setLocal] = useState(readLocal);
   const [cloud, setCloud] = useState<CloudPlay[]>([]);
+  const [baseline, setBaseline] = useState<string[] | null>(null);
 
   useEffect(() => {
     const refresh = () => setLocal(readLocal());
@@ -44,18 +49,19 @@ export function useRecentlyPlayed(limit = 50): string[] {
       lastFetch = Date.now();
       fetch(`/api/user/profile?tid=${user.id}&only=recent`, { cache: 'no-store' })
         .then(r => (r.ok ? r.json() : null))
-        .then(d => { if (!cancelled && Array.isArray(d?.recent)) setCloud(d.recent); })
+        .then(d => {
+          if (cancelled || !Array.isArray(d?.recent)) return;
+          setCloud(d.recent);
+          setBaseline(null); // account list (re)loaded → take its order
+        })
         .catch(() => { /* offline — the device list still works */ });
     };
-    const onPlayed = () => load();
     // Back to the app (other phone may have played meanwhile) → fresh list
     const onVisible = () => { if (document.visibilityState === 'visible') load(); };
     load(true);
-    window.addEventListener(RECENT_EVENT, onPlayed);
     document.addEventListener('visibilitychange', onVisible);
     return () => {
       cancelled = true;
-      window.removeEventListener(RECENT_EVENT, onPlayed);
       document.removeEventListener('visibilitychange', onVisible);
     };
   }, [user?.id, sessionVersion]);
@@ -76,5 +82,13 @@ export function useRecentlyPlayed(limit = 50): string[] {
   }
   const timed = [...playedAt.entries()].sort((a, b) => b[1] - a[1]).map(([id]) => id);
   const untimed = local.ids.filter(id => !playedAt.has(id));
-  return [...timed, ...untimed].slice(0, limit);
+  const fresh = [...timed, ...untimed].slice(0, limit);
+
+  if (baseline === null) {
+    if (fresh.length > 0) setBaseline(fresh); // adjust-state-during-render: freeze this order
+    return fresh;
+  }
+  const inFresh = new Set(fresh);
+  const known = new Set(baseline);
+  return [...fresh.filter(id => !known.has(id)), ...baseline.filter(id => inFresh.has(id))].slice(0, limit);
 }

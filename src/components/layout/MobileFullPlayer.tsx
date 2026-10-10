@@ -30,6 +30,7 @@ import { useAudio } from '@/components/audio/AudioProvider';
 import { FINAL_USER_STOP_EVENT } from '@/components/audio/FinalStopButton';
 import { useStudio } from '@/components/admin/StudioProvider';
 import { getTrackCover } from '@/utils/trackCover';
+import { SeekBar } from '@/components/audio/SeekBar';
 
 const formatTime = (seconds: number): string => {
   if (!seconds || isNaN(seconds)) return '0:00';
@@ -73,6 +74,7 @@ export default function MobileFullPlayer({ isOpen, onClose }: MobileFullPlayerPr
   } = useAudio();
 
   const [mode, setMode] = useState<'audio' | 'video'>('audio');
+  const [scrubTime, setScrubTime] = useState<number | null>(null);
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [isSpeedPopoverOpen, setIsSpeedPopoverOpen] = useState(false);
   const [showCopiedToast, setShowCopiedToast] = useState(false);
@@ -104,7 +106,6 @@ export default function MobileFullPlayer({ isOpen, onClose }: MobileFullPlayerPr
   const coverImg = getTrackCover(currentTrack, albums);
   // Final Mode: the bar shows the whole session and can't be dragged.
   const totalDur = isFinalMode && sessionDuration > 0 ? sessionDuration : duration;
-  const progressPercent = totalDur > 0 ? Math.min(100, (currentTime / totalDur) * 100) : 0;
 
   const currentBpm = bpm || 100;
   const bpmDelta = currentBpm - 100;
@@ -125,13 +126,6 @@ export default function MobileFullPlayer({ isOpen, onClose }: MobileFullPlayerPr
     setBpm(100, true);
   };
 
-  const handleSeekClick = (e: React.MouseEvent<HTMLDivElement>) => {
-    if (isFinalMode) return;
-    const rect = e.currentTarget.getBoundingClientRect();
-    const clickX = e.clientX - rect.left;
-    const ratio = clickX / rect.width;
-    seek(ratio * duration);
-  };
 
   const handleShare = () => {
     if (!currentTrack) return;
@@ -377,17 +371,19 @@ export default function MobileFullPlayer({ isOpen, onClose }: MobileFullPlayerPr
 
       {/* Progress Slider */}
       <div className="yt-mobile-progress-wrap">
-        <div className="yt-progress-line-track" onClick={handleSeekClick} style={isFinalMode ? { cursor: 'default' } : undefined}>
-          <div
-            className="yt-progress-line-fill"
-            style={{ width: `${progressPercent}%`, ...(isFinalMode ? { background: '#ef4444' } : {}) }}
-          />
-        </div>
+        <SeekBar
+          current={currentTime}
+          total={totalDur}
+          onSeek={seek}
+          disabled={isFinalMode}
+          color={isFinalMode ? '#ef4444' : undefined}
+          onScrub={setScrubTime}
+        />
         <div className="yt-mobile-time-row" style={isFinalMode ? { color: '#ef4444' } : undefined}>
           {isPauseCountdown ? (
             <span style={{ fontWeight: 800 }} aria-live="polite">Rest · next dance in {pauseTime}s</span>
           ) : (
-            <span>{formatTime(currentTime)}</span>
+            <span>{formatTime(scrubTime ?? currentTime)}</span>
           )}
           <span>{formatTime(totalDur)}</span>
         </div>
@@ -397,7 +393,7 @@ export default function MobileFullPlayer({ isOpen, onClose }: MobileFullPlayerPr
       <div className="yt-mobile-controls-row">
         <button
           type="button"
-          className={`yt-mobile-control-btn ${isShuffle ? 'active' : ''}`}
+          className={`yt-mobile-control-btn ${isShuffle ? 'active' : ''}`} aria-pressed={isShuffle}
           onClick={toggleShuffle}
         >
           <Shuffle size={20} />
@@ -433,7 +429,7 @@ export default function MobileFullPlayer({ isOpen, onClose }: MobileFullPlayerPr
 
         <button
           type="button"
-          className={`yt-mobile-control-btn ${isRepeat ? 'active' : ''}`}
+          className={`yt-mobile-control-btn ${isRepeat ? 'active' : ''}`} aria-pressed={isRepeat}
           onClick={toggleRepeat}
         >
           <Repeat size={20} />

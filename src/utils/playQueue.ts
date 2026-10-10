@@ -56,3 +56,27 @@ export function upNextFrom<T extends QueueTrack>(queue: T[], current: T | null |
   if (idx === -1) return queue.slice(0, limit);
   return [...queue.slice(idx + 1), ...queue.slice(0, idx)].slice(0, limit);
 }
+
+/** Seeded Fisher–Yates: the same seed gives the same order, so Shuffle's order stays put while it is on. */
+export function shuffleWithSeed<T>(list: T[], seed: number): T[] {
+  const out = [...list];
+  let s = seed >>> 0 || 1;
+  const rand = () => {
+    s = (s + 0x6d2b79f5) >>> 0;
+    let t = s;
+    t = Math.imul(t ^ (t >>> 15), t | 1);
+    t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
+    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+  };
+  for (let i = out.length - 1; i > 0; i--) {
+    const j = Math.floor(rand() * (i + 1));
+    [out[i], out[j]] = [out[j], out[i]];
+  }
+  return out;
+}
+
+/** The queue Next/Previous follow: the dance queue, in Shuffle's order while Shuffle is on. */
+export function playOrder<T extends QueueTrack>(tracks: T[], current: T | null | undefined, shuffleSeed: number | null): T[] {
+  const queue = getStyleQueue(tracks, current);
+  return shuffleSeed === null ? queue : shuffleWithSeed(queue, shuffleSeed);
+}

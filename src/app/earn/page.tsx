@@ -5,6 +5,7 @@ import { Gift, Copy, Check, Share2, Send, Users, UserPlus, Crown } from 'lucide-
 import { useAuth } from '@/context/AuthContext';
 import { TelegramLogin } from '@/components/auth/TelegramLogin';
 import { inviteLink, REF_RESULT_EVENT } from '@/utils/referral';
+import { sessionFetch } from '@/utils/userSession';
 
 interface Person { name: string; username: string | null; at: string }
 interface EarnData {
@@ -29,7 +30,7 @@ export default function EarnPremiumPage() {
   useEffect(() => {
     if (!user?.id) return;
     let cancelled = false;
-    fetch(`/api/referral?tid=${user.id}`, { cache: 'no-store' })
+    sessionFetch(`/api/referral?tid=${user.id}`, { cache: 'no-store' })
       .then(r => {
         if (r.status === 401) return null; // server session still being set up
         if (r.status === 503) { if (!cancelled) setState('unavailable'); return null; }

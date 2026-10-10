@@ -10,6 +10,7 @@ import { useDownloadedTracks } from '@/hooks/useDownloadedTracks';
 import { TelegramLogin } from '@/components/auth/TelegramLogin';
 import { TrackRow } from '@/components/tracks/TrackRow';
 import { displayStyleName } from '@/utils/styleNames';
+import { sessionFetch } from '@/utils/userSession';
 
 interface ProfileData {
   account: { first_name?: string; last_name?: string; username?: string; photo_url?: string; created_at?: string } | null;
@@ -40,7 +41,7 @@ export default function ProfilePage() {
   useEffect(() => {
     if (!user?.id) return;
     let cancelled = false;
-    fetch(`/api/user/profile?tid=${user.id}`, { cache: 'no-store' })
+    sessionFetch(`/api/user/profile?tid=${user.id}`, { cache: 'no-store' })
       .then(r => {
         // 401 = the server session is still being set up; sessionVersion re-runs this
         if (r.status === 401) return null;

@@ -4,6 +4,7 @@ import React, { useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
 import { Gift, X, Sparkles } from 'lucide-react';
 import { useAuth } from '@/context/AuthContext';
+import { sessionFetch } from '@/utils/userSession';
 import { captureRefFromUrl, clearPendingRef, getPendingRef, REF_RESULT_EVENT } from '@/utils/referral';
 
 type Result =
@@ -41,7 +42,7 @@ export default function ReferralHandler() {
   useEffect(() => {
     if (!pending || !user?.id || sessionVersion === 0 || claimingRef.current) return;
     claimingRef.current = true;
-    fetch('/api/referral/claim', {
+    sessionFetch('/api/referral/claim', {
       method: 'POST',
       headers: { 'content-type': 'application/json' },
       body: JSON.stringify({ code: pending, tid: user.id }),

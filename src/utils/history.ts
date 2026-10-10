@@ -36,7 +36,7 @@ export const recordTrackPlayed = (trackId: string) => {
   if (typeof window === 'undefined' || !trackId) return;
   try {
     const list = getRecentlyPlayedTrackIds();
-    const filtered = [trackId, ...list.filter(id => id !== trackId)].slice(0, 50);
+    const filtered = [trackId, ...list.filter(id => id !== trackId)].slice(0, 100);
     localStorage.setItem(RECENT_TRACKS_KEY, JSON.stringify(filtered));
     const times = getRecentlyPlayedTimes();
     const keptTimes: Record<string, number> = {};

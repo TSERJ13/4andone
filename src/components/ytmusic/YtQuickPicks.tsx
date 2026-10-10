@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState } from 'react';
+import React, { useRef, useState } from 'react';
 import Link from 'next/link';
 import { Play, Pause, ChevronLeft, ChevronRight, ThumbsUp, ChevronRight as ArrowRight } from 'lucide-react';
 import { Track, useStudio } from '@/components/admin/StudioProvider';
@@ -23,7 +23,18 @@ export default function YtQuickPicks({ tracks, onPlayAll }: YtQuickPicksProps) {
     ? `${user.first_name} ${user.last_name || ''}`.trim().toUpperCase()
     : '4ANDONE MUSIC';
 
-  const mobileQuickPicks = tracks.slice(0, 8); // 8 cards + 1 liked music card = 9 (3x3 grid)
+  // Phone: swipeable 3x3 pages — page 1 = Liked Music + 8 songs, then 9 per page
+  const MOBILE_PAGES = 4;
+  const mobilePages: Track[][] = [tracks.slice(0, 8)];
+  for (let i = 8; i < tracks.length && mobilePages.length < MOBILE_PAGES; i += 9) mobilePages.push(tracks.slice(i, i + 9));
+  const pagerRef = useRef<HTMLDivElement>(null);
+  const [mobilePage, setMobilePage] = useState(0);
+  const isPhoneLayout = () => !!pagerRef.current && pagerRef.current.offsetParent !== null;
+  const goMobilePage = (p: number) => {
+    const el = pagerRef.current;
+    if (!el) return;
+    el.scrollTo({ left: Math.max(0, Math.min(mobilePages.length - 1, p)) * el.clientWidth, behavior: 'smooth' });
+  };
 
   const itemsPerPage = 12; // 3 columns x 4 rows
   const maxPages = Math.ceil(tracks.length / itemsPerPage);
@@ -61,8 +72,8 @@ export default function YtQuickPicks({ tracks, onPlayAll }: YtQuickPicksProps) {
             <button
               type="button"
               className="yt-arrow-btn"
-              disabled={pageIndex === 0}
-              onClick={() => setPageIndex((p) => Math.max(0, p - 1))}
+              disabled={pageIndex === 0 && mobilePage === 0}
+              onClick={() => (isPhoneLayout() ? goMobilePage(mobilePage - 1) : setPageIndex((p) => Math.max(0, p - 1)))}
               aria-label="Previous picks"
             >
               <ChevronLeft size={20} />
@@ -70,8 +81,8 @@ export default function YtQuickPicks({ tracks, onPlayAll }: YtQuickPicksProps) {
             <button
               type="button"
               className="yt-arrow-btn"
-              disabled={pageIndex >= maxPages - 1}
-              onClick={() => setPageIndex((p) => Math.min(maxPages - 1, p + 1))}
+              disabled={pageIndex >= maxPages - 1 && mobilePage >= mobilePages.length - 1}
+              onClick={() => (isPhoneLayout() ? goMobilePage(mobilePage + 1) : setPageIndex((p) => Math.min(maxPages - 1, p + 1)))}
               aria-label="Next picks"
             >
               <ChevronRight size={20} />
@@ -80,48 +91,59 @@ export default function YtQuickPicks({ tracks, onPlayAll }: YtQuickPicksProps) {
         </div>
       </div>
 
-      {/* MOBILE 3x3 GRID LAYOUT */}
-      <div className="yt-mobile-quick-grid">
-        {/* Card 1: Liked Music Special Card */}
-        <Link href="/library/favorites" className="yt-grid-card yt-liked-card">
-          <div className="yt-liked-card-bg">
-            <ThumbsUp size={36} fill="#ffffff" color="#ffffff" className="yt-thumbs-icon" />
+      {/* MOBILE: swipeable 3x3 pages (like the album / dance shelves) */}
+      <div
+        ref={pagerRef}
+        className="yt-mobile-quick-pager"
+        onScroll={(e) => {
+          const el = e.currentTarget;
+          if (el.clientWidth > 0) setMobilePage(Math.round(el.scrollLeft / el.clientWidth));
+        }}
+      >
+        {mobilePages.map((pageTracks, pageNo) => (
+          <div key={`page-${pageNo}`} className="yt-mobile-quick-grid">
+            {pageNo === 0 && (
+              <Link href="/library/favorites" className="yt-grid-card yt-liked-card">
+                <div className="yt-liked-card-bg">
+                  <ThumbsUp size={36} fill="#ffffff" color="#ffffff" className="yt-thumbs-icon" />
+                </div>
+                <div className="yt-card-gradient-overlay" />
+                <div className="yt-card-text-row">
+                  <span className="yt-card-title">Liked Music</span>
+                  <ArrowRight size={16} />
+                </div>
+              </Link>
+            )}
+            {pageTracks.map((track) => {
+              const isThisPlaying = playingTrackId === track.id && isPlaying;
+              const coverImg = getTrackCover(track, albums);
+              return (
+                <div
+                  key={`mob-${track.id}`}
+                  className="yt-grid-card"
+                  onClick={() => handleTrackClick(track)}
+                >
+                  <img
+                    src={coverImg}
+                    alt={track.title}
+                    className="yt-card-img"
+                    loading={pageNo === 0 ? undefined : 'lazy'}
+                  />
+                  <div className="yt-card-gradient-overlay" />
+                  <div className="yt-card-play-overlay">
+                    <button type="button" className="yt-card-play-btn">
+                      {isThisPlaying ? <Pause size={18} fill="#ffffff" /> : <Play size={18} fill="#ffffff" />}
+                    </button>
+                  </div>
+                  <div className="yt-card-text-row">
+                    <span className="yt-card-title">{track.title}</span>
+                    <ArrowRight size={14} />
+                  </div>
+                </div>
+              );
+            })}
           </div>
-          <div className="yt-card-gradient-overlay" />
-          <div className="yt-card-text-row">
-            <span className="yt-card-title">Liked Music</span>
-            <ArrowRight size={16} />
-          </div>
-        </Link>
-
-        {/* Cards 2-9 */}
-        {mobileQuickPicks.map((track) => {
-          const isThisPlaying = playingTrackId === track.id && isPlaying;
-          const coverImg = getTrackCover(track, albums);
-          return (
-            <div
-              key={`mob-${track.id}`}
-              className="yt-grid-card"
-              onClick={() => handleTrackClick(track)}
-            >
-              <img
-                src={coverImg}
-                alt={track.title}
-                className="yt-card-img"
-              />
-              <div className="yt-card-gradient-overlay" />
-              <div className="yt-card-play-overlay">
-                <button type="button" className="yt-card-play-btn">
-                  {isThisPlaying ? <Pause size={18} fill="#ffffff" /> : <Play size={18} fill="#ffffff" />}
-                </button>
-              </div>
-              <div className="yt-card-text-row">
-                <span className="yt-card-title">{track.title}</span>
-                <ArrowRight size={14} />
-              </div>
-            </div>
-          );
-        })}
+        ))}
       </div>
 
       {/* DESKTOP 3-COLUMN LIST LAYOUT */}

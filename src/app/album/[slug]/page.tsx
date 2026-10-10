@@ -1,5 +1,6 @@
 "use client";
 
+import { trackInAlbum } from '@/utils/albumMatch';
 import React, { useState, useMemo, useEffect } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
@@ -71,29 +72,7 @@ export default function DynamicAlbumPage() {
   // Filter tracks matching this album
   const albumTracks = useMemo(() => {
     if (!album) return [];
-    const albumSlug = album.slug.toLowerCase();
-    const albumTitle = album.title.toLowerCase();
-    const albumArtist = (album.artist || '').toLowerCase();
-    const albumTags = (album.tags || []).map(t => t.toLowerCase());
-
-    return tracks.filter(t => {
-      const tAlbum = (t.album || '').toLowerCase();
-      const tArtist = (t.artist || '').toLowerCase();
-      const hasTag = t.tags?.some(tag => {
-        const l = tag.toLowerCase().trim();
-        // Whole-tag matches only: "title contains the tag" let a generic tag
-        // like "mix" (200+ tracks) pull every band into "4ANDONE Mix".
-        return albumTags.includes(l) || l.includes(albumSlug) || l === albumTitle;
-      });
-
-      return (
-        tAlbum.includes(albumSlug) || 
-        tAlbum.includes(albumTitle) || 
-        tArtist.includes(albumTitle) || 
-        (albumArtist && tArtist.includes(albumArtist)) ||
-        hasTag
-      );
-    });
+    return tracks.filter(t => trackInAlbum(t, album));
   }, [tracks, album]);
 
   const latinTracks = useMemo(() => {

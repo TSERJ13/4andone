@@ -3,7 +3,8 @@
 import React, { createContext, useContext, useState, useEffect, useRef, useMemo, useCallback } from 'react';
 import { getAudioFile } from '@/utils/storage';
 import { getTrackCover } from '@/utils/trackCover';
-import { getStyleQueue } from '@/utils/playQueue';
+import { playOrder } from '@/utils/playQueue';
+import { recordTrackPlayed } from '@/utils/history';
 
 interface AudioContextType {
   isPlaying: boolean;
@@ -21,6 +22,8 @@ interface AudioContextType {
   volume: number;
   isRepeat: boolean;
   isShuffle: boolean;
+  /** Shuffle's order (same seed → same order) — null while Shuffle is off. */
+  shuffleSeed: number | null;
   isLoading: boolean;
   isPauseCountdown: boolean;
   isFitness: boolean;
@@ -162,8 +165,11 @@ export const AudioProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   const [currentTrack, setCurrentTrack] = useState<any | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [volume, setVolumeState] = useState(1);
+  // Repeat ON = the track loops; OFF = at its end the next song of the same
+  // dance plays. Shuffle = that queue in a fixed random order. Both remembered.
   const [isRepeat, setIsRepeat] = useState(false);
-  const [isShuffle, setIsShuffle] = useState(false);
+  const [shuffleSeed, setShuffleSeed] = useState<number | null>(null);
+  const isShuffle = shuffleSeed !== null;
   const [isPauseCountdown, setIsPauseCountdown] = useState(false);
   const [pauseTime, setPauseTime] = useState(15);
   const [isFitness, setIsFitness] = useState(false);
@@ -199,7 +205,9 @@ export const AudioProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   const sessionTracksRef = useRef(sessionTracks);
   const isFitnessRef = useRef(isFitness);
   const isRepeatRef = useRef(isRepeat);
-  const isShuffleRef = useRef(isShuffle);
+  const shuffleSeedRef = useRef(shuffleSeed);
+  const playNextRef = useRef<() => void>(() => {});
+  const playPreviousRef = useRef<() => void>(() => {});
   const bpmRef = useRef(bpm);
   const volumeRef = useRef(volume);
   const activeModeRef = useRef(activeMode);
@@ -349,7 +357,14 @@ export const AudioProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   useEffect(() => { sessionTracksRef.current = sessionTracks; }, [sessionTracks]);
   useEffect(() => { isFitnessRef.current = isFitness; }, [isFitness]);
   useEffect(() => { isRepeatRef.current = isRepeat; }, [isRepeat]);
-  useEffect(() => { isShuffleRef.current = isShuffle; }, [isShuffle]);
+  useEffect(() => { shuffleSeedRef.current = shuffleSeed; }, [shuffleSeed]);
+  useEffect(() => {
+    try {
+      const saved = JSON.parse(localStorage.getItem('4andone_play_order') || '{}');
+      if (saved.repeat === true) setIsRepeat(true);
+      if (typeof saved.shuffleSeed === 'number') setShuffleSeed(saved.shuffleSeed);
+    } catch { /* ignore */ }
+  }, []);
   useEffect(() => { activeModeRef.current = activeMode; }, [activeMode]);
   useEffect(() => { bpmRef.current = bpm; }, [bpm]);
   useEffect(() => { volumeRef.current = volume; }, [volume]);
@@ -688,17 +703,8 @@ export const AudioProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       return;
     }
 
-    if (track?.id) {
-      try {
-        const saved = localStorage.getItem('4andone_recently_played');
-        let recent: string[] = saved ? JSON.parse(saved) : [];
-        recent = [track.id, ...recent.filter((id: string) => id !== track.id)].slice(0, 50);
-        localStorage.setItem('4andone_recently_played', JSON.stringify(recent));
-        if (typeof window !== 'undefined') {
-          window.dispatchEvent(new Event('4andone_recently_played_updated'));
-        }
-      } catch (e) {}
-    }
+    // This device's history, with the play time (orders it with the account's plays)
+    if (track?.id) recordTrackPlayed(track.id);
 
     const currentToken = ++loadingTokenRef.current;
 
@@ -1001,10 +1007,8 @@ export const AudioProvider: React.FC<{ children: React.ReactNode }> = ({ childre
               advanceFinalSession();
             } else {
               if (!isRepeatRef.current) {
-                audio.pause();
-                setIsPlaying(false);
-                setCurrentTime(0);
-                audio.currentTime = 0;
+                // Repeat off → the next song of the same dance (Shuffle order when on)
+                playNextRef.current();
               } else {
                 audio.currentTime = 0;
                 setCurrentTime(0);
@@ -1252,7 +1256,7 @@ export const AudioProvider: React.FC<{ children: React.ReactNode }> = ({ childre
           // this closure is still stale (false), which set loop=true on the Final
           // element — the track silently restarted at its end instead of firing
           // onended, so the session never advanced ("starts over at the end" bug).
-          audio.loop = !isFinalModeRef.current;
+          audio.loop = !isFinalModeRef.current && isRepeatRef.current;
           audio.src = url;
           audio.load();
         });
@@ -1324,17 +1328,15 @@ export const AudioProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         // ACTION HANDLERS: Crucial for background playback on iOS PWA & Lock-Screen
         navigator.mediaSession.setActionHandler('play', () => { playAudio(); });
         navigator.mediaSession.setActionHandler('pause', () => { pauseAudio(); });
-        navigator.mediaSession.setActionHandler('previoustrack', () => { playPrevious(); });
-        navigator.mediaSession.setActionHandler('nexttrack', () => { playNext(); });
-        navigator.mediaSession.setActionHandler('seekbackward', (details) => {
-          const offset = details?.seekOffset || 10;
-          seekRelative(-offset);
-        });
-        navigator.mediaSession.setActionHandler('seekforward', (details) => {
-          const offset = details?.seekOffset || 10;
-          seekRelative(offset);
-        });
-        
+        navigator.mediaSession.setActionHandler('previoustrack', () => { playPreviousRef.current(); });
+        navigator.mediaSession.setActionHandler('nexttrack', () => { playNextRef.current(); });
+        // No ±10s handlers: when they exist, iPhone's lock screen shows
+        // "skip 10 seconds" instead of the Previous/Next track buttons.
+        try {
+          navigator.mediaSession.setActionHandler('seekbackward', null);
+          navigator.mediaSession.setActionHandler('seekforward', null);
+        } catch { /* not supported */ }
+
         // Seek handlers
         navigator.mediaSession.setActionHandler('seekto', (details) => {
           if (details?.seekTime !== undefined) {
@@ -1742,8 +1744,26 @@ export const AudioProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     applyVolume(v * 0.8);
   }, []);
 
-  const toggleRepeat = React.useCallback(() => setIsRepeat(prev => !prev), []);
-  const toggleShuffle = React.useCallback(() => setIsShuffle(prev => !prev), []);
+  const savePlayOrder = () => {
+    try {
+      localStorage.setItem('4andone_play_order', JSON.stringify({ repeat: isRepeatRef.current, shuffleSeed: shuffleSeedRef.current }));
+    } catch { /* ignore */ }
+  };
+  const toggleRepeat = React.useCallback(() => {
+    const next = !isRepeatRef.current;
+    isRepeatRef.current = next;
+    setIsRepeat(next);
+    // Takes effect on the playing song right away (Final keeps its own ending)
+    const audio = nativePlayerRef.current;
+    if (audio) audio.loop = next && !isFinalModeRef.current;
+    savePlayOrder();
+  }, []);
+  const toggleShuffle = React.useCallback(() => {
+    const next = shuffleSeedRef.current === null ? Math.floor(Math.random() * 2 ** 31) + 1 : null;
+    shuffleSeedRef.current = next;
+    setShuffleSeed(next);
+    savePlayOrder();
+  }, []);
   const toggleFinalMode = React.useCallback(() => {
     if (!isPremiumRef.current) {
       setIsSubscriptionModalOpen(true);
@@ -1758,7 +1778,7 @@ export const AudioProvider: React.FC<{ children: React.ReactNode }> = ({ childre
 
     const audio = nativePlayerRef.current;
     // Same rule as loadTrack: loop in normal mode, end (→ limit/onended) in Final
-    if (audio) audio.loop = !nextVal;
+    if (audio) audio.loop = !nextVal && isRepeatRef.current;
     if (nextVal) {
       // Turning ON: if we are already past (standardLimit - 2), set custom time limit
       if (audio && playingTrackRef.current) {
@@ -1797,20 +1817,12 @@ export const AudioProvider: React.FC<{ children: React.ReactNode }> = ({ childre
 
   // Normal mode: Next/Previous stay in the current dance (all albums) —
   // the same list the full player shows under UP NEXT.
+  // Shuffle on → the same queue in Shuffle's fixed order (what STYLE shows).
   const playNext = React.useCallback(() => {
-    const list = isFinalModeRef.current ? sessionTracksRef.current : getStyleQueue(tracks, playingTrackRef.current);
+    const list = isFinalModeRef.current ? sessionTracksRef.current : playOrder(tracks, playingTrackRef.current, shuffleSeedRef.current);
     if (list.length === 0) return;
 
-    let currentIndex = list.findIndex(t => t.id === trackIdRef.current || t.title === playingTrackRef.current?.title);
-
-    if (isShuffleRef.current) {
-      let nextIndex = Math.floor(Math.random() * list.length);
-      while (nextIndex === currentIndex && list.length > 1) {
-        nextIndex = Math.floor(Math.random() * list.length);
-      }
-      currentIndex = nextIndex - 1;
-    }
-
+    const currentIndex = list.findIndex(t => t.id === trackIdRef.current || t.title === playingTrackRef.current?.title);
     const nextIndex = (currentIndex + 1) % list.length;
     // Pass forceFinalMode so navigating inside a Final Mode session stays in it,
     // and a normal next-track stays normal. (Without this, a plain loadTrack call
@@ -1819,7 +1831,7 @@ export const AudioProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   }, [tracks]);
 
   const playPrevious = React.useCallback(() => {
-    const list = isFinalModeRef.current ? sessionTracksRef.current : getStyleQueue(tracks, playingTrackRef.current);
+    const list = isFinalModeRef.current ? sessionTracksRef.current : playOrder(tracks, playingTrackRef.current, shuffleSeedRef.current);
     if (list.length === 0) return;
 
     const currentIndex = list.findIndex(t => t.id === trackIdRef.current || t.title === playingTrackRef.current?.title);
@@ -1896,6 +1908,8 @@ export const AudioProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   useEffect(() => {
     loadTrackRef.current = loadTrack;
     stopRef.current = stop;
+    playNextRef.current = playNext;
+    playPreviousRef.current = playPrevious;
     playAudioRef.current = playAudio;
   });
 
@@ -1904,23 +1918,20 @@ export const AudioProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     if ('mediaSession' in navigator) {
       navigator.mediaSession.setActionHandler('play', () => playAudio());
       navigator.mediaSession.setActionHandler('pause', () => pauseAudio());
-      navigator.mediaSession.setActionHandler('seekbackward', (details) => {
-        const offset = details.seekOffset || 10;
-        seekRelative(-offset);
-      });
-      navigator.mediaSession.setActionHandler('seekforward', (details) => {
-        const offset = details.seekOffset || 10;
-        seekRelative(offset);
-      });
-      navigator.mediaSession.setActionHandler('previoustrack', () => playPrevious());
-      navigator.mediaSession.setActionHandler('nexttrack', () => playNext());
+      // Previous/Next track on the lock screen (no ±10s handlers — see loadTrack)
+      try {
+        navigator.mediaSession.setActionHandler('seekbackward', null);
+        navigator.mediaSession.setActionHandler('seekforward', null);
+      } catch { /* not supported */ }
+      navigator.mediaSession.setActionHandler('previoustrack', () => playPreviousRef.current());
+      navigator.mediaSession.setActionHandler('nexttrack', () => playNextRef.current());
       navigator.mediaSession.setActionHandler('seekto', (details) => {
         if (details.seekTime !== undefined) {
           seek(details.seekTime);
         }
       });
     }
-  }, [playAudio, pauseAudio, seek, seekRelative, playPrevious, playNext]);
+  }, [playAudio, pauseAudio, seek]);
 
   // Global Keyboard Shortcuts for Dancers & Coaches
   useEffect(() => {
@@ -1986,6 +1997,7 @@ export const AudioProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     volume,
     isRepeat,
     isShuffle,
+    shuffleSeed,
     isLoading,
     isPauseCountdown,
     isFitness,
@@ -2014,7 +2026,7 @@ export const AudioProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     songsPlayedCount
   }), [
     isPlaying, isLoaded, bpm, isFinalMode, duration, title, artist, trackId, currentTrack,
-    error, volume, isRepeat, isShuffle, isLoading, isPauseCountdown, isFitness, togglePlay,
+    error, volume, isRepeat, isShuffle, shuffleSeed, isLoading, isPauseCountdown, isFitness, togglePlay,
     loadTrackStable, setBpm, setVolume, toggleRepeat, toggleShuffle, toggleFinalMode, seek,
     seekRelative, playNext, playPrevious, stop, activeMode, sessionTracks, fitnessTargetTime,
     isAdModalOpen, setAdModalOpen, pauseForBreak, songsPlayedCount

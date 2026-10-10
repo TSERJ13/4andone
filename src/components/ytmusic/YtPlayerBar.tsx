@@ -27,6 +27,7 @@ import { openAddToPlaylist, saveTrackOffline } from '@/components/audio/playerAc
 import { useAudio } from '@/components/audio/AudioProvider';
 import { FinalStopButton } from '@/components/audio/FinalStopButton';
 import { useStudio } from '@/components/admin/StudioProvider';
+import { SeekBar } from '@/components/audio/SeekBar';
 import { getTrackCover } from '@/utils/trackCover';
 
 const formatTime = (seconds: number): string => {
@@ -75,6 +76,7 @@ export default function YtPlayerBar({ onExpandPlayer }: YtPlayerBarProps) {
 
   const [isSpeedPopoverOpen, setIsSpeedPopoverOpen] = useState(false);
   const [isMenuOpen, setIsMenuOpen] = useState(false);
+  const [scrubTime, setScrubTime] = useState<number | null>(null);
   const [showCopiedToast, setShowCopiedToast] = useState(false);
   
   const popoverRef = useRef<HTMLDivElement>(null);
@@ -108,15 +110,6 @@ export default function YtPlayerBar({ onExpandPlayer }: YtPlayerBarProps) {
   // Final Mode: the bar shows the whole session (all dances + rests) and is
   // read-only; skipping/seeking would break the competition timing.
   const totalDur = isFinalMode && sessionDuration > 0 ? sessionDuration : duration;
-  const progressPercent = totalDur > 0 ? Math.min(100, (currentTime / totalDur) * 100) : 0;
-
-  const handleSeekClick = (e: React.MouseEvent<HTMLDivElement>) => {
-    if (isFinalMode) return;
-    const rect = e.currentTarget.getBoundingClientRect();
-    const clickX = e.clientX - rect.left;
-    const ratio = clickX / rect.width;
-    seek(ratio * duration);
-  };
 
   const handleBpmChange = (delta: number) => {
     const currentVal = bpm || 100;
@@ -154,15 +147,15 @@ export default function YtPlayerBar({ onExpandPlayer }: YtPlayerBarProps) {
 
   return (
     <div className="yt-player-bar-container">
-      {/* Top Red Progress Line */}
-      <div
-        className="yt-progress-line-track"
-        onClick={handleSeekClick}
-        style={isFinalMode ? { cursor: 'default' } : undefined}
-      >
-        <div
-          className="yt-progress-line-fill"
-          style={{ width: `${progressPercent}%`, ...(isFinalMode ? { background: '#ef4444' } : {}) }}
+      {/* Top progress line with a draggable handle */}
+      <div className="yt-full-seek-row">
+        <SeekBar
+          current={currentTime}
+          total={totalDur}
+          onSeek={seek}
+          disabled={isFinalMode}
+          color={isFinalMode ? '#ef4444' : undefined}
+          onScrub={setScrubTime}
         />
       </div>
 
@@ -341,7 +334,7 @@ export default function YtPlayerBar({ onExpandPlayer }: YtPlayerBarProps) {
             </span>
           ) : (
             <span className="yt-player-time-display" style={isFinalMode ? { color: '#ef4444' } : undefined}>
-              {formatTime(currentTime)} / {formatTime(totalDur)}
+              {formatTime(scrubTime ?? currentTime)} / {formatTime(totalDur)}
             </span>
           )}
         </div>
@@ -433,7 +426,7 @@ export default function YtPlayerBar({ onExpandPlayer }: YtPlayerBarProps) {
 
           <button
             type="button"
-            className={`yt-player-icon-btn ${isRepeat ? 'active' : ''}`}
+            className={`yt-player-icon-btn ${isRepeat ? 'active' : ''}`} aria-pressed={isRepeat}
             onClick={toggleRepeat}
             title="Repeat"
           >
@@ -442,7 +435,7 @@ export default function YtPlayerBar({ onExpandPlayer }: YtPlayerBarProps) {
 
           <button
             type="button"
-            className={`yt-player-icon-btn ${isShuffle ? 'active' : ''}`}
+            className={`yt-player-icon-btn ${isShuffle ? 'active' : ''}`} aria-pressed={isShuffle}
             onClick={toggleShuffle}
             title="Shuffle"
           >

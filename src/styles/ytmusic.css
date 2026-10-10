@@ -478,9 +478,25 @@
 }
 
 /* MOBILE 3x3 GRID (Image 1) */
-.yt-mobile-quick-grid {
+.yt-mobile-quick-pager {
   display: none;
+  overflow-x: auto;
+  scroll-snap-type: x mandatory;
+  overscroll-behavior-x: contain;
+  scrollbar-width: none;
+}
+.yt-mobile-quick-pager::-webkit-scrollbar {
+  display: none;
+}
+
+.yt-mobile-quick-grid {
+  display: grid;
+  flex: 0 0 100%;
+  scroll-snap-align: start;
+  scroll-snap-stop: always;
   grid-template-columns: repeat(3, 1fr);
+  grid-auto-rows: min-content;
+  align-content: start;
   gap: 10px;
 }
 
@@ -1193,8 +1209,8 @@
     display: none;
   }
 
-  .yt-mobile-quick-grid {
-    display: grid;
+  .yt-mobile-quick-pager {
+    display: flex;
   }
 
   .yt-mobile-bottom-nav {
@@ -1259,8 +1275,11 @@
 
 .yt-full-player-body {
   display: flex;
-  flex: 1;
-  height: calc(100vh - 80px);
+  /* ends at the player bar (it filled the whole screen, so the last songs of
+     the side lists were hidden behind the bar) */
+  flex: 0 0 auto;
+  height: calc(100vh - var(--yt-player-height));
+  height: calc(100dvh - var(--yt-player-height));
   overflow: hidden;
 }
 
@@ -1303,6 +1322,9 @@
   border-left: 1px solid rgba(255, 255, 255, 0.08);
   display: flex;
   flex-direction: column;
+  /* lets the list below scroll to its very last row (it was cut off) */
+  min-height: 0;
+  overflow: hidden;
 }
 
 .yt-panel-tabs-bar {
@@ -1330,11 +1352,53 @@
 
 .yt-panel-queue-list {
   flex: 1;
+  min-height: 0;
+  padding-bottom: 24px;
   overflow-y: auto;
   padding: 12px 16px;
   display: flex;
   flex-direction: column;
   gap: 4px;
+}
+
+.yt-panel-list-head {
+  padding: 12px 16px;
+  margin-bottom: 4px;
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.03);
+}
+.yt-panel-list-kicker {
+  font-size: 11px;
+  font-weight: 700;
+  color: #a855f7;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+.yt-panel-list-title {
+  font-size: 14px;
+  font-weight: 800;
+  color: #ffffff;
+  margin-top: 2px;
+}
+.yt-panel-list-count {
+  font-size: 12px;
+  color: #94a3b8;
+  margin-top: 1px;
+}
+.yt-panel-list-sentinel {
+  height: 1px;
+  flex-shrink: 0;
+}
+.yt-full-seek-row {
+  position: relative;
+  height: 3px;
+}
+.yt-full-seek-row > * {
+  position: absolute !important;
+  left: 0;
+  right: 0;
+  top: -11px;
+  z-index: 3;
 }
 
 .yt-queue-item {
@@ -1676,7 +1740,8 @@
   justify-content: space-between;
   font-size: 12px;
   color: #aaa;
-  margin-top: 8px;
+  margin-top: 2px;
+  font-variant-numeric: tabular-nums;
 }
 
 .yt-mobile-controls-row {
@@ -1695,6 +1760,26 @@
 }
 .yt-mobile-control-btn.active {
   color: #fff;
+}
+/* Repeat / Shuffle switched on: white icon + a small dot under it (the grey
+   vs white difference alone was too hard to see) */
+.yt-mobile-control-btn.active,
+.yt-player-icon-btn.active,
+.yt-bar-btn.active {
+  position: relative;
+}
+.yt-mobile-control-btn.active::after,
+.yt-player-icon-btn.active::after,
+.yt-bar-btn.active::after {
+  content: '';
+  position: absolute;
+  left: 50%;
+  bottom: 1px;
+  width: 4px;
+  height: 4px;
+  margin-left: -2px;
+  border-radius: 50%;
+  background: var(--yt-red, #ff0000);
 }
 
 .yt-mobile-play-main-circle {

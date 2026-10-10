@@ -274,7 +274,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       localStorage.removeItem('4andone_liked_tracks');
       // Also clear user-scoped keys
       Object.keys(localStorage).forEach(key => {
-        if (key.startsWith('4andone_liked_tracks')) {
+        if (key.startsWith('4andone_liked_tracks') || key.startsWith('4andone_recent_cloud_')) {
           localStorage.removeItem(key);
         }
       });

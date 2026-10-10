@@ -11,9 +11,11 @@ import { getTrackCover } from '@/utils/trackCover';
 interface YtQuickPicksProps {
   tracks: Track[];
   onPlayAll?: () => void;
+  /** The account's list is still loading — show placeholders instead of a list that would reshuffle. */
+  loading?: boolean;
 }
 
-export default function YtQuickPicks({ tracks, onPlayAll }: YtQuickPicksProps) {
+export default function YtQuickPicks({ tracks, onPlayAll, loading = false }: YtQuickPicksProps) {
   const { albums } = useStudio();
   const { user } = useAuth();
   const { togglePlay, isPlaying, trackId: playingTrackId, loadTrack } = useAudioControls();
@@ -91,6 +93,32 @@ export default function YtQuickPicks({ tracks, onPlayAll }: YtQuickPicksProps) {
         </div>
       </div>
 
+      {loading && (
+        <>
+          <div className="yt-mobile-quick-pager" aria-hidden="true">
+            <div className="yt-mobile-quick-grid">
+              {Array.from({ length: 9 }, (_, i) => <div key={i} className="yt-grid-card yt-qp-skeleton" />)}
+            </div>
+          </div>
+          <div className="yt-desktop-quick-columns" aria-hidden="true">
+            {[0, 1, 2].map(c => (
+              <div key={c} className="yt-quick-col">
+                {[0, 1, 2, 3].map(r => (
+                  <div key={r} className="yt-track-row-item">
+                    <div className="yt-track-thumb-box yt-qp-skeleton" />
+                    <div className="yt-track-info-col">
+                      <span className="yt-qp-skeleton-line" />
+                      <span className="yt-qp-skeleton-line short" />
+                    </div>
+                  </div>
+                ))}
+              </div>
+            ))}
+          </div>
+        </>
+      )}
+
+      {!loading && <>
       {/* MOBILE: swipeable 3x3 pages (like the album / dance shelves) */}
       <div
         ref={pagerRef}
@@ -189,6 +217,7 @@ export default function YtQuickPicks({ tracks, onPlayAll }: YtQuickPicksProps) {
           </div>
         ))}
       </div>
+      </>}
     </section>
   );
 }

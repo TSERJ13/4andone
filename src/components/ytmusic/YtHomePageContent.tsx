@@ -2,7 +2,7 @@
 
 import React, { useState, useMemo } from 'react';
 import { useStudio } from '@/components/admin/StudioProvider';
-import { useRecentlyPlayed } from '@/hooks/useRecentlyPlayed';
+import { useRecentlyPlayedState } from '@/hooks/useRecentlyPlayed';
 import { useAudioControls } from '@/components/audio/AudioProvider';
 import YtFilterChips from './YtFilterChips';
 import YtQuickPicks from './YtQuickPicks';
@@ -29,7 +29,7 @@ export default function YtHomePageContent() {
   const [activeCategory, setActiveCategory] = useState('all');
   const [searchQuery, setSearchQuery] = useState('');
   // This device + the signed-in account's plays from the database
-  const recentlyPlayedIds = useRecentlyPlayed();
+  const { ids: recentlyPlayedIds, ready: recentReady } = useRecentlyPlayedState();
 
   // Filter tracks by category or search query and sort recently played first
   const filteredTracks = useMemo(() => {
@@ -115,7 +115,7 @@ export default function YtHomePageContent() {
       />
 
       {/* Quick Picks Section (Mobile 3x3 Grid / Desktop 3-column rows) */}
-      <YtQuickPicks tracks={filteredTracks} onPlayAll={handlePlayAll} />
+      <YtQuickPicks tracks={filteredTracks} onPlayAll={handlePlayAll} loading={!recentReady} />
 
       {/* Albums Shelf */}
       {albumShelfItems.length > 0 && (

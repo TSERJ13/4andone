@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useAuth } from '@/context/AuthContext';
 import { getRecentlyPlayedTimes, getRecentlyPlayedTrackIds } from '@/utils/history';
 import { sessionFetch } from '@/utils/userSession';
@@ -25,11 +25,38 @@ const readLocal = () => ({ ids: getRecentlyPlayedTrackIds(), times: getRecentlyP
  * doesn't jump to the top under the finger; it moves there the next time the
  * list is opened. Songs that weren't in the list yet appear at the top.
  */
+const cacheKey = (uid: number | string) => `4andone_recent_cloud_${uid}`;
+const readCache = (uid?: number | string | null): CloudPlay[] | null => {
+  if (!uid || typeof window === 'undefined') return null;
+  try {
+    const v = JSON.parse(localStorage.getItem(cacheKey(uid)) || 'null');
+    return Array.isArray(v) ? v : null;
+  } catch { return null; }
+};
+const writeCache = (uid: number | string, list: CloudPlay[]) => {
+  try { localStorage.setItem(cacheKey(uid), JSON.stringify(list.slice(0, 100))); } catch { /* full / blocked */ }
+};
+/** How long a first-time device waits for the account list before showing what it has. */
+const FIRST_LOAD_WAIT_MS = 2500;
+
 export function useRecentlyPlayed(limit = 50): string[] {
-  const { user, sessionVersion } = useAuth();
+  return useRecentlyPlayedState(limit).ids;
+}
+
+/**
+ * Same list plus `ready`: false while a signed-in device that has never seen
+ * the account list is still waiting for it (show a placeholder then, so the
+ * list doesn't visibly reshuffle when it arrives). The last account list is
+ * kept on the device, so later visits draw the right order straight away.
+ */
+export function useRecentlyPlayedState(limit = 50): { ids: string[]; ready: boolean } {
+  const { user, sessionVersion, isLoading } = useAuth();
+  const uid = user?.id ?? null;
   const [local, setLocal] = useState(readLocal);
-  const [cloud, setCloud] = useState<CloudPlay[]>([]);
-  const [baseline, setBaseline] = useState<string[] | null>(null);
+  const [fetched, setFetched] = useState<{ uid: number; list: CloudPlay[] } | null>(null);
+  const [baseline, setBaseline] = useState<{ ids: string[]; withCloud: boolean } | null>(null);
+  const [waitedFor, setWaitedFor] = useState<number | null>(null);
+  const cached = useMemo(() => readCache(uid), [uid]);
 
   useEffect(() => {
     const refresh = () => setLocal(readLocal());
@@ -42,18 +69,24 @@ export function useRecentlyPlayed(limit = 50): string[] {
   }, []);
 
   useEffect(() => {
-    if (!user?.id) return;
+    if (!uid) return;
+    const timer = setTimeout(() => setWaitedFor(uid), FIRST_LOAD_WAIT_MS);
+    return () => clearTimeout(timer);
+  }, [uid]);
+
+  useEffect(() => {
+    if (!uid) return;
     let cancelled = false;
     let lastFetch = 0;
     const load = (force = false) => {
       if (!force && Date.now() - lastFetch < REFRESH_MS) return;
       lastFetch = Date.now();
-      sessionFetch(`/api/user/profile?tid=${user.id}&only=recent`, { cache: 'no-store' })
+      sessionFetch(`/api/user/profile?tid=${uid}&only=recent`, { cache: 'no-store' })
         .then(r => (r.ok ? r.json() : null))
         .then(d => {
           if (cancelled || !Array.isArray(d?.recent)) return;
-          setCloud(d.recent);
-          setBaseline(null); // account list (re)loaded → take its order
+          writeCache(uid, d.recent);
+          setFetched({ uid, list: d.recent });
         })
         .catch(() => { /* offline — the device list still works */ });
     };
@@ -65,7 +98,10 @@ export function useRecentlyPlayed(limit = 50): string[] {
       cancelled = true;
       document.removeEventListener('visibilitychange', onVisible);
     };
-  }, [user?.id, sessionVersion]);
+  }, [uid, sessionVersion]);
+
+  const cloud = uid ? ((fetched?.uid === uid ? fetched.list : null) ?? cached) : null; // signed out → device only
+  const ready = !isLoading && (!uid || cloud !== null || waitedFor === uid);
 
   let clearedAt = 0;
   try { clearedAt = Number(localStorage.getItem(HISTORY_CLEARED_KEY) || 0); } catch { /* ignore */ }
@@ -77,7 +113,7 @@ export function useRecentlyPlayed(limit = 50): string[] {
     const t = local.times[id];
     if (t) playedAt.set(id, t);
   }
-  for (const p of user?.id ? cloud : []) { // signed out → only this device's list
+  for (const p of cloud ?? []) {
     const t = new Date(p.playedAt).getTime();
     if (t > clearedAt && t > (playedAt.get(p.trackId) ?? 0)) playedAt.set(p.trackId, t);
   }
@@ -85,11 +121,17 @@ export function useRecentlyPlayed(limit = 50): string[] {
   const untimed = local.ids.filter(id => !playedAt.has(id));
   const fresh = [...timed, ...untimed].slice(0, limit);
 
-  if (baseline === null) {
-    if (fresh.length > 0) setBaseline(fresh); // adjust-state-during-render: freeze this order
-    return fresh;
+  if (!ready) return { ids: fresh, ready };
+  // Freeze the order once shown; redo it once if it was drawn before the
+  // account list existed on this device (slow first load).
+  if (baseline === null || (!baseline.withCloud && cloud !== null)) {
+    if (fresh.length > 0) setBaseline({ ids: fresh, withCloud: cloud !== null }); // adjust state during render
+    return { ids: fresh, ready };
   }
   const inFresh = new Set(fresh);
-  const known = new Set(baseline);
-  return [...fresh.filter(id => !known.has(id)), ...baseline.filter(id => inFresh.has(id))].slice(0, limit);
+  const known = new Set(baseline.ids);
+  return {
+    ids: [...fresh.filter(id => !known.has(id)), ...baseline.ids.filter(id => inFresh.has(id))].slice(0, limit),
+    ready,
+  };
 }

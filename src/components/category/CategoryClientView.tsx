@@ -142,7 +142,7 @@ export default function CategoryClientView({ category, initialTracks }: Props) {
                 badge="duration"
                 href={`/music/${slug}`}
               />
-              {track.id === listAdAnchor && <ListAd key={track.id} />}
+              {(track.id === listAdAnchor || (!listAdAnchor && i === 2)) && <ListAd key={track.id} />}
             </Fragment>
           );
         })}

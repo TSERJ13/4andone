@@ -158,7 +158,7 @@ const StylePage = () => {
       {/* Tracks List */}
       <div className="yt-tracks-section">
         {filteredTracks.length > 0 ? (
-          filteredTracks.map((track) => {
+          filteredTracks.map((track, index) => {
             const isTrackActive = isPlaying && (playingTrackId ? playingTrackId === track.id : (playingTitle === track.title || playingTitle === track.id));
 
             return (
@@ -171,7 +171,7 @@ const StylePage = () => {
                   badge="duration"
                   isDownloaded={downloadedIds.includes(track.id)}
                 />
-                {track.id === listAdAnchor && <ListAd key={track.id} />}
+                {(track.id === listAdAnchor || (!listAdAnchor && index === 2)) && <ListAd key={track.id} />}
               </Fragment>
             );
           })

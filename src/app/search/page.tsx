@@ -440,7 +440,7 @@ const SearchPage = () => {
                 <h3 className="yt-block-title">Songs</h3>
                 {searchResultsTracks.length > 0 ? (
                   <div className="yt-tracks-list-container">
-                    {searchResultsTracks.map((track) => {
+                    {searchResultsTracks.map((track, index) => {
                       const isTrackActive =
                         isPlaying &&
                         (playingTrackId
@@ -470,7 +470,7 @@ const SearchPage = () => {
                             }
                             isDownloaded={downloadedIds.includes(track.id)}
                           />
-                          {track.id === listAdAnchor && <ListAd key={track.id} />}
+                          {(track.id === listAdAnchor || (!listAdAnchor && index === 2)) && <ListAd key={track.id} />}
                         </Fragment>
                       );
                     })}

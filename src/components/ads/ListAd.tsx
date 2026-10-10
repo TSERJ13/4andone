@@ -18,7 +18,7 @@ import { recordAdEvent } from '@/lib/adEvents';
 
 // "სიის რეკლამა" (Responsive) — its own unit so Reports show list revenue separately.
 const LIST_AD_SLOT = process.env.NEXT_PUBLIC_ADSENSE_LIST_SLOT || '4624552899';
-export const LIST_AD_AFTER_PLAYS = 2; // shown under the 2nd track started on a page
+export const LIST_AD_AFTER_PLAYS = 1; // shown under the 1st track started on a page
 
 // Tiny shared store: which track the ad sits under.
 let anchorTrackId: string | null = null;
@@ -59,7 +59,7 @@ export const ListAdAnchorTracker: React.FC = () => {
 
 // How long to wait for AdSense's answer before treating the slot as blocked
 // (ad blockers never answer). Then the block disappears.
-const NO_ANSWER_MS = 8000;
+const NO_ANSWER_MS = 15000;
 
 export const ListAd: React.FC = () => {
   const { isPremium } = useAuth();
@@ -78,7 +78,7 @@ export const ListAd: React.FC = () => {
     const t = setTimeout(
       () => setStatus((s) => {
         if (s !== 'pending') return s;
-        logAdEvent(LIST_AD_SLOT, requested ? 'no answer from Google in 8s → Premium card' : 'never requested → Premium card');
+        logAdEvent(LIST_AD_SLOT, requested ? 'no answer from Google in 15s → Premium card' : 'never requested → Premium card');
         if (requested) recordAdEvent('list', 'no_answer');
         return 'empty';
       }),

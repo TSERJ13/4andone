@@ -99,13 +99,23 @@ const SearchPage = () => {
 
   // Query from the header search: ?q= on arrival, then live updates
   useEffect(() => {
-    try {
-      const q = new URLSearchParams(window.location.search).get('q');
-      if (q) setQuery(q);
-    } catch { /* ignore */ }
+    const readQueryFromUrl = () => {
+      try {
+        const q = new URLSearchParams(window.location.search).get('q') || '';
+        if (q) setQuery(q);
+      } catch { /* ignore */ }
+    };
+
+    readQueryFromUrl();
+
     const onHeaderSearch = (e: Event) => setQuery(String((e as CustomEvent).detail ?? ''));
     window.addEventListener(HEADER_SEARCH_EVENT, onHeaderSearch);
-    return () => window.removeEventListener(HEADER_SEARCH_EVENT, onHeaderSearch);
+    window.addEventListener('popstate', readQueryFromUrl);
+
+    return () => {
+      window.removeEventListener(HEADER_SEARCH_EVENT, onHeaderSearch);
+      window.removeEventListener('popstate', readQueryFromUrl);
+    };
   }, []);
 
   const handleSearchClick = (term: string) => {

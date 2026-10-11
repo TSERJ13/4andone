@@ -391,22 +391,38 @@ export default function AdminMessagesPage() {
   };
 
   const applyTemplate = (type: 'update' | 'gift' | 'referral' | 'expiring' | 'channel') => {
+    let newText = '';
+    let newBtn: InlineBtn = { text: '🎵 Open 4and.one Player', url: 'https://4and.one' };
+
     if (type === 'update') {
-      setTgMessageText("🎵 <b>New Tracks Added!</b>\n\nFresh dancesport music has just been uploaded to 4and.one with native BPM tempo control. Check out the latest Ballroom & Latin releases today!");
-      setButtons([{ text: '🎵 Open Music Player', url: 'https://4and.one' }]);
+      newText = "🎵 <b>New Tracks Added!</b>\n\nFresh dancesport music has just been uploaded to 4and.one with native BPM tempo control. Check out the latest Ballroom & Latin releases today!";
+      newBtn = { text: '🎵 Open Music Player', url: 'https://4and.one' };
     } else if (type === 'gift') {
-      setTgMessageText("⭐ <b>Special Gift from 4and.one!</b>\n\nThank you for dancing with us. We've granted you a special bonus session! Enjoy ad-free listening and competition practice.");
-      setButtons([{ text: '⭐ Start Listening', url: 'https://4and.one' }]);
+      newText = "⭐ <b>Special Gift from 4and.one!</b>\n\nThank you for dancing with us. We've granted you a special bonus session! Enjoy ad-free listening and competition practice.";
+      newBtn = { text: '⭐ Start Listening', url: 'https://4and.one' };
     } else if (type === 'referral') {
-      setTgMessageText("🎁 <b>Invite a Friend, Both Get 1 Month Free!</b>\n\nInvite your dance partner to 4and.one. When they sign in, you both receive 1 month of free Premium immediately!");
-      setButtons([{ text: '🎁 Get Invite Link', url: 'https://4and.one/earn' }]);
+      newText = "🎁 <b>Invite a Friend, Both Get 1 Month Free!</b>\n\nInvite your dance partner to 4and.one. When they sign in, you both receive 1 month of free Premium immediately!";
+      newBtn = { text: '🎁 Get Invite Link', url: 'https://4and.one/earn' };
     } else if (type === 'expiring') {
-      setTgMessageText("⏳ <b>Your 4and.one Premium expires soon!</b>\n\nYour Premium subscription will end in 5 days. Renew now to keep uninterrupted ad-free playback, offline downloads, and competition Final Mode practice!");
-      setButtons([{ text: '💎 Renew Premium Now', url: 'https://4and.one/earn' }]);
+      newText = "⏳ <b>Your 4and.one Premium expires soon!</b>\n\nYour Premium subscription will end in 5 days. Renew now to keep uninterrupted ad-free playback, offline downloads, and competition Final Mode practice!";
+      newBtn = { text: '💎 Renew Premium Now', url: 'https://4and.one/earn' };
     } else if (type === 'channel') {
-      setTgMessageText("📢 <b>Join our official Telegram Channel!</b>\n\nHey {first_name}! 🎵 Follow @fourandonemusic to get the freshest ballroom & latin track releases, competition playlists, and exclusive dance gifts first!");
-      setButtons([{ text: '📢 Join @fourandonemusic', url: 'https://t.me/fourandonemusic' }]);
+      newText = "📢 <b>Join our official Telegram Channel!</b>\n\nHey {first_name}! 🎵 Follow @fourandonemusic to get the freshest ballroom & latin track releases, competition playlists, and exclusive dance gifts first!";
+      newBtn = { text: '📢 Join @fourandonemusic', url: 'https://t.me/fourandonemusic' };
     }
+
+    // Append text if already typing, otherwise set directly
+    setTgMessageText(prev => {
+      const trimmed = prev.trim();
+      if (!trimmed) return newText;
+      return `${trimmed}\n\n${newText}`;
+    });
+
+    // Add button if it doesn't already exist
+    setButtons(prev => {
+      if (prev.some(b => b.text === newBtn.text || b.url === newBtn.url)) return prev;
+      return [...prev, newBtn];
+    });
   };
 
   const loadExpiringReminder = () => {
@@ -1032,7 +1048,33 @@ export default function AdminMessagesPage() {
 
               {/* Message Templates */}
               <div className="form-group">
-                <label className="field-label">Quick Templates:</label>
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '6px' }}>
+                  <label className="field-label" style={{ margin: 0 }}>Quick Templates (შაბლონის ჩამატება):</label>
+                  {tgMessageText.trim() && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setTgMessageText('');
+                        setButtons([]);
+                      }}
+                      style={{
+                        background: 'transparent',
+                        border: 'none',
+                        color: '#f87171',
+                        fontSize: '11px',
+                        cursor: 'pointer',
+                        fontWeight: 700,
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '4px'
+                      }}
+                      title="ტექსტის გასუფთავება"
+                    >
+                      <Trash2 size={12} />
+                      გასუფთავება
+                    </button>
+                  )}
+                </div>
                 <div className="template-chips">
                   <button
                     type="button"

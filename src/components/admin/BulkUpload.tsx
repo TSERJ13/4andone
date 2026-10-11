@@ -1149,13 +1149,140 @@ const BulkUpload = () => {
         }
 
         @media (max-width: 900px) {
-          .batch-header-bar { flex-direction: column; gap: 20px; }
-          .batch-actions-side { flex-direction: row; justify-content: space-between; align-items: center; }
+          .batch-header-bar {
+            flex-direction: column;
+            gap: 16px;
+            padding: 16px;
+          }
+          .batch-side-panel {
+            width: 100%;
+            flex-direction: row;
+            justify-content: space-around;
+            align-items: center;
+            border-left: none;
+            border-top: 1px solid rgba(255, 255, 255, 0.08);
+            padding-left: 0;
+            padding-top: 16px;
+          }
+          .batch-cover-box, .batch-folder-box {
+            width: auto;
+          }
           .table-header { display: none; }
           .table-row { grid-template-columns: 1fr 1fr; gap: 12px; padding: 20px; height: auto; }
           .col-status, .col-actions { display: none; }
           .col-info, .col-album, .col-style, .col-bpm, .col-mpm, .col-tags { grid-column: span 2; }
           .row-title-input { font-size: 16px; border-bottom: 1px solid rgba(255,255,255,0.1); }
+        }
+
+        @media (max-width: 640px) {
+          .bulk-upload-wrapper {
+            gap: 16px;
+          }
+          .batch-header-bar {
+            padding: 14px;
+            border-radius: 16px;
+            gap: 14px;
+          }
+          .inputs-row {
+            flex-direction: column;
+            gap: 10px;
+          }
+          .meta-field input, .meta-select {
+            height: 42px;
+            font-size: 13px;
+          }
+          .meta-select {
+            text-overflow: ellipsis;
+            white-space: nowrap;
+            overflow: hidden;
+            padding-right: 32px;
+          }
+          .recent-artists-suggestions {
+            gap: 4px;
+            max-height: 80px;
+            overflow-y: auto;
+          }
+          .artist-suggestion-chip {
+            padding: 4px 8px;
+            font-size: 10.5px;
+          }
+          .btn-apply-batch-v2 {
+            width: 100%;
+            height: 42px;
+            justify-content: center;
+          }
+          .batch-tags-row {
+            flex-direction: column;
+            align-items: flex-start;
+            gap: 8px;
+          }
+          .tags-scroller {
+            width: 100%;
+            -webkit-overflow-scrolling: touch;
+          }
+          .batch-side-panel {
+            flex-direction: row;
+            justify-content: space-between;
+            gap: 12px;
+            padding-top: 12px;
+          }
+          .batch-cover-box, .batch-folder-box {
+            flex: 1;
+            align-items: center;
+          }
+          .side-folder-select {
+            max-width: 130px;
+            width: 100%;
+          }
+          .dropzone {
+            padding: 20px 14px;
+            border-radius: 18px;
+          }
+          .dropzone-content {
+            gap: 14px;
+          }
+          .upload-icon-wrapper {
+            width: 44px;
+            height: 44px;
+            border-radius: 12px;
+          }
+          .text-group h3 {
+            font-size: 15px;
+          }
+          .text-group p {
+            font-size: 12px;
+          }
+          .staging-header {
+            flex-direction: column;
+            align-items: stretch;
+            gap: 12px;
+          }
+          .staging-actions {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 8px;
+            width: 100%;
+          }
+          .btn-discard {
+            justify-content: center;
+            height: 40px;
+            border-radius: 10px;
+            background: rgba(239, 68, 68, 0.1);
+            border: 1px solid rgba(239, 68, 68, 0.2);
+          }
+          .btn-burn {
+            justify-content: center;
+            height: 40px;
+            padding: 0 12px;
+            font-size: 12.5px;
+          }
+          .staging-table {
+            border-radius: 14px;
+          }
+          .table-row {
+            padding: 14px;
+            gap: 10px;
+          }
         }
       `}</style>
     </div>

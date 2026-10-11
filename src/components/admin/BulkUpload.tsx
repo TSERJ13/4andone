@@ -482,105 +482,122 @@ const BulkUpload = () => {
         <>
           <div className="batch-header-bar glass">
             <div className="batch-main-meta">
-              {/* Destination Album & Batch Cover Art Row */}
-              <div className="album-cover-row">
-                <div className="meta-block flex-1">
-                  <label className="field-micro-label">Destination Album</label>
-                  <div className="meta-field dest-field">
-                    <Disc 
-                      size={16} 
-                      className="meta-icon" 
-                      style={{ 
-                        color: batchDestKey !== "standard" && batchDestKey !== "__custom__" 
-                          ? (albums.find(a => a.slug === batchDestKey)?.themeColor || "#ff416c") 
-                          : "#38bdf8" 
-                      }} 
-                    />
-                    <select 
-                      className="meta-select dest-meta-select"
-                      value={batchDestKey}
-                      onChange={(e) => handleDestinationChange(e.target.value)}
-                    >
-                      <option value="standard">📁 Standard Library (Main)</option>
-                      {albums.length > 0 && (
-                        <optgroup label="── Albums & Collections ──">
-                          {albums.map(alb => (
-                            <option key={alb.id || alb.slug} value={alb.slug}>
-                              💿 {alb.title} {alb.badge ? `(${alb.badge})` : ""}
-                            </option>
-                          ))}
-                        </optgroup>
-                      )}
-                      <option value="__custom__">✏️ Custom Album Name...</option>
-                    </select>
-                    <ChevronDown size={14} className="meta-chevron" />
-                  </div>
-
-                  {batchDestKey === "__custom__" && (
-                    <div className="meta-field custom-album-subfield animate-in">
-                      <FolderPlus size={15} className="meta-icon" />
-                      <input 
-                        type="text" 
-                        placeholder="Type Album or Collection Title..." 
-                        value={batchAlbum === "Standard Library" ? "" : batchAlbum}
-                        onChange={(e) => setBatchAlbum(e.target.value)}
-                        autoFocus
-                      />
-                    </div>
-                  )}
-
-                  {(batchDestKey === "goc-2026" || batchDestKey === "goc") && (
-                    <div className="batch-goc-discipline-box animate-in">
-                      <span className="goc-discipline-label">Discipline:</span>
-                      <div className="goc-discipline-btns">
-                        <button
-                          type="button"
-                          className={`goc-discipline-btn latin ${batchGocDiscipline === "Latin" ? "active" : ""}`}
-                          onClick={() => setBatchGocDiscipline("Latin")}
-                        >
-                          🔥 Latin
-                        </button>
-                        <button
-                          type="button"
-                          className={`goc-discipline-btn standard ${batchGocDiscipline === "Standard" ? "active" : ""}`}
-                          onClick={() => setBatchGocDiscipline("Standard")}
-                        >
-                          ⚡ Standard
-                        </button>
-                      </div>
-                    </div>
-                  )}
+              {/* Destination Album */}
+              <div className="meta-block">
+                <label className="field-micro-label">Destination Album</label>
+                <div className="meta-field dest-field">
+                  <Disc 
+                    size={16} 
+                    className="meta-icon" 
+                    style={{ 
+                      color: batchDestKey !== "standard" && batchDestKey !== "__custom__" 
+                        ? (albums.find(a => a.slug === batchDestKey)?.themeColor || "#ff416c") 
+                        : "#38bdf8" 
+                    }} 
+                  />
+                  <select 
+                    className="meta-select dest-meta-select"
+                    value={batchDestKey}
+                    onChange={(e) => handleDestinationChange(e.target.value)}
+                  >
+                    <option value="standard">📁 Standard Library (Main)</option>
+                    {albums.length > 0 && (
+                      <optgroup label="── Albums & Collections ──">
+                        {albums.map(alb => (
+                          <option key={alb.id || alb.slug} value={alb.slug}>
+                            💿 {alb.title} {alb.badge ? `(${alb.badge})` : ""}
+                          </option>
+                        ))}
+                      </optgroup>
+                    )}
+                    <option value="__custom__">✏️ Custom Album Name...</option>
+                  </select>
+                  <ChevronDown size={14} className="meta-chevron" />
                 </div>
 
-                {/* Batch Cover Art Thumbnail */}
-                <div className="batch-cover-thumbnail-wrap">
-                  <label className="field-micro-label">Cover Art</label>
-                  <div 
-                    className={`batch-cover-zone glass ${batchCoverPreview ? 'has-preview' : ''}`}
-                    onClick={() => coverInputRef.current?.click()}
-                    title="Upload cover art for this batch"
-                  >
-                    {batchCoverPreview ? (
-                      <img src={batchCoverPreview} alt="Cover Preview" className="batch-cover-img" />
-                    ) : (
-                      <div className="cover-empty-prompt">
-                        <Plus size={16} />
-                        <span>Add Cover</span>
-                      </div>
-                    )}
+                {batchDestKey === "__custom__" && (
+                  <div className="meta-field custom-album-subfield animate-in">
+                    <FolderPlus size={15} className="meta-icon" />
                     <input 
-                      type="file" 
-                      ref={coverInputRef} 
-                      className="hidden" 
-                      accept="image/*" 
-                      onChange={(e) => {
-                        if (e.target.files && e.target.files[0]) {
-                          setBatchCoverFile(e.target.files[0]);
-                          setBatchCoverPreview(URL.createObjectURL(e.target.files[0]));
-                        }
-                      }} 
+                      type="text" 
+                      placeholder="Type Album or Collection Title..." 
+                      value={batchAlbum === "Standard Library" ? "" : batchAlbum}
+                      onChange={(e) => setBatchAlbum(e.target.value)}
+                      autoFocus
                     />
                   </div>
+                )}
+
+                {(batchDestKey === "goc-2026" || batchDestKey === "goc") && (
+                  <div className="batch-goc-discipline-box animate-in">
+                    <span className="goc-discipline-label">Discipline:</span>
+                    <div className="goc-discipline-btns">
+                      <button
+                        type="button"
+                        className={`goc-discipline-btn latin ${batchGocDiscipline === "Latin" ? "active" : ""}`}
+                        onClick={() => setBatchGocDiscipline("Latin")}
+                      >
+                        🔥 Latin
+                      </button>
+                      <button
+                        type="button"
+                        className={`goc-discipline-btn standard ${batchGocDiscipline === "Standard" ? "active" : ""}`}
+                        onClick={() => setBatchGocDiscipline("Standard")}
+                      >
+                        ⚡ Standard
+                      </button>
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              {/* Cover Artwork Card (Native Touch Input) */}
+              <div className="meta-block">
+                <label className="field-micro-label">Cover Artwork (Optional)</label>
+                <div className={`batch-cover-card ${batchCoverPreview ? 'has-preview' : ''}`}>
+                  <input 
+                    type="file" 
+                    accept="image/*" 
+                    className="cover-native-input" 
+                    title="Upload cover art"
+                    onChange={(e) => {
+                      if (e.target.files && e.target.files[0]) {
+                        setBatchCoverFile(e.target.files[0]);
+                        setBatchCoverPreview(URL.createObjectURL(e.target.files[0]));
+                      }
+                    }} 
+                  />
+                  <div className="cover-card-thumb">
+                    {batchCoverPreview ? (
+                      <img src={batchCoverPreview} alt="Cover Preview" className="cover-thumb-img" />
+                    ) : (
+                      <div className="cover-thumb-empty">
+                        <Plus size={18} />
+                      </div>
+                    )}
+                  </div>
+                  <div className="cover-card-info">
+                    <span className="cover-card-title">
+                      {batchCoverPreview ? (batchCoverFile?.name || 'Cover Artwork Attached') : 'Add Batch Cover Artwork'}
+                    </span>
+                    <span className="cover-card-sub">
+                      {batchCoverPreview ? 'Tap to change image' : 'Applies cover to all tracks in this batch'}
+                    </span>
+                  </div>
+                  {batchCoverPreview && (
+                    <button 
+                      type="button" 
+                      className="cover-card-remove-btn"
+                      title="Remove cover"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setBatchCoverFile(null);
+                        setBatchCoverPreview(null);
+                      }}
+                    >
+                      <X size={14} />
+                    </button>
+                  )}
                 </div>
               </div>
 
@@ -599,78 +616,101 @@ const BulkUpload = () => {
                 {recentArtists.length > 0 && (
                   <div className="recent-artists-suggestions">
                     {recentArtists.slice(0, 10).map(a => (
-                      <button type="button" key={a} className="artist-suggestion-chip" onClick={() => setBatchArtist(a)}>{a}</button>
+                      <button 
+                        type="button" 
+                        key={a} 
+                        className={`artist-suggestion-chip ${batchArtist === a ? 'active' : ''}`}
+                        onClick={() => setBatchArtist(a)}
+                      >
+                        {a}
+                      </button>
                     ))}
                   </div>
                 )}
               </div>
 
-              {/* Style & Apply Controls */}
+              {/* Dance Style */}
               <div className="meta-block">
                 <label className="field-micro-label">Dance Style</label>
-                <div className="style-apply-grid">
-                  <div className="meta-field style-flex">
-                    <Layers size={16} className="meta-icon" />
-                    <select 
-                      className="meta-select"
-                      value={batchStyle}
-                      onChange={(e) => setBatchStyle(e.target.value)}
-                    >
-                      <option value="" disabled>Select Style</option>
-                      {styles.map((s: Style) => <option key={s.id} value={s.title}>{s.title}</option>)}
-                      {!styles.length && (
-                        <>
-                          <option value="Cha-Cha-Cha">Cha-Cha-Cha</option>
-                          <option value="Samba">Samba</option>
-                          <option value="Rumba">Rumba</option>
-                          <option value="Paso Doble">Paso Doble</option>
-                          <option value="Jive">Jive</option>
-                          <option value="Slow Waltz">Slow Waltz</option>
-                          <option value="Tango">Tango</option>
-                          <option value="Viennese Waltz">Viennese Waltz</option>
-                          <option value="Slow Foxtrot">Slow Foxtrot</option>
-                          <option value="Quickstep">Quickstep</option>
-                          <option value="Fitness">Fitness</option>
-                        </>
-                      )}
-                    </select>
-                  </div>
-                  
-                  <button 
-                    type="button" 
-                    className="btn-apply-batch-v2" 
-                    onClick={applyBatchMetadata}
-                    disabled={files.length === 0}
-                    title={files.length === 0 ? "Add tracks below to apply batch metadata" : "Apply to all queued tracks"}
+                <div className="meta-field">
+                  <Layers size={16} className="meta-icon" />
+                  <select 
+                    className="meta-select"
+                    value={batchStyle}
+                    onChange={(e) => setBatchStyle(e.target.value)}
                   >
-                    <CheckCircle2 size={16} />
-                    <span>Apply to {files.length > 0 ? `${files.length} Tracks` : "Queue"}</span>
-                  </button>
+                    <option value="" disabled>Select Style</option>
+                    {styles.map((s: Style) => <option key={s.id} value={s.title}>{s.title}</option>)}
+                    {!styles.length && (
+                      <>
+                        <option value="Cha-Cha-Cha">Cha-Cha-Cha</option>
+                        <option value="Samba">Samba</option>
+                        <option value="Rumba">Rumba</option>
+                        <option value="Paso Doble">Paso Doble</option>
+                        <option value="Jive">Jive</option>
+                        <option value="Slow Waltz">Slow Waltz</option>
+                        <option value="Tango">Tango</option>
+                        <option value="Viennese Waltz">Viennese Waltz</option>
+                        <option value="Slow Foxtrot">Slow Foxtrot</option>
+                        <option value="Quickstep">Quickstep</option>
+                        <option value="Fitness">Fitness</option>
+                      </>
+                    )}
+                  </select>
+                  <ChevronDown size={14} className="meta-chevron" />
                 </div>
               </div>
 
               {/* Tags */}
-              <div className="batch-tags-row">
-                 <div className="tags-label">
-                   <TagIcon size={14} />
-                   <span>Batch Tags:</span>
-                 </div>
-                 <div className="tags-scroller">
-                    {availableTags.map((tag: Tag) => (
-                      <button
-                        key={tag.id}
-                        className={`batch-tag-pill ${batchTags.includes(tag.name) ? 'active' : ''}`}
-                        onClick={() => toggleTagInBatch(tag.name)}
-                        style={{ 
-                          '--tag-color': tag.color,
-                          borderColor: batchTags.includes(tag.name) ? tag.color : 'rgba(255,255,255,0.05)'
-                        } as any}
-                      >
-                        {tag.name}
-                      </button>
-                    ))}
-                 </div>
+              <div className="meta-block">
+                <div className="field-micro-label-row">
+                  <span className="field-micro-label">Batch Tags</span>
+                  {batchTags.length > 0 && (
+                    <button 
+                      type="button" 
+                      className="clear-tags-link"
+                      onClick={() => setBatchTags([])}
+                    >
+                      Clear ({batchTags.length})
+                    </button>
+                  )}
+                </div>
+                <div className="tags-scroller">
+                  {availableTags.map((tag: Tag) => (
+                    <button
+                      key={tag.id}
+                      type="button"
+                      className={`batch-tag-pill ${batchTags.includes(tag.name) ? 'active' : ''}`}
+                      onClick={() => toggleTagInBatch(tag.name)}
+                      style={{ 
+                        '--tag-color': tag.color,
+                        borderColor: batchTags.includes(tag.name) ? tag.color : 'rgba(255,255,255,0.06)'
+                      } as any}
+                    >
+                      {tag.name}
+                    </button>
+                  ))}
+                </div>
               </div>
+
+              {/* Apply to Queue Button (When tracks exist) */}
+              {files.length > 0 ? (
+                <div className="apply-to-queue-wrap animate-in">
+                  <button 
+                    type="button" 
+                    className="btn-apply-batch-v2" 
+                    onClick={applyBatchMetadata}
+                  >
+                    <CheckCircle2 size={16} />
+                    <span>Apply Batch Settings to All {files.length} Tracks</span>
+                  </button>
+                </div>
+              ) : (
+                <div className="batch-hint-box">
+                  <Activity size={14} className="text-primary" />
+                  <span>Audio files added below will automatically inherit these settings</span>
+                </div>
+              )}
             </div>
           </div>
 
@@ -679,17 +719,26 @@ const BulkUpload = () => {
             onDragOver={(e) => { e.preventDefault(); setIsDragging(true); }}
             onDragLeave={() => setIsDragging(false)}
             onDrop={(e) => { e.preventDefault(); setIsDragging(false); processFiles(e.dataTransfer.files); }}
-            onClick={() => fileInputRef.current?.click()}
           >
+            <input 
+              type="file" 
+              multiple 
+              accept="audio/*,.mp3,.wav,.m4a,.aac,.flac,.ogg" 
+              onChange={(e) => {
+                processFiles(e.target.files);
+                e.target.value = '';
+              }} 
+              className="dropzone-native-input" 
+              id="bulk-audio-file-input"
+            />
             <div className="dropzone-content">
               <div className="upload-icon-wrapper glass">
                 <Upload size={28} className="text-primary" />
               </div>
               <div className="text-group">
-                <h3>{files.length > 0 ? 'Batch Upload Active' : 'Ingest Quality Audio'}</h3>
-                <p>Drag audio files or click to browse</p>
+                <h3>{files.length > 0 ? `+ Add More Audio Files` : 'Tap to Choose Audio Files'}</h3>
+                <p>MP3, WAV, FLAC, M4A — Drag or tap anywhere to browse</p>
               </div>
-              <input type="file" multiple accept="audio/*" onChange={(e) => processFiles(e.target.files)} className="hidden" ref={fileInputRef} />
             </div>
           </div>
         </>
@@ -814,33 +863,37 @@ const BulkUpload = () => {
                     </select>
                   </div>
 
-                  <div className="col-bpm">
-                    {f.isAnalyzing ? <div className="analyzing-mini-spinner" /> : (
-                      <input 
-                        className="row-bpm-input"
-                        type="number"
-                        value={f.bpm}
-                        onChange={(e) => updateFileMeta(f.id, { bpm: e.target.value })}
-                        placeholder="BPM"
-                      />
-                    )}
-                  </div>
+                  <div className="track-tempo-grid">
+                    <div className="col-bpm">
+                      <span className="row-tempo-mobile-label">BPM</span>
+                      {f.isAnalyzing ? <div className="analyzing-mini-spinner" /> : (
+                        <input 
+                          className="row-bpm-input"
+                          type="number"
+                          value={f.bpm}
+                          onChange={(e) => updateFileMeta(f.id, { bpm: e.target.value })}
+                          placeholder="BPM"
+                        />
+                      )}
+                    </div>
 
-                  <div className="col-mpm">
-                    {f.isAnalyzing ? <div className="analyzing-mini-spinner" /> : (
-                      <input 
-                        className="row-bpm-input"
-                        type="number"
-                        step="0.1"
-                        value={getMPMFromBPM(Number(f.bpm), f.style)}
-                        onChange={(e) => {
-                          const newMpm = Number(e.target.value);
-                          const newBpm = getBPMFromMPM(newMpm, f.style);
-                          updateFileMeta(f.id, { bpm: newBpm.toString() });
-                        }}
-                        placeholder="MPM"
-                      />
-                    )}
+                    <div className="col-mpm">
+                      <span className="row-tempo-mobile-label">MPM</span>
+                      {f.isAnalyzing ? <div className="analyzing-mini-spinner" /> : (
+                        <input 
+                          className="row-bpm-input"
+                          type="number"
+                          step="0.1"
+                          value={getMPMFromBPM(Number(f.bpm), f.style)}
+                          onChange={(e) => {
+                            const newMpm = Number(e.target.value);
+                            const newBpm = getBPMFromMPM(newMpm, f.style);
+                            updateFileMeta(f.id, { bpm: newBpm.toString() });
+                          }}
+                          placeholder="MPM"
+                        />
+                      )}
+                    </div>
                   </div>
 
                   <div className="col-tags">
@@ -875,14 +928,41 @@ const BulkUpload = () => {
       )}
 
       <style jsx>{`
-        .bulk-upload-wrapper { display: flex; flex-direction: column; gap: 24px; width: 100%; }
+        .bulk-upload-wrapper { display: flex; flex-direction: column; gap: 20px; width: 100%; }
         
         .batch-header-bar { 
-          display: flex; gap: 20px; padding: 22px; border-radius: 24px;
-          border: 1px solid rgba(255,255,255,0.06); background: rgba(255,255,255,0.02);
-          width: 100%; box-sizing: border-box; overflow: hidden;
+          display: flex; flex-direction: column; gap: 16px; padding: 20px; border-radius: 20px;
+          border: 1px solid rgba(255,255,255,0.08); background: rgba(255,255,255,0.02);
+          width: 100%; box-sizing: border-box;
         }
-        .batch-main-meta { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 16px; }
+        .batch-main-meta { display: flex; flex-direction: column; gap: 16px; width: 100%; }
+
+        .meta-block {
+          display: flex;
+          flex-direction: column;
+          gap: 6px;
+          width: 100%;
+        }
+        .field-micro-label-row {
+          display: flex;
+          justify-content: space-between;
+          align-items: center;
+        }
+        .field-micro-label {
+          font-size: 11px;
+          font-weight: 800;
+          color: #a1a1aa;
+          text-transform: uppercase;
+          letter-spacing: 0.6px;
+        }
+        .clear-tags-link {
+          background: none;
+          border: none;
+          color: #ef4444;
+          font-size: 11px;
+          font-weight: 700;
+          cursor: pointer;
+        }
 
         /* Destination Dropdown Section */
         .dest-field { position: relative; }
@@ -906,7 +986,7 @@ const BulkUpload = () => {
         .goc-discipline-label { font-size: 11px; font-weight: 800; color: #f87171; text-transform: uppercase; }
         .goc-discipline-btns { display: flex; gap: 6px; }
         .goc-discipline-btn { 
-          padding: 4px 10px; border-radius: 8px; font-size: 11px; font-weight: 800; 
+          padding: 6px 12px; border-radius: 8px; font-size: 11px; font-weight: 800; 
           border: 1px solid rgba(255,255,255,0.1); background: rgba(255,255,255,0.04); 
           color: #71717a; cursor: pointer; transition: all 0.2s; 
         }
@@ -915,156 +995,226 @@ const BulkUpload = () => {
 
         .meta-chevron { position: absolute; right: 14px; color: #71717a; pointer-events: none; }
 
-        .inputs-row { display: flex; gap: 12px; width: 100%; }
-        .meta-field { position: relative; flex: 1; min-width: 0; display: flex; align-items: center; }
-        .meta-icon { position: absolute; left: 14px; color: #71717a; }
+        .meta-field { position: relative; width: 100%; display: flex; align-items: center; }
+        .meta-icon { position: absolute; left: 14px; color: #71717a; pointer-events: none; z-index: 1; }
         .meta-field input, .meta-select { 
-          width: 100%; height: 44px; background: rgba(255,255,255,0.05); 
-          border: 1px solid rgba(255,255,255,0.08); padding-left: 42px; 
+          width: 100%; height: 46px; background: rgba(255,255,255,0.04); 
+          border: 1px solid rgba(255,255,255,0.08); padding-left: 42px; padding-right: 36px;
           border-radius: 12px; color: white; font-size: 14px; font-weight: 600; outline: none; 
           transition: all 0.2s;
         }
-        .meta-field input:focus, .meta-select:focus { border-color: #1db954; background: rgba(255,255,255,0.08); }
-        .meta-select { cursor: pointer; }
+        .meta-field input:focus, .meta-select:focus { border-color: #1db954; background: rgba(255,255,255,0.08); box-shadow: 0 0 0 1px #1db954; }
+        .meta-select { cursor: pointer; appearance: none; }
 
-        .meta-field-group { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 8px; }
-        .recent-artists-suggestions { display: flex; flex-wrap: wrap; gap: 6px; }
-        .artist-suggestion-chip { 
-          padding: 4px 10px; border-radius: 8px; background: rgba(255,255,255,0.05); 
-          color: #71717a; font-size: 11px; font-weight: 700; border: none; cursor: pointer; transition: all 0.2s;
-        }
-        .artist-suggestion-chip:hover { background: #1db954; color: black; }
-
-        .batch-tags-row { display: flex; align-items: center; gap: 16px; }
-        .tags-label { display: flex; align-items: center; gap: 8px; font-size: 12px; font-weight: 800; color: #71717a; text-transform: uppercase; }
-        .tags-scroller { display: flex; gap: 8px; overflow-x: auto; padding-bottom: 4px; }
-        .tags-scroller::-webkit-scrollbar { display: none; }
-        
-        .batch-tag-pill { 
-          padding: 6px 12px; border-radius: 20px; font-size: 11px; font-weight: 700; 
-          background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.05);
-          color: #a1a1aa; cursor: pointer; transition: all 0.2s; white-space: nowrap;
-        }
-        .batch-tag-pill.active { background: var(--tag-color); color: black; border-color: transparent; }
-
-        .meta-block {
-          display: flex;
-          flex-direction: column;
-          gap: 6px;
-          width: 100%;
-        }
-        .field-micro-label {
-          font-size: 11px;
-          font-weight: 800;
-          color: #71717a;
-          text-transform: uppercase;
-          letter-spacing: 0.5px;
-        }
-        .style-apply-grid {
+        /* Cover Artwork Card (Native Touch) */
+        .batch-cover-card {
+          position: relative;
           display: flex;
           align-items: center;
           gap: 12px;
+          padding: 10px 14px;
+          border-radius: 14px;
+          background: rgba(255,255,255,0.03);
+          border: 1px dashed rgba(255,255,255,0.15);
+          cursor: pointer;
+          transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+          overflow: hidden;
+        }
+        .batch-cover-card:hover, .batch-cover-card.has-preview {
+          border-color: #1db954;
+          background: rgba(29, 185, 84, 0.05);
+        }
+        .cover-native-input {
+          position: absolute;
+          inset: 0;
           width: 100%;
+          height: 100%;
+          opacity: 0;
+          cursor: pointer;
+          z-index: 2;
+          -webkit-tap-highlight-color: transparent;
         }
-
-        .btn-apply-batch-v2 { 
-          display: flex; align-items: center; gap: 8px;
-          height: 44px; padding: 0 24px; border-radius: 12px; font-size: 13.5px; flex-shrink: 0; 
-          font-weight: 900; background: #1db954; color: black; border: none;
-          white-space: nowrap; cursor: pointer; transition: all 0.2s cubic-bezier(0.175, 0.885, 0.32, 1.275);
-          box-shadow: 0 4px 12px rgba(29, 185, 84, 0.15);
-        }
-        .btn-apply-batch-v2:hover:not(:disabled) { 
-          transform: translateY(-2px) scale(1.02); 
-          background: #1ed760; 
-          box-shadow: 0 8px 24px rgba(29, 185, 84, 0.3); 
-        }
-        .btn-apply-batch-v2:disabled { opacity: 0.25; cursor: not-allowed; filter: grayscale(1); background: rgba(255, 255, 255, 0.08); color: #71717a; }
-
-        .style-flex { flex: 1.5; }
-        
-        /* Album & Cover Art Row */
-        .album-cover-row {
+        .cover-card-thumb {
+          width: 48px;
+          height: 48px;
+          border-radius: 10px;
+          background: rgba(255,255,255,0.04);
           display: flex;
-          gap: 16px;
-          align-items: flex-start;
-          width: 100%;
+          align-items: center;
+          justify-content: center;
+          flex-shrink: 0;
+          overflow: hidden;
+          border: 1px solid rgba(255,255,255,0.08);
         }
-        .flex-1 {
+        .cover-thumb-img {
+          width: 100%;
+          height: 100%;
+          object-fit: cover;
+        }
+        .cover-thumb-empty {
+          color: #71717a;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+        }
+        .batch-cover-card:hover .cover-thumb-empty {
+          color: #1db954;
+        }
+        .cover-card-info {
+          display: flex;
+          flex-direction: column;
+          gap: 2px;
           flex: 1;
           min-width: 0;
         }
-        .batch-cover-thumbnail-wrap {
+        .cover-card-title {
+          font-size: 13.5px;
+          font-weight: 800;
+          color: white;
+          white-space: nowrap;
+          overflow: hidden;
+          text-overflow: ellipsis;
+        }
+        .cover-card-sub {
+          font-size: 11px;
+          color: #71717a;
+          font-weight: 500;
+          white-space: nowrap;
+          overflow: hidden;
+          text-overflow: ellipsis;
+        }
+        .cover-card-remove-btn {
+          position: relative;
+          z-index: 3;
+          width: 30px;
+          height: 30px;
+          border-radius: 8px;
+          background: rgba(239, 68, 68, 0.15);
+          color: #ef4444;
+          border: none;
           display: flex;
-          flex-direction: column;
-          gap: 6px;
+          align-items: center;
+          justify-content: center;
+          cursor: pointer;
           flex-shrink: 0;
+          transition: all 0.2s;
         }
-        .batch-cover-zone { 
-          width: 68px; height: 44px; border-radius: 12px; border: 1px dashed rgba(255,255,255,0.18); 
-          display: flex; align-items: center; justify-content: center; cursor: pointer; overflow: hidden;
-          background: rgba(255,255,255,0.03); transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+        .cover-card-remove-btn:hover {
+          background: #ef4444;
+          color: white;
         }
-        .batch-cover-zone:hover { 
-          border-color: #1db954; background: rgba(29, 185, 84, 0.08); 
-          transform: translateY(-2px); box-shadow: 0 4px 16px rgba(29, 185, 84, 0.15); 
-        }
-        .batch-cover-zone.has-preview { border: 1px solid #1db954; }
-        .batch-cover-img { width: 100%; height: 100%; object-fit: cover; }
-        .cover-empty-prompt {
-          display: flex; align-items: center; gap: 4px; color: #71717a; transition: color 0.2s;
-        }
-        .cover-empty-prompt span { font-size: 11px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.5px; }
-        .batch-cover-zone:hover .cover-empty-prompt { color: #1db954; }
 
+        .recent-artists-suggestions { display: flex; flex-wrap: wrap; gap: 6px; }
+        .artist-suggestion-chip { 
+          padding: 6px 12px; border-radius: 8px; background: rgba(255,255,255,0.04); 
+          color: #a1a1aa; font-size: 11.5px; font-weight: 700; border: 1px solid rgba(255,255,255,0.06);
+          cursor: pointer; transition: all 0.2s;
+        }
+        .artist-suggestion-chip:hover, .artist-suggestion-chip.active { 
+          background: #1db954; color: black; border-color: transparent; 
+        }
+
+        .tags-scroller { display: flex; flex-wrap: wrap; gap: 8px; }
+        .batch-tag-pill { 
+          padding: 6px 14px; border-radius: 20px; font-size: 11px; font-weight: 800; 
+          background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.06);
+          color: #a1a1aa; cursor: pointer; transition: all 0.2s; white-space: nowrap;
+        }
+        .batch-tag-pill:hover { border-color: rgba(255,255,255,0.2); color: white; }
+        .batch-tag-pill.active { background: var(--tag-color); color: black; border-color: transparent; }
+
+        .apply-to-queue-wrap {
+          width: 100%;
+          padding-top: 4px;
+        }
+        .btn-apply-batch-v2 { 
+          display: flex; align-items: center; justify-content: center; gap: 8px;
+          width: 100%; height: 46px; border-radius: 12px; font-size: 13.5px; 
+          font-weight: 900; background: #1db954; color: black; border: none;
+          cursor: pointer; transition: all 0.2s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+          box-shadow: 0 4px 14px rgba(29, 185, 84, 0.2);
+        }
+        .btn-apply-batch-v2:hover { 
+          transform: translateY(-2px); 
+          background: #1ed760; 
+          box-shadow: 0 8px 24px rgba(29, 185, 84, 0.35); 
+        }
+        .batch-hint-box {
+          display: flex;
+          align-items: center;
+          gap: 8px;
+          padding: 10px 14px;
+          border-radius: 12px;
+          background: rgba(255, 255, 255, 0.02);
+          border: 1px solid rgba(255, 255, 255, 0.05);
+          font-size: 12px;
+          color: #71717a;
+          font-weight: 600;
+        }
+
+        /* DROPZONE (Native touch surface) */
         .dropzone { 
-          border: 1px dashed rgba(255,255,255,0.1); border-radius: 24px; 
-          padding: 32px; cursor: pointer; transition: all 0.2s; background: rgba(255,255,255,0.01);
+          position: relative;
+          border: 1px dashed rgba(255,255,255,0.14); border-radius: 20px; 
+          padding: 36px 20px; cursor: pointer; transition: all 0.2s; background: rgba(255,255,255,0.02);
+          overflow: hidden;
         }
-        .dropzone:hover { border-color: #1db954; background: rgba(29,185,84,0.03); }
-        .dropzone-content { display: flex; align-items: center; gap: 24px; justify-content: center; }
-        .upload-icon-wrapper { width: 56px; height: 56px; border-radius: 16px; display: flex; align-items: center; justify-content: center; background: rgba(29, 185, 84, 0.1); }
-        .text-group h3 { font-size: 18px; font-weight: 900; margin-bottom: 2px; }
-        .text-group p { font-size: 14px; color: #71717a; }
+        .dropzone:hover, .dropzone.dragging { border-color: #1db954; background: rgba(29,185,84,0.04); }
+        .dropzone.has-files { border-color: rgba(29,185,84,0.3); }
+        .dropzone-native-input {
+          position: absolute;
+          inset: 0;
+          width: 100%;
+          height: 100%;
+          opacity: 0;
+          cursor: pointer;
+          z-index: 10;
+          -webkit-tap-highlight-color: transparent;
+        }
+        .dropzone-content { display: flex; align-items: center; gap: 20px; justify-content: center; }
+        .upload-icon-wrapper { width: 56px; height: 56px; border-radius: 16px; display: flex; align-items: center; justify-content: center; background: rgba(29, 185, 84, 0.1); flex-shrink: 0; }
+        .text-group h3 { font-size: 17px; font-weight: 900; margin-bottom: 3px; color: white; }
+        .text-group p { font-size: 13px; color: #71717a; }
 
-        .staging-area { display: flex; flex-direction: column; gap: 20px; }
+        /* STAGING AREA */
+        .staging-area { display: flex; flex-direction: column; gap: 16px; width: 100%; }
         .staging-header { display: flex; justify-content: space-between; align-items: center; }
-        .staging-title { display: flex; align-items: center; gap: 12px; }
-        .queue-badge { font-size: 9px; font-weight: 950; background: rgba(29, 185, 84, 0.2); color: #1db954; padding: 3px 8px; border-radius: 4px; letter-spacing: 1px; }
-        .staging-title h4 { font-size: 18px; font-weight: 900; }
+        .staging-title { display: flex; align-items: center; gap: 10px; }
+        .queue-badge { font-size: 9px; font-weight: 950; background: rgba(29, 185, 84, 0.2); color: #1db954; padding: 4px 8px; border-radius: 6px; letter-spacing: 1px; }
+        .staging-title h4 { font-size: 17px; font-weight: 900; color: white; }
         
-        .staging-actions { display: flex; align-items: center; gap: 20px; }
-        .btn-discard { display: flex; align-items: center; gap: 8px; font-size: 13px; font-weight: 700; color: #ef4444; background: none; border: none; cursor: pointer; opacity: 0.7; transition: opacity 0.2s; }
+        .staging-actions { display: flex; align-items: center; gap: 14px; }
+        .btn-discard { display: flex; align-items: center; gap: 6px; font-size: 13px; font-weight: 700; color: #ef4444; background: none; border: none; cursor: pointer; opacity: 0.7; transition: opacity 0.2s; padding: 8px; }
         .btn-discard:hover { opacity: 1; }
         .btn-burn { 
-          display: flex; align-items: center; gap: 10px; padding: 12px 28px; 
-          border-radius: 14px; font-size: 14px; font-weight: 950; background: #1db954; 
+          display: flex; align-items: center; gap: 8px; padding: 12px 24px; 
+          border-radius: 12px; font-size: 13.5px; font-weight: 950; background: #1db954; 
           color: black; border: none; cursor: pointer; transition: all 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
         }
-        .btn-burn.active:hover { transform: scale(1.05); box-shadow: 0 8px 24px rgba(29, 185, 84, 0.3); }
-        .btn-burn.disabled { opacity: 0.2; filter: grayscale(1); cursor: not-allowed; }
+        .btn-burn.active:hover { transform: scale(1.03); box-shadow: 0 8px 24px rgba(29, 185, 84, 0.3); }
+        .btn-burn.disabled { opacity: 0.3; filter: grayscale(1); cursor: not-allowed; }
 
-        /* TABLE VIEW */
+        /* DESKTOP TABLE VIEW */
         .staging-table { 
-          background: rgba(255,255,255,0.02); border-radius: 20px; overflow: hidden; 
+          background: rgba(255,255,255,0.02); border-radius: 18px; overflow: hidden; 
           border: 1px solid rgba(255,255,255,0.05);
         }
         .table-header { 
           display: grid; grid-template-columns: 44px 1.8fr 1.3fr 130px 75px 75px 180px 44px;
-          padding: 12px 20px; background: rgba(255,255,255,0.03);
-          font-size: 11px; font-weight: 900; color: #52525b; text-transform: uppercase; letter-spacing: 0.5px;
+          padding: 12px 18px; background: rgba(255,255,255,0.03);
+          font-size: 11px; font-weight: 900; color: #71717a; text-transform: uppercase; letter-spacing: 0.5px;
         }
         .table-body { max-height: 480px; overflow-y: auto; }
         .table-row { 
           display: grid; grid-template-columns: 44px 1.8fr 1.3fr 130px 75px 75px 180px 44px;
-          padding: 10px 20px; border-bottom: 1px solid rgba(255,255,255,0.03);
-          align-items: center; transition: background 0.2s;
+          padding: 10px 18px; border-bottom: 1px solid rgba(255,255,255,0.03);
+          align-items: center; transition: background 0.2s; position: relative;
         }
         .table-row:hover { background: rgba(255,255,255,0.03); }
         
         .col-status { text-align: center; color: #52525b; }
         .row-number { font-size: 12px; font-weight: 800; }
-        .row-title-input { background: transparent; border: none; color: white; font-size: 14px; font-weight: 700; width: 100%; outline: none; margin-bottom: 3px; }
+        .row-title-input { background: transparent; border: none; color: white; font-size: 14px; font-weight: 700; width: 100%; outline: none; margin-bottom: 2px; }
         .row-title-input:focus { color: #1db954; }
         .row-artist-wrapper { display: flex; align-items: center; gap: 6px; }
         .row-artist-label { font-size: 11px; color: #71717a; font-weight: 600; }
@@ -1073,25 +1223,27 @@ const BulkUpload = () => {
 
         .col-album { padding-right: 8px; }
         .row-album-select { 
-          background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.08); 
+          background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.08); 
           color: #ff416c; font-size: 12px; font-weight: 700; padding: 6px 10px; 
           border-radius: 8px; width: 100%; cursor: pointer; outline: none; 
           transition: all 0.2s;
         }
         .row-album-select:focus { border-color: #ff416c; background: rgba(255,65,108,0.1); }
 
-        .row-select { background: rgba(255,255,255,0.05); border: none; color: #a1a1aa; font-size: 12px; font-weight: 700; padding: 6px 8px; border-radius: 6px; width: 100%; cursor: pointer; outline: none; }
-        .row-bpm-input { background: rgba(255,255,255,0.05); border: none; color: white; font-size: 12px; font-weight: 800; width: 55px; text-align: center; padding: 6px 4px; border-radius: 6px; outline: none; }
+        .row-select { background: rgba(255,255,255,0.04); border: none; color: #a1a1aa; font-size: 12px; font-weight: 700; padding: 6px 8px; border-radius: 6px; width: 100%; cursor: pointer; outline: none; }
+        .track-tempo-grid { display: contents; }
+        .row-tempo-mobile-label { display: none; }
+        .row-bpm-input { background: rgba(255,255,255,0.04); border: none; color: white; font-size: 12px; font-weight: 800; width: 55px; text-align: center; padding: 6px 4px; border-radius: 6px; outline: none; }
         
         .row-tags-list { display: flex; flex-wrap: wrap; gap: 4px; }
         .row-tag-btn { 
           font-size: 10px; font-weight: 800; padding: 3px 8px; border-radius: 4px;
-          background: rgba(255,255,255,0.03); color: #52525b; border: 1px solid rgba(255,255,255,0.05);
+          background: rgba(255,255,255,0.03); color: #71717a; border: 1px solid rgba(255,255,255,0.05);
           cursor: pointer; transition: all 0.2s;
         }
         .row-tag-btn.active { background: var(--tag-color); color: black; border-color: transparent; }
 
-        .row-remove { color: #3f3f46; background: none; border: none; cursor: pointer; transition: color 0.2s; }
+        .row-remove { color: #52525b; background: none; border: none; cursor: pointer; transition: color 0.2s; padding: 6px; }
         .row-remove:hover { color: #ef4444; }
 
         .row-progress-overlay { 
@@ -1109,31 +1261,155 @@ const BulkUpload = () => {
           animation: spin 1s linear infinite;
         }
 
-        .upload-success-hero { padding: 64px; border-radius: 32px; text-align: center; border: 1px solid rgba(29, 185, 84, 0.1); }
-        .success-badge { width: 80px; height: 80px; background: rgba(29, 185, 84, 0.1); border-radius: 24px; display: flex; align-items: center; justify-content: center; margin: 0 auto 24px; }
-        .btn-primary { background: #1db954; color: black; border: none; padding: 14px 32px; border-radius: 12px; font-size: 15px; font-weight: 900; cursor: pointer; transition: transform 0.2s; }
+        .upload-success-hero { padding: 48px 24px; border-radius: 24px; text-align: center; border: 1px solid rgba(29, 185, 84, 0.15); }
+        .success-badge { width: 72px; height: 72px; background: rgba(29, 185, 84, 0.1); border-radius: 20px; display: flex; align-items: center; justify-content: center; margin: 0 auto 20px; }
+        .btn-primary { background: #1db954; color: black; border: none; padding: 14px 28px; border-radius: 12px; font-size: 15px; font-weight: 900; cursor: pointer; transition: transform 0.2s; }
         .btn-primary:hover { transform: scale(1.02); background: #1ed760; }
 
         .text-primary { color: #1db954; }
         .spin { animation: spin 1s linear infinite; }
         .hidden { display: none; }
-        .animate-in { animation: animIn 0.5s cubic-bezier(0.4, 0, 0.2, 1); }
-        @keyframes animIn { from { opacity: 0; transform: translateY(12px); } to { opacity: 1; transform: translateY(0); } }
+        .animate-in { animation: animIn 0.4s cubic-bezier(0.16, 1, 0.3, 1); }
+        @keyframes animIn { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
         @keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
         
         @media (max-width: 1200px) {
           .table-header, .table-row { grid-template-columns: 44px 1.5fr 1fr 110px 65px 65px 140px 40px; }
         }
 
+        /* MOBILE & TABLET LAYOUT (< 900px) */
         @media (max-width: 900px) {
           .batch-header-bar {
-            padding: 18px;
+            padding: 16px;
+            border-radius: 18px;
+            gap: 14px;
           }
           .table-header { display: none; }
-          .table-row { grid-template-columns: 1fr 1fr; gap: 12px; padding: 20px; height: auto; }
-          .col-status, .col-actions { display: none; }
-          .col-info, .col-album, .col-style, .col-bpm, .col-mpm, .col-tags { grid-column: span 2; }
-          .row-title-input { font-size: 16px; border-bottom: 1px solid rgba(255,255,255,0.1); }
+          .staging-table {
+            background: transparent;
+            border: none;
+            border-radius: 0;
+            overflow: visible;
+          }
+          .table-body {
+            max-height: none;
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+          }
+          .table-row {
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+            padding: 16px;
+            border-radius: 16px;
+            background: rgba(255, 255, 255, 0.03);
+            border: 1px solid rgba(255, 255, 255, 0.07);
+            position: relative;
+          }
+          .col-status {
+            text-align: left;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 13px;
+            font-weight: 800;
+            color: #1db954;
+          }
+          .col-actions {
+            position: absolute;
+            top: 14px;
+            right: 14px;
+            display: block !important;
+          }
+          .row-remove {
+            width: 36px;
+            height: 36px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: 10px;
+            background: rgba(239, 68, 68, 0.12);
+            color: #ef4444;
+            border: 1px solid rgba(239, 68, 68, 0.2);
+            cursor: pointer;
+            transition: all 0.2s;
+          }
+          .row-title-input {
+            font-size: 16px;
+            font-weight: 800;
+            padding: 4px 0;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+            padding-right: 44px; /* avoid overlapping with remove button */
+          }
+          .row-artist-wrapper {
+            margin-top: 4px;
+          }
+          .col-album, .col-style {
+            width: 100%;
+            padding-right: 0;
+          }
+          .row-album-select, .row-select {
+            width: 100%;
+            height: 42px;
+            border-radius: 10px;
+            font-size: 13.5px;
+            padding: 0 12px;
+            background: rgba(255, 255, 255, 0.05);
+          }
+          .track-tempo-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 10px;
+            width: 100%;
+          }
+          .row-tempo-mobile-label {
+            display: block;
+            font-size: 10px;
+            font-weight: 800;
+            color: #71717a;
+            text-transform: uppercase;
+            margin-bottom: 3px;
+          }
+          .col-bpm, .col-mpm {
+            display: flex;
+            flex-direction: column;
+            width: 100%;
+          }
+          .row-bpm-input {
+            width: 100%;
+            height: 40px;
+            border-radius: 10px;
+            font-size: 13px;
+            background: rgba(255, 255, 255, 0.05);
+            text-align: left;
+            padding: 0 12px;
+          }
+          .staging-header {
+            flex-direction: column;
+            align-items: stretch;
+            gap: 12px;
+          }
+          .staging-actions {
+            display: grid;
+            grid-template-columns: 1fr 2fr;
+            gap: 10px;
+            width: 100%;
+          }
+          .btn-discard {
+            justify-content: center;
+            height: 44px;
+            border-radius: 12px;
+            background: rgba(239, 68, 68, 0.1);
+            border: 1px solid rgba(239, 68, 68, 0.2);
+          }
+          .btn-burn {
+            justify-content: center;
+            height: 44px;
+            border-radius: 12px;
+            padding: 0 16px;
+            font-size: 13.5px;
+          }
         }
 
         @media (max-width: 640px) {
@@ -1145,35 +1421,12 @@ const BulkUpload = () => {
             border-radius: 18px;
             gap: 14px;
           }
-          .album-cover-row {
-            gap: 10px;
-          }
-          .batch-cover-thumbnail-wrap {
-            gap: 5px;
-          }
-          .batch-cover-zone {
-            width: 58px;
-            height: 44px;
-            border-radius: 12px;
-          }
           .meta-block {
             gap: 5px;
           }
           .field-micro-label {
-            font-size: 10.5px;
-            letter-spacing: 0.6px;
-          }
-          .inputs-row {
-            flex-direction: column;
-            gap: 12px;
-          }
-          .style-apply-grid {
-            flex-direction: column;
-            gap: 8px;
-            width: 100%;
-          }
-          .style-flex {
-            width: 100%;
+            font-size: 10px;
+            letter-spacing: 0.5px;
           }
           .meta-field input, .meta-select {
             height: 44px;
@@ -1188,79 +1441,30 @@ const BulkUpload = () => {
           }
           .recent-artists-suggestions {
             gap: 4px;
-            max-height: 72px;
+            max-height: 80px;
             overflow-y: auto;
-            margin-top: 2px;
           }
           .artist-suggestion-chip {
-            padding: 4px 8px;
-            font-size: 10.5px;
-          }
-          .btn-apply-batch-v2 {
-            width: 100%;
-            height: 42px;
-            justify-content: center;
-            font-size: 13px;
-            border-radius: 12px;
-          }
-          .batch-tags-row {
-            flex-direction: column;
-            align-items: flex-start;
-            gap: 8px;
-            padding-top: 4px;
-          }
-          .tags-scroller {
-            width: 100%;
-            -webkit-overflow-scrolling: touch;
+            padding: 5px 9px;
+            font-size: 11px;
           }
           .dropzone {
-            padding: 20px 14px;
+            padding: 24px 16px;
             border-radius: 18px;
           }
           .dropzone-content {
             gap: 14px;
           }
           .upload-icon-wrapper {
-            width: 44px;
-            height: 44px;
-            border-radius: 12px;
+            width: 46px;
+            height: 46px;
+            border-radius: 14px;
           }
           .text-group h3 {
             font-size: 15px;
           }
           .text-group p {
             font-size: 12px;
-          }
-          .staging-header {
-            flex-direction: column;
-            align-items: stretch;
-            gap: 12px;
-          }
-          .staging-actions {
-            display: grid;
-            grid-template-columns: 1fr 1fr;
-            gap: 8px;
-            width: 100%;
-          }
-          .btn-discard {
-            justify-content: center;
-            height: 40px;
-            border-radius: 10px;
-            background: rgba(239, 68, 68, 0.1);
-            border: 1px solid rgba(239, 68, 68, 0.2);
-          }
-          .btn-burn {
-            justify-content: center;
-            height: 40px;
-            padding: 0 12px;
-            font-size: 12.5px;
-          }
-          .staging-table {
-            border-radius: 14px;
-          }
-          .table-row {
-            padding: 14px;
-            gap: 10px;
           }
         }
       `}</style>

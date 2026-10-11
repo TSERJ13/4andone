@@ -8,7 +8,7 @@ import {
   Search, Calendar, User, Clock, CheckCircle2, AlertTriangle, 
   Filter, Send, Users, Sparkles, ExternalLink, ShieldCheck, 
   Bot, AlertCircle, Plus, Eye, EyeOff, Bold, Italic, Link2, Code, 
-  BellRing, Award 
+  BellRing, Award, CheckSquare, Square, Megaphone, Crown, UserCheck, UserX 
 } from 'lucide-react';
 import ConfirmModal from '@/components/admin/ConfirmModal';
 
@@ -57,9 +57,11 @@ export default function AdminMessagesPage() {
   // TELEGRAM STATE
   const [tgUsers, setTgUsers] = useState<TelegramUser[]>([]);
   const [loadingTgUsers, setLoadingTgUsers] = useState(false);
-  const [sendTarget, setSendTarget] = useState<'broadcast' | 'single' | 'expiring'>('broadcast');
-  const [selectedUser, setSelectedUser] = useState<TelegramUser | null>(null);
-  const [userSearchQuery, setUserSearchQuery] = useState('');
+  const [sendTarget, setSendTarget] = useState<'broadcast' | 'free' | 'premium' | 'expiring' | 'selected' | 'channel'>('broadcast');
+  const [selectedUserIds, setSelectedUserIds] = useState<number[]>([]);
+  const [channelUsername, setChannelUsername] = useState('@fourandonemusic');
+  const [sidebarFilter, setSidebarFilter] = useState<'all' | 'free' | 'premium'>('all');
+  const [sidebarSearch, setSidebarSearch] = useState('');
   const [tgMessageText, setTgMessageText] = useState('');
   const [botToken, setBotToken] = useState('');
   const [showToken, setShowToken] = useState(false);
@@ -71,7 +73,7 @@ export default function AdminMessagesPage() {
     total: number;
     sentCount: number;
     failedCount: number;
-    errors?: { id: number; reason: string }[];
+    errors?: { id: number | string; reason: string }[];
   } | null>(null);
 
   const fetchMessages = useCallback(async () => {
@@ -149,7 +151,9 @@ export default function AdminMessagesPage() {
     if (savedToken) setBotToken(savedToken);
   }, [fetchMessages, fetchTgUsers]);
 
-  // Compute users whose Premium expires in the next 5 days
+  // User segments
+  const freeUsers = useMemo(() => tgUsers.filter(u => !u.is_premium), [tgUsers]);
+  const premiumUsers = useMemo(() => tgUsers.filter(u => !!u.is_premium), [tgUsers]);
   const expiringUsers = useMemo(() => {
     const now = Date.now();
     const fiveDaysMs = 5 * 86400000;
@@ -159,6 +163,44 @@ export default function AdminMessagesPage() {
       return until > now && (until - now) <= fiveDaysMs;
     });
   }, [tgUsers]);
+
+  const filteredSidebarUsers = useMemo(() => {
+    let list = tgUsers;
+    if (sidebarFilter === 'free') list = freeUsers;
+    else if (sidebarFilter === 'premium') list = premiumUsers;
+
+    if (!sidebarSearch.trim()) return list;
+    const q = sidebarSearch.toLowerCase();
+    return list.filter(u => 
+      u.first_name?.toLowerCase().includes(q) ||
+      u.last_name?.toLowerCase().includes(q) ||
+      u.username?.toLowerCase().includes(q) ||
+      String(u.telegram_id).includes(q)
+    );
+  }, [tgUsers, freeUsers, premiumUsers, sidebarFilter, sidebarSearch]);
+
+  const toggleUserSelection = (userId: number) => {
+    setSelectedUserIds(prev => {
+      const exists = prev.includes(userId);
+      const next = exists ? prev.filter(id => id !== userId) : [...prev, userId];
+      if (next.length > 0) setSendTarget('selected');
+      return next;
+    });
+  };
+
+  const selectAllFiltered = () => {
+    const filteredIds = filteredSidebarUsers.map(u => u.telegram_id);
+    setSelectedUserIds(prev => {
+      const combined = Array.from(new Set([...prev, ...filteredIds]));
+      if (combined.length > 0) setSendTarget('selected');
+      return combined;
+    });
+  };
+
+  const deselectAll = () => {
+    setSelectedUserIds([]);
+    if (sendTarget === 'selected') setSendTarget('broadcast');
+  };
 
   const handleDelete = async () => {
     if (!deleteModal.message) return;
@@ -186,8 +228,8 @@ export default function AdminMessagesPage() {
 
   const handleSendTelegram = async () => {
     if (!tgMessageText.trim()) return;
-    if (sendTarget === 'single' && !selectedUser) {
-      alert('Please select a Telegram user to message.');
+    if (sendTarget === 'selected' && selectedUserIds.length === 0) {
+      alert('გთხოვთ მონიშნოთ მინიმუმ 1 მომხმარებელი სიიდან (Please select at least 1 user).');
       return;
     }
 
@@ -197,15 +239,18 @@ export default function AdminMessagesPage() {
     try {
       const payload: Record<string, any> = {
         message: tgMessageText.trim(),
-        target: sendTarget === 'expiring' ? 'selected' : sendTarget,
+        target: sendTarget,
         botToken: botToken.trim() || undefined,
         buttons: buttons.filter(b => b.text.trim() && b.url.trim()),
       };
 
-      if (sendTarget === 'single' && selectedUser) {
-        payload.telegramId = selectedUser.telegram_id;
+      if (sendTarget === 'selected') {
+        payload.telegramIds = selectedUserIds;
       } else if (sendTarget === 'expiring') {
+        payload.target = 'selected';
         payload.telegramIds = expiringUsers.map(u => u.telegram_id);
+      } else if (sendTarget === 'channel') {
+        payload.channel = channelUsername.trim() || '@fourandonemusic';
       }
 
       const res = await fetch('/api/admin/telegram/send', {
@@ -295,14 +340,7 @@ export default function AdminMessagesPage() {
     applyTemplate('expiring');
   };
 
-  const filteredTgUsers = tgUsers.filter(u => {
-    const q = userSearchQuery.toLowerCase();
-    if (!q) return true;
-    const name = `${u.first_name || ''} ${u.last_name || ''}`.toLowerCase();
-    const username = (u.username || '').toLowerCase();
-    const id = String(u.telegram_id);
-    return name.includes(q) || username.includes(q) || id.includes(q);
-  });
+
 
   const topics = ['all', ...Array.from(new Set(messages.map(m => m.topic.toLowerCase())))];
 
@@ -731,97 +769,133 @@ export default function AdminMessagesPage() {
 
               {/* Target Selector */}
               <div className="form-group">
-                <label className="field-label">Audience:</label>
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '8px' }}>
+                  <label className="field-label" style={{ margin: 0 }}>სამიზნე აუდიტორია (Audience):</label>
+                  <span style={{ fontSize: '11px', color: '#a1a1aa' }}>
+                    აირჩიეთ ვის გაეგზავნოს შეტყობინება
+                  </span>
+                </div>
                 <div className="target-toggle">
                   <button
                     type="button"
                     className={`target-btn ${sendTarget === 'broadcast' ? 'active' : ''}`}
-                    onClick={() => {
-                      setSendTarget('broadcast');
-                      setSelectedUser(null);
-                    }}
+                    onClick={() => setSendTarget('broadcast')}
+                    title="ყველა მომხმარებელი"
                   >
                     <Users size={15} />
-                    <span>Broadcast ({tgUsers.length} Users)</span>
+                    <span>Broadcast ({tgUsers.length})</span>
                   </button>
                   <button
                     type="button"
-                    className={`target-btn ${sendTarget === 'single' ? 'active' : ''}`}
-                    onClick={() => setSendTarget('single')}
+                    className={`target-btn ${sendTarget === 'free' ? 'active' : ''}`}
+                    onClick={() => setSendTarget('free')}
+                    title="მხოლოდ უფასო იუზერები (გამოწერის გარეშე)"
                   >
-                    <User size={15} />
-                    <span>Specific User {selectedUser ? `(${selectedUser.first_name})` : ''}</span>
+                    <UserX size={15} />
+                    <span>Free Only ({freeUsers.length})</span>
+                  </button>
+                  <button
+                    type="button"
+                    className={`target-btn ${sendTarget === 'premium' ? 'active' : ''}`}
+                    onClick={() => setSendTarget('premium')}
+                    title="მხოლოდ პრემიუმ იუზერები (აქტიური გამოწერით)"
+                  >
+                    <Crown size={15} />
+                    <span>Premium Only ({premiumUsers.length})</span>
                   </button>
                   <button
                     type="button"
                     className={`target-btn ${sendTarget === 'expiring' ? 'active' : ''}`}
                     onClick={() => {
                       setSendTarget('expiring');
-                      setSelectedUser(null);
                       applyTemplate('expiring');
                     }}
+                    title="ვისაც 5 დღეში ეწურება გამოწერა"
                   >
                     <BellRing size={15} />
                     <span>Expiring Soon ({expiringUsers.length})</span>
                   </button>
+                  <button
+                    type="button"
+                    className={`target-btn ${sendTarget === 'selected' ? 'active' : ''}`}
+                    onClick={() => setSendTarget('selected')}
+                    title="მონიშნული იუზერები მარჯვენა სიიდან"
+                  >
+                    <CheckSquare size={15} />
+                    <span>Selected ({selectedUserIds.length})</span>
+                  </button>
+                  <button
+                    type="button"
+                    className={`target-btn ${sendTarget === 'channel' ? 'active' : ''}`}
+                    onClick={() => setSendTarget('channel')}
+                    title="პირდაპირ Telegram არხზე დაპოსტვა"
+                  >
+                    <Megaphone size={15} />
+                    <span>Channel (@fourandonemusic)</span>
+                  </button>
                 </div>
-              </div>
 
-              {/* Specific User Selector if single */}
-              {sendTarget === 'single' && (
-                <div className="form-group user-picker-box">
-                  <label className="field-label">Choose Recipient:</label>
-                  {selectedUser ? (
-                    <div className="selected-user-card">
-                      <div className="user-avatar-sm">
-                        {selectedUser.first_name?.charAt(0) || 'U'}
-                      </div>
-                      <div style={{ flex: 1 }}>
-                        <div style={{ fontWeight: 800, color: 'white', fontSize: '13px' }}>
-                          {selectedUser.first_name} {selectedUser.last_name || ''}
-                        </div>
-                        <div style={{ fontSize: '11px', color: '#a1a1aa' }}>
-                          {selectedUser.username ? `@${selectedUser.username} · ` : ''}ID: {selectedUser.telegram_id}
-                        </div>
-                      </div>
-                      <button 
-                        type="button" 
-                        className="btn-clear-user" 
-                        onClick={() => setSelectedUser(null)}
-                      >
-                        Change
-                      </button>
+                {/* Audience Info Banner */}
+                <div className="audience-info-banner">
+                  {sendTarget === 'broadcast' && (
+                    <div className="info-banner-inner" style={{ borderColor: 'rgba(56, 189, 248, 0.3)', background: 'rgba(56, 189, 248, 0.08)' }}>
+                      <Users size={16} color="#38bdf8" />
+                      <span>მესიჯი გაეგზავნება ბაზაში არსებულ ყველა <b>{tgUsers.length}</b> მომხმარებელს.</span>
                     </div>
-                  ) : (
-                    <div className="user-dropdown">
-                      <input
-                        type="text"
-                        placeholder="Search user by name, @username, or Telegram ID..."
-                        value={userSearchQuery}
-                        onChange={(e) => setUserSearchQuery(e.target.value)}
-                        className="input-field-sm"
-                      />
-                      <div className="user-results-list">
-                        {filteredTgUsers.slice(0, 8).map(u => (
-                          <div
-                            key={u.telegram_id}
-                            className="user-option"
-                            onClick={() => {
-                              setSelectedUser(u);
-                              setUserSearchQuery('');
-                            }}
-                          >
-                            <span className="user-opt-name">{u.first_name} {u.last_name || ''}</span>
-                            <span className="user-opt-meta">
-                              {u.username ? `@${u.username}` : `ID: ${u.telegram_id}`}
-                            </span>
-                          </div>
-                        ))}
+                  )}
+                  {sendTarget === 'free' && (
+                    <div className="info-banner-inner" style={{ borderColor: 'rgba(251, 146, 60, 0.3)', background: 'rgba(251, 146, 60, 0.08)' }}>
+                      <UserX size={16} color="#fb923c" />
+                      <span>მესიჯი გაეგზავნება მხოლოდ <b>{freeUsers.length}</b> მომხმარებელს <b>გამოწერის გარეშე</b> (იდეალურია აქციებისა და ფასდაკლებისთვის).</span>
+                    </div>
+                  )}
+                  {sendTarget === 'premium' && (
+                    <div className="info-banner-inner" style={{ borderColor: 'rgba(168, 85, 247, 0.3)', background: 'rgba(168, 85, 247, 0.08)' }}>
+                      <Crown size={16} color="#c084fc" />
+                      <span>მესიჯი გაეგზავნება მხოლოდ <b>{premiumUsers.length}</b> მომხმარებელს <b>აქტიური პრემიუმით</b> (VIP შეტყობინებები &amp; ექსკლუზივები).</span>
+                    </div>
+                  )}
+                  {sendTarget === 'expiring' && (
+                    <div className="info-banner-inner" style={{ borderColor: 'rgba(234, 179, 8, 0.3)', background: 'rgba(234, 179, 8, 0.08)' }}>
+                      <BellRing size={16} color="#eab308" />
+                      <span>მესიჯი გაეგზავნება <b>{expiringUsers.length}</b> მომხმარებელს, ვისაც ვადა 5 დღეში ეწურება.</span>
+                    </div>
+                  )}
+                  {sendTarget === 'selected' && (
+                    <div className="info-banner-inner" style={{ borderColor: 'rgba(34, 197, 94, 0.3)', background: 'rgba(34, 197, 94, 0.08)', justifyContent: 'space-between' }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                        <CheckSquare size={16} color="#22c55e" />
+                        <span>მონიშნულია <b>{selectedUserIds.length}</b> მომხმარებელი მარჯვენა სიიდან.</span>
                       </div>
+                      {selectedUserIds.length > 0 && (
+                        <button type="button" onClick={deselectAll} className="btn-banner-clear">
+                          მოხსნა ({selectedUserIds.length})
+                        </button>
+                      )}
+                    </div>
+                  )}
+                  {sendTarget === 'channel' && (
+                    <div className="info-banner-channel">
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap' }}>
+                        <Megaphone size={18} color="#38bdf8" />
+                        <span style={{ fontWeight: 800, color: 'white', fontSize: '13px' }}>
+                          Telegram არხი:
+                        </span>
+                        <input
+                          type="text"
+                          value={channelUsername}
+                          onChange={(e) => setChannelUsername(e.target.value)}
+                          placeholder="@fourandonemusic"
+                          className="channel-username-input"
+                        />
+                      </div>
+                      <p style={{ margin: '8px 0 0', fontSize: '11px', color: '#94a3b8', lineHeight: 1.4 }}>
+                        📢 <b>შენიშვნა:</b> შეტყობინება პირდაპირ გამოქვეყნდება <b>{channelUsername}</b> არხზე! იმისთვის, რომ ბოტმა შეძლოს არხში დაპოსტვა, ბოტი ტელეგრამში დამატებული უნდა გყავდეთ ამ არხის ადმინისტრატორად (Admin with &quot;Post Messages&quot; ნებართვით).
+                      </p>
                     </div>
                   )}
                 </div>
-              )}
+              </div>
 
               {/* Message Templates */}
               <div className="form-group">
@@ -944,22 +1018,28 @@ export default function AdminMessagesPage() {
                 type="button"
                 className="btn-send-tg"
                 onClick={handleSendTelegram}
-                disabled={isSendingTg || !tgMessageText.trim() || (sendTarget === 'single' && !selectedUser)}
+                disabled={isSendingTg || !tgMessageText.trim() || (sendTarget === 'selected' && selectedUserIds.length === 0)}
               >
                 {isSendingTg ? (
                   <>
                     <RefreshCw size={16} className="spin" />
-                    <span>Sending to Telegram...</span>
+                    <span>შეტყობინება იგზავნება...</span>
                   </>
                 ) : (
                   <>
                     <Send size={16} />
                     <span>
                       {sendTarget === 'broadcast' 
-                        ? `Broadcast to ${tgUsers.length} Users` 
+                        ? `🚀 Broadcast All (${tgUsers.length} Users)` 
+                        : sendTarget === 'free'
+                        ? `🆓 Send to Free Users (${freeUsers.length} Users)`
+                        : sendTarget === 'premium'
+                        ? `💎 Send to Premium Users (${premiumUsers.length} Users)`
                         : sendTarget === 'expiring'
-                        ? `Send to ${expiringUsers.length} Expiring Users`
-                        : `Send to ${selectedUser?.first_name || 'User'}`}
+                        ? `⏰ Send to Expiring (${expiringUsers.length} Users)`
+                        : sendTarget === 'selected'
+                        ? `☑️ Send to Selected (${selectedUserIds.length} Users)`
+                        : `📢 Post to ${channelUsername || '@fourandonemusic'}`}
                     </span>
                   </>
                 )}
@@ -1040,42 +1120,118 @@ export default function AdminMessagesPage() {
                 </div>
               </div>
 
-              {/* USER QUICK PICKER LIST */}
+              {/* USER MULTI-SELECT & FILTER SIDEBAR */}
               <div className="tg-users-sidebar glass">
-                <div className="sidebar-title">
-                  <Users size={16} className="text-primary" />
-                  <h4 style={{ margin: 0, fontSize: '13px', fontWeight: 800, color: 'white' }}>
-                    Quick Message User ({tgUsers.length})
-                  </h4>
+                <div className="sidebar-title" style={{ justifyContent: 'space-between', display: 'flex', alignItems: 'center' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                    <Users size={16} className="text-primary" />
+                    <h4 style={{ margin: 0, fontSize: '13px', fontWeight: 800, color: 'white' }}>
+                      Users ({tgUsers.length})
+                    </h4>
+                  </div>
+                  {selectedUserIds.length > 0 && (
+                    <span className="selected-counter-tag">
+                      {selectedUserIds.length} მონიშნულია
+                    </span>
+                  )}
                 </div>
-                <p style={{ fontSize: '11px', color: '#71717a', margin: '2px 0 10px' }}>
-                  Click to select as recipient.
-                </p>
 
-                <div className="users-scroll-list">
-                  {tgUsers.map(u => (
-                    <div 
-                      key={u.telegram_id} 
-                      className="user-item-row"
-                      onClick={() => {
-                        setSendTarget('single');
-                        setSelectedUser(u);
-                      }}
+                {/* Search */}
+                <div style={{ margin: '8px 0 6px' }}>
+                  <input
+                    type="text"
+                    placeholder="Search by name, @username, ID..."
+                    value={sidebarSearch}
+                    onChange={(e) => setSidebarSearch(e.target.value)}
+                    className="input-field-sm"
+                    style={{ width: '100%' }}
+                  />
+                </div>
+
+                {/* Filter Pills */}
+                <div className="sidebar-filter-pills">
+                  <button
+                    type="button"
+                    className={`sidebar-pill ${sidebarFilter === 'all' ? 'active' : ''}`}
+                    onClick={() => setSidebarFilter('all')}
+                  >
+                    All ({tgUsers.length})
+                  </button>
+                  <button
+                    type="button"
+                    className={`sidebar-pill ${sidebarFilter === 'free' ? 'active' : ''}`}
+                    onClick={() => setSidebarFilter('free')}
+                  >
+                    Free ({freeUsers.length})
+                  </button>
+                  <button
+                    type="button"
+                    className={`sidebar-pill ${sidebarFilter === 'premium' ? 'active' : ''}`}
+                    onClick={() => setSidebarFilter('premium')}
+                  >
+                    💎 Pro ({premiumUsers.length})
+                  </button>
+                </div>
+
+                {/* Batch Actions */}
+                <div className="sidebar-actions-row">
+                  <button
+                    type="button"
+                    className="btn-batch-select"
+                    onClick={selectAllFiltered}
+                    title="ყველა გაფილტრული მომხმარებლის მონიშვნა"
+                  >
+                    <CheckSquare size={12} /> Select Filtered ({filteredSidebarUsers.length})
+                  </button>
+                  {selectedUserIds.length > 0 && (
+                    <button
+                      type="button"
+                      className="btn-batch-deselect"
+                      onClick={deselectAll}
                     >
-                      <div className="user-avatar-xs">
-                        {u.first_name?.charAt(0) || 'U'}
-                      </div>
-                      <div style={{ flex: 1, minWidth: 0 }}>
-                        <div className="user-item-name">{u.first_name} {u.last_name || ''}</div>
-                        <div className="user-item-sub">
-                          {u.username ? `@${u.username}` : `ID: ${u.telegram_id}`}
-                        </div>
-                      </div>
-                      {u.is_premium && (
-                        <span className="premium-mini-badge" title="Active Premium">⭐</span>
-                      )}
+                      Clear
+                    </button>
+                  )}
+                </div>
+
+                {/* Scrollable list */}
+                <div className="users-scroll-list">
+                  {filteredSidebarUsers.length === 0 ? (
+                    <div style={{ textAlign: 'center', padding: '24px 8px', color: '#71717a', fontSize: '12px' }}>
+                      მომხმარებელი ვერ მოიძებნა
                     </div>
-                  ))}
+                  ) : (
+                    filteredSidebarUsers.map(u => {
+                      const isSelected = selectedUserIds.includes(u.telegram_id);
+                      return (
+                        <div 
+                          key={u.telegram_id} 
+                          className={`user-item-row ${isSelected ? 'selected' : ''}`}
+                          onClick={() => toggleUserSelection(u.telegram_id)}
+                          role="button"
+                          tabIndex={0}
+                        >
+                          <div className="user-check-icon" style={{ color: isSelected ? '#38bdf8' : '#71717a' }}>
+                            {isSelected ? <CheckSquare size={16} /> : <Square size={16} />}
+                          </div>
+                          <div className="user-avatar-xs">
+                            {u.first_name?.charAt(0) || 'U'}
+                          </div>
+                          <div style={{ flex: 1, minWidth: 0 }}>
+                            <div className="user-item-name">{u.first_name} {u.last_name || ''}</div>
+                            <div className="user-item-sub">
+                              {u.username ? `@${u.username}` : `ID: ${u.telegram_id}`}
+                            </div>
+                          </div>
+                          {u.is_premium ? (
+                            <span className="premium-mini-badge" title="Active Premium">💎 PRO</span>
+                          ) : (
+                            <span className="free-mini-badge">FREE</span>
+                          )}
+                        </div>
+                      );
+                    })
+                  )}
                 </div>
               </div>
             </div>
@@ -1587,7 +1743,51 @@ export default function AdminMessagesPage() {
           text-decoration: none;
         }
 
-        /* Sidebar users list */
+        /* Audience Banner Styles */
+        .audience-info-banner {
+          margin-top: 8px;
+        }
+        .info-banner-inner {
+          display: flex;
+          align-items: center;
+          gap: 10px;
+          padding: 8px 12px;
+          border-radius: 10px;
+          border: 1px solid;
+          font-size: 12px;
+          color: #e4e4e7;
+        }
+        .info-banner-channel {
+          padding: 10px 14px;
+          border-radius: 12px;
+          border: 1px solid rgba(56, 189, 248, 0.3);
+          background: rgba(56, 189, 248, 0.08);
+        }
+        .channel-username-input {
+          background: rgba(0, 0, 0, 0.4);
+          border: 1px solid rgba(56, 189, 248, 0.4);
+          border-radius: 8px;
+          padding: 4px 10px;
+          color: #38bdf8;
+          font-size: 13px;
+          font-weight: 700;
+          outline: none;
+        }
+        .btn-banner-clear {
+          background: rgba(255, 255, 255, 0.1);
+          border: none;
+          color: #fca5a5;
+          padding: 3px 8px;
+          border-radius: 6px;
+          font-size: 11px;
+          font-weight: 700;
+          cursor: pointer;
+        }
+        .btn-banner-clear:hover {
+          background: rgba(239, 68, 68, 0.2);
+        }
+
+        /* Sidebar user list & filter styles */
         .tg-users-sidebar {
           padding: 16px;
           border-radius: 18px;
@@ -1595,58 +1795,107 @@ export default function AdminMessagesPage() {
           border: 1px solid rgba(255, 255, 255, 0.08);
           display: flex;
           flex-direction: column;
-          height: 380px;
+          height: 440px;
         }
-        .sidebar-title {
+        .selected-counter-tag {
+          font-size: 11px;
+          font-weight: 800;
+          color: #38bdf8;
+          background: rgba(56, 189, 248, 0.15);
+          padding: 2px 8px;
+          border-radius: 12px;
+          border: 1px solid rgba(56, 189, 248, 0.3);
+        }
+        .sidebar-filter-pills {
+          display: flex;
+          gap: 4px;
+          margin-bottom: 8px;
+        }
+        .sidebar-pill {
+          flex: 1;
+          padding: 4px 6px;
+          border-radius: 6px;
+          background: rgba(255, 255, 255, 0.04);
+          border: 1px solid rgba(255, 255, 255, 0.08);
+          color: #a1a1aa;
+          font-size: 11px;
+          font-weight: 700;
+          cursor: pointer;
+          transition: all 0.2s;
+        }
+        .sidebar-pill.active {
+          background: rgba(56, 189, 248, 0.15);
+          border-color: #38bdf8;
+          color: #38bdf8;
+        }
+        .sidebar-actions-row {
           display: flex;
           align-items: center;
-          gap: 8px;
-        }
-        .users-scroll-list {
-          flex: 1;
-          overflow-y: auto;
-          display: flex;
-          flex-direction: column;
+          justify-content: space-between;
           gap: 6px;
+          margin-bottom: 8px;
+        }
+        .btn-batch-select {
+          display: flex;
+          align-items: center;
+          gap: 4px;
+          padding: 4px 8px;
+          border-radius: 6px;
+          background: rgba(56, 189, 248, 0.1);
+          border: 1px solid rgba(56, 189, 248, 0.25);
+          color: #38bdf8;
+          font-size: 11px;
+          font-weight: 700;
+          cursor: pointer;
+        }
+        .btn-batch-deselect {
+          padding: 4px 8px;
+          border-radius: 6px;
+          background: rgba(255, 255, 255, 0.05);
+          border: 1px solid rgba(255, 255, 255, 0.1);
+          color: #a1a1aa;
+          font-size: 11px;
+          cursor: pointer;
         }
         .user-item-row {
           display: flex;
           align-items: center;
-          gap: 10px;
+          gap: 8px;
           padding: 6px 8px;
           border-radius: 8px;
           cursor: pointer;
-          transition: background 0.2s;
+          transition: all 0.15s;
+          border: 1px solid transparent;
         }
         .user-item-row:hover {
           background: rgba(255, 255, 255, 0.06);
         }
-        .user-avatar-xs {
-          width: 26px;
-          height: 26px;
-          border-radius: 50%;
-          background: #10b981;
+        .user-item-row.selected {
+          background: rgba(56, 189, 248, 0.12);
+          border-color: rgba(56, 189, 248, 0.35);
+        }
+        .user-check-icon {
           display: flex;
           align-items: center;
           justify-content: center;
-          font-size: 11px;
+          flex-shrink: 0;
+        }
+        .free-mini-badge {
+          font-size: 9px;
           font-weight: 800;
-          color: white;
-        }
-        .user-item-name {
-          font-size: 12px;
-          font-weight: 700;
-          color: white;
-          white-space: nowrap;
-          overflow: hidden;
-          text-overflow: ellipsis;
-        }
-        .user-item-sub {
-          font-size: 10px;
           color: #71717a;
+          background: rgba(255, 255, 255, 0.06);
+          padding: 1px 5px;
+          border-radius: 4px;
         }
         .premium-mini-badge {
-          font-size: 11px;
+          font-size: 9px;
+          font-weight: 800;
+          color: #38bdf8;
+          background: rgba(56, 189, 248, 0.15);
+          padding: 1px 5px;
+          border-radius: 4px;
+          border: 1px solid rgba(56, 189, 248, 0.3);
         }
 
         .text-primary { color: #38bdf8; }

@@ -128,13 +128,24 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
         setIsFullPlayerOpen(true);
       }
     };
+    const handleCloseFullPlayer = () => {
+      setIsDesktopExpanded(false);
+      setIsFullPlayerOpen(false);
+    };
+
     window.addEventListener('open-full-player', handleOpenFullPlayer);
+    window.addEventListener('close-full-player', handleCloseFullPlayer);
+    window.addEventListener('closeFullPlayer', handleCloseFullPlayer);
 
     if (pathname?.startsWith('/track/')) {
       handleOpenFullPlayer();
     }
 
-    return () => window.removeEventListener('open-full-player', handleOpenFullPlayer);
+    return () => {
+      window.removeEventListener('open-full-player', handleOpenFullPlayer);
+      window.removeEventListener('close-full-player', handleCloseFullPlayer);
+      window.removeEventListener('closeFullPlayer', handleCloseFullPlayer);
+    };
   }, [pathname]);
 
   const isNoLayout = pathname?.startsWith('/admin') || pathname === '/sa-login';

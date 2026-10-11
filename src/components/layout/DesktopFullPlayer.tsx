@@ -188,7 +188,7 @@ export default function DesktopFullPlayer({ onClose }: DesktopFullPlayerProps) {
         {/* Left Side: Large 16:9 Artwork / Video Stage */}
         <div className="yt-player-left-stage">
           {/* Ad at the top of the stage, away from the player bar (free plan) */}
-          <FullPlayerAd className="yt-desktop-full-ad" />
+          <FullPlayerAd className="yt-desktop-full-ad" onClose={onClose} />
           <div className="yt-player-artwork-box">
             <img
               src={coverImg}

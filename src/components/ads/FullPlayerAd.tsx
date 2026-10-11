@@ -1,68 +1,23 @@
 "use client";
 
-import React, { useEffect, useState, useMemo } from 'react';
+import React, { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/context/AuthContext';
 import { AdBanner } from './AdBanner';
 import { recordAdEvent } from '@/lib/adEvents';
-import { Gift, Sparkles, Trophy, ArrowRight } from 'lucide-react';
+import { Gift, Sparkles, ArrowRight } from 'lucide-react';
 
-interface Promo {
-  id: string;
-  badge: string;
-  badgeColor: string;
-  icon: React.ReactNode;
-  title: string;
-  subtitle: string;
-  btnText: string;
-  action: 'earn' | 'premium' | 'finals';
+interface FullPlayerAdProps {
+  className?: string;
+  onClose?: () => void;
 }
 
-export default function FullPlayerAd({ className = '' }: { className?: string }) {
+export default function FullPlayerAd({ className = '', onClose }: FullPlayerAdProps) {
   const router = useRouter();
   const { isPremium, isLoading, setIsSubscriptionModalOpen } = useAuth();
   const [status, setStatus] = useState<'loading' | 'filled' | 'unfilled'>('loading');
-  const [promoIndex, setPromoIndex] = useState(0);
 
-  const promos: Promo[] = useMemo(() => [
-    {
-      id: 'invite',
-      badge: 'GIFT',
-      badgeColor: '#10b981',
-      icon: <Gift size={15} color="#10b981" />,
-      title: 'Invite a Friend, Both Get 1 Month Free',
-      subtitle: 'Share your link with dance partners',
-      btnText: 'Invite',
-      action: 'earn',
-    },
-    {
-      id: 'premium',
-      badge: 'PRO',
-      badgeColor: '#f59e0b',
-      icon: <Sparkles size={15} color="#f59e0b" />,
-      title: 'Upgrade to 4and.one Premium',
-      subtitle: 'Ad-free listening & full Final Mode',
-      btnText: 'Upgrade',
-      action: 'premium',
-    },
-    {
-      id: 'finals',
-      badge: 'FINAL',
-      badgeColor: '#38bdf8',
-      icon: <Trophy size={15} color="#38bdf8" />,
-      title: 'Practice with Real Competition Finals',
-      subtitle: '5-dance simulation with 15s rest pauses',
-      btnText: 'Try Finals',
-      action: 'finals',
-    },
-  ], []);
-
-  // Pick a promo based on random or rotation
-  useEffect(() => {
-    setPromoIndex(Math.floor(Math.random() * promos.length));
-  }, [promos.length]);
-
-  // Timeout: if Google hasn't answered in 4s, mark unfilled so house ad displays immediately
+  // Timeout: if Google hasn't answered in 4s, mark unfilled so house ads display immediately
   useEffect(() => {
     const t = setTimeout(() => {
       setStatus((prev) => {
@@ -78,17 +33,30 @@ export default function FullPlayerAd({ className = '' }: { className?: string })
 
   if (isLoading || isPremium) return null;
 
-  const currentPromo = promos[promoIndex] || promos[0];
-
-  const handlePromoClick = (e: React.MouseEvent) => {
-    e.stopPropagation();
-    if (currentPromo.action === 'earn') {
-      router.push('/earn');
-    } else if (currentPromo.action === 'premium') {
-      setIsSubscriptionModalOpen(true);
-    } else if (currentPromo.action === 'finals') {
-      router.push('/library/finals');
+  const closePlayerAndNavigate = (callback: () => void) => {
+    // 1. Call direct prop
+    onClose?.();
+    // 2. Dispatch events for AppLayout
+    if (typeof window !== 'undefined') {
+      window.dispatchEvent(new CustomEvent('closeFullPlayer'));
+      window.dispatchEvent(new CustomEvent('close-full-player'));
     }
+    // 3. Execute navigation or modal
+    callback();
+  };
+
+  const handleInviteClick = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    closePlayerAndNavigate(() => {
+      router.push('/earn');
+    });
+  };
+
+  const handlePremiumClick = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    closePlayerAndNavigate(() => {
+      setIsSubscriptionModalOpen(true);
+    });
   };
 
   const isGoogleAdFilled = status === 'filled';
@@ -116,43 +84,66 @@ export default function FullPlayerAd({ className = '' }: { className?: string })
         />
       </div>
 
-      {/* 2. House Ad Container (rendered when Google is loading or unfilled) */}
+      {/* 2. House Ads (Both Invite & Premium shown side-by-side if Google is loading or unfilled) */}
       {!isGoogleAdFilled && (
-        <div 
-          className="house-ad-card glass animate-in"
-          onClick={handlePromoClick}
-          role="button"
-          tabIndex={0}
-        >
-          <div className="house-ad-left">
-            <div 
-              className="house-ad-icon-box"
-              style={{ background: `${currentPromo.badgeColor}20`, borderColor: `${currentPromo.badgeColor}40` }}
-            >
-              {currentPromo.icon}
-            </div>
-            <div className="house-ad-texts">
-              <div className="house-ad-title-row">
-                <span 
-                  className="house-ad-badge"
-                  style={{ color: currentPromo.badgeColor, background: `${currentPromo.badgeColor}22` }}
-                >
-                  {currentPromo.badge}
-                </span>
-                <span className="house-ad-title">{currentPromo.title}</span>
+        <div className="house-ads-row animate-in">
+          {/* Card 1: Invite a Friend */}
+          <div 
+            className="house-ad-card glass invite-card"
+            onClick={handleInviteClick}
+            role="button"
+            tabIndex={0}
+          >
+            <div className="house-ad-left">
+              <div className="house-ad-icon-box invite-icon-box">
+                <Gift size={15} color="#10b981" />
               </div>
-              <span className="house-ad-subtitle">{currentPromo.subtitle}</span>
+              <div className="house-ad-texts">
+                <div className="house-ad-title-row">
+                  <span className="house-ad-badge invite-badge">GIFT</span>
+                  <span className="house-ad-title">Invite a Friend</span>
+                </div>
+                <span className="house-ad-subtitle">Both get 1 month free</span>
+              </div>
             </div>
+
+            <button 
+              type="button" 
+              className="house-ad-action-btn invite-btn"
+            >
+              <span>Invite</span>
+              <ArrowRight size={12} />
+            </button>
           </div>
 
-          <button 
-            type="button" 
-            className="house-ad-action-btn"
-            style={{ borderColor: `${currentPromo.badgeColor}50` }}
+          {/* Card 2: Upgrade to Premium */}
+          <div 
+            className="house-ad-card glass premium-card"
+            onClick={handlePremiumClick}
+            role="button"
+            tabIndex={0}
           >
-            <span>{currentPromo.btnText}</span>
-            <ArrowRight size={12} />
-          </button>
+            <div className="house-ad-left">
+              <div className="house-ad-icon-box premium-icon-box">
+                <Sparkles size={15} color="#f59e0b" />
+              </div>
+              <div className="house-ad-texts">
+                <div className="house-ad-title-row">
+                  <span className="house-ad-badge premium-badge">PRO</span>
+                  <span className="house-ad-title">Get Premium</span>
+                </div>
+                <span className="house-ad-subtitle">Ad-free &amp; Finals mode</span>
+              </div>
+            </div>
+
+            <button 
+              type="button" 
+              className="house-ad-action-btn premium-btn"
+            >
+              <span>Upgrade</span>
+              <ArrowRight size={12} />
+            </button>
+          </div>
         </div>
       )}
 
@@ -178,7 +169,7 @@ export default function FullPlayerAd({ className = '' }: { className?: string })
           justify-content: center;
           align-items: center;
           width: 100%;
-          padding: 4px 16px;
+          padding: 4px 14px;
           margin-bottom: 8px;
           flex-shrink: 0;
           z-index: 10;
@@ -205,45 +196,70 @@ export default function FullPlayerAd({ className = '' }: { className?: string })
           color: rgba(255, 255, 255, 0.4);
         }
 
+        /* House Ads Row */
+        .house-ads-row {
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          gap: 10px;
+          width: 100%;
+          max-width: 660px;
+        }
+
         /* House Ad Card */
         .house-ad-card {
-          width: 100%;
-          max-width: 440px;
-          padding: 8px 14px;
+          flex: 1;
+          min-width: 0;
+          padding: 7px 12px;
           border-radius: 12px;
           background: rgba(255, 255, 255, 0.05);
           border: 1px solid rgba(255, 255, 255, 0.1);
           display: flex;
           align-items: center;
           justify-content: space-between;
-          gap: 12px;
+          gap: 10px;
           cursor: pointer;
           transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
           box-shadow: 0 4px 16px rgba(0, 0, 0, 0.25);
         }
         .house-ad-card:hover {
           background: rgba(255, 255, 255, 0.08);
-          border-color: rgba(255, 255, 255, 0.18);
           transform: translateY(-1px);
+        }
+
+        .invite-card:hover {
+          border-color: rgba(16, 185, 129, 0.4);
+        }
+        .premium-card:hover {
+          border-color: rgba(245, 158, 11, 0.4);
         }
 
         .house-ad-left {
           display: flex;
           align-items: center;
-          gap: 10px;
+          gap: 8px;
           min-width: 0;
           flex: 1;
         }
 
         .house-ad-icon-box {
-          width: 32px;
-          height: 32px;
-          border-radius: 9px;
+          width: 28px;
+          height: 28px;
+          border-radius: 8px;
           border: 1px solid;
           display: flex;
           align-items: center;
           justify-content: center;
           flex-shrink: 0;
+        }
+
+        .invite-icon-box {
+          background: rgba(16, 185, 129, 0.15);
+          border-color: rgba(16, 185, 129, 0.35);
+        }
+        .premium-icon-box {
+          background: rgba(245, 158, 11, 0.15);
+          border-color: rgba(245, 158, 11, 0.35);
         }
 
         .house-ad-texts {
@@ -257,19 +273,27 @@ export default function FullPlayerAd({ className = '' }: { className?: string })
         .house-ad-title-row {
           display: flex;
           align-items: center;
-          gap: 6px;
+          gap: 5px;
         }
 
         .house-ad-badge {
-          font-size: 9px;
+          font-size: 8px;
           font-weight: 900;
           letter-spacing: 0.5px;
-          padding: 1px 5px;
-          border-radius: 4px;
+          padding: 1px 4px;
+          border-radius: 3px;
+        }
+        .invite-badge {
+          color: #10b981;
+          background: rgba(16, 185, 129, 0.2);
+        }
+        .premium-badge {
+          color: #f59e0b;
+          background: rgba(245, 158, 11, 0.2);
         }
 
         .house-ad-title {
-          font-size: 12px;
+          font-size: 11px;
           font-weight: 700;
           color: #ffffff;
           white-space: nowrap;
@@ -278,7 +302,7 @@ export default function FullPlayerAd({ className = '' }: { className?: string })
         }
 
         .house-ad-subtitle {
-          font-size: 11px;
+          font-size: 10px;
           color: #a1a1aa;
           white-space: nowrap;
           overflow: hidden;
@@ -289,19 +313,39 @@ export default function FullPlayerAd({ className = '' }: { className?: string })
           display: flex;
           align-items: center;
           gap: 4px;
-          padding: 6px 12px;
-          border-radius: 8px;
+          padding: 5px 10px;
+          border-radius: 7px;
           background: rgba(255, 255, 255, 0.08);
           border: 1px solid;
           color: #ffffff;
-          font-size: 11px;
+          font-size: 10px;
           font-weight: 800;
           flex-shrink: 0;
           cursor: pointer;
           transition: background 0.2s;
         }
-        .house-ad-action-btn:hover {
-          background: rgba(255, 255, 255, 0.15);
+        .invite-btn {
+          border-color: rgba(16, 185, 129, 0.4);
+        }
+        .invite-btn:hover {
+          background: rgba(16, 185, 129, 0.25);
+        }
+        .premium-btn {
+          border-color: rgba(245, 158, 11, 0.4);
+        }
+        .premium-btn:hover {
+          background: rgba(245, 158, 11, 0.25);
+        }
+
+        @media (max-width: 640px) {
+          .house-ads-row {
+            flex-direction: column;
+            gap: 6px;
+            max-width: 380px;
+          }
+          .house-ad-card {
+            padding: 6px 10px;
+          }
         }
       `}</style>
     </div>

@@ -40,11 +40,26 @@ export async function POST(req: NextRequest) {
     }
 
     // Determine recipient IDs
-    let targetIds: number[] = [];
-    if (target === 'single' && telegramId) {
+    let targetIds: (number | string)[] = [];
+    if (target === 'channel') {
+      const ch = (body.channel || '@fourandonemusic').trim();
+      targetIds = [ch.startsWith('@') ? ch : `@${ch}`];
+    } else if (target === 'single' && telegramId) {
       targetIds = [Number(telegramId)];
     } else if (target === 'selected' && Array.isArray(telegramIds)) {
       targetIds = telegramIds.map(Number).filter(Boolean);
+    } else if (target === 'free') {
+      const { data: users, error: uErr } = await db
+        .from('telegram_users')
+        .select('telegram_id, is_premium');
+      if (uErr) return NextResponse.json({ error: uErr.message }, { status: 500 });
+      targetIds = (users || []).filter(u => !u.is_premium).map(u => Number(u.telegram_id)).filter(Boolean);
+    } else if (target === 'premium') {
+      const { data: users, error: uErr } = await db
+        .from('telegram_users')
+        .select('telegram_id, is_premium');
+      if (uErr) return NextResponse.json({ error: uErr.message }, { status: 500 });
+      targetIds = (users || []).filter(u => !!u.is_premium).map(u => Number(u.telegram_id)).filter(Boolean);
     } else if (target === 'broadcast') {
       const { data: users, error: uErr } = await db
         .from('telegram_users')
@@ -56,7 +71,7 @@ export async function POST(req: NextRequest) {
     }
 
     if (targetIds.length === 0) {
-      return NextResponse.json({ error: 'No recipients found' }, { status: 400 });
+      return NextResponse.json({ error: 'No recipients found for selected criteria' }, { status: 400 });
     }
 
     // Prepare reply_markup if buttons are provided
@@ -73,7 +88,7 @@ export async function POST(req: NextRequest) {
     // Send messages via Telegram Bot API with rate limiting
     let sentCount = 0;
     let failedCount = 0;
-    const errors: { id: number; reason: string }[] = [];
+    const errors: { id: number | string; reason: string }[] = [];
 
     for (const chatId of targetIds) {
       try {

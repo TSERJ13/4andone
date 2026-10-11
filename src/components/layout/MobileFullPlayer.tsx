@@ -237,7 +237,7 @@ export default function MobileFullPlayer({ isOpen, onClose }: MobileFullPlayerPr
       </div>
 
       {/* Ad at the top, away from the controls and the seek bar (free plan) */}
-      <FullPlayerAd className="yt-mobile-full-ad" />
+      <FullPlayerAd className="yt-mobile-full-ad" onClose={onClose} />
 
       {/* Main Cover Artwork */}
       <div className="yt-mobile-stage">

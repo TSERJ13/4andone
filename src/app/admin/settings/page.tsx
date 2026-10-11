@@ -126,6 +126,22 @@ export default function AdminSettings() {
 
         .animate-in { animation: animateIn 0.5s cubic-bezier(0.4, 0, 0.2, 1); }
         @keyframes animateIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+
+        @media (max-width: 640px) {
+          .admin-settings { gap: 20px; padding-bottom: 80px; }
+          .settings-actions-row { flex-direction: column; align-items: stretch; gap: 12px; }
+          .settings-actions-row .btn-primary { width: 100%; height: 42px; justify-content: center; }
+          .storage-card { padding: 16px; border-radius: 16px; margin-bottom: 0; }
+          .settings-grid { grid-template-columns: 1fr; gap: 12px; }
+          .settings-card { padding: 16px; border-radius: 16px; gap: 16px; }
+          .card-top { gap: 12px; }
+          .icon-wrapper { width: 40px; height: 40px; border-radius: 10px; }
+          .title-info h3 { font-size: 16px; }
+          .title-info p { font-size: 12.5px; }
+          .danger-zone { padding: 18px; border-radius: 18px; }
+          .danger-content { gap: 14px; }
+          .btn-danger { width: 100%; text-align: center; justify-content: center; }
+        }
       `}</style>
     </div>
   );

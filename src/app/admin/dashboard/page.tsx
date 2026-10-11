@@ -250,6 +250,40 @@ export default function AdminDashboard() {
           .stats-horizontal-scroll { width: 100%; overflow-x: auto; padding-bottom: 4px; }
           .stats-horizontal-scroll::-webkit-scrollbar { display: none; }
         }
+
+        @media (max-width: 640px) {
+          .dashboard-section { padding: 14px; border-radius: 16px; }
+          .section-header { margin-bottom: 16px; flex-direction: column; gap: 6px; }
+          .section-header h2 { font-size: 18px; }
+          .section-sub { font-size: 11.5px; }
+          .dashboard-status-bar {
+            position: static !important;
+            transform: none !important;
+            width: 100% !important;
+            height: auto !important;
+            padding: 12px !important;
+            margin-top: 16px;
+            border-radius: 16px;
+            box-shadow: none;
+          }
+          .stats-horizontal-scroll {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 8px;
+            width: 100%;
+          }
+          .status-stat-pill {
+            min-width: 0;
+            padding: 8px 10px;
+            gap: 8px;
+          }
+          .stat-pill-value {
+            font-size: 13.5px;
+          }
+          .stat-pill-label {
+            font-size: 7.5px;
+          }
+        }
       `}</style>
     </div>
   );

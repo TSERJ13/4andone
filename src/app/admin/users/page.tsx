@@ -492,8 +492,19 @@ export default function AdminUsersPage() {
           .summary-row { grid-template-columns:repeat(2,1fr); gap:10px; }
           .sum-card { padding:14px; }
           .sum-val { font-size:22px; }
-          .user-stats { display:none; }
-          .panel-header { flex-direction:column; align-items:flex-start; }
+          .user-row { flex-direction: column; align-items: flex-start; gap: 8px; }
+          .user-rank { display: none; }
+          .user-stats {
+            display: flex;
+            flex-direction: row;
+            flex-wrap: wrap;
+            gap: 6px;
+            align-items: center;
+            width: 100%;
+            padding-top: 6px;
+            border-top: 1px solid rgba(255, 255, 255, 0.04);
+          }
+          .panel-header { flex-direction:column; align-items:flex-start; gap: 10px; }
           .search-input { width:100%; }
         }
               .invite-tag {

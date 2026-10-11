@@ -170,6 +170,7 @@ export default function AdminMessagesPage() {
   } | null>(null);
   const [knownActiveBotIds, setKnownActiveBotIds] = useState<number[]>([]);
   const [knownInactiveBotIds, setKnownInactiveBotIds] = useState<number[]>([]);
+  const [mobileSubTab, setMobileSubTab] = useState<'compose' | 'preview' | 'users'>('compose');
 
   const fetchMessages = useCallback(async () => {
     setLoading(true);
@@ -575,16 +576,16 @@ export default function AdminMessagesPage() {
   };
 
   return (
-    <div className="admin-messages-page animate-in" style={{ padding: '8px 4px 60px' }}>
+    <div className="admin-messages-page animate-in">
       {/* Page Header */}
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '24px', flexWrap: 'wrap', gap: '16px' }}>
+      <div className="msg-header-row">
         <div>
-          <h1 style={{ fontSize: '26px', fontWeight: 900, color: 'white', display: 'flex', alignItems: 'center', gap: '12px' }}>
-            <MessageSquare size={28} color="#38bdf8" />
-            Communication &amp; Messages
+          <h1 className="msg-header-title">
+            <MessageSquare size={24} color="#38bdf8" />
+            <span>Communication &amp; Bot</span>
           </h1>
-          <p style={{ color: '#a1a1aa', fontSize: '13px', marginTop: '4px' }}>
-            Manage user inquiries and compose rich Telegram messages with live preview &amp; action buttons.
+          <p className="msg-header-desc">
+            Manage user inquiries and compose rich Telegram messages with live preview.
           </p>
         </div>
 
@@ -857,24 +858,22 @@ export default function AdminMessagesPage() {
       {/* TAB 2: ADVANCED TELEGRAM BOT MESSAGING */}
       {activeTab === 'telegram' && (
         <div className="telegram-panel">
-          {/* Quick Notice for Expiring Users */}
-          <div className="expiring-alert-banner glass">
-            <div className="alert-left">
-              <div className="alert-icon-box">
-                <BellRing size={20} className="text-amber" />
+          {/* Quick Notice for Expiring Users (only shown if users actually expiring) */}
+          {expiringUsers.length > 0 && (
+            <div className="expiring-alert-banner glass">
+              <div className="alert-left">
+                <div className="alert-icon-box">
+                  <BellRing size={20} className="text-amber" />
+                </div>
+                <div>
+                  <h4 style={{ margin: 0, fontSize: '14px', fontWeight: 800, color: 'white' }}>
+                    Expiring Subscriptions Reminder (Next 5 Days)
+                  </h4>
+                  <p style={{ margin: '2px 0 0', fontSize: '12px', color: '#a1a1aa' }}>
+                    Found {expiringUsers.length} user(s) whose Premium expires within the next 5 days.
+                  </p>
+                </div>
               </div>
-              <div>
-                <h4 style={{ margin: 0, fontSize: '14px', fontWeight: 800, color: 'white' }}>
-                  Expiring Subscriptions Reminder (Next 5 Days)
-                </h4>
-                <p style={{ margin: '2px 0 0', fontSize: '12px', color: '#a1a1aa' }}>
-                  {expiringUsers.length > 0
-                    ? `Found ${expiringUsers.length} user(s) whose Premium expires within the next 5 days.`
-                    : 'No users expiring in the next 5 days.'}
-                </p>
-              </div>
-            </div>
-            {expiringUsers.length > 0 && (
               <button
                 type="button"
                 className="btn-notify-expiring"
@@ -882,12 +881,40 @@ export default function AdminMessagesPage() {
               >
                 <span>Notify All {expiringUsers.length} Expiring Users ➔</span>
               </button>
-            )}
+            </div>
+          )}
+
+          {/* Mobile Segments: Compose / Live Preview / Users List */}
+          <div className="mobile-tg-tabs glass">
+            <button
+              type="button"
+              className={`mobile-tg-tab ${mobileSubTab === 'compose' ? 'active' : ''}`}
+              onClick={() => setMobileSubTab('compose')}
+            >
+              <Send size={14} />
+              <span>Compose</span>
+            </button>
+            <button
+              type="button"
+              className={`mobile-tg-tab ${mobileSubTab === 'preview' ? 'active' : ''}`}
+              onClick={() => setMobileSubTab('preview')}
+            >
+              <Eye size={14} />
+              <span>Preview</span>
+            </button>
+            <button
+              type="button"
+              className={`mobile-tg-tab ${mobileSubTab === 'users' ? 'active' : ''}`}
+              onClick={() => setMobileSubTab('users')}
+            >
+              <Users size={14} />
+              <span>Users ({tgUsers.length})</span>
+            </button>
           </div>
 
           <div className="tg-layout">
             {/* Left Column: Composer with formatting & buttons */}
-            <div className="tg-composer glass">
+            <div className={`tg-composer glass ${mobileSubTab === 'compose' ? 'mob-show' : 'mob-hide'}`}>
               <div className="panel-title-row">
                 <Bot size={22} className="text-primary" />
                 <div>
@@ -1065,7 +1092,12 @@ export default function AdminMessagesPage() {
                   <button
                     type="button"
                     className={`target-btn ${sendTarget === 'selected' ? 'active' : ''}`}
-                    onClick={() => setSendTarget('selected')}
+                    onClick={() => {
+                      setSendTarget('selected');
+                      if (selectedUserIds.length === 0) {
+                        setMobileSubTab('users');
+                      }
+                    }}
                     title="მონიშნული იუზერები მარჯვენა სიიდან"
                   >
                     <CheckSquare size={15} />
@@ -1073,7 +1105,7 @@ export default function AdminMessagesPage() {
                   </button>
                   <button
                     type="button"
-                    className={`target-btn ${sendTarget === 'channel' ? 'active' : ''}`}
+                    className={`target-btn channel-target-btn ${sendTarget === 'channel' ? 'active' : ''}`}
                     onClick={() => setSendTarget('channel')}
                     title="პირდაპირ Telegram არხზე დაპოსტვა"
                   >
@@ -1533,7 +1565,7 @@ export default function AdminMessagesPage() {
             {/* Right Column: Live Telegram Post Preview & Quick List */}
             <div className="tg-sidebar-column">
               {/* LIVE TELEGRAM PREVIEW BOX */}
-              <div className="tg-preview-card glass">
+              <div className={`tg-preview-card glass ${mobileSubTab === 'preview' ? 'mob-show' : 'mob-hide'}`}>
                 <div className="preview-header">
                   <Eye size={15} className="text-primary" />
                   <span className="preview-label">Live Telegram Preview</span>
@@ -1603,10 +1635,29 @@ export default function AdminMessagesPage() {
                     </div>
                   )}
                 </div>
+
+                <div className="mobile-preview-actions">
+                  <button
+                    type="button"
+                    className="btn-send-tg"
+                    onClick={handleSendTelegram}
+                    disabled={isSendingTg || !tgMessageText.trim() || (sendTarget === 'selected' && selectedUserIds.length === 0)}
+                  >
+                    <Send size={15} />
+                    <span>Send Post Now</span>
+                  </button>
+                  <button
+                    type="button"
+                    className="btn-token-mini-action"
+                    onClick={() => setMobileSubTab('compose')}
+                  >
+                    ✍️ Return to Editor
+                  </button>
+                </div>
               </div>
 
               {/* USER MULTI-SELECT & FILTER SIDEBAR */}
-              <div className="tg-users-sidebar glass">
+              <div className={`tg-users-sidebar glass ${mobileSubTab === 'users' ? 'mob-show' : 'mob-hide'}`}>
                 <div className="sidebar-title" style={{ justifyContent: 'space-between', display: 'flex', alignItems: 'center' }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                     <Users size={16} className="text-primary" />
@@ -1742,6 +1793,22 @@ export default function AdminMessagesPage() {
                     })
                   )}
                 </div>
+
+                <div className="mobile-users-actions">
+                  <button
+                    type="button"
+                    className="btn-batch-select"
+                    style={{ width: '100%', justifyContent: 'center', padding: '12px 16px', fontSize: '13px', fontWeight: 800 }}
+                    onClick={() => {
+                      if (selectedUserIds.length > 0) {
+                        setSendTarget('selected');
+                      }
+                      setMobileSubTab('compose');
+                    }}
+                  >
+                    ✍️ Compose Message to {selectedUserIds.length > 0 ? `${selectedUserIds.length} Selected` : 'Users'} ➔
+                  </button>
+                </div>
               </div>
             </div>
           </div>
@@ -1761,6 +1828,35 @@ export default function AdminMessagesPage() {
       />
 
       <style jsx>{`
+        .admin-messages-page {
+          display: flex;
+          flex-direction: column;
+          gap: 16px;
+          padding-bottom: 80px;
+        }
+        .msg-header-row {
+          display: flex;
+          align-items: center;
+          justify-content: space-between;
+          flex-wrap: wrap;
+          gap: 16px;
+          margin-bottom: 8px;
+        }
+        .msg-header-title {
+          font-size: 24px;
+          font-weight: 900;
+          color: white;
+          display: flex;
+          align-items: center;
+          gap: 10px;
+          margin: 0;
+        }
+        .msg-header-desc {
+          color: #a1a1aa;
+          font-size: 13px;
+          margin: 4px 0 0 0;
+        }
+
         .tab-switcher {
           display: flex;
           background: rgba(255, 255, 255, 0.04);
@@ -2654,19 +2750,105 @@ export default function AdminMessagesPage() {
           white-space: nowrap;
         }
 
+        /* Mobile Sub-tabs Switcher */
+        .mobile-tg-tabs {
+          display: none;
+        }
+        .mobile-preview-actions {
+          display: none;
+        }
+        .mobile-users-actions {
+          display: none;
+        }
+
+        .channel-target-btn {
+          /* normal button styling */
+        }
+
+        @media (max-width: 950px) {
+          .mobile-tg-tabs {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 4px;
+            padding: 4px;
+            border-radius: 12px;
+            margin-bottom: 14px;
+            background: rgba(255, 255, 255, 0.04);
+            border: 1px solid rgba(255, 255, 255, 0.08);
+          }
+          .mobile-tg-tab {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 6px;
+            padding: 9px 8px;
+            border-radius: 9px;
+            font-size: 12px;
+            font-weight: 800;
+            border: none;
+            background: transparent;
+            color: #a1a1aa;
+            cursor: pointer;
+            transition: all 0.15s ease;
+          }
+          .mobile-tg-tab.active {
+            background: #0284c7;
+            color: #ffffff;
+            box-shadow: 0 2px 8px rgba(2, 132, 199, 0.4);
+          }
+
+          .mob-hide {
+            display: none !important;
+          }
+          .mob-show {
+            display: flex !important;
+          }
+
+          .tg-layout {
+            grid-template-columns: 1fr !important;
+            gap: 12px;
+          }
+          .tg-sidebar-column {
+            width: 100%;
+          }
+          .mobile-preview-actions {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+            margin-top: 14px;
+          }
+          .mobile-users-actions {
+            display: block;
+            margin-top: 10px;
+          }
+        }
+
         @media (max-width: 640px) {
+          .admin-messages-page {
+            padding: 0 0 80px 0 !important;
+          }
+          .msg-header-row {
+            margin-bottom: 4px;
+            gap: 8px;
+          }
+          .msg-header-title {
+            font-size: 18px;
+          }
+          .msg-header-desc {
+            display: none;
+          }
           .tab-switcher {
             width: 100%;
           }
           .tab-btn {
             flex: 1;
             justify-content: center;
-            font-size: 12px;
-            padding: 8px 10px;
+            font-size: 11.5px;
+            padding: 8px 6px;
           }
           .tg-composer {
             padding: 14px;
-            gap: 16px;
+            gap: 14px;
             border-radius: 14px;
           }
           .panel-title-row {
@@ -2675,7 +2857,7 @@ export default function AdminMessagesPage() {
           .token-saved-compact-bar {
             flex-direction: column;
             align-items: stretch;
-            gap: 12px;
+            gap: 10px;
             padding: 12px;
           }
           .target-toggle {
@@ -2689,7 +2871,25 @@ export default function AdminMessagesPage() {
             padding: 9px 6px;
             font-size: 11px;
             justify-content: center;
-            min-height: 40px;
+            min-height: 44px;
+            white-space: normal;
+            line-height: 1.2;
+            text-align: center;
+          }
+          .channel-target-btn {
+            grid-column: span 2;
+          }
+          .template-chips {
+            display: flex;
+            gap: 8px;
+            overflow-x: auto;
+            -webkit-overflow-scrolling: touch;
+            padding-bottom: 4px;
+            flex-wrap: nowrap;
+          }
+          .template-chip {
+            flex-shrink: 0;
+            white-space: nowrap;
           }
           .format-toolbar-row {
             flex-direction: column;
@@ -2743,7 +2943,9 @@ export default function AdminMessagesPage() {
             width: 100%;
           }
           .tg-users-sidebar {
-            height: 380px;
+            height: auto;
+            min-height: 480px;
+            max-height: calc(100vh - 220px);
             padding: 12px;
           }
           .sidebar-filter-pills {

@@ -67,24 +67,34 @@ export default function FullPlayerAd({ className = '', onClose }: FullPlayerAdPr
       aria-label="Promotion"
       onClick={(e) => e.stopPropagation()}
     >
-      {/* 1. Google Ad Container (rendered if filled) */}
-      <div 
-        className="google-ad-slot" 
-        style={{ display: isGoogleAdFilled ? 'flex' : 'none' }}
-      >
-        <span className="full-player-ad-label">AD</span>
-        <AdBanner
-          variant="auto"
-          onStatusChange={(s) => {
-            recordAdEvent('strip', s === 'filled' ? 'filled' : 'unfilled');
-            setStatus(s);
+      {/* 1. Google Ad Container: shown when filled OR still loading/trying */}
+      {status !== 'unfilled' && (
+        <div 
+          className="google-ad-slot" 
+          style={{ 
+            display: isGoogleAdFilled ? 'flex' : 'block',
+            position: isGoogleAdFilled ? 'relative' : 'absolute',
+            opacity: isGoogleAdFilled ? 1 : 0,
+            pointerEvents: isGoogleAdFilled ? 'auto' : 'none',
+            zIndex: isGoogleAdFilled ? 2 : -1,
+            width: '100%',
+            maxWidth: '468px',
           }}
-          onRequested={() => recordAdEvent('strip', 'requested')}
-          onAdClick={() => recordAdEvent('strip', 'click')}
-        />
-      </div>
+        >
+          <span className="full-player-ad-label">AD</span>
+          <AdBanner
+            variant="auto"
+            onStatusChange={(s) => {
+              recordAdEvent('strip', s === 'filled' ? 'filled' : 'unfilled');
+              setStatus(s);
+            }}
+            onRequested={() => recordAdEvent('strip', 'requested')}
+            onAdClick={() => recordAdEvent('strip', 'click')}
+          />
+        </div>
+      )}
 
-      {/* 2. House Ads (Both Invite & Premium shown side-by-side if Google is loading or unfilled) */}
+      {/* 2. House Ads (Both Invite & Premium shown side-by-side if Google is unfilled or during loading before fill) */}
       {!isGoogleAdFilled && (
         <div className="house-ads-row animate-in">
           {/* Card 1: Invite a Friend */}
@@ -144,21 +154,6 @@ export default function FullPlayerAd({ className = '', onClose }: FullPlayerAdPr
               <ArrowRight size={12} />
             </button>
           </div>
-        </div>
-      )}
-
-      {/* Hidden AdSense requester if not yet filled */}
-      {!isGoogleAdFilled && (
-        <div style={{ position: 'absolute', opacity: 0, pointerEvents: 'none', height: 0, overflow: 'hidden' }}>
-          <AdBanner
-            variant="auto"
-            onStatusChange={(s) => {
-              recordAdEvent('strip', s === 'filled' ? 'filled' : 'unfilled');
-              setStatus(s);
-            }}
-            onRequested={() => recordAdEvent('strip', 'requested')}
-            onAdClick={() => recordAdEvent('strip', 'click')}
-          />
         </div>
       )}
 

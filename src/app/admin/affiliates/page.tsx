@@ -4,7 +4,7 @@ import React, { useEffect, useMemo, useState, useCallback } from 'react';
 import { 
   Gift, RefreshCw, Search, Users, Sparkles, Calendar, 
   ExternalLink, Send, ShieldCheck, CheckCircle2, Clock, 
-  AlertCircle, ChevronRight, MessageSquare 
+  AlertCircle, ChevronRight, MessageSquare, Trophy 
 } from 'lucide-react';
 import ConfirmModal from '@/components/admin/ConfirmModal';
 
@@ -303,38 +303,45 @@ export default function AdminAffiliatesPage() {
         <div className="filters-row">
           <div className="view-toggle">
             <button 
+              type="button"
               className={`toggle-btn ${viewMode === 'all' ? 'active' : ''}`}
               onClick={() => setViewMode('all')}
             >
-              All Invites ({rows?.length ?? 0})
+              <Users size={14} />
+              <span>All Invites ({rows?.length ?? 0})</span>
             </button>
             <button 
+              type="button"
               className={`toggle-btn ${viewMode === 'leaderboard' ? 'active' : ''}`}
               onClick={() => setViewMode('leaderboard')}
             >
-              Top Inviters ({leaderboard.length})
+              <Trophy size={14} />
+              <span>Top Inviters ({leaderboard.length})</span>
             </button>
           </div>
 
           {viewMode === 'all' && (
             <div className="status-filters">
               <button 
+                type="button"
                 className={`filter-chip ${statusFilter === 'all' ? 'active' : ''}`}
                 onClick={() => setStatusFilter('all')}
               >
                 All
               </button>
               <button 
+                type="button"
                 className={`filter-chip ${statusFilter === 'rewarded' ? 'active' : ''}`}
                 onClick={() => setStatusFilter('rewarded')}
               >
-                Rewarded
+                ✓ Rewarded
               </button>
               <button 
+                type="button"
                 className={`filter-chip ${statusFilter === 'unrewarded' ? 'active' : ''}`}
                 onClick={() => setStatusFilter('unrewarded')}
               >
-                Not Rewarded
+                ⏳ Not Rewarded
               </button>
             </div>
           )}
@@ -838,8 +845,8 @@ export default function AdminAffiliatesPage() {
           align-items: center;
           justify-content: space-between;
           flex-wrap: wrap;
-          gap: 16px;
-          padding: 16px 20px;
+          gap: 14px;
+          padding: 14px 18px;
           border-radius: 16px;
           background: rgba(255, 255, 255, 0.03);
           border: 1px solid rgba(255, 255, 255, 0.08);
@@ -848,13 +855,13 @@ export default function AdminAffiliatesPage() {
           display: flex;
           align-items: center;
           gap: 10px;
-          background: rgba(0, 0, 0, 0.3);
+          background: rgba(0, 0, 0, 0.35);
           border: 1px solid rgba(255, 255, 255, 0.1);
           border-radius: 12px;
-          padding: 8px 14px;
+          padding: 9px 14px;
           flex: 1;
           min-width: 280px;
-          max-width: 500px;
+          max-width: 460px;
         }
         .search-input {
           background: transparent;
@@ -876,49 +883,70 @@ export default function AdminAffiliatesPage() {
           align-items: center;
           gap: 12px;
           flex-wrap: wrap;
+          flex-shrink: 0;
         }
         .view-toggle {
           display: flex;
-          background: rgba(0, 0, 0, 0.3);
+          background: rgba(0, 0, 0, 0.45);
           padding: 4px;
           border-radius: 10px;
-          border: 1px solid rgba(255, 255, 255, 0.08);
+          border: 1px solid rgba(255, 255, 255, 0.1);
+          flex-shrink: 0;
+          gap: 4px;
         }
         .toggle-btn {
-          padding: 6px 14px;
+          display: flex;
+          align-items: center;
+          gap: 6px;
+          padding: 7px 14px;
           border-radius: 8px;
           font-size: 12px;
           font-weight: 700;
           color: #a1a1aa;
           background: transparent;
-          border: none;
+          border: 1px solid transparent;
           cursor: pointer;
           transition: all 0.2s;
+          white-space: nowrap !important;
+          flex-shrink: 0;
+        }
+        .toggle-btn:hover {
+          color: #ffffff;
+          background: rgba(255, 255, 255, 0.06);
         }
         .toggle-btn.active {
-          background: rgba(16, 185, 129, 0.2);
+          background: rgba(16, 185, 129, 0.18);
           color: #34d399;
+          border-color: rgba(16, 185, 129, 0.4);
         }
 
         .status-filters {
           display: flex;
           gap: 6px;
+          align-items: center;
+          flex-shrink: 0;
         }
         .filter-chip {
-          padding: 6px 12px;
+          padding: 7px 14px;
           border-radius: 8px;
           font-size: 12px;
-          font-weight: 600;
+          font-weight: 700;
           color: #a1a1aa;
           background: rgba(255, 255, 255, 0.04);
           border: 1px solid rgba(255, 255, 255, 0.08);
           cursor: pointer;
           transition: all 0.2s;
+          white-space: nowrap !important;
+          flex-shrink: 0;
+        }
+        .filter-chip:hover {
+          color: #ffffff;
+          background: rgba(255, 255, 255, 0.08);
         }
         .filter-chip.active {
           background: rgba(255, 255, 255, 0.15);
-          color: #ffffff;
           border-color: rgba(255, 255, 255, 0.25);
+          color: #ffffff;
         }
 
         /* Table */

@@ -108,24 +108,56 @@ export default function ReferralsPanel() {
           {filtered.length === 0 ? (
             <p className="rp-note">{total === 0 ? 'No invites yet.' : 'Nothing matches.'}</p>
           ) : view === 'all' ? (
-            <div className="rp-table-wrap">
-              <table className="rp-table">
-                <thead>
-                  <tr><th>Date</th><th>Invited by</th><th>New listener</th><th>Friend&apos;s Premium</th><th>Inviter reward</th></tr>
-                </thead>
-                <tbody>
-                  {filtered.map(r => (
-                    <tr key={r.id}>
-                      <td className="rp-date">{fmt(r.at)}</td>
-                      <td>{who(r.inviter)}</td>
-                      <td>{who(r.invitee)}</td>
-                      <td>{r.inviteePremiumUntil ? `until ${fmt(r.inviteePremiumUntil)}` : <span className="rp-dim">already Premium</span>}</td>
-                      <td>{r.inviterRewarded ? (r.inviterPremiumUntil ? `until ${fmt(r.inviterPremiumUntil)}` : <span className="rp-dim">already Premium</span>) : <span className="rp-dim">— (got it earlier)</span>}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
+            <>
+              <div className="rp-table-wrap desktop-only-table">
+                <table className="rp-table">
+                  <thead>
+                    <tr><th>Date</th><th>Invited by</th><th>New listener</th><th>Friend&apos;s Premium</th><th>Inviter reward</th></tr>
+                  </thead>
+                  <tbody>
+                    {filtered.map(r => (
+                      <tr key={r.id}>
+                        <td className="rp-date">{fmt(r.at)}</td>
+                        <td>{who(r.inviter)}</td>
+                        <td>{who(r.invitee)}</td>
+                        <td>{r.inviteePremiumUntil ? `until ${fmt(r.inviteePremiumUntil)}` : <span className="rp-dim">already Premium</span>}</td>
+                        <td>{r.inviterRewarded ? (r.inviterPremiumUntil ? `until ${fmt(r.inviterPremiumUntil)}` : <span className="rp-dim">already Premium</span>) : <span className="rp-dim">— (got it earlier)</span>}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+
+              {/* Mobile Referrals Card View */}
+              <div className="rp-cards-mobile">
+                {filtered.map(r => (
+                  <div key={r.id} className="rp-mobile-card">
+                    <div className="rp-card-head">
+                      <span className="rp-date">{fmt(r.at)}</span>
+                      <span className="rp-badge">Invited</span>
+                    </div>
+                    <div className="rp-card-pair">
+                      <div className="rp-pair-item">
+                        <span className="rp-dim">Invited by:</span>
+                        {who(r.inviter)}
+                      </div>
+                      <div className="rp-pair-item">
+                        <span className="rp-dim">New listener:</span>
+                        {who(r.invitee)}
+                      </div>
+                    </div>
+                    <div className="rp-card-rewards">
+                      <div className="rp-reward-tag">
+                        <span>Friend: {r.inviteePremiumUntil ? `until ${fmt(r.inviteePremiumUntil)}` : 'already Premium'}</span>
+                      </div>
+                      <div className="rp-reward-tag">
+                        <span>Inviter: {r.inviterRewarded ? (r.inviterPremiumUntil ? `until ${fmt(r.inviterPremiumUntil)}` : 'already Premium') : '—'}</span>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </>
           ) : (
             <ul className="rp-inviters">
               {inviters.map(e => (
@@ -177,7 +209,54 @@ export default function ReferralsPanel() {
         .rp :global(.rp-person) { display: flex; flex-direction: column; gap: 1px; }
         .rp :global(.rp-name) { font-weight: 700; color: #fff; }
         .rp :global(.rp-handle) { color: #64748b; font-size: 12px; }
-        @media (max-width: 640px) { .rp { padding: 16px; } .rp-stats strong { font-size: 18px; } }
+        .rp-cards-mobile { display: none; }
+        @media (max-width: 640px) {
+          .desktop-only-table { display: none !important; }
+          .rp { padding: 16px; border-radius: 14px; }
+          .rp-stats { grid-template-columns: 1fr; gap: 8px; }
+          .rp-stats strong { font-size: 18px; }
+          .rp-tools { flex-direction: column; }
+          .rp-search { width: 100%; min-width: 0; }
+          .rp-switch { width: 100%; }
+          .rp-switch button { flex: 1; text-align: center; }
+          .rp-cards-mobile { display: flex; flex-direction: column; gap: 10px; }
+          .rp-mobile-card {
+            padding: 12px;
+            border-radius: 12px;
+            background: rgba(255,255,255,0.03);
+            border: 1px solid rgba(255,255,255,0.07);
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+          }
+          .rp-card-head {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+          }
+          .rp-card-pair {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+            padding: 8px 10px;
+            border-radius: 8px;
+            background: rgba(0,0,0,0.2);
+          }
+          .rp-pair-item {
+            display: flex;
+            align-items: flex-start;
+            justify-content: space-between;
+            gap: 8px;
+            font-size: 12px;
+          }
+          .rp-card-rewards {
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+            font-size: 11px;
+            color: #34d399;
+          }
+        }
       `}</style>
     </section>
   );

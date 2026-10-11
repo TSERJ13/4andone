@@ -118,7 +118,36 @@ export default function AdminAI() {
         .text-success { color: #4ade80; }
         .text-warning { color: #fbbf24; }
         .text-secondary { color: #a1a1aa; }
-        .btn-text { color: #1db954; font-size: 13px; font-weight: 700; }
+        @media (max-width: 640px) {
+          .admin-ai { gap: 20px; padding-bottom: 80px; }
+          .ai-actions-row {
+            flex-direction: column;
+            align-items: stretch;
+            gap: 12px;
+          }
+          .ai-actions-row button {
+            width: 100%;
+            justify-content: center;
+            height: 42px;
+          }
+          .ai-stats-grid {
+            grid-template-columns: 1fr;
+            gap: 10px;
+          }
+          .stat-card {
+            padding: 16px;
+            border-radius: 16px;
+            gap: 16px;
+          }
+          .tasks-list {
+            padding: 16px;
+            border-radius: 18px;
+          }
+          .activity-item {
+            padding: 12px;
+            gap: 12px;
+          }
+        }
 
         .animate-in { animation: animateIn 0.5s cubic-bezier(0.4, 0, 0.2, 1); }
         @keyframes animateIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }

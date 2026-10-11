@@ -226,7 +226,7 @@ export default function SubscriptionManager() {
         </div>
       </div>
 
-      <div className="sub-table-wrap">
+      <div className="sub-table-wrap desktop-only-table">
         <table className="sub-table">
           <thead>
             <tr>
@@ -352,6 +352,118 @@ export default function SubscriptionManager() {
             )}
           </tbody>
         </table>
+      </div>
+
+      {/* Mobile Subscriber Cards */}
+      <div className="sub-cards-mobile">
+        {loading ? (
+          <div className="loading-cell">Loading subscribers...</div>
+        ) : filtered.length === 0 ? (
+          <div className="empty-cell">No users found.</div>
+        ) : (
+          filtered.map(user => {
+            const isLifetime = user.subscription_id === 'LIFETIME_OWNER';
+            return (
+              <div key={user.telegram_id} className={`sub-mobile-card glass ${isActivePremium(user) ? 'is-premium-card' : ''}`}>
+                <div className="sub-card-header">
+                  <div className="user-cell">
+                    {user.photo_url ? (
+                      <img src={user.photo_url} alt="" className="avatar-img" />
+                    ) : (
+                      <div className="avatar-placeholder">{user.first_name?.charAt(0) || 'U'}</div>
+                    )}
+                    <div className="user-names">
+                      <span className="real-name">{user.first_name} {user.last_name || ''}</span>
+                      <span className="tg-handle">@{user.username || user.telegram_id}</span>
+                    </div>
+                  </div>
+                  {isActivePremium(user) ? (
+                    <span className="status-badge premium">
+                      <Crown size={12} /> Active
+                    </span>
+                  ) : user.is_premium ? (
+                    <span className="status-badge free">Expired</span>
+                  ) : (
+                    <span className="status-badge free">Free</span>
+                  )}
+                </div>
+
+                <div className="sub-card-details">
+                  <div className="sub-detail-item">
+                    <span className="sub-detail-label">Plan:</span>
+                    <span className="sub-detail-value">
+                      {isLifetime ? (
+                        <strong className="text-emerald">Lifetime Owner</strong>
+                      ) : user.subscription_id?.startsWith('MANUAL_') ? (
+                        'Admin Gifted'
+                      ) : user.subscription_id?.startsWith('REFERRAL_') ? (
+                        'Invite reward (1m)'
+                      ) : user.subscription_id ? (
+                        'PayPal ($1.99/mo)'
+                      ) : (
+                        'None'
+                      )}
+                    </span>
+                  </div>
+                  <div className="sub-detail-item">
+                    <span className="sub-detail-label">Valid:</span>
+                    <span className="sub-detail-value">
+                      {isLifetime ? (
+                        'Never Expires'
+                      ) : user.premium_until ? (
+                        new Date(user.premium_until).toLocaleDateString()
+                      ) : user.is_premium && user.subscription_id?.startsWith('MANUAL_') ? (
+                        <strong className="text-emerald">Forever</strong>
+                      ) : user.is_premium ? (
+                        'Auto-Renewing'
+                      ) : (
+                        '—'
+                      )}
+                    </span>
+                  </div>
+                </div>
+
+                {!isLifetime && (
+                  <div className="sub-card-actions">
+                    <select
+                      className="duration-select"
+                      value={selectedDuration(user)}
+                      onChange={(e) => setDurationFor(prev => ({ ...prev, [user.telegram_id]: e.target.value }))}
+                      disabled={actionLoading === user.telegram_id}
+                      aria-label="Premium duration"
+                    >
+                      {DURATIONS.map(d => <option key={d.key} value={d.key}>{d.label}</option>)}
+                    </select>
+                    <button
+                      disabled={actionLoading === user.telegram_id || (isForever(user) && selectedDuration(user) === 'forever')}
+                      onClick={() => grantPremium(user)}
+                      className="toggle-sub-btn activate"
+                    >
+                      <Sparkles size={13} />
+                      <span>
+                        {!isActivePremium(user)
+                          ? 'Give'
+                          : isForever(user)
+                            ? (selectedDuration(user) === 'forever' ? 'Forever' : 'Change')
+                            : selectedDuration(user) === 'forever' ? 'Forever' : 'Extend'}
+                      </span>
+                    </button>
+                    {user.is_premium && (
+                      <button
+                        disabled={actionLoading === user.telegram_id}
+                        onClick={() => revokePremium(user)}
+                        className="toggle-sub-btn deactivate"
+                      >
+                        <X size={13} />
+                        <span>Revoke</span>
+                      </button>
+                    )}
+                  </div>
+                )}
+              </div>
+            );
+          })
+        )}
       </div>
 
       {toast && (
@@ -703,10 +815,108 @@ export default function SubscriptionManager() {
           font-weight: 700;
         }
 
-        .loading-cell, .empty-cell {
-          text-align: center;
-          padding: 24px;
-          color: rgba(255, 255, 255, 0.4);
+        .sub-cards-mobile {
+          display: none;
+        }
+
+        @media (max-width: 640px) {
+          .desktop-only-table {
+            display: none !important;
+          }
+          .sub-manager-card {
+            padding: 16px;
+            border-radius: 16px;
+          }
+          .card-header-top {
+            flex-direction: column;
+            align-items: stretch;
+            gap: 12px;
+          }
+          .title-area {
+            gap: 10px;
+          }
+          .icon-box {
+            width: 36px;
+            height: 36px;
+            border-radius: 10px;
+          }
+          .sub-stats-grid {
+            grid-template-columns: 1fr;
+            gap: 8px;
+          }
+          .stat-card {
+            padding: 12px 14px;
+            border-radius: 12px;
+          }
+          .sub-cards-mobile {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+          }
+          .sub-mobile-card {
+            padding: 14px;
+            border-radius: 14px;
+            background: rgba(255, 255, 255, 0.03);
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+          }
+          .sub-mobile-card.is-premium-card {
+            border-color: rgba(16, 185, 129, 0.3);
+            background: rgba(16, 185, 129, 0.04);
+          }
+          .sub-card-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 8px;
+          }
+          .sub-card-details {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 10px;
+            padding: 8px 10px;
+            border-radius: 8px;
+            background: rgba(0, 0, 0, 0.2);
+            font-size: 12px;
+          }
+          .sub-detail-item {
+            display: flex;
+            align-items: center;
+            gap: 5px;
+          }
+          .sub-detail-label {
+            color: rgba(255, 255, 255, 0.5);
+            font-size: 11px;
+          }
+          .sub-detail-value {
+            font-weight: 700;
+          }
+          .sub-card-actions {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 6px;
+            padding-top: 4px;
+          }
+          .sub-card-actions .duration-select {
+            grid-column: span 2;
+            width: 100%;
+            height: 38px;
+            text-align: center;
+          }
+          .sub-card-actions .toggle-sub-btn {
+            width: 100%;
+            height: 38px;
+            justify-content: center;
+          }
+          .sub-card-actions .toggle-sub-btn.activate {
+            grid-column: span 2;
+          }
+          .sub-card-actions .toggle-sub-btn.deactivate {
+            grid-column: span 2;
+          }
         }
       `}</style>
     </div>

@@ -230,7 +230,7 @@ export default function AdminAlbumsPage() {
             Create, customize, and reorder dynamic albums without touching any code. Albums update automatically on the homepage carousel and dedicate pages.
           </p>
         </div>
-        <div style={{ display: 'flex', gap: '12px', alignItems: 'center' }}>
+        <div className="album-header-actions">
           <Link href="/admin/dashboard" className="btn-bulk-link">
             <Upload size={16} />
             <span>Bulk Upload Tracks</span>
@@ -1381,21 +1381,54 @@ export default function AdminAlbumsPage() {
           box-shadow: 0 4px 20px rgba(0,0,0,0.4);
         }
 
+        .album-header-actions {
+          display: flex;
+          gap: 12px;
+          align-items: center;
+        }
+
         @media (max-width: 768px) {
+          .admin-albums-page {
+            padding-bottom: 80px;
+          }
           .page-header {
             flex-direction: column;
             align-items: stretch;
+            gap: 14px;
+          }
+          .album-header-actions {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 8px;
+            width: 100%;
+          }
+          .btn-bulk-link,
+          .btn-primary-create {
+            width: 100%;
+            justify-content: center;
+            height: 42px;
+            padding: 8px 10px;
+            font-size: 12px;
           }
           .stats-row {
             grid-template-columns: 1fr;
+            gap: 8px;
+            padding: 12px;
           }
           .album-card {
             flex-direction: column;
             align-items: stretch;
+            padding: 14px;
           }
           .album-cover-thumbnail {
             width: 100%;
             height: 140px;
+          }
+          .album-actions {
+            width: 100%;
+            justify-content: flex-end;
+            padding-top: 8px;
+            border-top: 1px solid rgba(255, 255, 255, 0.06);
           }
           .form-split-grid {
             grid-template-columns: 1fr;

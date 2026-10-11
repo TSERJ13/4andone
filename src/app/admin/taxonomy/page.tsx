@@ -489,16 +489,51 @@ export default function TaxonomyPage() {
         }
 
         @media (max-width: 768px) {
+          .taxonomy-page { padding-bottom: 80px; }
           .taxonomy-grid { grid-template-columns: 1fr; gap: 16px; }
-          .admin-card { padding: 20px; }
-          .card-header h2 { font-size: 20px; }
-          .page-header h1 { font-size: 24px; }
-          .form-group { flex-wrap: wrap; }
-          .form-group .t-input { min-width: 0; }
-          .add-form { padding: 12px; }
-          .t-select { max-width: 110px; }
+          .admin-card { padding: 16px; border-radius: 16px; }
+          .card-header h2 { font-size: 18px; }
+          .page-header h1 { font-size: 22px; }
+          .form-group {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 8px;
+            width: 100%;
+          }
+          .form-group .t-input {
+            grid-column: span 2;
+            width: 100%;
+            min-width: 0;
+          }
+          .form-group .t-select {
+            width: 100%;
+            max-width: none;
+          }
+          .form-group .color-picker {
+            width: 100%;
+            height: 38px;
+          }
+          .form-group .add-btn {
+            grid-column: span 2;
+            width: 100%;
+            justify-content: center;
+            height: 40px;
+          }
+          .add-form { padding: 12px; border-radius: 14px; }
+          .t-item {
+            padding: 10px 12px;
+            border-radius: 10px;
+          }
           .t-name { font-size: 13px; }
           .t-badge { display: none; }
+          .inline-edit {
+            flex-wrap: wrap;
+            width: 100%;
+          }
+          .edit-input {
+            flex: 1;
+            min-width: 120px;
+          }
         }
       `}</style>
     </div>

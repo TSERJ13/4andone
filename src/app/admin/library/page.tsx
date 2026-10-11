@@ -786,6 +786,54 @@ const AdminLibrary = () => {
           .search-bar { width: 100%; }
         }
 
+        @media (max-width: 640px) {
+          .admin-library {
+            padding-bottom: 80px;
+          }
+          .library-header-row {
+            flex-direction: column;
+            gap: 10px;
+          }
+          .library-header-row > div:last-child {
+            width: 100%;
+            display: grid !important;
+            grid-template-columns: 1fr 1fr;
+            gap: 8px;
+          }
+          .library-header-row > div:last-child a,
+          .library-header-row > div:last-child button {
+            width: 100%;
+            justify-content: center;
+            height: 42px;
+          }
+          .breadcrumb-nav {
+            overflow-x: auto;
+            -webkit-overflow-scrolling: touch;
+            padding: 6px 12px;
+            white-space: nowrap;
+          }
+          .filter-group {
+            flex-direction: column;
+            align-items: flex-start;
+            gap: 6px;
+          }
+          .filter-group label {
+            min-width: 0;
+          }
+          .filter-scroll {
+            width: 100%;
+          }
+          .bulk-bar {
+            flex-direction: column;
+            align-items: flex-start;
+            gap: 10px;
+            padding: 12px;
+          }
+          .bulk-actions {
+            width: 100%;
+          }
+        }
+
         .animate-in { animation: animate-in 0.4s cubic-bezier(0.4, 0, 0.2, 1); }
         @keyframes animate-in { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
       `}</style>

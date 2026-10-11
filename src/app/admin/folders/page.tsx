@@ -251,6 +251,32 @@ export default function AdminFolders() {
         .text-primary { color: #1db954; }
         .text-secondary { color: #a1a1aa; }
 
+        @media (max-width: 640px) {
+          .admin-folders { gap: 20px; padding-bottom: 80px; }
+          .folders-grid {
+            grid-template-columns: 1fr;
+            gap: 12px;
+          }
+          .folder-card, .add-folder-card {
+            padding: 20px;
+            border-radius: 16px;
+            gap: 16px;
+          }
+          .folder-info h3 { font-size: 17px; }
+          .folder-contents { padding: 16px; border-radius: 16px; }
+          .contents-header { margin-bottom: 16px; }
+          .detail-header { gap: 14px; margin-bottom: 18px; }
+          .folder-title-info { gap: 12px; }
+          .folder-title-info h2 { font-size: 22px; }
+          .tree-preview { padding: 16px; border-radius: 16px; }
+          .track-item {
+            padding: 10px 12px;
+            grid-template-columns: 32px 1fr 32px;
+            gap: 10px;
+          }
+          .t-duration { display: none; }
+        }
+
         .animate-in { animation: animateIn 0.5s cubic-bezier(0.4, 0, 0.2, 1); }
         @keyframes animateIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
       `}</style>

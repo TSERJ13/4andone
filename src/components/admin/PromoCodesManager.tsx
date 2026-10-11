@@ -203,8 +203,8 @@ export default function PromoCodesManager() {
         </div>
       </div>
 
-      {/* Table */}
-      <div className="pm-table-wrap">
+      {/* Table (Desktop) */}
+      <div className="pm-table-wrap desktop-only-table">
         <table className="pm-table">
           <thead>
             <tr>
@@ -279,6 +279,62 @@ export default function PromoCodesManager() {
             )}
           </tbody>
         </table>
+      </div>
+
+      {/* Mobile Cards View */}
+      <div className="pm-cards-mobile">
+        {loading ? (
+          <div className="center-cell">იტვირთება პრომო კოდები...</div>
+        ) : promos.length === 0 ? (
+          <div className="center-cell">პრომო კოდები არ მოიძებნა. შექმენით ახალი!</div>
+        ) : (
+          promos.map(p => (
+            <div key={p.code} className={`pm-mobile-card glass ${!p.active ? 'is-disabled' : ''}`}>
+              <div className="pm-card-top">
+                <div className="code-badge">
+                  <Tag size={13} />
+                  <strong>{p.code}</strong>
+                </div>
+                <span className={`status-pill ${p.active ? 'active' : 'inactive'}`}>
+                  {p.active ? <Check size={12} /> : <X size={12} />}
+                  {p.active ? 'აქტიური' : 'გამორთული'}
+                </span>
+              </div>
+              <div className="pm-card-name">{p.name}</div>
+              <div className="pm-card-meta">
+                <span className="days-chip">
+                  <Calendar size={13} />
+                  +{p.days} დღე
+                </span>
+                <span className="used-info">
+                  გამოყენებულია: <strong>{p.usedCount || 0}</strong>
+                  {p.maxUses ? <span className="max-uses"> / {p.maxUses}</span> : <span className="unlimited"> (ულიმიტო)</span>}
+                </span>
+              </div>
+              <div className="pm-card-actions">
+                <button
+                  type="button"
+                  className={`pm-btn toggle ${p.active ? 'deact' : 'act'}`}
+                  disabled={actionLoading === p.code}
+                  onClick={() => togglePromo(p)}
+                >
+                  <Power size={13} />
+                  <span>{p.active ? 'გამორთვა' : 'ჩართვა'}</span>
+                </button>
+                <button
+                  type="button"
+                  className="pm-btn del"
+                  disabled={actionLoading === p.code}
+                  onClick={() => deletePromo(p)}
+                  title="წაშლა"
+                >
+                  <Trash2 size={13} />
+                  <span>წაშლა</span>
+                </button>
+              </div>
+            </div>
+          ))
+        )}
       </div>
 
       {/* Create Modal */}
@@ -813,7 +869,57 @@ export default function PromoCodesManager() {
           border: 1px solid rgba(239, 68, 68, 0.5);
         }
 
+        .pm-cards-mobile {
+          display: none;
+        }
+
         @media (max-width: 640px) {
+          .desktop-only-table {
+            display: none !important;
+          }
+          .pm-cards-mobile {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+          }
+          .pm-mobile-card {
+            padding: 14px;
+            border-radius: 14px;
+            background: rgba(255, 255, 255, 0.03);
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+          }
+          .pm-card-top {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+          }
+          .pm-card-name {
+            font-size: 14px;
+            font-weight: 700;
+            color: #ffffff;
+          }
+          .pm-card-meta {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 8px;
+            flex-wrap: wrap;
+            font-size: 12px;
+          }
+          .pm-card-actions {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 8px;
+            padding-top: 6px;
+            border-top: 1px solid rgba(255, 255, 255, 0.06);
+          }
+          .pm-card-actions .pm-btn {
+            justify-content: center;
+            height: 38px;
+          }
           .promo-manager {
             padding: 16px;
             border-radius: 16px;

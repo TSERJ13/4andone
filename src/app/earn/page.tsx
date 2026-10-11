@@ -21,11 +21,73 @@ const fmtDate = (iso?: string | null) =>
   iso ? new Date(iso).toLocaleDateString(undefined, { day: 'numeric', month: 'short', year: 'numeric' }) : '';
 
 export default function EarnPremiumPage() {
-  const { user, isAuthenticated, sessionVersion } = useAuth();
+  const { user, isAuthenticated, sessionVersion, refreshPremium } = useAuth();
   const [data, setData] = useState<EarnData | null>(null);
   const [state, setState] = useState<'loading' | 'ready' | 'unavailable'>('loading');
   const [copied, setCopied] = useState(false);
   const [reloadKey, setReloadKey] = useState(0);
+
+  // Promo code states
+  const [promoInput, setPromoInput] = useState('');
+  const [promoLoading, setPromoLoading] = useState(false);
+  const [promoError, setPromoError] = useState<string | null>(null);
+  const [promoSuccess, setPromoSuccess] = useState<string | null>(null);
+  const [activePromoInfo, setActivePromoInfo] = useState<{ code: string; until: string | null } | null>(null);
+
+  // Check if current user has an active promo
+  useEffect(() => {
+    if (!user?.id) return;
+    fetch(`/api/user/premium?tid=${encodeURIComponent(String(user.id))}`, { cache: 'no-store' })
+      .then(r => r.json())
+      .then(d => {
+        if (d?.active && typeof d.subscriptionId === 'string' && d.subscriptionId.startsWith('PROMO_')) {
+          const parts = d.subscriptionId.split('_');
+          const codeName = parts[1] || 'PROMO';
+          setActivePromoInfo({ code: codeName, until: d.premiumUntil || null });
+        } else {
+          setActivePromoInfo(null);
+        }
+      })
+      .catch(() => {});
+  }, [user?.id, sessionVersion, reloadKey]);
+
+  const handleClaimPromo = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!user?.id || !promoInput.trim() || promoLoading) return;
+    setPromoLoading(true);
+    setPromoError(null);
+    setPromoSuccess(null);
+
+    try {
+      const res = await sessionFetch('/api/referral/claim', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ tid: user.id, code: promoInput.trim() })
+      });
+      const resData = await res.json().catch(() => null);
+
+      if (res.ok && resData?.ok) {
+        setPromoSuccess(`გილოცავთ! პრომო კოდი ${promoInput.trim().toUpperCase()} წარმატებით გააქტიურდა (+${resData.days} დღე Premium).`);
+        setPromoInput('');
+        if (resData.premiumUntil) {
+          setActivePromoInfo({ code: promoInput.trim().toUpperCase(), until: resData.premiumUntil });
+        }
+        await refreshPremium();
+        setReloadKey(k => k + 1);
+      } else {
+        const msg = resData?.message || (resData?.reason === 'already_has_promo'
+          ? 'თქვენ უკვე გაქვთ აქტიური პრომო კოდი! ერთდროულად 2 პრომო აქციით სარგებლობა არ შეიძლება.'
+          : resData?.reason === 'already_used'
+          ? 'ეს პრომო კოდი უკვე გამოყენებულია ამ ანგარიშზე.'
+          : 'პრომო კოდი არასწორია ან ვადაგასულია.');
+        setPromoError(msg);
+      }
+    } catch {
+      setPromoError('დაფიქსირდა შეცდომა კოდის შემოწმებისას.');
+    } finally {
+      setPromoLoading(false);
+    }
+  };
 
   // Restore cached invite data immediately for 0-latency display
   useEffect(() => {
@@ -193,13 +255,58 @@ export default function EarnPremiumPage() {
             )}
           </div>
 
+          <div className="earn-card promo-card">
+            <div className="card-title">
+              <Gift size={16} /> Have a Promo Code?
+            </div>
+            <p className="muted">Enter an official partner or event promo code to unlock free Premium access.</p>
+            {promoSuccess ? (
+              <div className="promo-status-box success">
+                <Check size={18} />
+                <span>{promoSuccess}</span>
+              </div>
+            ) : null}
+            {promoError ? (
+              <div className="promo-status-box error">
+                <span>{promoError}</span>
+              </div>
+            ) : null}
+            {activePromoInfo ? (
+              <div className="active-promo-banner">
+                <Crown size={16} className="active-crown" />
+                <span>Active Promo: <strong>{activePromoInfo.code}</strong> (Valid until {fmtDate(activePromoInfo.until)})</span>
+              </div>
+            ) : (
+              <form onSubmit={handleClaimPromo} className="link-row promo-row">
+                <input
+                  type="text"
+                  className="link-input uppercase-input"
+                  placeholder="e.g. FREE30, DANCE2026..."
+                  value={promoInput}
+                  onChange={(e) => {
+                    setPromoInput(e.target.value.toUpperCase());
+                    setPromoError(null);
+                  }}
+                  disabled={promoLoading}
+                />
+                <button
+                  type="submit"
+                  className="btn primary"
+                  disabled={promoLoading || !promoInput.trim()}
+                >
+                  {promoLoading ? 'Checking...' : 'Activate'}
+                </button>
+              </form>
+            )}
+          </div>
+
           <div className="earn-card rules">
             <div className="card-title">How it works</div>
             <ol>
               <li>Send your link to a friend.</li>
               <li>They open it and sign in with Telegram — Premium turns on for them right away for 1 month.</li>
               <li>You get 1 month of Premium for your first friend. Invite as many friends as you like — each of them gets their free month.</li>
-              <li>The offer is for new listeners, and each person can receive it once.</li>
+              <li>Promo codes grant free trial access and can be used once per dancer. Only 1 active promo can run at a time.</li>
             </ol>
           </div>
         </>
@@ -267,6 +374,20 @@ const styles = `
   .friend-handle { color: #8a8a8a; font-weight: 400; }
   .friend-date { color: #8a8a8a; font-size: 13px; flex-shrink: 0; }
   .rules ol { margin: 0; padding-left: 20px; color: #bdbdbd; font-size: 14px; line-height: 1.6; }
+  .uppercase-input { text-transform: uppercase; font-family: monospace; font-weight: 700; letter-spacing: 1px; }
+  .promo-row { margin-top: 14px; }
+  .promo-status-box {
+    margin-top: 12px; padding: 12px 14px; border-radius: 12px; font-size: 13.5px;
+    display: flex; align-items: center; gap: 8px; line-height: 1.45;
+  }
+  .promo-status-box.success { background: rgba(16,185,129,0.12); color: #34d399; border: 1px solid rgba(16,185,129,0.3); }
+  .promo-status-box.error { background: rgba(239,68,68,0.12); color: #f87171; border: 1px solid rgba(239,68,68,0.3); }
+  .active-promo-banner {
+    margin-top: 12px; padding: 12px 14px; border-radius: 12px;
+    background: rgba(245,158,11,0.12); border: 1px solid rgba(245,158,11,0.3);
+    color: #fbbf24; font-size: 14px; display: flex; align-items: center; gap: 8px;
+  }
+  .active-crown { color: #f59e0b; flex-shrink: 0; }
   @media (max-width: 640px) {
     .earn-page { padding: 16px 16px 140px; }
     .earn-hero h1 { font-size: 22px; }

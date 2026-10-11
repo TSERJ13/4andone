@@ -17,6 +17,7 @@ export async function POST(req: NextRequest) {
       telegramId, 
       telegramIds, 
       buttons, // Array of { text: string, url: string }
+      photoUrl, // Direct public image URL (no local storage used!)
       botToken: customToken 
     } = body;
 
@@ -128,21 +129,42 @@ export async function POST(req: NextRequest) {
             .replace(/\{username\}/gi, 'Dancer');
         }
 
-        const payload: Record<string, any> = {
-          chat_id: chatId,
-          text: personalizedText,
-          parse_mode: 'HTML',
-          disable_web_page_preview: false,
-        };
-        if (replyMarkup) {
-          payload.reply_markup = replyMarkup;
-        }
+        const cleanPhotoUrl = typeof photoUrl === 'string' && photoUrl.trim() ? photoUrl.trim() : null;
+        let res: Response;
 
-        const res = await fetch(`https://api.telegram.org/bot${token}/sendMessage`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(payload),
-        });
+        if (cleanPhotoUrl) {
+          const payload: Record<string, any> = {
+            chat_id: chatId,
+            photo: cleanPhotoUrl,
+            caption: personalizedText,
+            parse_mode: 'HTML',
+          };
+          if (replyMarkup) {
+            payload.reply_markup = replyMarkup;
+          }
+
+          res = await fetch(`https://api.telegram.org/bot${token}/sendPhoto`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload),
+          });
+        } else {
+          const payload: Record<string, any> = {
+            chat_id: chatId,
+            text: personalizedText,
+            parse_mode: 'HTML',
+            disable_web_page_preview: false,
+          };
+          if (replyMarkup) {
+            payload.reply_markup = replyMarkup;
+          }
+
+          res = await fetch(`https://api.telegram.org/bot${token}/sendMessage`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload),
+          });
+        }
 
         const data = await res.json();
         if (data.ok) {

@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect, useCallback, useMemo } from 'react';
+import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { supabase } from '@/utils/supabase';
 import { adminDb } from '@/lib/admin-db';
 import { 
@@ -9,7 +9,7 @@ import {
   Filter, Send, Users, Sparkles, ExternalLink, ShieldCheck, 
   Bot, AlertCircle, Plus, Eye, EyeOff, Bold, Italic, Link2, Code, 
   BellRing, Award, CheckSquare, Square, Megaphone, Crown, UserCheck, UserX,
-  Smile, X
+  Smile, X, Image as ImageIcon
 } from 'lucide-react';
 import ConfirmModal from '@/components/admin/ConfirmModal';
 
@@ -92,6 +92,9 @@ export default function AdminMessagesPage() {
   const [sidebarFilter, setSidebarFilter] = useState<'all' | 'free' | 'premium'>('all');
   const [sidebarSearch, setSidebarSearch] = useState('');
   const [tgMessageText, setTgMessageText] = useState('');
+  const [tgPhotoUrl, setTgPhotoUrl] = useState('');
+  const [showPhotoInput, setShowPhotoInput] = useState(false);
+  const textareaRef = useRef<HTMLTextAreaElement | null>(null);
   const [botToken, setBotToken] = useState('');
   const [showToken, setShowToken] = useState(false);
   const [isEditingToken, setIsEditingToken] = useState(false);
@@ -311,6 +314,7 @@ export default function AdminMessagesPage() {
       const payload: Record<string, any> = {
         message: tgMessageText.trim(),
         target: sendTarget,
+        photoUrl: tgPhotoUrl.trim() || undefined,
         botToken: botToken.trim() || undefined,
         buttons: buttons.filter(b => b.text.trim() && b.url.trim()),
       };
@@ -375,18 +379,41 @@ export default function AdminMessagesPage() {
     setButtons(prev => prev.filter((_, i) => i !== index));
   };
 
+  // Cursor-aware text insertion helper
+  const insertTextAtCursor = (textToInsert: string) => {
+    const el = textareaRef.current;
+    if (!el) {
+      setTgMessageText(prev => prev + textToInsert);
+      return;
+    }
+
+    const start = el.selectionStart ?? el.value.length;
+    const end = el.selectionEnd ?? el.value.length;
+    const val = el.value;
+
+    const nextVal = val.slice(0, start) + textToInsert + val.slice(end);
+    setTgMessageText(nextVal);
+
+    // Restore focus and cursor position right after inserted text
+    setTimeout(() => {
+      el.focus();
+      const newPos = start + textToInsert.length;
+      el.setSelectionRange(newPos, newPos);
+    }, 10);
+  };
+
   // Formatting helpers
   const insertFormat = (tag: 'b' | 'i' | 'a' | 'code' | 'emoji', extra?: string) => {
     if (tag === 'b') {
-      setTgMessageText(prev => prev + ' <b>bold text</b> ');
+      insertTextAtCursor('<b>bold text</b>');
     } else if (tag === 'i') {
-      setTgMessageText(prev => prev + ' <i>italic text</i> ');
+      insertTextAtCursor('<i>italic text</i>');
     } else if (tag === 'code') {
-      setTgMessageText(prev => prev + ' <code>code</code> ');
+      insertTextAtCursor('<code>code</code>');
     } else if (tag === 'a') {
-      setTgMessageText(prev => prev + ' <a href="https://4and.one">link text</a> ');
+      insertTextAtCursor('<a href="https://4and.one">link text</a>');
     } else if (tag === 'emoji' && extra) {
-      setTgMessageText(prev => prev + extra);
+      insertTextAtCursor(extra);
     }
   };
 
@@ -1132,6 +1159,15 @@ export default function AdminMessagesPage() {
                     <button type="button" className="tool-btn" onClick={() => insertFormat('code')} title="Monospace">
                       <Code size={13} />
                     </button>
+                    <button 
+                      type="button" 
+                      className={`tool-btn ${showPhotoInput || tgPhotoUrl ? 'active' : ''}`} 
+                      onClick={() => setShowPhotoInput(!showPhotoInput)} 
+                      title="ფოტოს ჩასმა (URL-ით, სერვერის დაუტვირთავად)"
+                      style={{ color: tgPhotoUrl ? '#38bdf8' : undefined }}
+                    >
+                      <ImageIcon size={14} />
+                    </button>
                     <div className="tool-divider" />
                     <button
                       type="button"
@@ -1194,13 +1230,56 @@ export default function AdminMessagesPage() {
                   </div>
                 )}
 
+                {/* Photo URL Input Drawer (Zero Memory, External Direct Link) */}
+                {(showPhotoInput || tgPhotoUrl) && (
+                  <div className="photo-input-drawer glass animate-in" style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '10px',
+                    padding: '8px 12px',
+                    background: 'rgba(56, 189, 248, 0.06)',
+                    border: '1px solid rgba(56, 189, 248, 0.25)',
+                    borderRadius: '10px',
+                    marginBottom: '8px'
+                  }}>
+                    <ImageIcon size={16} color="#38bdf8" />
+                    <input
+                      type="url"
+                      placeholder="ჩასვით ფოტოს პირდაპირი ლინკი (URL, მაგ: https://images.unsplash.com/... ან https://...)"
+                      value={tgPhotoUrl}
+                      onChange={(e) => setTgPhotoUrl(e.target.value)}
+                      className="input-field-sm"
+                      style={{ flex: 1, height: '34px' }}
+                    />
+                    {tgPhotoUrl && (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setTgPhotoUrl('');
+                          setShowPhotoInput(false);
+                        }}
+                        style={{
+                          background: 'none',
+                          border: 'none',
+                          color: '#f87171',
+                          cursor: 'pointer',
+                          fontSize: '11px',
+                          fontWeight: 700
+                        }}
+                      >
+                        ✕ გასუფთავება
+                      </button>
+                    )}
+                  </div>
+                )}
+
                 {/* Personalization variable tags */}
                 <div className="personalize-tags-row">
                   <span className="personalize-label">სახელის ჩასმა (Personalize):</span>
                   <button
                     type="button"
                     className="personalize-tag-btn"
-                    onClick={() => setTgMessageText(prev => prev + '{first_name}')}
+                    onClick={() => insertTextAtCursor('{first_name}')}
                     title="მომხმარებლის სახელი (მაგ. Giorgi)"
                   >
                     + &#123;first_name&#125;
@@ -1208,7 +1287,7 @@ export default function AdminMessagesPage() {
                   <button
                     type="button"
                     className="personalize-tag-btn"
-                    onClick={() => setTgMessageText(prev => prev + '{name}')}
+                    onClick={() => insertTextAtCursor('{name}')}
                     title="სრული სახელი და გვარი (მაგ. Giorgi Beridze)"
                   >
                     + &#123;name&#125;
@@ -1216,7 +1295,7 @@ export default function AdminMessagesPage() {
                   <button
                     type="button"
                     className="personalize-tag-btn"
-                    onClick={() => setTgMessageText(prev => prev + '{username}')}
+                    onClick={() => insertTextAtCursor('{username}')}
                     title="ტელეგრამის @username"
                   >
                     + &#123;username&#125;
@@ -1226,7 +1305,7 @@ export default function AdminMessagesPage() {
                     type="button"
                     className="personalize-tag-btn"
                     onClick={() => {
-                      setTgMessageText(prev => prev + ' @fourandonemusic ');
+                      insertTextAtCursor('@fourandonemusic');
                       // If channel button isn't already added, add it
                       setButtons(prev => {
                         if (prev.some(b => b.url.includes('fourandonemusic'))) return prev;
@@ -1241,6 +1320,7 @@ export default function AdminMessagesPage() {
                 </div>
 
                 <textarea
+                  ref={textareaRef}
                   value={tgMessageText}
                   onChange={(e) => setTgMessageText(e.target.value)}
                   rows={6}
@@ -1366,6 +1446,18 @@ export default function AdminMessagesPage() {
                       <span className="tg-bot-name">4and.one Music Bot</span>
                       <span className="tg-bot-badge">bot</span>
                     </div>
+
+                    {tgPhotoUrl.trim() && (
+                      <div style={{ margin: '6px -12px 10px', maxHeight: '180px', overflow: 'hidden', background: '#000' }}>
+                        {/* eslint-disable-next-line @next/next/no-img-element */}
+                        <img 
+                          src={tgPhotoUrl.trim()} 
+                          alt="Attached media" 
+                          style={{ width: '100%', height: 'auto', display: 'block', objectFit: 'cover' }}
+                          onError={(e) => { (e.currentTarget as HTMLElement).style.display = 'none'; }}
+                        />
+                      </div>
+                    )}
 
                     <div 
                       className="tg-bubble-body"

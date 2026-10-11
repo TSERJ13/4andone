@@ -9,6 +9,7 @@ import { UserBadge } from '@/components/auth/UserBadge';
 import { useStudio } from '@/components/admin/StudioProvider';
 import { useAudioControls } from '@/components/audio/AudioProvider';
 import { getTrackCover } from '@/utils/trackCover';
+import { getTrackRelevanceScore } from '@/utils/search';
 
 export const HEADER_SEARCH_EVENT = 'yt-header-search';
 
@@ -108,32 +109,41 @@ export default function YtHeader({ onToggleSidebar, onSearch, searchQuery = '' }
 
   const matchingTracks = useMemo(() => {
     if (!qClean) return [];
-    return tracks.filter(t => {
-      if (t.style?.toLowerCase() === 'fitness') return false;
-      if (t.tags?.some(tag => tag.toLowerCase() === 'closed' || tag === 'დახურული')) return false;
+    const scored = tracks
+      .filter(t => {
+        if (t.style?.toLowerCase() === 'fitness') return false;
+        if (t.tags?.some(tag => tag.toLowerCase() === 'closed' || tag === 'დახურული')) return false;
+        return true;
+      })
+      .map(t => ({ track: t, score: getTrackRelevanceScore(t, qClean) }))
+      .filter(item => item.score > 0)
+      .sort((a, b) => b.score - a.score);
 
-      const title = t.title.toLowerCase();
-      const artist = (t.artist || '').toLowerCase();
-      const style = (t.style || '').toLowerCase();
-      const album = (t.album || '').toLowerCase();
-
-      return title.includes(qClean) || artist.includes(qClean) || style.includes(qClean) || album.includes(qClean);
-    }).slice(0, 5);
+    return scored.slice(0, 6).map(item => item.track);
   }, [tracks, qClean]);
 
   const matchingStyles = useMemo(() => {
     if (!qClean) return [];
-    return styles.filter(s => {
-      if (s.title.toLowerCase() === 'fitness') return false;
-      return s.title.toLowerCase().includes(qClean);
-    }).slice(0, 3);
+    return styles
+      .filter(s => s.title.toLowerCase() !== 'fitness' && s.title.toLowerCase().includes(qClean))
+      .sort((a, b) => {
+        const aStart = a.title.toLowerCase().startsWith(qClean) ? 1 : 0;
+        const bStart = b.title.toLowerCase().startsWith(qClean) ? 1 : 0;
+        return bStart - aStart;
+      })
+      .slice(0, 3);
   }, [styles, qClean]);
 
   const matchingAlbums = useMemo(() => {
     if (!qClean) return [];
-    return albums.filter(a => {
-      return a.title.toLowerCase().includes(qClean) || (a.artist && a.artist.toLowerCase().includes(qClean));
-    }).slice(0, 3);
+    return albums
+      .filter(a => a.title.toLowerCase().includes(qClean) || (a.artist && a.artist.toLowerCase().includes(qClean)))
+      .sort((a, b) => {
+        const aScore = a.title.toLowerCase().startsWith(qClean) ? 2 : (a.artist && a.artist.toLowerCase().startsWith(qClean) ? 1 : 0);
+        const bScore = b.title.toLowerCase().startsWith(qClean) ? 2 : (b.artist && b.artist.toLowerCase().startsWith(qClean) ? 1 : 0);
+        return bScore - aScore;
+      })
+      .slice(0, 3);
   }, [albums, qClean]);
 
   const hasAnyResults = matchingTracks.length > 0 || matchingStyles.length > 0 || matchingAlbums.length > 0;

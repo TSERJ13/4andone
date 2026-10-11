@@ -21,6 +21,7 @@ import Link from 'next/link';
 import ConfirmModal from '@/components/admin/ConfirmModal';
 import { TrackRow } from '@/components/tracks/TrackRow';
 import { ListAd, useListAdAnchor } from '@/components/ads/ListAd';
+import { getTrackRelevanceScore } from '@/utils/search';
 
 const FILTER_CHIPS = ['All', 'Songs', 'Styles', 'Albums'];
 const SORT_OPTIONS = [
@@ -169,22 +170,44 @@ const SearchPage = () => {
     return matchesQuery && matchesStyle && !isHidden;
   });
 
-  if (sortBy === 'alphabetical') {
+  const qTrim = query.toLowerCase().trim();
+
+  if (sortBy === 'relevance' && qTrim) {
+    searchResultsTracks.sort((a, b) => {
+      const scoreA = getTrackRelevanceScore(a, qTrim);
+      const scoreB = getTrackRelevanceScore(b, qTrim);
+      return scoreB - scoreA;
+    });
+  } else if (sortBy === 'alphabetical') {
     searchResultsTracks.sort((a, b) => a.title.localeCompare(b.title));
   } else if (sortBy === 'newest') {
     searchResultsTracks = [...searchResultsTracks].reverse();
   }
 
-  const matchingStyles = stylesWithTracks.filter(s =>
-    (selectedStyleFilter === 'all' || s.title.toLowerCase() === selectedStyleFilter.toLowerCase()) &&
-    (!query || s.title.toLowerCase().includes(query.toLowerCase().trim()))
-  );
+  const matchingStyles = stylesWithTracks
+    .filter(s =>
+      (selectedStyleFilter === 'all' || s.title.toLowerCase() === selectedStyleFilter.toLowerCase()) &&
+      (!qTrim || s.title.toLowerCase().includes(qTrim))
+    )
+    .sort((a, b) => {
+      if (!qTrim) return 0;
+      const aStart = a.title.toLowerCase().startsWith(qTrim) ? 1 : 0;
+      const bStart = b.title.toLowerCase().startsWith(qTrim) ? 1 : 0;
+      return bStart - aStart;
+    });
 
-  const matchingAlbums = albums.filter(a =>
-    !query ||
-    a.title.toLowerCase().includes(query.toLowerCase().trim()) ||
-    (a.artist && a.artist.toLowerCase().includes(query.toLowerCase().trim()))
-  );
+  const matchingAlbums = albums
+    .filter(a =>
+      !qTrim ||
+      a.title.toLowerCase().includes(qTrim) ||
+      (a.artist && a.artist.toLowerCase().includes(qTrim))
+    )
+    .sort((a, b) => {
+      if (!qTrim) return 0;
+      const aScore = a.title.toLowerCase().startsWith(qTrim) ? 2 : (a.artist && a.artist.toLowerCase().startsWith(qTrim) ? 1 : 0);
+      const bScore = b.title.toLowerCase().startsWith(qTrim) ? 2 : (b.artist && b.artist.toLowerCase().startsWith(qTrim) ? 1 : 0);
+      return bScore - aScore;
+    });
 
   return (
     <div className="yt-native-search-page animate-in">

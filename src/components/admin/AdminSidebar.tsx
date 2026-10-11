@@ -15,7 +15,8 @@ import {
   ChevronRight,
   Users,
   Mail,
-  Coins
+  Coins,
+  Gift
 } from 'lucide-react';
 import { useStudio } from './StudioProvider';
 import { useRouter } from 'next/navigation';
@@ -83,6 +84,7 @@ const AdminSidebar = ({ isCollapsed, onToggle }: { isCollapsed: boolean, onToggl
     { icon: <Disc size={24} />, label: 'Album Builder', href: '/admin/albums' },
     { icon: <Folders size={24} />, label: 'Dance Styles', href: '/admin/taxonomy' },
     { icon: <Users size={24} />, label: 'Users', href: '/admin/users' },
+    { icon: <Gift size={24} />, label: 'Affiliates', href: '/admin/affiliates' },
     { 
       icon: <Mail size={24} />, 
       label: 'Messages', 

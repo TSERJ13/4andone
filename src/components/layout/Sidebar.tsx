@@ -13,7 +13,9 @@ import {
   Music2,
   Zap,
   Info,
-  Smartphone
+  Smartphone,
+  Send,
+  ExternalLink
 } from 'lucide-react';
 import { useStudio } from "@/components/admin/StudioProvider";
 import { useAuth } from '@/context/AuthContext';
@@ -77,6 +79,17 @@ const Sidebar = () => {
           <div className="icon-box"><Smartphone size={24} className="text-purple-400" /></div>
           <span>Install App</span>
         </button>
+        <a
+          href="https://t.me/fourandoneauthbot?start=website"
+          target="_blank"
+          rel="noopener noreferrer"
+          className="nav-item no-bg"
+          style={{ textDecoration: 'none' }}
+          title="Connect with Telegram Bot for instant releases and gifts"
+        >
+          <div className="icon-box"><Send size={24} className="text-sky-400" /></div>
+          <span>Telegram Bot</span>
+        </a>
       </nav>
 
       <nav className="nav-group" style={{ marginTop: '32px' }}>

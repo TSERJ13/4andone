@@ -89,7 +89,7 @@ export default function AdminMessagesPage() {
   const [sendTarget, setSendTarget] = useState<'broadcast' | 'free' | 'premium' | 'expiring' | 'selected' | 'channel'>('broadcast');
   const [selectedUserIds, setSelectedUserIds] = useState<number[]>([]);
   const [channelUsername, setChannelUsername] = useState('@fourandonemusic');
-  const [sidebarFilter, setSidebarFilter] = useState<'all' | 'free' | 'premium'>('all');
+  const [sidebarFilter, setSidebarFilter] = useState<'all' | 'free' | 'premium' | 'activeBot'>('all');
   const [sidebarSearch, setSidebarSearch] = useState('');
   const [tgMessageText, setTgMessageText] = useState('');
   const [tgPhotoUrl, setTgPhotoUrl] = useState('');
@@ -164,8 +164,12 @@ export default function AdminMessagesPage() {
     total: number;
     sentCount: number;
     failedCount: number;
+    deliveredIds?: (number | string)[];
+    failedIds?: (number | string)[];
     errors?: { id: number | string; reason: string }[];
   } | null>(null);
+  const [knownActiveBotIds, setKnownActiveBotIds] = useState<number[]>([]);
+  const [knownInactiveBotIds, setKnownInactiveBotIds] = useState<number[]>([]);
 
   const fetchMessages = useCallback(async () => {
     setLoading(true);
@@ -277,6 +281,9 @@ export default function AdminMessagesPage() {
     let list = tgUsers;
     if (sidebarFilter === 'free') list = freeUsers;
     else if (sidebarFilter === 'premium') list = premiumUsers;
+    else if ((sidebarFilter as string) === 'activeBot') {
+      list = tgUsers.filter(u => knownActiveBotIds.includes(u.telegram_id));
+    }
 
     if (!sidebarSearch.trim()) return list;
     const q = sidebarSearch.toLowerCase();
@@ -286,7 +293,7 @@ export default function AdminMessagesPage() {
       u.username?.toLowerCase().includes(q) ||
       String(u.telegram_id).includes(q)
     );
-  }, [tgUsers, freeUsers, premiumUsers, sidebarFilter, sidebarSearch]);
+  }, [tgUsers, freeUsers, premiumUsers, sidebarFilter, sidebarSearch, knownActiveBotIds]);
 
   const toggleUserSelection = (userId: number) => {
     setSelectedUserIds(prev => {
@@ -402,8 +409,17 @@ export default function AdminMessagesPage() {
         total: data.total,
         sentCount: data.sentCount,
         failedCount: data.failedCount,
+        deliveredIds: data.deliveredIds,
+        failedIds: data.failedIds,
         errors: data.errors,
       });
+
+      if (Array.isArray(data.deliveredIds)) {
+        setKnownActiveBotIds(prev => Array.from(new Set([...prev, ...data.deliveredIds.map(Number)])));
+      }
+      if (Array.isArray(data.failedIds)) {
+        setKnownInactiveBotIds(prev => Array.from(new Set([...prev, ...data.failedIds.map(Number)])));
+      }
 
       setFeedback({ 
         type: 'success', 
@@ -1646,6 +1662,15 @@ export default function AdminMessagesPage() {
                   </button>
                   <button
                     type="button"
+                    className={`sidebar-pill ${sidebarFilter === 'activeBot' ? 'active' : ''}`}
+                    onClick={() => setSidebarFilter('activeBot')}
+                    title="მომხმარებლები, ვისაც ბოტი ჩართული აქვთ"
+                    style={{ borderColor: sidebarFilter === 'activeBot' ? '#4ade80' : undefined, color: sidebarFilter === 'activeBot' ? '#4ade80' : undefined }}
+                  >
+                    ✓ Bot ({knownActiveBotIds.length > 0 ? knownActiveBotIds.length : 'Active'})
+                  </button>
+                  <button
+                    type="button"
                     className={`sidebar-pill ${sidebarFilter === 'free' ? 'active' : ''}`}
                     onClick={() => setSidebarFilter('free')}
                   >
@@ -1690,6 +1715,9 @@ export default function AdminMessagesPage() {
                   ) : (
                     filteredSidebarUsers.map(u => {
                       const isSelected = selectedUserIds.includes(u.telegram_id);
+                      const isBotVerified = knownActiveBotIds.includes(u.telegram_id);
+                      const isBotInactive = knownInactiveBotIds.includes(u.telegram_id);
+
                       return (
                         <div 
                           key={u.telegram_id} 
@@ -1705,7 +1733,19 @@ export default function AdminMessagesPage() {
                             {u.first_name?.charAt(0) || 'U'}
                           </div>
                           <div style={{ flex: 1, minWidth: 0 }}>
-                            <div className="user-item-name">{u.first_name} {u.last_name || ''}</div>
+                            <div className="user-item-name" style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                              <span>{u.first_name} {u.last_name || ''}</span>
+                              {isBotVerified && (
+                                <span title="ბოტი გააქტიურებულია" style={{ color: '#4ade80', fontSize: '11px', display: 'inline-flex' }}>
+                                  ✓
+                                </span>
+                              )}
+                              {isBotInactive && (
+                                <span title="ბოტი არ აქვს გაშვებული (/start)" style={{ color: '#f87171', fontSize: '10px' }}>
+                                  ✕
+                                </span>
+                              )}
+                            </div>
                             <div className="user-item-sub">
                               {u.username ? `@${u.username}` : `ID: ${u.telegram_id}`}
                             </div>

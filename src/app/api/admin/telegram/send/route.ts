@@ -106,6 +106,9 @@ export async function POST(req: NextRequest) {
     let failedCount = 0;
     const errors: { id: number | string; reason: string }[] = [];
 
+    const deliveredIds: (number | string)[] = [];
+    const failedIds: (number | string)[] = [];
+
     for (const chatId of targetIds) {
       try {
         // Personalize message text if variables are used
@@ -244,12 +247,15 @@ export async function POST(req: NextRequest) {
         const data = await res.json();
         if (data.ok) {
           sentCount++;
+          deliveredIds.push(chatId);
         } else {
           failedCount++;
+          failedIds.push(chatId);
           errors.push({ id: chatId, reason: data.description || 'Unknown error' });
         }
       } catch (err: any) {
         failedCount++;
+        failedIds.push(chatId);
         errors.push({ id: chatId, reason: err.message || 'Network error' });
       }
 
@@ -264,7 +270,9 @@ export async function POST(req: NextRequest) {
       total: targetIds.length,
       sentCount,
       failedCount,
-      errors: errors.slice(0, 20),
+      deliveredIds,
+      failedIds,
+      errors: errors.slice(0, 30),
     });
   } catch (err: any) {
     return NextResponse.json({ error: err.message || 'Server error' }, { status: 500 });

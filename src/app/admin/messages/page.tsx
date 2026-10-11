@@ -8,7 +8,8 @@ import {
   Search, Calendar, User, Clock, CheckCircle2, AlertTriangle, 
   Filter, Send, Users, Sparkles, ExternalLink, ShieldCheck, 
   Bot, AlertCircle, Plus, Eye, EyeOff, Bold, Italic, Link2, Code, 
-  BellRing, Award, CheckSquare, Square, Megaphone, Crown, UserCheck, UserX 
+  BellRing, Award, CheckSquare, Square, Megaphone, Crown, UserCheck, UserX,
+  Smile, X
 } from 'lucide-react';
 import ConfirmModal from '@/components/admin/ConfirmModal';
 
@@ -34,6 +35,34 @@ interface InlineBtn {
   text: string;
   url: string;
 }
+
+const EMOJI_SETS: { id: 'dance' | 'faces' | 'gestures' | 'objects' | 'symbols'; label: string; emojis: string[] }[] = [
+  {
+    id: 'dance',
+    label: '🎵 Music & Dance',
+    emojis: ['🎵', '🎶', '💃', '🕺', '🎧', '📻', '🎷', '🎺', '🎹', '🥁', '🎸', '🎻', '🎤', '✨', '🔥', '⭐', '🏆', '🥇', '🥈', '🥉']
+  },
+  {
+    id: 'faces',
+    label: '😊 Faces & Mood',
+    emojis: ['😀', '😃', '😄', '😁', '🤩', '😎', '😍', '🥳', '🙌', '👏', '🤝', '💪', '🚀', '💖', '❤️', '🧡', '💛', '💚', '💙', '💜']
+  },
+  {
+    id: 'gestures',
+    label: '👉 Actions & Notice',
+    emojis: ['👉', '👈', '👆', '👇', '📢', '📣', '🔔', '⏳', '⏰', '⚡', '💡', '📌', '📍', '🎯', '✅', '❌', '⚠️', '🚨', '👀', '🎉']
+  },
+  {
+    id: 'objects',
+    label: '🎁 Promo & Gifts',
+    emojis: ['🎁', '💎', '👑', '🎟️', '🏷️', '💰', '💳', '💵', '📦', '💌', '📩', '📨', '✉️', '📱', '💻', '🌐', '🔗', '🔒', '🔑', '🏷️']
+  },
+  {
+    id: 'symbols',
+    label: '🌟 Stars & Badges',
+    emojis: ['⭐', '🌟', '💫', '✨', '💥', '💯', '🔥', '⚡', '🌈', '🍀', '💎', '🏅', '🎖️', '🎗️', '🔮', '🧿', '🪄', '☀️', '🌙', '🪐']
+  }
+];
 
 export default function AdminMessagesPage() {
   const [activeTab, setActiveTab] = useState<'incoming' | 'telegram'>('telegram');
@@ -67,6 +96,8 @@ export default function AdminMessagesPage() {
   const [showToken, setShowToken] = useState(false);
   const [isEditingToken, setIsEditingToken] = useState(false);
   const [tokenSavedFlash, setTokenSavedFlash] = useState<string | null>(null);
+  const [showEmojiPicker, setShowEmojiPicker] = useState(false);
+  const [emojiTab, setEmojiTab] = useState<'dance' | 'faces' | 'gestures' | 'objects' | 'symbols'>('dance');
   const [buttons, setButtons] = useState<InlineBtn[]>([
     { text: '🎵 Open 4and.one Player', url: 'https://4and.one' }
   ]);
@@ -1049,13 +1080,66 @@ export default function AdminMessagesPage() {
                       <Code size={13} />
                     </button>
                     <div className="tool-divider" />
-                    <button type="button" className="emoji-btn" onClick={() => insertFormat('emoji', '🎵')}>🎵</button>
-                    <button type="button" className="emoji-btn" onClick={() => insertFormat('emoji', '⭐')}>⭐</button>
-                    <button type="button" className="emoji-btn" onClick={() => insertFormat('emoji', '🏆')}>🏆</button>
-                    <button type="button" className="emoji-btn" onClick={() => insertFormat('emoji', '🎁')}>🎁</button>
-                    <button type="button" className="emoji-btn" onClick={() => insertFormat('emoji', '⏳')}>⏳</button>
+                    <button
+                      type="button"
+                      className={`tool-btn emoji-picker-toggle-btn ${showEmojiPicker ? 'active' : ''}`}
+                      onClick={() => setShowEmojiPicker(!showEmojiPicker)}
+                      title="სხვა ემოჯები (Emoji Picker)"
+                    >
+                      <Smile size={14} />
+                      <span style={{ fontSize: '11px', fontWeight: 700, marginLeft: '3px' }}>Emoji</span>
+                    </button>
+                    <div className="tool-divider" />
+                    <button type="button" className="emoji-btn" onClick={() => insertFormat('emoji', '🎵')} title="🎵">🎵</button>
+                    <button type="button" className="emoji-btn" onClick={() => insertFormat('emoji', '🔥')} title="🔥">🔥</button>
+                    <button type="button" className="emoji-btn" onClick={() => insertFormat('emoji', '⭐')} title="⭐">⭐</button>
+                    <button type="button" className="emoji-btn" onClick={() => insertFormat('emoji', '🎁')} title="🎁">🎁</button>
                   </div>
                 </div>
+
+                {/* Rich Emoji Picker Drawer */}
+                {showEmojiPicker && (
+                  <div className="emoji-picker-container glass animate-in">
+                    <div className="emoji-picker-header">
+                      <div className="emoji-tabs">
+                        {EMOJI_SETS.map(tab => (
+                          <button
+                            key={tab.id}
+                            type="button"
+                            className={`emoji-tab-btn ${emojiTab === tab.id ? 'active' : ''}`}
+                            onClick={() => setEmojiTab(tab.id)}
+                          >
+                            {tab.label}
+                          </button>
+                        ))}
+                      </div>
+                      <button
+                        type="button"
+                        className="emoji-picker-close-btn"
+                        onClick={() => setShowEmojiPicker(false)}
+                        title="დახურვა"
+                      >
+                        <X size={14} />
+                      </button>
+                    </div>
+
+                    <div className="emoji-grid">
+                      {EMOJI_SETS.find(t => t.id === emojiTab)?.emojis.map((emoji, idx) => (
+                        <button
+                          key={idx}
+                          type="button"
+                          className="emoji-grid-item"
+                          onClick={() => {
+                            insertFormat('emoji', emoji);
+                          }}
+                          title={`Insert ${emoji}`}
+                        >
+                          {emoji}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                )}
 
                 <textarea
                   value={tgMessageText}
@@ -1712,6 +1796,110 @@ export default function AdminMessagesPage() {
         }
         .emoji-btn:hover {
           background: rgba(255, 255, 255, 0.1);
+        }
+
+        .emoji-picker-toggle-btn {
+          width: auto !important;
+          padding: 0 8px !important;
+          gap: 4px;
+          background: rgba(255, 255, 255, 0.05) !important;
+          border: 1px solid rgba(255, 255, 255, 0.1) !important;
+          color: #e4e4e7 !important;
+        }
+        .emoji-picker-toggle-btn:hover,
+        .emoji-picker-toggle-btn.active {
+          background: rgba(56, 189, 248, 0.2) !important;
+          border-color: rgba(56, 189, 248, 0.4) !important;
+          color: #38bdf8 !important;
+        }
+
+        .emoji-picker-container {
+          background: rgba(20, 24, 33, 0.96);
+          border: 1px solid rgba(255, 255, 255, 0.12);
+          border-radius: 12px;
+          padding: 10px 12px;
+          margin-bottom: 8px;
+          box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.5);
+        }
+        .emoji-picker-header {
+          display: flex;
+          align-items: center;
+          justify-content: space-between;
+          gap: 8px;
+          margin-bottom: 8px;
+          padding-bottom: 8px;
+          border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+        }
+        .emoji-tabs {
+          display: flex;
+          align-items: center;
+          gap: 6px;
+          overflow-x: auto;
+          scrollbar-width: none;
+        }
+        .emoji-tabs::-webkit-scrollbar {
+          display: none;
+        }
+        .emoji-tab-btn {
+          background: rgba(255, 255, 255, 0.04);
+          border: 1px solid rgba(255, 255, 255, 0.06);
+          color: #a1a1aa;
+          padding: 4px 10px;
+          border-radius: 6px;
+          font-size: 11px;
+          font-weight: 700;
+          cursor: pointer;
+          white-space: nowrap;
+          transition: all 0.2s;
+        }
+        .emoji-tab-btn:hover {
+          color: white;
+          background: rgba(255, 255, 255, 0.08);
+        }
+        .emoji-tab-btn.active {
+          background: rgba(56, 189, 248, 0.15);
+          border-color: #38bdf8;
+          color: #38bdf8;
+        }
+        .emoji-picker-close-btn {
+          background: rgba(255, 255, 255, 0.05);
+          border: none;
+          color: #a1a1aa;
+          border-radius: 6px;
+          width: 24px;
+          height: 24px;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          cursor: pointer;
+        }
+        .emoji-picker-close-btn:hover {
+          color: white;
+          background: rgba(239, 68, 68, 0.2);
+        }
+        .emoji-grid {
+          display: grid;
+          grid-template-columns: repeat(auto-fill, minmax(32px, 1fr));
+          gap: 4px;
+          max-height: 120px;
+          overflow-y: auto;
+        }
+        .emoji-grid-item {
+          background: transparent;
+          border: 1px solid transparent;
+          border-radius: 6px;
+          font-size: 18px;
+          height: 32px;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          cursor: pointer;
+          transition: transform 0.1s, background-color 0.15s;
+        }
+        .emoji-grid-item:hover {
+          background: rgba(255, 255, 255, 0.1);
+          transform: scale(1.2);
+          border-color: rgba(255, 255, 255, 0.15);
         }
 
         /* Action Buttons Editor */

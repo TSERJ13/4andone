@@ -18,7 +18,8 @@ import {
   Trash2,
   Layers,
   Disc,
-  ChevronDown
+  ChevronDown,
+  Image as ImageIcon
 } from 'lucide-react';
 import { useStudio, Album } from './StudioProvider';
 import { 
@@ -115,6 +116,7 @@ const BulkUpload = () => {
   const [batchStyle, setBatchStyle] = useState('Samba');
   const [batchTags, setBatchTags] = useState<string[]>([]);
   const [recentArtists, setRecentArtists] = useState<string[]>([]);
+  const [isCustomArtist, setIsCustomArtist] = useState(false);
   const [batchCoverFile, setBatchCoverFile] = useState<File | null>(null);
   const [batchCoverPreview, setBatchCoverPreview] = useState<string | null>(null);
   const [isUploadingCover, setIsUploadingCover] = useState(false);
@@ -122,6 +124,30 @@ const BulkUpload = () => {
   const [showValidation, setShowValidation] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const coverInputRef = useRef<HTMLInputElement>(null);
+
+  // Computed unique list of available artists for dropdown
+  const allArtists = React.useMemo(() => {
+    const list = new Set<string>();
+    albums.forEach(a => {
+      if (a.artist && a.artist.trim()) list.add(a.artist.trim());
+    });
+    recentArtists.forEach(a => {
+      if (a && a.trim()) list.add(a.trim());
+    });
+    return Array.from(list);
+  }, [albums, recentArtists]);
+
+  const handleArtistSelectChange = (val: string) => {
+    if (val === '__custom__') {
+      setIsCustomArtist(true);
+      if (allArtists.includes(batchArtist)) {
+        setBatchArtist('');
+      }
+    } else {
+      setIsCustomArtist(false);
+      setBatchArtist(val);
+    }
+  };
   
   useEffect(() => {
     const saved = localStorage.getItem('recentArtists');
@@ -482,7 +508,7 @@ const BulkUpload = () => {
         <>
           <div className="batch-header-bar glass">
             <div className="batch-main-meta">
-              {/* Destination Album */}
+              {/* Destination Album (Dropdown) */}
               <div className="meta-block">
                 <label className="field-micro-label">Destination Album</label>
                 <div className="meta-field dest-field">
@@ -500,17 +526,17 @@ const BulkUpload = () => {
                     value={batchDestKey}
                     onChange={(e) => handleDestinationChange(e.target.value)}
                   >
-                    <option value="standard">📁 Standard Library (Main)</option>
+                    <option value="standard">Standard Library (Main)</option>
                     {albums.length > 0 && (
                       <optgroup label="── Albums & Collections ──">
                         {albums.map(alb => (
                           <option key={alb.id || alb.slug} value={alb.slug}>
-                            💿 {alb.title} {alb.badge ? `(${alb.badge})` : ""}
+                            {alb.title} {alb.badge ? `(${alb.badge})` : ""}
                           </option>
                         ))}
                       </optgroup>
                     )}
-                    <option value="__custom__">✏️ Custom Album Name...</option>
+                    <option value="__custom__">+ Custom Album Name...</option>
                   </select>
                   <ChevronDown size={14} className="meta-chevron" />
                 </div>
@@ -537,99 +563,58 @@ const BulkUpload = () => {
                         className={`goc-discipline-btn latin ${batchGocDiscipline === "Latin" ? "active" : ""}`}
                         onClick={() => setBatchGocDiscipline("Latin")}
                       >
-                        🔥 Latin
+                        Latin
                       </button>
                       <button
                         type="button"
                         className={`goc-discipline-btn standard ${batchGocDiscipline === "Standard" ? "active" : ""}`}
                         onClick={() => setBatchGocDiscipline("Standard")}
                       >
-                        ⚡ Standard
+                        Standard
                       </button>
                     </div>
                   </div>
                 )}
               </div>
 
-              {/* Cover Artwork Card (Native Touch Input) */}
-              <div className="meta-block">
-                <label className="field-micro-label">Cover Artwork (Optional)</label>
-                <div className={`batch-cover-card ${batchCoverPreview ? 'has-preview' : ''}`}>
-                  <input 
-                    type="file" 
-                    accept="image/*" 
-                    className="cover-native-input" 
-                    title="Upload cover art"
-                    onChange={(e) => {
-                      if (e.target.files && e.target.files[0]) {
-                        setBatchCoverFile(e.target.files[0]);
-                        setBatchCoverPreview(URL.createObjectURL(e.target.files[0]));
-                      }
-                    }} 
-                  />
-                  <div className="cover-card-thumb">
-                    {batchCoverPreview ? (
-                      <img src={batchCoverPreview} alt="Cover Preview" className="cover-thumb-img" />
-                    ) : (
-                      <div className="cover-thumb-empty">
-                        <Plus size={18} />
-                      </div>
-                    )}
-                  </div>
-                  <div className="cover-card-info">
-                    <span className="cover-card-title">
-                      {batchCoverPreview ? (batchCoverFile?.name || 'Cover Artwork Attached') : 'Add Batch Cover Artwork'}
-                    </span>
-                    <span className="cover-card-sub">
-                      {batchCoverPreview ? 'Tap to change image' : 'Applies cover to all tracks in this batch'}
-                    </span>
-                  </div>
-                  {batchCoverPreview && (
-                    <button 
-                      type="button" 
-                      className="cover-card-remove-btn"
-                      title="Remove cover"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        setBatchCoverFile(null);
-                        setBatchCoverPreview(null);
-                      }}
-                    >
-                      <X size={14} />
-                    </button>
-                  )}
-                </div>
-              </div>
-
-              {/* Artist / Composer with Suggestions */}
+              {/* Artist / Composer (Dropdown) */}
               <div className="meta-block">
                 <label className="field-micro-label">Artist / Composer</label>
                 <div className="meta-field">
                   <User size={16} className="meta-icon" />
-                  <input 
-                    type="text" 
-                    placeholder="e.g. Boris Myagkov, Dance Star..." 
-                    value={batchArtist}
-                    onChange={(e) => setBatchArtist(e.target.value)}
-                  />
+                  <select 
+                    className="meta-select"
+                    value={isCustomArtist ? '__custom__' : (allArtists.includes(batchArtist) ? batchArtist : (batchArtist ? '__custom__' : ''))}
+                    onChange={(e) => handleArtistSelectChange(e.target.value)}
+                  >
+                    <option value="">Auto Detect from Filename</option>
+                    {allArtists.length > 0 && (
+                      <optgroup label="── Artists & Bands ──">
+                        {allArtists.map(art => (
+                          <option key={art} value={art}>{art}</option>
+                        ))}
+                      </optgroup>
+                    )}
+                    <option value="__custom__">+ Type Custom Artist...</option>
+                  </select>
+                  <ChevronDown size={14} className="meta-chevron" />
                 </div>
-                {recentArtists.length > 0 && (
-                  <div className="recent-artists-suggestions">
-                    {recentArtists.slice(0, 10).map(a => (
-                      <button 
-                        type="button" 
-                        key={a} 
-                        className={`artist-suggestion-chip ${batchArtist === a ? 'active' : ''}`}
-                        onClick={() => setBatchArtist(a)}
-                      >
-                        {a}
-                      </button>
-                    ))}
+
+                {(isCustomArtist || (batchArtist && !allArtists.includes(batchArtist))) && (
+                  <div className="meta-field custom-album-subfield animate-in">
+                    <User size={15} className="meta-icon" />
+                    <input 
+                      type="text" 
+                      placeholder="Type Artist / Composer Name..." 
+                      value={batchArtist}
+                      onChange={(e) => setBatchArtist(e.target.value)}
+                      autoFocus
+                    />
                   </div>
                 )}
               </div>
 
-              {/* Dance Style */}
+              {/* Dance Style (Dropdown) */}
               <div className="meta-block">
                 <label className="field-micro-label">Dance Style</label>
                 <div className="meta-field">
@@ -661,40 +646,71 @@ const BulkUpload = () => {
                 </div>
               </div>
 
-              {/* Tags */}
-              <div className="meta-block">
-                <div className="field-micro-label-row">
-                  <span className="field-micro-label">Batch Tags</span>
-                  {batchTags.length > 0 && (
-                    <button 
-                      type="button" 
-                      className="clear-tags-link"
-                      onClick={() => setBatchTags([])}
-                    >
-                      Clear ({batchTags.length})
-                    </button>
-                  )}
+              {/* Cover Art & Tags Compact Row */}
+              <div className="meta-compact-row">
+                <div className="cover-compact-wrap">
+                  <label className="cover-compact-chip">
+                    <input 
+                      type="file" 
+                      accept="image/*" 
+                      className="cover-native-input" 
+                      title="Upload batch cover art"
+                      onChange={(e) => {
+                        if (e.target.files && e.target.files[0]) {
+                          setBatchCoverFile(e.target.files[0]);
+                          setBatchCoverPreview(URL.createObjectURL(e.target.files[0]));
+                        }
+                      }} 
+                    />
+                    {batchCoverPreview ? (
+                      <div className="cover-chip-active">
+                        <img src={batchCoverPreview} alt="Cover Preview" className="cover-chip-thumb" />
+                        <span className="cover-chip-text">{batchCoverFile?.name || 'Cover Added'}</span>
+                        <button 
+                          type="button" 
+                          className="cover-chip-clear"
+                          title="Remove cover"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            e.preventDefault();
+                            setBatchCoverFile(null);
+                            setBatchCoverPreview(null);
+                          }}
+                        >
+                          <X size={12} />
+                        </button>
+                      </div>
+                    ) : (
+                      <div className="cover-chip-empty">
+                        <ImageIcon size={14} />
+                        <span>+ Cover Art</span>
+                      </div>
+                    )}
+                  </label>
                 </div>
-                <div className="tags-scroller">
-                  {availableTags.map((tag: Tag) => (
-                    <button
-                      key={tag.id}
-                      type="button"
-                      className={`batch-tag-pill ${batchTags.includes(tag.name) ? 'active' : ''}`}
-                      onClick={() => toggleTagInBatch(tag.name)}
-                      style={{ 
-                        '--tag-color': tag.color,
-                        borderColor: batchTags.includes(tag.name) ? tag.color : 'rgba(255,255,255,0.06)'
-                      } as any}
-                    >
-                      {tag.name}
-                    </button>
-                  ))}
+
+                <div className="tags-horizontal-strip">
+                  <div className="tags-strip-scroller">
+                    {availableTags.map((tag: Tag) => (
+                      <button
+                        key={tag.id}
+                        type="button"
+                        className={`batch-tag-pill ${batchTags.includes(tag.name) ? 'active' : ''}`}
+                        onClick={() => toggleTagInBatch(tag.name)}
+                        style={{ 
+                          '--tag-color': tag.color,
+                          borderColor: batchTags.includes(tag.name) ? tag.color : 'rgba(255,255,255,0.06)'
+                        } as any}
+                      >
+                        {tag.name}
+                      </button>
+                    ))}
+                  </div>
                 </div>
               </div>
 
               {/* Apply to Queue Button (When tracks exist) */}
-              {files.length > 0 ? (
+              {files.length > 0 && (
                 <div className="apply-to-queue-wrap animate-in">
                   <button 
                     type="button" 
@@ -704,11 +720,6 @@ const BulkUpload = () => {
                     <CheckCircle2 size={16} />
                     <span>Apply Batch Settings to All {files.length} Tracks</span>
                   </button>
-                </div>
-              ) : (
-                <div className="batch-hint-box">
-                  <Activity size={14} className="text-primary" />
-                  <span>Audio files added below will automatically inherit these settings</span>
                 </div>
               )}
             </div>
@@ -1006,24 +1017,28 @@ const BulkUpload = () => {
         .meta-field input:focus, .meta-select:focus { border-color: #1db954; background: rgba(255,255,255,0.08); box-shadow: 0 0 0 1px #1db954; }
         .meta-select { cursor: pointer; appearance: none; }
 
-        /* Cover Artwork Card (Native Touch) */
-        .batch-cover-card {
-          position: relative;
+        /* Compact Cover Art Chip & Horizontal Tags Row */
+        .meta-compact-row {
           display: flex;
           align-items: center;
-          gap: 12px;
-          padding: 10px 14px;
-          border-radius: 14px;
-          background: rgba(255,255,255,0.03);
-          border: 1px dashed rgba(255,255,255,0.15);
+          gap: 10px;
+          width: 100%;
+          min-width: 0;
+          padding-top: 4px;
+        }
+
+        .cover-compact-wrap {
+          flex-shrink: 0;
+        }
+
+        .cover-compact-chip {
+          position: relative;
+          display: inline-flex;
+          align-items: center;
           cursor: pointer;
-          transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
-          overflow: hidden;
+          -webkit-tap-highlight-color: transparent;
         }
-        .batch-cover-card:hover, .batch-cover-card.has-preview {
-          border-color: #1db954;
-          background: rgba(29, 185, 84, 0.05);
-        }
+
         .cover-native-input {
           position: absolute;
           inset: 0;
@@ -1032,64 +1047,63 @@ const BulkUpload = () => {
           opacity: 0;
           cursor: pointer;
           z-index: 2;
-          -webkit-tap-highlight-color: transparent;
         }
-        .cover-card-thumb {
-          width: 48px;
-          height: 48px;
+
+        .cover-chip-empty {
+          display: flex;
+          align-items: center;
+          gap: 6px;
+          height: 36px;
+          padding: 0 12px;
           border-radius: 10px;
-          background: rgba(255,255,255,0.04);
+          background: rgba(255, 255, 255, 0.04);
+          border: 1px dashed rgba(255, 255, 255, 0.16);
+          color: #a1a1aa;
+          font-size: 11.5px;
+          font-weight: 700;
+          transition: all 0.2s;
+          white-space: nowrap;
+        }
+        .cover-compact-chip:hover .cover-chip-empty {
+          border-color: #1db954;
+          color: white;
+          background: rgba(29, 185, 84, 0.08);
+        }
+
+        .cover-chip-active {
           display: flex;
           align-items: center;
-          justify-content: center;
-          flex-shrink: 0;
-          overflow: hidden;
-          border: 1px solid rgba(255,255,255,0.08);
+          gap: 8px;
+          height: 36px;
+          padding: 2px 8px 2px 4px;
+          border-radius: 10px;
+          background: rgba(29, 185, 84, 0.1);
+          border: 1px solid #1db954;
+          max-width: 160px;
         }
-        .cover-thumb-img {
-          width: 100%;
-          height: 100%;
+        .cover-chip-thumb {
+          width: 28px;
+          height: 28px;
+          border-radius: 6px;
           object-fit: cover;
+          flex-shrink: 0;
         }
-        .cover-thumb-empty {
-          color: #71717a;
-          display: flex;
-          align-items: center;
-          justify-content: center;
-        }
-        .batch-cover-card:hover .cover-thumb-empty {
-          color: #1db954;
-        }
-        .cover-card-info {
-          display: flex;
-          flex-direction: column;
-          gap: 2px;
-          flex: 1;
-          min-width: 0;
-        }
-        .cover-card-title {
-          font-size: 13.5px;
-          font-weight: 800;
+        .cover-chip-text {
+          font-size: 11px;
+          font-weight: 700;
           color: white;
           white-space: nowrap;
           overflow: hidden;
           text-overflow: ellipsis;
+          flex: 1;
         }
-        .cover-card-sub {
-          font-size: 11px;
-          color: #71717a;
-          font-weight: 500;
-          white-space: nowrap;
-          overflow: hidden;
-          text-overflow: ellipsis;
-        }
-        .cover-card-remove-btn {
+        .cover-chip-clear {
           position: relative;
           z-index: 3;
-          width: 30px;
-          height: 30px;
-          border-radius: 8px;
-          background: rgba(239, 68, 68, 0.15);
+          width: 20px;
+          height: 20px;
+          border-radius: 50%;
+          background: rgba(239, 68, 68, 0.2);
           color: #ef4444;
           border: none;
           display: flex;
@@ -1097,28 +1111,37 @@ const BulkUpload = () => {
           justify-content: center;
           cursor: pointer;
           flex-shrink: 0;
+          padding: 0;
           transition: all 0.2s;
         }
-        .cover-card-remove-btn:hover {
+        .cover-chip-clear:hover {
           background: #ef4444;
           color: white;
         }
 
-        .recent-artists-suggestions { display: flex; flex-wrap: wrap; gap: 6px; }
-        .artist-suggestion-chip { 
-          padding: 6px 12px; border-radius: 8px; background: rgba(255,255,255,0.04); 
-          color: #a1a1aa; font-size: 11.5px; font-weight: 700; border: 1px solid rgba(255,255,255,0.06);
-          cursor: pointer; transition: all 0.2s;
+        .tags-horizontal-strip {
+          flex: 1;
+          min-width: 0;
+          overflow: hidden;
         }
-        .artist-suggestion-chip:hover, .artist-suggestion-chip.active { 
-          background: #1db954; color: black; border-color: transparent; 
+        .tags-strip-scroller {
+          display: flex;
+          align-items: center;
+          gap: 6px;
+          overflow-x: auto;
+          white-space: nowrap;
+          padding: 2px 0;
+          -webkit-overflow-scrolling: touch;
+          scrollbar-width: none;
+        }
+        .tags-strip-scroller::-webkit-scrollbar {
+          display: none;
         }
 
-        .tags-scroller { display: flex; flex-wrap: wrap; gap: 8px; }
         .batch-tag-pill { 
-          padding: 6px 14px; border-radius: 20px; font-size: 11px; font-weight: 800; 
+          padding: 6px 12px; border-radius: 18px; font-size: 11px; font-weight: 700; 
           background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.06);
-          color: #a1a1aa; cursor: pointer; transition: all 0.2s; white-space: nowrap;
+          color: #a1a1aa; cursor: pointer; transition: all 0.2s; white-space: nowrap; flex-shrink: 0;
         }
         .batch-tag-pill:hover { border-color: rgba(255,255,255,0.2); color: white; }
         .batch-tag-pill.active { background: var(--tag-color); color: black; border-color: transparent; }
@@ -1138,18 +1161,6 @@ const BulkUpload = () => {
           transform: translateY(-2px); 
           background: #1ed760; 
           box-shadow: 0 8px 24px rgba(29, 185, 84, 0.35); 
-        }
-        .batch-hint-box {
-          display: flex;
-          align-items: center;
-          gap: 8px;
-          padding: 10px 14px;
-          border-radius: 12px;
-          background: rgba(255, 255, 255, 0.02);
-          border: 1px solid rgba(255, 255, 255, 0.05);
-          font-size: 12px;
-          color: #71717a;
-          font-weight: 600;
         }
 
         /* DROPZONE (Native touch surface) */
@@ -1438,15 +1449,6 @@ const BulkUpload = () => {
             white-space: nowrap;
             overflow: hidden;
             padding-right: 36px;
-          }
-          .recent-artists-suggestions {
-            gap: 4px;
-            max-height: 80px;
-            overflow-y: auto;
-          }
-          .artist-suggestion-chip {
-            padding: 5px 9px;
-            font-size: 11px;
           }
           .dropzone {
             padding: 24px 16px;

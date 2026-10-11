@@ -65,6 +65,7 @@ export default function AdminMessagesPage() {
   const [tgMessageText, setTgMessageText] = useState('');
   const [botToken, setBotToken] = useState('');
   const [showToken, setShowToken] = useState(false);
+  const [tokenSavedFlash, setTokenSavedFlash] = useState<string | null>(null);
   const [buttons, setButtons] = useState<InlineBtn[]>([
     { text: '🎵 Open 4and.one Player', url: 'https://4and.one' }
   ]);
@@ -154,12 +155,25 @@ export default function AdminMessagesPage() {
   // User segments
   const freeUsers = useMemo(() => tgUsers.filter(u => !u.is_premium), [tgUsers]);
   const premiumUsers = useMemo(() => tgUsers.filter(u => !!u.is_premium), [tgUsers]);
+  // Compute users whose Premium expires in the next 5 days
+  // (EXCLUDES permanent/lifetime premium users who have unlimited access or no expiry)
   const expiringUsers = useMemo(() => {
     const now = Date.now();
     const fiveDaysMs = 5 * 86400000;
     return tgUsers.filter(u => {
-      if (!u.is_premium || !u.premium_until) return false;
-      const until = new Date(u.premium_until).getTime();
+      // Must have active premium
+      if (!u.is_premium) return false;
+      // If no expiration date (null/undefined), it is permanent/lifetime! DO NOT SEND!
+      if (!u.premium_until) return false;
+
+      const untilDate = new Date(u.premium_until);
+      const until = untilDate.getTime();
+      if (isNaN(until)) return false;
+
+      // Permanent / Lifetime check: if set to 2030+ or more than a year away, DO NOT SEND!
+      if (untilDate.getFullYear() > 2030 || (until - now) > 365 * 86400000) return false;
+
+      // Only true if expiry is actually in the future AND within <= 5 days!
       return until > now && (until - now) <= fiveDaysMs;
     });
   }, [tgUsers]);
@@ -200,6 +214,24 @@ export default function AdminMessagesPage() {
   const deselectAll = () => {
     setSelectedUserIds([]);
     if (sendTarget === 'selected') setSendTarget('broadcast');
+  };
+
+  const handleSaveToken = () => {
+    if (!botToken.trim()) return;
+    if (typeof window !== 'undefined') {
+      localStorage.setItem('4andone_admin_bot_token', botToken.trim());
+      setTokenSavedFlash('✓ ტოკენი წარმატებით შენახულია!');
+      setTimeout(() => setTokenSavedFlash(null), 3000);
+    }
+  };
+
+  const handleClearToken = () => {
+    setBotToken('');
+    if (typeof window !== 'undefined') {
+      localStorage.removeItem('4andone_admin_bot_token');
+      setTokenSavedFlash('🗑️ ტოკენი წაიშალა!');
+      setTimeout(() => setTokenSavedFlash(null), 3000);
+    }
   };
 
   const handleDelete = async () => {
@@ -716,54 +748,76 @@ export default function AdminMessagesPage() {
               <div className="form-group">
                 <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '6px' }}>
                   <label className="field-label" style={{ margin: 0 }}>Telegram Bot Token (from @BotFather)</label>
-                  {botToken && (
+                  {tokenSavedFlash ? (
+                    <span style={{ fontSize: '11px', color: '#10b981', fontWeight: 700, display: 'flex', alignItems: 'center', gap: '4px' }}>
+                      <CheckCircle2 size={13} /> {tokenSavedFlash}
+                    </span>
+                  ) : botToken ? (
                     <span style={{ fontSize: '11px', color: '#10b981', fontWeight: 600, display: 'flex', alignItems: 'center', gap: '4px' }}>
                       <CheckCircle2 size={12} /> დამახსოვრებულია ბრაუზერში
                     </span>
-                  )}
+                  ) : null}
                 </div>
-                <div style={{ position: 'relative', display: 'flex', alignItems: 'center' }}>
-                  <input
-                    type={showToken ? 'text' : 'password'}
-                    value={botToken}
-                    onChange={(e) => {
-                      const val = e.target.value;
-                      setBotToken(val);
-                      if (typeof window !== 'undefined') {
-                        if (val.trim()) {
-                          localStorage.setItem('4andone_admin_bot_token', val.trim());
-                        } else {
-                          localStorage.removeItem('4andone_admin_bot_token');
-                        }
-                      }
-                    }}
-                    placeholder="Paste your 123456789:ABCdefGhI... bot token"
-                    className="input-field"
-                    style={{ paddingRight: '42px', fontFamily: showToken ? 'monospace' : 'inherit' }}
-                  />
+
+                <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+                  <div style={{ position: 'relative', display: 'flex', alignItems: 'center', flex: 1 }}>
+                    <input
+                      type={showToken ? 'text' : 'password'}
+                      value={botToken}
+                      onChange={(e) => setBotToken(e.target.value)}
+                      placeholder="Paste your 123456789:ABCdefGhI... bot token"
+                      className="input-field"
+                      style={{ width: '100%', paddingRight: '42px', fontFamily: showToken ? 'monospace' : 'inherit' }}
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setShowToken(!showToken)}
+                      style={{
+                        position: 'absolute',
+                        right: '10px',
+                        background: 'none',
+                        border: 'none',
+                        color: '#a1a1aa',
+                        cursor: 'pointer',
+                        padding: '4px',
+                        display: 'flex',
+                        alignItems: 'center',
+                      }}
+                      title={showToken ? 'Hide token' : 'Show token'}
+                    >
+                      {showToken ? <EyeOff size={16} /> : <Eye size={16} />}
+                    </button>
+                  </div>
+
+                  {/* Save Token Button */}
                   <button
                     type="button"
-                    onClick={() => setShowToken(!showToken)}
-                    style={{
-                      position: 'absolute',
-                      right: '10px',
-                      background: 'none',
-                      border: 'none',
-                      color: '#a1a1aa',
-                      cursor: 'pointer',
-                      padding: '4px',
-                      display: 'flex',
-                      alignItems: 'center',
-                    }}
-                    title={showToken ? 'Hide token' : 'Show token'}
+                    onClick={handleSaveToken}
+                    disabled={!botToken.trim()}
+                    className="btn-token-save"
+                    title="დამახსოვრება ბრაუზერში"
                   >
-                    {showToken ? <EyeOff size={16} /> : <Eye size={16} />}
+                    <CheckCircle2 size={14} />
+                    <span>Save</span>
+                  </button>
+
+                  {/* Delete / Clear Token Button */}
+                  <button
+                    type="button"
+                    onClick={handleClearToken}
+                    disabled={!botToken}
+                    className="btn-token-delete"
+                    title="ტოკენის წაშლა"
+                  >
+                    <Trash2 size={14} />
+                    <span>წაშლა</span>
                   </button>
                 </div>
+
                 <span className="field-hint" style={{ color: botToken ? '#34d399' : '#a1a1aa' }}>
                   {botToken 
-                    ? '✓ ტოკენი შენახულია — გვერდიც რომ გადატვირთოთ ან ხვალ გახსნათ, აღარ წაიშლება.' 
-                    : 'ჩასვით თქვენი ბოტის ტოკენი ერთხელ; ის ავტომატურად შეინახება თქვენს ბრაუზერში.'}
+                    ? '✓ ტოკენი შეყვანილია — დააჭირეთ Save-ს შესანახად ან წაშლას გასასუფთავებლად.' 
+                    : 'ჩასვით თქვენი ბოტის ტოკენი და დააჭირეთ Save-ს, რომ ბრაუზერში შეინახოს.'}
                 </span>
               </div>
 
@@ -1381,6 +1435,56 @@ export default function AdminMessagesPage() {
         .field-hint {
           font-size: 11px;
           color: #71717a;
+        }
+
+        .btn-token-save {
+          display: flex;
+          align-items: center;
+          gap: 6px;
+          padding: 10px 14px;
+          border-radius: 10px;
+          background: rgba(16, 185, 129, 0.15);
+          border: 1px solid rgba(16, 185, 129, 0.4);
+          color: #34d399;
+          font-size: 12px;
+          font-weight: 800;
+          cursor: pointer;
+          transition: all 0.2s;
+          white-space: nowrap;
+        }
+        .btn-token-save:hover:not(:disabled) {
+          background: rgba(16, 185, 129, 0.25);
+          border-color: #10b981;
+          color: #ffffff;
+        }
+        .btn-token-save:disabled {
+          opacity: 0.4;
+          cursor: not-allowed;
+        }
+
+        .btn-token-delete {
+          display: flex;
+          align-items: center;
+          gap: 6px;
+          padding: 10px 14px;
+          border-radius: 10px;
+          background: rgba(239, 68, 68, 0.12);
+          border: 1px solid rgba(239, 68, 68, 0.35);
+          color: #f87171;
+          font-size: 12px;
+          font-weight: 700;
+          cursor: pointer;
+          transition: all 0.2s;
+          white-space: nowrap;
+        }
+        .btn-token-delete:hover:not(:disabled) {
+          background: rgba(239, 68, 68, 0.25);
+          border-color: #ef4444;
+          color: #ffffff;
+        }
+        .btn-token-delete:disabled {
+          opacity: 0.4;
+          cursor: not-allowed;
         }
 
         .target-toggle {

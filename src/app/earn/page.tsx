@@ -454,5 +454,11 @@ const styles = `
     .earn-page { padding: 16px 16px 140px; }
     .earn-hero h1 { font-size: 22px; }
     .status-grid { grid-template-columns: 1fr; }
+    .promo-input-field { font-size: 16px !important; }
+    .link-input { font-size: 15px; }
+  }
+  @media (max-width: 480px) {
+    .promo-row { flex-direction: column; gap: 8px; }
+    .promo-submit-btn { width: 100%; height: 44px; }
   }
 `;

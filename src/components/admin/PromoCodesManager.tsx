@@ -812,6 +812,69 @@ export default function PromoCodesManager() {
           color: #fecaca;
           border: 1px solid rgba(239, 68, 68, 0.5);
         }
+
+        @media (max-width: 640px) {
+          .promo-manager {
+            padding: 16px;
+            border-radius: 16px;
+          }
+          .pm-head {
+            flex-direction: column;
+            align-items: stretch;
+            gap: 12px;
+          }
+          .pm-head-actions {
+            width: 100%;
+          }
+          .pm-action-btn.primary {
+            flex: 1;
+            justify-content: center;
+            height: 40px;
+          }
+          .pm-refresh-btn {
+            width: 40px;
+            height: 40px;
+          }
+          .pm-stats-grid {
+            grid-template-columns: 1fr 1fr;
+            gap: 8px;
+          }
+          .stat-box {
+            padding: 10px 12px;
+            border-radius: 12px;
+          }
+          .stat-val {
+            font-size: 1.25rem;
+          }
+          .pm-table {
+            min-width: 600px;
+          }
+          .action-row {
+            gap: 4px;
+          }
+          .pm-btn {
+            min-height: 34px;
+            padding: 6px 10px;
+          }
+          .modal-content {
+            padding: 18px 16px;
+            border-radius: 16px;
+            max-width: 95vw;
+          }
+          .form-row-2 {
+            grid-template-columns: 1fr;
+            gap: 12px;
+          }
+          .modal-foot {
+            flex-direction: column-reverse;
+            gap: 8px;
+          }
+          .modal-foot button {
+            width: 100%;
+            height: 42px;
+            justify-content: center;
+          }
+        }
       `}</style>
     </div>
   );

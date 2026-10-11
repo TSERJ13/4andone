@@ -640,9 +640,9 @@ const AdminLibrary = () => {
 
         .header-buttons { display: flex; gap: 20px; align-items: center; }
 
-        .view-toggle { display: flex; padding: 4px; border-radius: 12px; }
-        .view-toggle button { width: 36px; height: 36px; border-radius: 8px; display: flex; align-items: center; justify-content: center; color: #71717a; transition: all 0.2s; }
-        .view-toggle button.active { background: rgba(255,255,255,0.1); color: white; }
+        .library-view-toggle { display: flex; padding: 4px; border-radius: 12px; }
+        .library-view-toggle button { width: 36px; height: 36px; border-radius: 8px; display: flex; align-items: center; justify-content: center; color: #71717a; transition: all 0.2s; }
+        .library-view-toggle button.active { background: rgba(255,255,255,0.1); color: white; }
 
         .search-bar { display: flex; align-items: center; gap: 12px; padding: 10px 16px; border-radius: 12px; width: 340px; }
         .search-bar input { background: transparent; border: none; color: white; outline: none; font-size: 14px; width: 100%; }

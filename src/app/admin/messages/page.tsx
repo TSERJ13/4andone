@@ -1321,27 +1321,12 @@ export default function AdminMessagesPage() {
                       style={{ display: 'none' }}
                     />
 
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap' }}>
+                    <div className="photo-drawer-actions">
                       <button
                         type="button"
                         onClick={() => photoFileInputRef.current?.click()}
                         disabled={isUploadingPhoto}
                         className="upload-photo-btn"
-                        style={{
-                          display: 'inline-flex',
-                          alignItems: 'center',
-                          gap: '6px',
-                          padding: '7px 14px',
-                          borderRadius: '8px',
-                          background: '#38bdf8',
-                          color: '#000',
-                          fontWeight: 700,
-                          fontSize: '12px',
-                          border: 'none',
-                          cursor: isUploadingPhoto ? 'not-allowed' : 'pointer',
-                          transition: 'all 0.15s ease',
-                          flexShrink: 0
-                        }}
                       >
                         {isUploadingPhoto ? (
                           <>
@@ -1356,16 +1341,14 @@ export default function AdminMessagesPage() {
                         )}
                       </button>
 
-                      <span style={{ fontSize: '11px', color: 'rgba(255, 255, 255, 0.4)', fontWeight: 600 }}>ან URL:</span>
-
-                      <div style={{ flex: 1, minWidth: '220px', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                      <div className="photo-url-wrap">
+                        <span className="photo-or-text">ან URL:</span>
                         <input
                           type="url"
                           placeholder="ჩასვით ფოტოს ლინკი (URL, მაგ: https://...)"
                           value={tgPhotoUrl}
                           onChange={(e) => setTgPhotoUrl(e.target.value)}
-                          className="input-field-sm"
-                          style={{ flex: 1, height: '34px' }}
+                          className="input-field-sm photo-url-input"
                         />
                         {tgPhotoUrl && (
                           <button
@@ -1374,15 +1357,7 @@ export default function AdminMessagesPage() {
                               setTgPhotoUrl('');
                               setShowPhotoInput(false);
                             }}
-                            style={{
-                              background: 'none',
-                              border: 'none',
-                              color: '#f87171',
-                              cursor: 'pointer',
-                              fontSize: '11px',
-                              fontWeight: 700,
-                              whiteSpace: 'nowrap'
-                            }}
+                            className="btn-clear-photo"
                           >
                             ✕ გასუფთავება
                           </button>
@@ -2625,6 +2600,161 @@ export default function AdminMessagesPage() {
 
         .text-primary { color: #38bdf8; }
         .text-amber { color: #f59e0b; }
+
+        /* Photo drawer */
+        .photo-drawer-actions {
+          display: flex;
+          align-items: center;
+          gap: 10px;
+          flex-wrap: wrap;
+        }
+        .upload-photo-btn {
+          display: inline-flex;
+          align-items: center;
+          gap: 6px;
+          padding: 8px 14px;
+          border-radius: 8px;
+          background: #38bdf8;
+          color: #000;
+          font-weight: 700;
+          font-size: 12px;
+          border: none;
+          cursor: pointer;
+          transition: all 0.15s ease;
+          flex-shrink: 0;
+        }
+        .upload-photo-btn:disabled {
+          cursor: not-allowed;
+          opacity: 0.6;
+        }
+        .photo-url-wrap {
+          flex: 1;
+          min-width: 220px;
+          display: flex;
+          align-items: center;
+          gap: 8px;
+        }
+        .photo-or-text {
+          font-size: 11px;
+          color: rgba(255, 255, 255, 0.4);
+          font-weight: 600;
+          white-space: nowrap;
+        }
+        .photo-url-input {
+          flex: 1;
+          height: 36px;
+        }
+        .btn-clear-photo {
+          background: none;
+          border: none;
+          color: #f87171;
+          cursor: pointer;
+          font-size: 11px;
+          font-weight: 700;
+          white-space: nowrap;
+        }
+
+        @media (max-width: 640px) {
+          .tab-switcher {
+            width: 100%;
+          }
+          .tab-btn {
+            flex: 1;
+            justify-content: center;
+            font-size: 12px;
+            padding: 8px 10px;
+          }
+          .tg-composer {
+            padding: 14px;
+            gap: 16px;
+            border-radius: 14px;
+          }
+          .panel-title-row {
+            gap: 10px;
+          }
+          .token-saved-compact-bar {
+            flex-direction: column;
+            align-items: stretch;
+            gap: 12px;
+            padding: 12px;
+          }
+          .target-toggle {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 6px;
+            width: 100%;
+          }
+          .target-btn {
+            width: 100%;
+            padding: 9px 6px;
+            font-size: 11px;
+            justify-content: center;
+            min-height: 40px;
+          }
+          .format-toolbar-row {
+            flex-direction: column;
+            align-items: flex-start;
+            gap: 8px;
+          }
+          .format-tools {
+            width: 100%;
+            overflow-x: auto;
+            -webkit-overflow-scrolling: touch;
+            padding: 4px 6px;
+            justify-content: flex-start;
+          }
+          .tool-btn, .emoji-btn {
+            width: 30px;
+            height: 30px;
+            min-width: 30px;
+            font-size: 14px;
+          }
+          .photo-drawer-actions {
+            flex-direction: column;
+            align-items: stretch;
+            gap: 8px;
+          }
+          .upload-photo-btn {
+            width: 100%;
+            justify-content: center;
+            padding: 10px 14px;
+          }
+          .photo-url-wrap {
+            min-width: 100%;
+            width: 100%;
+            flex-wrap: wrap;
+          }
+          .btn-edit-row {
+            flex-direction: column;
+            align-items: stretch;
+            gap: 6px;
+            position: relative;
+            padding-right: 36px;
+          }
+          .btn-del-btn {
+            position: absolute;
+            right: 0;
+            top: 50%;
+            transform: translateY(-50%);
+          }
+          .btn-send-tg {
+            padding: 14px 18px;
+            font-size: 13.5px;
+            width: 100%;
+          }
+          .tg-users-sidebar {
+            height: 380px;
+            padding: 12px;
+          }
+          .sidebar-filter-pills {
+            gap: 3px;
+          }
+          .sidebar-pill {
+            font-size: 10px;
+            padding: 4px 2px;
+            text-align: center;
+          }
+        }
       `}</style>
     </div>
   );

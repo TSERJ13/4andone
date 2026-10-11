@@ -301,10 +301,10 @@ export default function AdminAffiliatesPage() {
         </div>
 
         <div className="filters-row">
-          <div className="view-toggle">
+          <div className="aff-view-toggle">
             <button 
               type="button"
-              className={`toggle-btn ${viewMode === 'all' ? 'active' : ''}`}
+              className={`aff-toggle-btn ${viewMode === 'all' ? 'active' : ''}`}
               onClick={() => setViewMode('all')}
             >
               <Users size={14} />
@@ -312,7 +312,7 @@ export default function AdminAffiliatesPage() {
             </button>
             <button 
               type="button"
-              className={`toggle-btn ${viewMode === 'leaderboard' ? 'active' : ''}`}
+              className={`aff-toggle-btn ${viewMode === 'leaderboard' ? 'active' : ''}`}
               onClick={() => setViewMode('leaderboard')}
             >
               <Trophy size={14} />
@@ -321,24 +321,24 @@ export default function AdminAffiliatesPage() {
           </div>
 
           {viewMode === 'all' && (
-            <div className="status-filters">
+            <div className="aff-status-filters">
               <button 
                 type="button"
-                className={`filter-chip ${statusFilter === 'all' ? 'active' : ''}`}
+                className={`aff-filter-chip ${statusFilter === 'all' ? 'active' : ''}`}
                 onClick={() => setStatusFilter('all')}
               >
                 All
               </button>
               <button 
                 type="button"
-                className={`filter-chip ${statusFilter === 'rewarded' ? 'active' : ''}`}
+                className={`aff-filter-chip ${statusFilter === 'rewarded' ? 'active' : ''}`}
                 onClick={() => setStatusFilter('rewarded')}
               >
                 ✓ Rewarded
               </button>
               <button 
                 type="button"
-                className={`filter-chip ${statusFilter === 'unrewarded' ? 'active' : ''}`}
+                className={`aff-filter-chip ${statusFilter === 'unrewarded' ? 'active' : ''}`}
                 onClick={() => setStatusFilter('unrewarded')}
               >
                 ⏳ Not Rewarded
@@ -885,7 +885,7 @@ export default function AdminAffiliatesPage() {
           flex-wrap: wrap;
           flex-shrink: 0;
         }
-        .view-toggle {
+        .aff-view-toggle {
           display: flex;
           background: rgba(0, 0, 0, 0.45);
           padding: 4px;
@@ -894,8 +894,8 @@ export default function AdminAffiliatesPage() {
           flex-shrink: 0;
           gap: 4px;
         }
-        .toggle-btn {
-          display: flex;
+        .aff-toggle-btn {
+          display: inline-flex;
           align-items: center;
           gap: 6px;
           padding: 7px 14px;
@@ -909,24 +909,31 @@ export default function AdminAffiliatesPage() {
           transition: all 0.2s;
           white-space: nowrap !important;
           flex-shrink: 0;
+          width: auto !important;
+          height: auto !important;
+          min-height: 34px;
+          box-sizing: border-box;
         }
-        .toggle-btn:hover {
+        .aff-toggle-btn:hover {
           color: #ffffff;
           background: rgba(255, 255, 255, 0.06);
         }
-        .toggle-btn.active {
+        .aff-toggle-btn.active {
           background: rgba(16, 185, 129, 0.18);
           color: #34d399;
           border-color: rgba(16, 185, 129, 0.4);
         }
 
-        .status-filters {
+        .aff-status-filters {
           display: flex;
           gap: 6px;
           align-items: center;
           flex-shrink: 0;
         }
-        .filter-chip {
+        .aff-filter-chip {
+          display: inline-flex;
+          align-items: center;
+          justify-content: center;
           padding: 7px 14px;
           border-radius: 8px;
           font-size: 12px;
@@ -938,12 +945,16 @@ export default function AdminAffiliatesPage() {
           transition: all 0.2s;
           white-space: nowrap !important;
           flex-shrink: 0;
+          width: auto !important;
+          height: auto !important;
+          min-height: 34px;
+          box-sizing: border-box;
         }
-        .filter-chip:hover {
+        .aff-filter-chip:hover {
           color: #ffffff;
           background: rgba(255, 255, 255, 0.08);
         }
-        .filter-chip.active {
+        .aff-filter-chip.active {
           background: rgba(255, 255, 255, 0.15);
           border-color: rgba(255, 255, 255, 0.25);
           color: #ffffff;
@@ -1355,6 +1366,134 @@ export default function AdminAffiliatesPage() {
         .text-primary { color: #0284c7; }
         .text-amber { color: #f59e0b; }
         .text-purple { color: #a855f7; }
+
+        @media (max-width: 900px) {
+          .affiliates-page {
+            padding: 20px 16px;
+          }
+          .controls-bar {
+            flex-direction: column;
+            align-items: stretch;
+            gap: 12px;
+          }
+          .search-wrap {
+            max-width: 100%;
+            min-width: 0;
+            width: 100%;
+          }
+          .filters-row {
+            width: 100%;
+            justify-content: space-between;
+          }
+        }
+
+        @media (max-width: 640px) {
+          .affiliates-page {
+            padding: 12px 8px 120px;
+            gap: 16px;
+          }
+          .page-header {
+            gap: 12px;
+          }
+          .title-row {
+            gap: 10px;
+          }
+          .header-badge {
+            width: 40px;
+            height: 40px;
+            border-radius: 10px;
+          }
+          .page-title {
+            font-size: 20px;
+          }
+          .page-subtitle {
+            font-size: 11.5px;
+          }
+          .btn-refresh {
+            padding: 8px 12px;
+            font-size: 12px;
+            border-radius: 10px;
+          }
+          .metrics-grid {
+            grid-template-columns: 1fr 1fr;
+            gap: 10px;
+          }
+          .metric-card {
+            padding: 12px 14px;
+            border-radius: 14px;
+            gap: 4px;
+          }
+          .metric-header {
+            font-size: 10.5px;
+          }
+          .metric-value {
+            font-size: 22px;
+          }
+          .metric-sub {
+            font-size: 10.5px;
+            line-height: 1.3;
+          }
+          .controls-bar {
+            padding: 12px;
+            border-radius: 14px;
+          }
+          .filters-row {
+            flex-direction: column;
+            align-items: stretch;
+            gap: 10px;
+          }
+          .aff-view-toggle {
+            width: 100%;
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 4px;
+          }
+          .aff-toggle-btn {
+            width: 100% !important;
+            justify-content: center;
+            padding: 9px 8px;
+            font-size: 11.5px;
+          }
+          .aff-status-filters {
+            width: 100%;
+            display: flex;
+            gap: 6px;
+          }
+          .aff-filter-chip {
+            flex: 1;
+            padding: 9px 6px;
+            font-size: 11px;
+            text-align: center;
+          }
+          .table-container {
+            border-radius: 14px;
+          }
+          .affiliates-table {
+            min-width: 720px;
+          }
+          .affiliates-table th, .affiliates-table td {
+            padding: 12px 14px;
+          }
+          .leaderboard-grid {
+            grid-template-columns: 1fr;
+            padding: 12px;
+            gap: 12px;
+          }
+          .leaderboard-card {
+            padding: 14px;
+            border-radius: 14px;
+          }
+          .modal-overlay {
+            padding: 12px;
+          }
+          .modal-card {
+            border-radius: 16px;
+            max-width: 100%;
+          }
+          .modal-header, .modal-body, .modal-footer {
+            padding: 14px 16px;
+          }
+        }
       `}</style>
     </div>
   );

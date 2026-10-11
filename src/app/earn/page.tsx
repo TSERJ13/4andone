@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useEffect, useState } from 'react';
-import { Gift, Copy, Check, Share2, Send, Users, UserPlus, Crown } from 'lucide-react';
+import { Gift, Copy, Check, Share2, Send, Users, UserPlus, Crown, Tag } from 'lucide-react';
 import { useAuth } from '@/context/AuthContext';
 import { TelegramLogin } from '@/components/auth/TelegramLogin';
 import { inviteLink, REF_RESULT_EVENT } from '@/utils/referral';
@@ -278,20 +278,23 @@ export default function EarnPremiumPage() {
               </div>
             ) : (
               <form onSubmit={handleClaimPromo} className="link-row promo-row">
-                <input
-                  type="text"
-                  className="link-input uppercase-input"
-                  placeholder="e.g. FREE30, DANCE2026..."
-                  value={promoInput}
-                  onChange={(e) => {
-                    setPromoInput(e.target.value.toUpperCase());
-                    setPromoError(null);
-                  }}
-                  disabled={promoLoading}
-                />
+                <div className="promo-input-wrapper">
+                  <Tag size={16} className="promo-field-icon" />
+                  <input
+                    type="text"
+                    className="link-input promo-input-field"
+                    placeholder="Promo Code"
+                    value={promoInput}
+                    onChange={(e) => {
+                      setPromoInput(e.target.value.toUpperCase());
+                      setPromoError(null);
+                    }}
+                    disabled={promoLoading}
+                  />
+                </div>
                 <button
                   type="submit"
-                  className="btn primary"
+                  className="btn primary promo-submit-btn"
                   disabled={promoLoading || !promoInput.trim()}
                 >
                   {promoLoading ? 'Checking...' : 'Activate'}
@@ -374,8 +377,67 @@ const styles = `
   .friend-handle { color: #8a8a8a; font-weight: 400; }
   .friend-date { color: #8a8a8a; font-size: 13px; flex-shrink: 0; }
   .rules ol { margin: 0; padding-left: 20px; color: #bdbdbd; font-size: 14px; line-height: 1.6; }
-  .uppercase-input { text-transform: uppercase; font-family: monospace; font-weight: 700; letter-spacing: 1px; }
-  .promo-row { margin-top: 14px; }
+  .promo-row { margin-top: 14px; display: flex; gap: 10px; }
+  .promo-input-wrapper {
+    position: relative;
+    flex: 1;
+    display: flex;
+    align-items: center;
+  }
+  .promo-field-icon {
+    position: absolute;
+    left: 14px;
+    color: rgba(255, 255, 255, 0.4);
+    pointer-events: none;
+    transition: color 0.2s;
+  }
+  .promo-input-field {
+    width: 100%;
+    height: 44px;
+    padding: 0 14px 0 40px !important;
+    border-radius: 12px !important;
+    background: #141416 !important;
+    border: 1px solid rgba(255, 255, 255, 0.12) !important;
+    color: #fff !important;
+    font-size: 14.5px !important;
+    font-weight: 600;
+    letter-spacing: 0.5px;
+    transition: all 0.2s ease;
+  }
+  .promo-input-field::placeholder {
+    color: rgba(255, 255, 255, 0.35);
+    font-weight: 500;
+    letter-spacing: normal;
+  }
+  .promo-input-field:focus {
+    outline: none;
+    border-color: #10b981 !important;
+    background: #18181b !important;
+    box-shadow: 0 0 0 3px rgba(16, 185, 129, 0.15);
+  }
+  .promo-input-wrapper:focus-within .promo-field-icon {
+    color: #10b981;
+  }
+  .promo-submit-btn {
+    height: 44px;
+    padding: 0 20px;
+    border-radius: 12px;
+    font-weight: 700;
+    font-size: 14px;
+    background: #fff;
+    color: #000;
+    border: none;
+    cursor: pointer;
+    transition: all 0.2s ease;
+  }
+  .promo-submit-btn:hover:not(:disabled) {
+    background: #f3f4f6;
+    transform: translateY(-1px);
+  }
+  .promo-submit-btn:disabled {
+    opacity: 0.4;
+    cursor: not-allowed;
+  }
   .promo-status-box {
     margin-top: 12px; padding: 12px 14px; border-radius: 12px; font-size: 13.5px;
     display: flex; align-items: center; gap: 8px; line-height: 1.45;

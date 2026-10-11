@@ -65,6 +65,7 @@ export default function AdminMessagesPage() {
   const [tgMessageText, setTgMessageText] = useState('');
   const [botToken, setBotToken] = useState('');
   const [showToken, setShowToken] = useState(false);
+  const [isEditingToken, setIsEditingToken] = useState(false);
   const [tokenSavedFlash, setTokenSavedFlash] = useState<string | null>(null);
   const [buttons, setButtons] = useState<InlineBtn[]>([
     { text: '🎵 Open 4and.one Player', url: 'https://4and.one' }
@@ -149,7 +150,12 @@ export default function AdminMessagesPage() {
     fetchMessages();
     fetchTgUsers();
     const savedToken = localStorage.getItem('4andone_admin_bot_token') || '';
-    if (savedToken) setBotToken(savedToken);
+    if (savedToken) {
+      setBotToken(savedToken);
+      setIsEditingToken(false);
+    } else {
+      setIsEditingToken(true);
+    }
   }, [fetchMessages, fetchTgUsers]);
 
   // User segments
@@ -221,12 +227,14 @@ export default function AdminMessagesPage() {
     if (typeof window !== 'undefined') {
       localStorage.setItem('4andone_admin_bot_token', botToken.trim());
       setTokenSavedFlash('✓ ტოკენი წარმატებით შენახულია!');
+      setIsEditingToken(false);
       setTimeout(() => setTokenSavedFlash(null), 3000);
     }
   };
 
   const handleClearToken = () => {
     setBotToken('');
+    setIsEditingToken(true);
     if (typeof window !== 'undefined') {
       localStorage.removeItem('4andone_admin_bot_token');
       setTokenSavedFlash('🗑️ ტოკენი წაიშალა!');
@@ -745,81 +753,118 @@ export default function AdminMessagesPage() {
               </div>
 
               {/* Bot Token Configuration */}
-              <div className="form-group">
-                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '6px' }}>
-                  <label className="field-label" style={{ margin: 0 }}>Telegram Bot Token (from @BotFather)</label>
-                  {tokenSavedFlash ? (
-                    <span style={{ fontSize: '11px', color: '#10b981', fontWeight: 700, display: 'flex', alignItems: 'center', gap: '4px' }}>
-                      <CheckCircle2 size={13} /> {tokenSavedFlash}
-                    </span>
-                  ) : botToken ? (
-                    <span style={{ fontSize: '11px', color: '#10b981', fontWeight: 600, display: 'flex', alignItems: 'center', gap: '4px' }}>
-                      <CheckCircle2 size={12} /> დამახსოვრებულია ბრაუზერში
-                    </span>
-                  ) : null}
-                </div>
-
-                <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
-                  <div style={{ position: 'relative', display: 'flex', alignItems: 'center', flex: 1 }}>
-                    <input
-                      type={showToken ? 'text' : 'password'}
-                      value={botToken}
-                      onChange={(e) => setBotToken(e.target.value)}
-                      placeholder="Paste your 123456789:ABCdefGhI... bot token"
-                      className="input-field"
-                      style={{ width: '100%', paddingRight: '42px', fontFamily: showToken ? 'monospace' : 'inherit' }}
-                    />
-                    <button
-                      type="button"
-                      onClick={() => setShowToken(!showToken)}
-                      style={{
-                        position: 'absolute',
-                        right: '10px',
-                        background: 'none',
-                        border: 'none',
-                        color: '#a1a1aa',
-                        cursor: 'pointer',
-                        padding: '4px',
-                        display: 'flex',
-                        alignItems: 'center',
-                      }}
-                      title={showToken ? 'Hide token' : 'Show token'}
-                    >
-                      {showToken ? <EyeOff size={16} /> : <Eye size={16} />}
-                    </button>
+              {botToken && !isEditingToken ? (
+                <div className="token-saved-compact-bar glass">
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '10px', minWidth: 0 }}>
+                    <div className="token-online-dot" />
+                    <div style={{ minWidth: 0 }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
+                        <span style={{ fontSize: '13px', fontWeight: 800, color: '#34d399' }}>
+                          ✓ Telegram Bot Connected
+                        </span>
+                        <span style={{ fontSize: '11px', color: '#71717a', fontFamily: 'monospace' }}>
+                          ({botToken.slice(0, 6)}...{botToken.slice(-4)})
+                        </span>
+                      </div>
+                      <span style={{ fontSize: '11px', color: '#a1a1aa' }}>
+                        ტოკენი დამახსოვრებულია და მზადაა გაგზავნისთვის
+                      </span>
+                    </div>
                   </div>
 
-                  {/* Save Token Button */}
-                  <button
-                    type="button"
-                    onClick={handleSaveToken}
-                    disabled={!botToken.trim()}
-                    className="btn-token-save"
-                    title="დამახსოვრება ბრაუზერში"
-                  >
-                    <CheckCircle2 size={14} />
-                    <span>Save</span>
-                  </button>
-
-                  {/* Delete / Clear Token Button */}
-                  <button
-                    type="button"
-                    onClick={handleClearToken}
-                    disabled={!botToken}
-                    className="btn-token-delete"
-                    title="ტოკენის წაშლა"
-                  >
-                    <Trash2 size={14} />
-                    <span>წაშლა</span>
-                  </button>
+                  <div style={{ display: 'flex', gap: '8px', alignItems: 'center', flexShrink: 0 }}>
+                    <button
+                      type="button"
+                      onClick={() => setIsEditingToken(true)}
+                      className="btn-token-mini-action"
+                    >
+                      შეცვლა / Edit
+                    </button>
+                    <button
+                      type="button"
+                      onClick={handleClearToken}
+                      className="btn-token-mini-action text-danger"
+                      title="ტოკენის წაშლა"
+                    >
+                      <Trash2 size={12} />
+                      წაშლა
+                    </button>
+                  </div>
                 </div>
+              ) : (
+                <div className="form-group animate-in">
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '6px' }}>
+                    <label className="field-label" style={{ margin: 0 }}>Telegram Bot Token (from @BotFather)</label>
+                    {botToken && (
+                      <button
+                        type="button"
+                        onClick={() => setIsEditingToken(false)}
+                        className="btn-collapse-token"
+                      >
+                        დამალვა ✕
+                      </button>
+                    )}
+                  </div>
 
-                <span className="field-hint" style={{ color: botToken ? '#34d399' : '#a1a1aa' }}>
-                  {botToken 
-                    ? '✓ ტოკენი შეყვანილია — დააჭირეთ Save-ს შესანახად ან წაშლას გასასუფთავებლად.' 
-                    : 'ჩასვით თქვენი ბოტის ტოკენი და დააჭირეთ Save-ს, რომ ბრაუზერში შეინახოს.'}
-                </span>
-              </div>
+                  <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+                    <div style={{ position: 'relative', display: 'flex', alignItems: 'center', flex: 1 }}>
+                      <input
+                        type={showToken ? 'text' : 'password'}
+                        value={botToken}
+                        onChange={(e) => setBotToken(e.target.value)}
+                        placeholder="Paste your 123456789:ABCdefGhI... bot token"
+                        className="input-field"
+                        style={{ width: '100%', paddingRight: '42px', fontFamily: showToken ? 'monospace' : 'inherit' }}
+                      />
+                      <button
+                        type="button"
+                        onClick={() => setShowToken(!showToken)}
+                        style={{
+                          position: 'absolute',
+                          right: '10px',
+                          background: 'none',
+                          border: 'none',
+                          color: '#a1a1aa',
+                          cursor: 'pointer',
+                          padding: '4px',
+                          display: 'flex',
+                          alignItems: 'center',
+                        }}
+                        title={showToken ? 'Hide token' : 'Show token'}
+                      >
+                        {showToken ? <EyeOff size={16} /> : <Eye size={16} />}
+                      </button>
+                    </div>
+
+                    <button
+                      type="button"
+                      onClick={handleSaveToken}
+                      disabled={!botToken.trim()}
+                      className="btn-token-save"
+                      title="შენახვა და დამალვა"
+                    >
+                      <CheckCircle2 size={14} />
+                      <span>შენახვა</span>
+                    </button>
+
+                    {botToken && (
+                      <button
+                        type="button"
+                        onClick={handleClearToken}
+                        className="btn-token-delete"
+                        title="ტოკენის წაშლა"
+                      >
+                        <Trash2 size={14} />
+                        <span>წაშლა</span>
+                      </button>
+                    )}
+                  </div>
+
+                  <span className="field-hint" style={{ color: '#a1a1aa' }}>
+                    ჩასვით ტოკენი და დააჭირეთ „შენახვას“ — ის შეინახება და კომპაქტურად დაიმალება.
+                  </span>
+                </div>
+              )}
 
               {/* Target Selector */}
               <div className="form-group">

@@ -90,10 +90,13 @@ export async function POST(request: NextRequest) {
     
     const R2_DOMAIN = process.env.NEXT_PUBLIC_R2_PUBLIC_URL || 'https://pub-c41b1121b311f676bdc114d143278d18.r2.dev';
     const publicUrl = `${R2_DOMAIN}/${safeFileName}`;
+    const mediaUrl = `/api/media/${encodeURIComponent(safeFileName)}`;
 
     return NextResponse.json({ 
       uploadUrl: signedUrl, 
-      publicUrl: publicUrl 
+      publicUrl: publicUrl,
+      mediaUrl: mediaUrl,
+      key: safeFileName
     });
   } catch (error: any) {
     return NextResponse.json({ 

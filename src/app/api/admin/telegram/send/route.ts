@@ -133,21 +133,96 @@ export async function POST(req: NextRequest) {
         let res: Response;
 
         if (cleanPhotoUrl) {
-          const payload: Record<string, any> = {
-            chat_id: chatId,
-            photo: cleanPhotoUrl,
-            caption: personalizedText,
-            parse_mode: 'HTML',
-          };
-          if (replyMarkup) {
-            payload.reply_markup = replyMarkup;
+          // If the photo is on R2 (private bucket) or needs reliable delivery,
+          // download the image buffer on server and stream it via multipart/form-data.
+          let photoBuffer: Buffer | null = null;
+          let photoMime = 'image/jpeg';
+          let photoFileName = 'photo.jpg';
+
+          try {
+            // Check if it's stored in our R2 bucket by matching key or URL
+            const isR2Url = cleanPhotoUrl.includes('.r2.dev') || cleanPhotoUrl.includes('r2.cloudflarestorage.com') || cleanPhotoUrl.includes('/api/media/');
+            let r2Key: string | null = null;
+
+            if (isR2Url) {
+              const urlParts = cleanPhotoUrl.split('/');
+              r2Key = decodeURIComponent(urlParts[urlParts.length - 1].split('?')[0]);
+            }
+
+            if (r2Key && process.env.R2_BUCKET_NAME) {
+              const { S3Client, GetObjectCommand } = await import('@aws-sdk/client-s3');
+              const s3 = new S3Client({
+                region: 'auto',
+                endpoint: process.env.R2_ENDPOINT!,
+                credentials: {
+                  accessKeyId: process.env.R2_ACCESS_KEY_ID || '',
+                  secretAccessKey: process.env.R2_SECRET_ACCESS_KEY || '',
+                },
+                forcePathStyle: true,
+              });
+              const s3Res = await s3.send(new GetObjectCommand({
+                Bucket: process.env.R2_BUCKET_NAME,
+                Key: r2Key,
+              }));
+              if (s3Res.Body) {
+                const chunks: any[] = [];
+                for await (const chunk of s3Res.Body as any) {
+                  chunks.push(chunk);
+                }
+                photoBuffer = Buffer.concat(chunks);
+                photoMime = s3Res.ContentType || 'image/jpeg';
+                photoFileName = r2Key;
+              }
+            }
+
+            // Fallback: fetch via HTTP if not found or external URL
+            if (!photoBuffer) {
+              const fetchImg = await fetch(cleanPhotoUrl);
+              if (fetchImg.ok) {
+                const arr = await fetchImg.arrayBuffer();
+                photoBuffer = Buffer.from(arr);
+                photoMime = fetchImg.headers.get('content-type') || 'image/jpeg';
+              }
+            }
+          } catch (e) {
+            console.warn('[PHOTO_BUFFER_FETCH_WARN]', e);
           }
 
-          res = await fetch(`https://api.telegram.org/bot${token}/sendPhoto`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(payload),
-          });
+          if (photoBuffer) {
+            // Multipart form-data sending directly to Telegram (guaranteed to work)
+            const formData = new FormData();
+            formData.append('chat_id', String(chatId));
+            formData.append('caption', personalizedText);
+            formData.append('parse_mode', 'HTML');
+            if (replyMarkup) {
+              formData.append('reply_markup', JSON.stringify(replyMarkup));
+            }
+            const uint8Array = new Uint8Array(photoBuffer);
+            const blob = new Blob([uint8Array], { type: photoMime });
+            formData.append('photo', blob, photoFileName);
+
+            res = await fetch(`https://api.telegram.org/bot${token}/sendPhoto`, {
+              method: 'POST',
+              body: formData,
+            });
+          } else {
+            // Fallback to sending URL directly
+            const payload: Record<string, any> = {
+              chat_id: chatId,
+              photo: cleanPhotoUrl,
+              caption: personalizedText,
+              parse_mode: 'HTML',
+            };
+            if (replyMarkup) {
+              payload.reply_markup = replyMarkup;
+            }
+
+            res = await fetch(`https://api.telegram.org/bot${token}/sendPhoto`, {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify(payload),
+            });
+          }
         } else {
           const payload: Record<string, any> = {
             chat_id: chatId,

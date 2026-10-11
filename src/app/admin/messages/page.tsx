@@ -1587,13 +1587,20 @@ export default function AdminMessagesPage() {
                     <div 
                       className="tg-bubble-body"
                       dangerouslySetInnerHTML={{ 
-                        __html: tgMessageText.trim() 
-                          ? tgMessageText
-                              .replace(/\{first_name\}/gi, '<span style="color: #38bdf8; font-weight: 700;">Alexander</span>')
-                              .replace(/\{name\}/gi, '<span style="color: #38bdf8; font-weight: 700;">Alexander Smith</span>')
-                              .replace(/\{username\}/gi, '<span style="color: #38bdf8; font-weight: 700;">@alexander</span>')
-                              .replace(/\n/g, '<br/>') 
-                          : '<i>Type your message to see a live preview here...</i>' 
+                        __html: (() => {
+                          const sampleUser = tgUsers.find(u => selectedUserIds.includes(u.telegram_id)) || tgUsers[0];
+                          const sampleFirst = sampleUser?.first_name || 'Dancer';
+                          const sampleFull = [sampleUser?.first_name, sampleUser?.last_name].filter(Boolean).join(' ') || sampleFirst;
+                          const sampleUserTag = sampleUser?.username ? `@${sampleUser.username}` : sampleFirst;
+
+                          return tgMessageText.trim() 
+                            ? tgMessageText
+                                .replace(/\{first_name\}/gi, `<span style="color: #38bdf8; font-weight: 700;">${sampleFirst}</span>`)
+                                .replace(/\{name\}/gi, `<span style="color: #38bdf8; font-weight: 700;">${sampleFull}</span>`)
+                                .replace(/\{username\}/gi, `<span style="color: #38bdf8; font-weight: 700;">${sampleUserTag}</span>`)
+                                .replace(/\n/g, '<br/>') 
+                            : '<i>Type your message to see a live preview here...</i>';
+                        })()
                       }} 
                     />
 

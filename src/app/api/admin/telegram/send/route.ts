@@ -132,6 +132,19 @@ export async function POST(req: NextRequest) {
             .replace(/\{username\}/gi, 'Dancer');
         }
 
+        // Sanitize stray '<' and '>' that are not valid Telegram HTML tags (<b>, <i>, <a>, <code>, <s>, <u>)
+        // E.g. '<3' (heart) becomes '&lt;3' so Telegram doesn't crash with: "Unsupported start tag"
+        personalizedText = personalizedText
+          .replace(/<(?!\/?(?:b|i|a|code|s|u|pre|tg-spoiler)\b[^>]*>)/gi, '&lt;')
+          .replace(/(?<!(?:<[^>]*|\/))>/gi, (match, offset, str) => {
+            // Check if this > closes an actual HTML tag
+            const prevOpen = str.lastIndexOf('<', offset);
+            if (prevOpen !== -1 && prevOpen < offset && !str.slice(prevOpen, offset).includes('>')) {
+              return '>';
+            }
+            return '&gt;';
+          });
+
         const cleanPhotoUrl = typeof photoUrl === 'string' && photoUrl.trim() ? photoUrl.trim() : null;
         let res: Response;
 

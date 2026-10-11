@@ -16,6 +16,7 @@ export async function POST(req: NextRequest) {
       target = 'single', 
       telegramId, 
       telegramIds, 
+      buttons, // Array of { text: string, url: string }
       botToken: customToken 
     } = body;
 
@@ -58,6 +59,17 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'No recipients found' }, { status: 400 });
     }
 
+    // Prepare reply_markup if buttons are provided
+    let replyMarkup: Record<string, any> | undefined = undefined;
+    if (Array.isArray(buttons) && buttons.length > 0) {
+      const validButtons = buttons
+        .filter(b => b && typeof b.text === 'string' && b.text.trim() && typeof b.url === 'string' && b.url.trim())
+        .map(b => [{ text: b.text.trim(), url: b.url.trim() }]);
+      if (validButtons.length > 0) {
+        replyMarkup = { inline_keyboard: validButtons };
+      }
+    }
+
     // Send messages via Telegram Bot API with rate limiting
     let sentCount = 0;
     let failedCount = 0;
@@ -65,15 +77,20 @@ export async function POST(req: NextRequest) {
 
     for (const chatId of targetIds) {
       try {
+        const payload: Record<string, any> = {
+          chat_id: chatId,
+          text: message,
+          parse_mode: 'HTML',
+          disable_web_page_preview: false,
+        };
+        if (replyMarkup) {
+          payload.reply_markup = replyMarkup;
+        }
+
         const res = await fetch(`https://api.telegram.org/bot${token}/sendMessage`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            chat_id: chatId,
-            text: message,
-            parse_mode: 'HTML',
-            disable_web_page_preview: false,
-          }),
+          body: JSON.stringify(payload),
         });
 
         const data = await res.json();
@@ -88,7 +105,7 @@ export async function POST(req: NextRequest) {
         errors.push({ id: chatId, reason: err.message || 'Network error' });
       }
 
-      // Small delay between calls to respect Telegram 30 msgs/sec rate limits
+      // Small delay between calls to respect Telegram rate limits
       if (targetIds.length > 1) {
         await new Promise(r => setTimeout(r, 40));
       }
@@ -99,7 +116,7 @@ export async function POST(req: NextRequest) {
       total: targetIds.length,
       sentCount,
       failedCount,
-      errors: errors.slice(0, 20), // return top 20 error reasons
+      errors: errors.slice(0, 20),
     });
   } catch (err: any) {
     return NextResponse.json({ error: err.message || 'Server error' }, { status: 500 });

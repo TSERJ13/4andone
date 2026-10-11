@@ -1,13 +1,14 @@
 "use client";
 
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { supabase } from '@/utils/supabase';
 import { adminDb } from '@/lib/admin-db';
 import { 
   Mail, MessageSquare, Trash2, Reply, RefreshCw, 
   Search, Calendar, User, Clock, CheckCircle2, AlertTriangle, 
   Filter, Send, Users, Sparkles, ExternalLink, ShieldCheck, 
-  Bot, AlertCircle 
+  Bot, AlertCircle, Plus, Eye, Bold, Italic, Link2, Code, 
+  BellRing, Award 
 } from 'lucide-react';
 import ConfirmModal from '@/components/admin/ConfirmModal';
 
@@ -26,6 +27,12 @@ interface TelegramUser {
   last_name?: string;
   username?: string;
   is_premium?: boolean;
+  premium_until?: string | null;
+}
+
+interface InlineBtn {
+  text: string;
+  url: string;
 }
 
 export default function AdminMessagesPage() {
@@ -47,14 +54,17 @@ export default function AdminMessagesPage() {
     message: null,
   });
 
-  // TELEGRAM BROADCAST / DIRECT MESSAGE STATE
+  // TELEGRAM STATE
   const [tgUsers, setTgUsers] = useState<TelegramUser[]>([]);
   const [loadingTgUsers, setLoadingTgUsers] = useState(false);
-  const [sendTarget, setSendTarget] = useState<'broadcast' | 'single'>('broadcast');
+  const [sendTarget, setSendTarget] = useState<'broadcast' | 'single' | 'expiring'>('broadcast');
   const [selectedUser, setSelectedUser] = useState<TelegramUser | null>(null);
   const [userSearchQuery, setUserSearchQuery] = useState('');
   const [tgMessageText, setTgMessageText] = useState('');
   const [botToken, setBotToken] = useState('');
+  const [buttons, setButtons] = useState<InlineBtn[]>([
+    { text: '🎵 Open 4and.one Player', url: 'https://4and.one' }
+  ]);
   const [isSendingTg, setIsSendingTg] = useState(false);
   const [sendResult, setSendResult] = useState<{
     total: number;
@@ -118,7 +128,7 @@ export default function AdminMessagesPage() {
     try {
       const { data, error } = await adminDb
         .from('telegram_users')
-        .select('telegram_id, first_name, last_name, username, is_premium')
+        .select('telegram_id, first_name, last_name, username, is_premium, premium_until')
         .order('visit_count', { ascending: false })
         .limit(1000);
       if (!error && data) {
@@ -137,6 +147,17 @@ export default function AdminMessagesPage() {
     const savedToken = localStorage.getItem('4andone_admin_bot_token') || '';
     if (savedToken) setBotToken(savedToken);
   }, [fetchMessages, fetchTgUsers]);
+
+  // Compute users whose Premium expires in the next 5 days
+  const expiringUsers = useMemo(() => {
+    const now = Date.now();
+    const fiveDaysMs = 5 * 86400000;
+    return tgUsers.filter(u => {
+      if (!u.is_premium || !u.premium_until) return false;
+      const until = new Date(u.premium_until).getTime();
+      return until > now && (until - now) <= fiveDaysMs;
+    });
+  }, [tgUsers]);
 
   const handleDelete = async () => {
     if (!deleteModal.message) return;
@@ -175,12 +196,15 @@ export default function AdminMessagesPage() {
     try {
       const payload: Record<string, any> = {
         message: tgMessageText.trim(),
-        target: sendTarget,
+        target: sendTarget === 'expiring' ? 'selected' : sendTarget,
         botToken: botToken.trim() || undefined,
+        buttons: buttons.filter(b => b.text.trim() && b.url.trim()),
       };
 
       if (sendTarget === 'single' && selectedUser) {
         payload.telegramId = selectedUser.telegram_id;
+      } else if (sendTarget === 'expiring') {
+        payload.telegramIds = expiringUsers.map(u => u.telegram_id);
       }
 
       const res = await fetch('/api/admin/telegram/send', {
@@ -217,8 +241,57 @@ export default function AdminMessagesPage() {
     }
   };
 
-  const applyTemplate = (text: string) => {
-    setTgMessageText(text);
+  // Button management
+  const addButton = () => {
+    setButtons(prev => [...prev, { text: 'New Button', url: 'https://4and.one' }]);
+  };
+
+  const updateButton = (index: number, field: 'text' | 'url', val: string) => {
+    setButtons(prev => {
+      const next = [...prev];
+      next[index] = { ...next[index], [field]: val };
+      return next;
+    });
+  };
+
+  const removeButton = (index: number) => {
+    setButtons(prev => prev.filter((_, i) => i !== index));
+  };
+
+  // Formatting helpers
+  const insertFormat = (tag: 'b' | 'i' | 'a' | 'code' | 'emoji', extra?: string) => {
+    if (tag === 'b') {
+      setTgMessageText(prev => prev + ' <b>bold text</b> ');
+    } else if (tag === 'i') {
+      setTgMessageText(prev => prev + ' <i>italic text</i> ');
+    } else if (tag === 'code') {
+      setTgMessageText(prev => prev + ' <code>code</code> ');
+    } else if (tag === 'a') {
+      setTgMessageText(prev => prev + ' <a href="https://4and.one">link text</a> ');
+    } else if (tag === 'emoji' && extra) {
+      setTgMessageText(prev => prev + extra);
+    }
+  };
+
+  const applyTemplate = (type: 'update' | 'gift' | 'referral' | 'expiring') => {
+    if (type === 'update') {
+      setTgMessageText("🎵 <b>New Tracks Added!</b>\n\nFresh dancesport music has just been uploaded to 4and.one with native BPM tempo control. Check out the latest Ballroom & Latin releases today!");
+      setButtons([{ text: '🎵 Open Music Player', url: 'https://4and.one' }]);
+    } else if (type === 'gift') {
+      setTgMessageText("⭐ <b>Special Gift from 4and.one!</b>\n\nThank you for dancing with us. We've granted you a special bonus session! Enjoy ad-free listening and competition practice.");
+      setButtons([{ text: '⭐ Start Listening', url: 'https://4and.one' }]);
+    } else if (type === 'referral') {
+      setTgMessageText("🎁 <b>Invite a Friend, Both Get 1 Month Free!</b>\n\nInvite your dance partner to 4and.one. When they sign in, you both receive 1 month of free Premium immediately!");
+      setButtons([{ text: '🎁 Get Invite Link', url: 'https://4and.one/earn' }]);
+    } else if (type === 'expiring') {
+      setTgMessageText("⏳ <b>Your 4and.one Premium expires soon!</b>\n\nYour Premium subscription will end in 5 days. Renew now to keep uninterrupted ad-free playback, offline downloads, and competition Final Mode practice!");
+      setButtons([{ text: '💎 Renew Premium Now', url: 'https://4and.one/earn' }]);
+    }
+  };
+
+  const loadExpiringReminder = () => {
+    setSendTarget('expiring');
+    applyTemplate('expiring');
   };
 
   const filteredTgUsers = tgUsers.filter(u => {
@@ -284,7 +357,7 @@ export default function AdminMessagesPage() {
             Communication &amp; Messages
           </h1>
           <p style={{ color: '#a1a1aa', fontSize: '13px', marginTop: '4px' }}>
-            Manage user inquiries and send direct or broadcast Telegram messages via Bot.
+            Manage user inquiries and compose rich Telegram messages with live preview &amp; action buttons.
           </p>
         </div>
 
@@ -329,7 +402,6 @@ export default function AdminMessagesPage() {
       {/* TAB 1: INCOMING MESSAGES */}
       {activeTab === 'incoming' && (
         <>
-          {/* Controls Bar */}
           <div style={{
             display: 'flex',
             alignItems: 'center',
@@ -423,7 +495,6 @@ export default function AdminMessagesPage() {
             </div>
           </div>
 
-          {/* Messages List */}
           {loading ? (
             <div style={{ padding: '60px 0', textAlign: 'center', color: '#71717a' }}>
               <RefreshCw size={24} className="spin" style={{ margin: '0 auto 12px' }} />
@@ -556,20 +627,48 @@ export default function AdminMessagesPage() {
         </>
       )}
 
-      {/* TAB 2: TELEGRAM BOT MESSAGING */}
+      {/* TAB 2: ADVANCED TELEGRAM BOT MESSAGING */}
       {activeTab === 'telegram' && (
         <div className="telegram-panel">
+          {/* Quick Notice for Expiring Users */}
+          <div className="expiring-alert-banner glass">
+            <div className="alert-left">
+              <div className="alert-icon-box">
+                <BellRing size={20} className="text-amber" />
+              </div>
+              <div>
+                <h4 style={{ margin: 0, fontSize: '14px', fontWeight: 800, color: 'white' }}>
+                  Expiring Subscriptions Reminder (Next 5 Days)
+                </h4>
+                <p style={{ margin: '2px 0 0', fontSize: '12px', color: '#a1a1aa' }}>
+                  {expiringUsers.length > 0
+                    ? `Found ${expiringUsers.length} user(s) whose Premium expires within the next 5 days.`
+                    : 'No users expiring in the next 5 days.'}
+                </p>
+              </div>
+            </div>
+            {expiringUsers.length > 0 && (
+              <button
+                type="button"
+                className="btn-notify-expiring"
+                onClick={loadExpiringReminder}
+              >
+                <span>Notify All {expiringUsers.length} Expiring Users ➔</span>
+              </button>
+            )}
+          </div>
+
           <div className="tg-layout">
-            {/* Left Column: Composer */}
+            {/* Left Column: Composer with formatting & buttons */}
             <div className="tg-composer glass">
               <div className="panel-title-row">
                 <Bot size={22} className="text-primary" />
                 <div>
                   <h3 style={{ fontSize: '16px', fontWeight: 800, color: 'white', margin: 0 }}>
-                    Compose Telegram Message
+                    Compose Telegram Post
                   </h3>
                   <p style={{ fontSize: '12px', color: '#a1a1aa', margin: '2px 0 0' }}>
-                    Messages are delivered directly through your official Telegram Bot.
+                    Sent via Telegram Bot with formatting &amp; clickable link buttons.
                   </p>
                 </div>
               </div>
@@ -591,7 +690,7 @@ export default function AdminMessagesPage() {
 
               {/* Target Selector */}
               <div className="form-group">
-                <label className="field-label">Send To:</label>
+                <label className="field-label">Audience:</label>
                 <div className="target-toggle">
                   <button
                     type="button"
@@ -602,7 +701,7 @@ export default function AdminMessagesPage() {
                     }}
                   >
                     <Users size={15} />
-                    <span>Broadcast to All ({tgUsers.length} Users)</span>
+                    <span>Broadcast ({tgUsers.length} Users)</span>
                   </button>
                   <button
                     type="button"
@@ -611,6 +710,18 @@ export default function AdminMessagesPage() {
                   >
                     <User size={15} />
                     <span>Specific User {selectedUser ? `(${selectedUser.first_name})` : ''}</span>
+                  </button>
+                  <button
+                    type="button"
+                    className={`target-btn ${sendTarget === 'expiring' ? 'active' : ''}`}
+                    onClick={() => {
+                      setSendTarget('expiring');
+                      setSelectedUser(null);
+                      applyTemplate('expiring');
+                    }}
+                  >
+                    <BellRing size={15} />
+                    <span>Expiring Soon ({expiringUsers.length})</span>
                   </button>
                 </div>
               </div>
@@ -678,39 +789,113 @@ export default function AdminMessagesPage() {
                   <button
                     type="button"
                     className="template-chip"
-                    onClick={() => applyTemplate("🎵 <b>New Tracks Added!</b>\n\nFresh dancesport music has just been uploaded to 4and.one with BPM tempo control. Check them out now at https://4and.one")}
+                    onClick={() => applyTemplate('update')}
                   >
                     🎵 New Music Update
                   </button>
                   <button
                     type="button"
                     className="template-chip"
-                    onClick={() => applyTemplate("⭐ <b>Special Gift from 4and.one!</b>\n\nWe appreciate your support on our platform. Enjoy your ballroom practice sessions!")}
+                    onClick={() => applyTemplate('gift')}
                   >
                     ⭐ Practice Gift
                   </button>
                   <button
                     type="button"
                     className="template-chip"
-                    onClick={() => applyTemplate("🎁 <b>Invite a Friend, Get Premium!</b>\n\nInvite your dance partner to 4and.one and you both get 1 month of free Premium! Get your link at https://4and.one/earn")}
+                    onClick={() => applyTemplate('referral')}
                   >
                     🎁 Referral Reminder
+                  </button>
+                  <button
+                    type="button"
+                    className="template-chip"
+                    onClick={() => applyTemplate('expiring')}
+                  >
+                    ⏳ Expiry (5 Days)
                   </button>
                 </div>
               </div>
 
-              {/* Message Textarea */}
+              {/* Formatting Toolbar */}
               <div className="form-group">
-                <label className="field-label">
-                  Message Text (supports HTML: &lt;b&gt;, &lt;i&gt;, &lt;a href="..."&gt;)
-                </label>
+                <div className="format-toolbar-row">
+                  <label className="field-label">Message Body:</label>
+                  <div className="format-tools">
+                    <button type="button" className="tool-btn" onClick={() => insertFormat('b')} title="Bold">
+                      <Bold size={13} />
+                    </button>
+                    <button type="button" className="tool-btn" onClick={() => insertFormat('i')} title="Italic">
+                      <Italic size={13} />
+                    </button>
+                    <button type="button" className="tool-btn" onClick={() => insertFormat('a')} title="Link">
+                      <Link2 size={13} />
+                    </button>
+                    <button type="button" className="tool-btn" onClick={() => insertFormat('code')} title="Monospace">
+                      <Code size={13} />
+                    </button>
+                    <div className="tool-divider" />
+                    <button type="button" className="emoji-btn" onClick={() => insertFormat('emoji', '🎵')}>🎵</button>
+                    <button type="button" className="emoji-btn" onClick={() => insertFormat('emoji', '⭐')}>⭐</button>
+                    <button type="button" className="emoji-btn" onClick={() => insertFormat('emoji', '🏆')}>🏆</button>
+                    <button type="button" className="emoji-btn" onClick={() => insertFormat('emoji', '🎁')}>🎁</button>
+                    <button type="button" className="emoji-btn" onClick={() => insertFormat('emoji', '⏳')}>⏳</button>
+                  </div>
+                </div>
+
                 <textarea
                   value={tgMessageText}
                   onChange={(e) => setTgMessageText(e.target.value)}
                   rows={6}
-                  placeholder="Type your announcement or personal message here..."
+                  placeholder="Type your message here using HTML formatting..."
                   className="textarea-field"
                 />
+              </div>
+
+              {/* Telegram Inline Buttons Section */}
+              <div className="form-group">
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                  <label className="field-label">Action Buttons (Inline Keyboard):</label>
+                  <button type="button" className="btn-add-btn" onClick={addButton}>
+                    <Plus size={13} />
+                    <span>Add Button</span>
+                  </button>
+                </div>
+
+                {buttons.length === 0 ? (
+                  <p style={{ fontSize: '11px', color: '#71717a', margin: '4px 0' }}>
+                    No buttons added yet. Click &quot;Add Button&quot; to attach link buttons below the message.
+                  </p>
+                ) : (
+                  <div className="buttons-editor-list">
+                    {buttons.map((b, i) => (
+                      <div key={i} className="btn-edit-row">
+                        <input
+                          type="text"
+                          value={b.text}
+                          onChange={(e) => updateButton(i, 'text', e.target.value)}
+                          placeholder="Button Label (e.g. Open Player)"
+                          className="input-btn-text"
+                        />
+                        <input
+                          type="text"
+                          value={b.url}
+                          onChange={(e) => updateButton(i, 'url', e.target.value)}
+                          placeholder="https://..."
+                          className="input-btn-url"
+                        />
+                        <button
+                          type="button"
+                          className="btn-del-btn"
+                          onClick={() => removeButton(i)}
+                          title="Remove button"
+                        >
+                          ✕
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                )}
               </div>
 
               {/* Send Button */}
@@ -731,6 +916,8 @@ export default function AdminMessagesPage() {
                     <span>
                       {sendTarget === 'broadcast' 
                         ? `Broadcast to ${tgUsers.length} Users` 
+                        : sendTarget === 'expiring'
+                        ? `Send to ${expiringUsers.length} Expiring Users`
                         : `Send to ${selectedUser?.first_name || 'User'}`}
                     </span>
                   </>
@@ -760,51 +947,95 @@ export default function AdminMessagesPage() {
               )}
             </div>
 
-            {/* Right Column: User Quick List */}
-            <div className="tg-users-sidebar glass">
-              <div className="sidebar-title">
-                <Users size={18} className="text-primary" />
-                <h4 style={{ margin: 0, fontSize: '14px', fontWeight: 800, color: 'white' }}>
-                  Telegram Users ({tgUsers.length})
-                </h4>
-              </div>
-              <p style={{ fontSize: '12px', color: '#71717a', margin: '4px 0 12px' }}>
-                Tap any user to write to them directly.
-              </p>
+            {/* Right Column: Live Telegram Post Preview & Quick List */}
+            <div className="tg-sidebar-column">
+              {/* LIVE TELEGRAM PREVIEW BOX */}
+              <div className="tg-preview-card glass">
+                <div className="preview-header">
+                  <Eye size={15} className="text-primary" />
+                  <span className="preview-label">Live Telegram Preview</span>
+                </div>
 
-              <div className="users-scroll-list">
-                {tgUsers.map(u => (
-                  <div 
-                    key={u.telegram_id} 
-                    className="user-item-row"
-                    onClick={() => {
-                      setSendTarget('single');
-                      setSelectedUser(u);
-                    }}
-                  >
-                    <div className="user-avatar-xs">
-                      {u.first_name?.charAt(0) || 'U'}
+                <div className="telegram-chat-simulation">
+                  {/* Message Bubble */}
+                  <div className="tg-bubble">
+                    <div className="tg-bot-header">
+                      <span className="tg-bot-name">4and.one Music Bot</span>
+                      <span className="tg-bot-badge">bot</span>
                     </div>
-                    <div style={{ flex: 1, minWidth: 0 }}>
-                      <div className="user-item-name">{u.first_name} {u.last_name || ''}</div>
-                      <div className="user-item-sub">
-                        {u.username ? `@${u.username}` : `ID: ${u.telegram_id}`}
-                      </div>
+
+                    <div 
+                      className="tg-bubble-body"
+                      dangerouslySetInnerHTML={{ 
+                        __html: tgMessageText.trim() 
+                          ? tgMessageText.replace(/\n/g, '<br/>') 
+                          : '<i>Type your message to see a live preview here...</i>' 
+                      }} 
+                    />
+
+                    <div className="tg-bubble-time">
+                      {new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                     </div>
-                    {u.username && (
-                      <a 
-                        href={`https://t.me/${u.username}`} 
-                        target="_blank" 
-                        rel="noreferrer" 
-                        className="tg-icon-link"
-                        onClick={(e) => e.stopPropagation()}
-                        title="Open in Telegram app"
-                      >
-                        <ExternalLink size={12} />
-                      </a>
-                    )}
                   </div>
-                ))}
+
+                  {/* Inline Buttons Preview */}
+                  {buttons.filter(b => b.text.trim()).length > 0 && (
+                    <div className="tg-inline-buttons-wrap">
+                      {buttons.filter(b => b.text.trim()).map((b, i) => (
+                        <a
+                          key={i}
+                          href={b.url}
+                          target="_blank"
+                          rel="noreferrer"
+                          className="tg-sim-btn"
+                          onClick={(e) => e.preventDefault()}
+                        >
+                          <span>{b.text}</span>
+                          <ExternalLink size={11} opacity={0.6} />
+                        </a>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              {/* USER QUICK PICKER LIST */}
+              <div className="tg-users-sidebar glass">
+                <div className="sidebar-title">
+                  <Users size={16} className="text-primary" />
+                  <h4 style={{ margin: 0, fontSize: '13px', fontWeight: 800, color: 'white' }}>
+                    Quick Message User ({tgUsers.length})
+                  </h4>
+                </div>
+                <p style={{ fontSize: '11px', color: '#71717a', margin: '2px 0 10px' }}>
+                  Click to select as recipient.
+                </p>
+
+                <div className="users-scroll-list">
+                  {tgUsers.map(u => (
+                    <div 
+                      key={u.telegram_id} 
+                      className="user-item-row"
+                      onClick={() => {
+                        setSendTarget('single');
+                        setSelectedUser(u);
+                      }}
+                    >
+                      <div className="user-avatar-xs">
+                        {u.first_name?.charAt(0) || 'U'}
+                      </div>
+                      <div style={{ flex: 1, minWidth: 0 }}>
+                        <div className="user-item-name">{u.first_name} {u.last_name || ''}</div>
+                        <div className="user-item-sub">
+                          {u.username ? `@${u.username}` : `ID: ${u.telegram_id}`}
+                        </div>
+                      </div>
+                      {u.is_premium && (
+                        <span className="premium-mini-badge" title="Active Premium">⭐</span>
+                      )}
+                    </div>
+                  ))}
+                </div>
               </div>
             </div>
           </div>
@@ -858,13 +1089,55 @@ export default function AdminMessagesPage() {
           to { transform: rotate(360deg); }
         }
 
-        /* Telegram Panel */
+        /* Expiring Alert Banner */
+        .expiring-alert-banner {
+          display: flex;
+          align-items: center;
+          justify-content: space-between;
+          padding: 14px 20px;
+          border-radius: 16px;
+          background: rgba(245, 158, 11, 0.08);
+          border: 1px solid rgba(245, 158, 11, 0.25);
+          margin-bottom: 20px;
+          flex-wrap: wrap;
+          gap: 12px;
+        }
+        .alert-left {
+          display: flex;
+          align-items: center;
+          gap: 12px;
+        }
+        .alert-icon-box {
+          width: 36px;
+          height: 36px;
+          border-radius: 10px;
+          background: rgba(245, 158, 11, 0.15);
+          display: flex;
+          align-items: center;
+          justify-content: center;
+        }
+        .btn-notify-expiring {
+          padding: 8px 16px;
+          border-radius: 10px;
+          background: #f59e0b;
+          border: none;
+          color: #000000;
+          font-size: 12px;
+          font-weight: 800;
+          cursor: pointer;
+          transition: background 0.2s;
+        }
+        .btn-notify-expiring:hover {
+          background: #d97706;
+        }
+
+        /* Telegram Layout */
         .tg-layout {
           display: grid;
-          grid-template-columns: 1fr 340px;
+          grid-template-columns: 1fr 380px;
           gap: 20px;
         }
-        @media (max-width: 900px) {
+        @media (max-width: 950px) {
           .tg-layout {
             grid-template-columns: 1fr;
           }
@@ -933,6 +1206,7 @@ export default function AdminMessagesPage() {
           font-weight: 700;
           cursor: pointer;
           transition: all 0.2s;
+          white-space: nowrap;
         }
         .target-btn.active {
           background: rgba(56, 189, 248, 0.15);
@@ -1038,6 +1312,117 @@ export default function AdminMessagesPage() {
           color: white;
         }
 
+        /* Formatting tools */
+        .format-toolbar-row {
+          display: flex;
+          align-items: center;
+          justify-content: space-between;
+          margin-bottom: 4px;
+          flex-wrap: wrap;
+          gap: 8px;
+        }
+        .format-tools {
+          display: flex;
+          align-items: center;
+          gap: 4px;
+          background: rgba(0, 0, 0, 0.3);
+          padding: 3px 6px;
+          border-radius: 8px;
+          border: 1px solid rgba(255, 255, 255, 0.08);
+        }
+        .tool-btn {
+          width: 26px;
+          height: 26px;
+          border-radius: 6px;
+          background: transparent;
+          border: none;
+          color: #a1a1aa;
+          cursor: pointer;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+        }
+        .tool-btn:hover {
+          background: rgba(255, 255, 255, 0.1);
+          color: white;
+        }
+        .tool-divider {
+          width: 1px;
+          height: 16px;
+          background: rgba(255, 255, 255, 0.1);
+          margin: 0 4px;
+        }
+        .emoji-btn {
+          width: 26px;
+          height: 26px;
+          border-radius: 6px;
+          background: transparent;
+          border: none;
+          font-size: 13px;
+          cursor: pointer;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+        }
+        .emoji-btn:hover {
+          background: rgba(255, 255, 255, 0.1);
+        }
+
+        /* Action Buttons Editor */
+        .btn-add-btn {
+          display: flex;
+          align-items: center;
+          gap: 4px;
+          padding: 4px 10px;
+          border-radius: 6px;
+          background: rgba(56, 189, 248, 0.15);
+          border: 1px solid rgba(56, 189, 248, 0.3);
+          color: #38bdf8;
+          font-size: 11px;
+          font-weight: 700;
+          cursor: pointer;
+        }
+        .buttons-editor-list {
+          display: flex;
+          flex-direction: column;
+          gap: 8px;
+        }
+        .btn-edit-row {
+          display: flex;
+          gap: 8px;
+          align-items: center;
+        }
+        .input-btn-text {
+          flex: 1;
+          background: rgba(0, 0, 0, 0.35);
+          border: 1px solid rgba(255, 255, 255, 0.12);
+          border-radius: 8px;
+          padding: 8px 10px;
+          color: white;
+          font-size: 12px;
+          outline: none;
+        }
+        .input-btn-url {
+          flex: 1.2;
+          background: rgba(0, 0, 0, 0.35);
+          border: 1px solid rgba(255, 255, 255, 0.12);
+          border-radius: 8px;
+          padding: 8px 10px;
+          color: white;
+          font-size: 12px;
+          outline: none;
+        }
+        .btn-del-btn {
+          width: 32px;
+          height: 32px;
+          border-radius: 8px;
+          background: rgba(239, 68, 68, 0.1);
+          border: 1px solid rgba(239, 68, 68, 0.2);
+          color: #f87171;
+          cursor: pointer;
+          font-size: 12px;
+        }
+
         .btn-send-tg {
           padding: 12px 24px;
           border-radius: 12px;
@@ -1068,15 +1453,108 @@ export default function AdminMessagesPage() {
           border: 1px solid rgba(255, 255, 255, 0.08);
         }
 
+        /* Right Column */
+        .tg-sidebar-column {
+          display: flex;
+          flex-direction: column;
+          gap: 20px;
+        }
+
+        /* Live Telegram Preview */
+        .tg-preview-card {
+          padding: 16px;
+          border-radius: 18px;
+          background: #0e1621;
+          border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+        .preview-header {
+          display: flex;
+          align-items: center;
+          gap: 6px;
+          margin-bottom: 12px;
+        }
+        .preview-label {
+          font-size: 11px;
+          font-weight: 800;
+          color: #38bdf8;
+          text-transform: uppercase;
+          letter-spacing: 0.5px;
+        }
+        .telegram-chat-simulation {
+          background: #182533;
+          border-radius: 14px;
+          padding: 12px;
+          display: flex;
+          flex-direction: column;
+          gap: 8px;
+        }
+        .tg-bubble {
+          background: #2b5278;
+          border-radius: 12px 12px 12px 4px;
+          padding: 10px 12px;
+          color: #ffffff;
+          position: relative;
+        }
+        .tg-bot-header {
+          display: flex;
+          align-items: center;
+          gap: 6px;
+          margin-bottom: 4px;
+        }
+        .tg-bot-name {
+          font-size: 12px;
+          font-weight: 800;
+          color: #64b5f6;
+        }
+        .tg-bot-badge {
+          font-size: 9px;
+          background: rgba(0, 0, 0, 0.2);
+          padding: 1px 4px;
+          border-radius: 3px;
+          color: #bbdefb;
+          text-transform: uppercase;
+        }
+        .tg-bubble-body {
+          font-size: 13px;
+          line-height: 1.45;
+          word-break: break-word;
+          color: #e3f2fd;
+        }
+        .tg-bubble-time {
+          font-size: 10px;
+          color: #90caf9;
+          text-align: right;
+          margin-top: 4px;
+        }
+        .tg-inline-buttons-wrap {
+          display: flex;
+          flex-direction: column;
+          gap: 4px;
+        }
+        .tg-sim-btn {
+          background: #233446;
+          border: 1px solid rgba(255, 255, 255, 0.08);
+          border-radius: 8px;
+          padding: 8px 12px;
+          color: #64b5f6;
+          font-size: 12px;
+          font-weight: 700;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          gap: 6px;
+          text-decoration: none;
+        }
+
         /* Sidebar users list */
         .tg-users-sidebar {
-          padding: 20px;
+          padding: 16px;
           border-radius: 18px;
           background: rgba(255, 255, 255, 0.03);
           border: 1px solid rgba(255, 255, 255, 0.08);
           display: flex;
           flex-direction: column;
-          height: 600px;
+          height: 380px;
         }
         .sidebar-title {
           display: flex;
@@ -1094,8 +1572,8 @@ export default function AdminMessagesPage() {
           display: flex;
           align-items: center;
           gap: 10px;
-          padding: 8px 10px;
-          border-radius: 10px;
+          padding: 6px 8px;
+          border-radius: 8px;
           cursor: pointer;
           transition: background 0.2s;
         }
@@ -1103,8 +1581,8 @@ export default function AdminMessagesPage() {
           background: rgba(255, 255, 255, 0.06);
         }
         .user-avatar-xs {
-          width: 28px;
-          height: 28px;
+          width: 26px;
+          height: 26px;
           border-radius: 50%;
           background: #10b981;
           display: flex;
@@ -1126,11 +1604,12 @@ export default function AdminMessagesPage() {
           font-size: 10px;
           color: #71717a;
         }
-        .tg-icon-link {
-          color: #38bdf8;
-          padding: 4px;
+        .premium-mini-badge {
+          font-size: 11px;
         }
+
         .text-primary { color: #38bdf8; }
+        .text-amber { color: #f59e0b; }
       `}</style>
     </div>
   );

@@ -5,6 +5,7 @@ import { Coins, ExternalLink, Sparkles, TrendingUp, ShieldCheck } from 'lucide-r
 import AdSenseStatsCard from "@/components/admin/AdSenseStatsCard";
 import SubscriptionManager from "@/components/admin/SubscriptionManager";
 import ReferralsPanel from "@/components/admin/ReferralsPanel";
+import PromoCodesManager from "@/components/admin/PromoCodesManager";
 
 export default function AdminEarnPage() {
   return (
@@ -40,6 +41,7 @@ export default function AdminEarnPage() {
 
       {/* Main Content */}
       <div className="earn-content">
+        <PromoCodesManager />
         <SubscriptionManager />
         <ReferralsPanel />
         <AdSenseStatsCard />

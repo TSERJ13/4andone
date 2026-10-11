@@ -2,16 +2,8 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getSupabaseAdmin, serviceRoleMissing } from '@/lib/supabase-admin';
 import { resolveReadableTelegramId } from '@/lib/user-session';
 import { claimReferral, normalizeCode, REFERRAL_DAYS } from '@/lib/referrals';
-
-// Official Promo Codes Configuration
-// Code => { name: string, days: number }
-const OFFICIAL_PROMOS: Record<string, { name: string; days: number }> = {
-  'FREE30': { name: '1 Month Free Trial', days: 30 },
-  'DANCE2026': { name: 'Special Dance Gift 2026', days: 30 },
-  'VIPDANCER': { name: 'VIP Dancer Pass', days: 60 },
-  'CHAMPION': { name: 'Competition Special', days: 30 },
-  'GOC2026': { name: 'German Open Special', days: 30 },
-};
+import { getStoredPromoCodes } from '@/lib/promos';
+import { supabase as fallbackSupabase } from '@/utils/supabase';
 
 // Accept an invite or activate an official promo code.
 // Rule: A user can only use ONE active promo at a time.
@@ -27,12 +19,31 @@ export async function POST(request: NextRequest) {
   const rawCode = typeof body.code === 'string' ? body.code.trim().toUpperCase() : '';
   if (!rawCode) return NextResponse.json({ ok: false, reason: 'bad_code' }, { status: 400 });
 
-  const db = getSupabaseAdmin();
+  const db = getSupabaseAdmin() || fallbackSupabase;
   if (!db) return serviceRoleMissing();
 
-  // 1. Check if this is an Official Promo Code
-  if (OFFICIAL_PROMOS[rawCode]) {
-    const promo = OFFICIAL_PROMOS[rawCode];
+  // 1. Check if this is a configured Promo Code (dynamic from DB + defaults)
+  const { promos, claimsCount } = await getStoredPromoCodes(db);
+  const matchedPromo = promos.find(p => p.code === rawCode);
+
+  if (matchedPromo) {
+    if (!matchedPromo.active) {
+      return NextResponse.json({
+        ok: false,
+        reason: 'promo_inactive',
+        message: 'ეს პრომო კოდი დეაქტივირებულია ან ვადაგასულია.'
+      }, { status: 400 });
+    }
+
+    if (matchedPromo.maxUses && (claimsCount[matchedPromo.code] || 0) >= matchedPromo.maxUses) {
+      return NextResponse.json({
+        ok: false,
+        reason: 'promo_limit_reached',
+        message: 'ამ პრომო კოდის გამოყენების მაქსიმალური რაოდენობა ამოიწურა.'
+      }, { status: 400 });
+    }
+
+    const promo = matchedPromo;
 
     // Check user data
     const { data: user, error: uErr } = await db

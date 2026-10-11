@@ -483,136 +483,141 @@ const BulkUpload = () => {
         <>
           <div className="batch-header-bar glass">
             <div className="batch-main-meta">
-              {/* ROW 1: Destination (Album Dropdown) & Artist */}
-              <div className="inputs-row">
-                <div className="meta-field-group">
-                  <div className="meta-field dest-field">
-                    <Disc 
-                      size={16} 
-                      className="meta-icon" 
-                      style={{ 
-                        color: batchDestKey !== "standard" && batchDestKey !== "__custom__" 
-                          ? (albums.find(a => a.slug === batchDestKey)?.themeColor || "#ff416c") 
-                          : "#38bdf8" 
-                      }} 
-                    />
-                    <select 
-                      className="meta-select dest-meta-select"
-                      value={batchDestKey}
-                      onChange={(e) => handleDestinationChange(e.target.value)}
-                    >
-                      <option value="standard">📁 Standard Library (Main)</option>
-                      {albums.length > 0 && (
-                        <optgroup label="── Albums & Collections ──">
-                          {albums.map(alb => (
-                            <option key={alb.id || alb.slug} value={alb.slug}>
-                              💿 {alb.title} {alb.badge ? `(${alb.badge})` : ""}
-                            </option>
-                          ))}
-                        </optgroup>
-                      )}
-                      <option value="__custom__">✏️ Custom Album Name...</option>
-                    </select>
-                    <ChevronDown size={14} className="meta-chevron" />
-                  </div>
-
-                  {batchDestKey === "__custom__" && (
-                    <div className="meta-field custom-album-subfield animate-in">
-                      <FolderPlus size={15} className="meta-icon" />
-                      <input 
-                        type="text" 
-                        placeholder="Type Album or Collection Title..." 
-                        value={batchAlbum === "Standard Library" ? "" : batchAlbum}
-                        onChange={(e) => setBatchAlbum(e.target.value)}
-                        autoFocus
-                      />
-                    </div>
-                  )}
-
-                  {(batchDestKey === "goc-2026" || batchDestKey === "goc") && (
-                    <div className="batch-goc-discipline-box animate-in">
-                      <span className="goc-discipline-label">Discipline:</span>
-                      <div className="goc-discipline-btns">
-                        <button
-                          type="button"
-                          className={`goc-discipline-btn latin ${batchGocDiscipline === "Latin" ? "active" : ""}`}
-                          onClick={() => setBatchGocDiscipline("Latin")}
-                        >
-                          🔥 Latin
-                        </button>
-                        <button
-                          type="button"
-                          className={`goc-discipline-btn standard ${batchGocDiscipline === "Standard" ? "active" : ""}`}
-                          onClick={() => setBatchGocDiscipline("Standard")}
-                        >
-                          ⚡ Standard
-                        </button>
-                      </div>
-                    </div>
-                  )}
+              {/* Destination (Album Dropdown) */}
+              <div className="meta-block">
+                <label className="field-micro-label">Destination Album</label>
+                <div className="meta-field dest-field">
+                  <Disc 
+                    size={16} 
+                    className="meta-icon" 
+                    style={{ 
+                      color: batchDestKey !== "standard" && batchDestKey !== "__custom__" 
+                        ? (albums.find(a => a.slug === batchDestKey)?.themeColor || "#ff416c") 
+                        : "#38bdf8" 
+                    }} 
+                  />
+                  <select 
+                    className="meta-select dest-meta-select"
+                    value={batchDestKey}
+                    onChange={(e) => handleDestinationChange(e.target.value)}
+                  >
+                    <option value="standard">📁 Standard Library (Main)</option>
+                    {albums.length > 0 && (
+                      <optgroup label="── Albums & Collections ──">
+                        {albums.map(alb => (
+                          <option key={alb.id || alb.slug} value={alb.slug}>
+                            💿 {alb.title} {alb.badge ? `(${alb.badge})` : ""}
+                          </option>
+                        ))}
+                      </optgroup>
+                    )}
+                    <option value="__custom__">✏️ Custom Album Name...</option>
+                  </select>
+                  <ChevronDown size={14} className="meta-chevron" />
                 </div>
 
-                <div className="meta-field-group">
-                  <div className="meta-field">
-                    <User size={16} className="meta-icon" />
+                {batchDestKey === "__custom__" && (
+                  <div className="meta-field custom-album-subfield animate-in">
+                    <FolderPlus size={15} className="meta-icon" />
                     <input 
                       type="text" 
-                      placeholder="Artist / Composer" 
-                      value={batchArtist}
-                      onChange={(e) => setBatchArtist(e.target.value)}
+                      placeholder="Type Album or Collection Title..." 
+                      value={batchAlbum === "Standard Library" ? "" : batchAlbum}
+                      onChange={(e) => setBatchAlbum(e.target.value)}
+                      autoFocus
                     />
                   </div>
-                  {recentArtists.length > 0 && (
-                    <div className="recent-artists-suggestions">
-                      {recentArtists.slice(0, 10).map(a => (
-                        <button type="button" key={a} className="artist-suggestion-chip" onClick={() => setBatchArtist(a)}>{a}</button>
-                      ))}
+                )}
+
+                {(batchDestKey === "goc-2026" || batchDestKey === "goc") && (
+                  <div className="batch-goc-discipline-box animate-in">
+                    <span className="goc-discipline-label">Discipline:</span>
+                    <div className="goc-discipline-btns">
+                      <button
+                        type="button"
+                        className={`goc-discipline-btn latin ${batchGocDiscipline === "Latin" ? "active" : ""}`}
+                        onClick={() => setBatchGocDiscipline("Latin")}
+                      >
+                        🔥 Latin
+                      </button>
+                      <button
+                        type="button"
+                        className={`goc-discipline-btn standard ${batchGocDiscipline === "Standard" ? "active" : ""}`}
+                        onClick={() => setBatchGocDiscipline("Standard")}
+                      >
+                        ⚡ Standard
+                      </button>
                     </div>
-                  )}
-                </div>
+                  </div>
+                )}
               </div>
 
-              {/* ROW 2: Style and Apply to All */}
-              <div className="inputs-row">
-                <div className="meta-field style-flex">
-                  <Layers size={16} className="meta-icon" />
-                  <select 
-                    className="meta-select"
-                    value={batchStyle}
-                    onChange={(e) => setBatchStyle(e.target.value)}
+              {/* Artist / Composer with Suggestions */}
+              <div className="meta-block">
+                <label className="field-micro-label">Artist / Composer</label>
+                <div className="meta-field">
+                  <User size={16} className="meta-icon" />
+                  <input 
+                    type="text" 
+                    placeholder="e.g. Boris Myagkov, Dance Star..." 
+                    value={batchArtist}
+                    onChange={(e) => setBatchArtist(e.target.value)}
+                  />
+                </div>
+                {recentArtists.length > 0 && (
+                  <div className="recent-artists-suggestions">
+                    {recentArtists.slice(0, 10).map(a => (
+                      <button type="button" key={a} className="artist-suggestion-chip" onClick={() => setBatchArtist(a)}>{a}</button>
+                    ))}
+                  </div>
+                )}
+              </div>
+
+              {/* Style & Apply Controls */}
+              <div className="meta-block">
+                <label className="field-micro-label">Dance Style</label>
+                <div className="style-apply-grid">
+                  <div className="meta-field style-flex">
+                    <Layers size={16} className="meta-icon" />
+                    <select 
+                      className="meta-select"
+                      value={batchStyle}
+                      onChange={(e) => setBatchStyle(e.target.value)}
+                    >
+                      <option value="" disabled>Select Style</option>
+                      {styles.map((s: Style) => <option key={s.id} value={s.title}>{s.title}</option>)}
+                      {!styles.length && (
+                        <>
+                          <option value="Cha-Cha-Cha">Cha-Cha-Cha</option>
+                          <option value="Samba">Samba</option>
+                          <option value="Rumba">Rumba</option>
+                          <option value="Paso Doble">Paso Doble</option>
+                          <option value="Jive">Jive</option>
+                          <option value="Slow Waltz">Slow Waltz</option>
+                          <option value="Tango">Tango</option>
+                          <option value="Viennese Waltz">Viennese Waltz</option>
+                          <option value="Slow Foxtrot">Slow Foxtrot</option>
+                          <option value="Quickstep">Quickstep</option>
+                          <option value="Fitness">Fitness</option>
+                        </>
+                      )}
+                    </select>
+                  </div>
+                  
+                  <button 
+                    type="button" 
+                    className="btn-apply-batch-v2" 
+                    onClick={applyBatchMetadata}
+                    disabled={files.length === 0}
+                    title={files.length === 0 ? "Add tracks below to apply batch metadata" : "Apply to all queued tracks"}
                   >
-                    <option value="" disabled>Select Style</option>
-                    {styles.map((s: Style) => <option key={s.id} value={s.title}>{s.title}</option>)}
-                    {!styles.length && (
-                      <>
-                        <option value="Cha-Cha-Cha">Cha-Cha-Cha</option>
-                        <option value="Samba">Samba</option>
-                        <option value="Rumba">Rumba</option>
-                        <option value="Paso Doble">Paso Doble</option>
-                        <option value="Jive">Jive</option>
-                        <option value="Slow Waltz">Slow Waltz</option>
-                        <option value="Tango">Tango</option>
-                        <option value="Viennese Waltz">Viennese Waltz</option>
-                        <option value="Slow Foxtrot">Slow Foxtrot</option>
-                        <option value="Quickstep">Quickstep</option>
-                        <option value="Fitness">Fitness</option>
-                      </>
-                    )}
-                  </select>
+                    <CheckCircle2 size={16} />
+                    <span>Apply to {files.length > 0 ? `${files.length} Tracks` : "Queue"}</span>
+                  </button>
                 </div>
-                
-                <button 
-                  type="button" 
-                  className="btn-apply-batch-v2" 
-                  onClick={applyBatchMetadata}
-                  disabled={files.length === 0}
-                >
-                  <CheckCircle2 size={18} />
-                  <span>Apply All</span>
-                </button>
               </div>
 
-              {/* ROW 3: Tags */}
+              {/* Tags */}
               <div className="batch-tags-row">
                  <div className="tags-label">
                    <TagIcon size={14} />
@@ -957,10 +962,30 @@ const BulkUpload = () => {
         }
         .batch-tag-pill.active { background: var(--tag-color); color: black; border-color: transparent; }
 
+        .meta-block {
+          display: flex;
+          flex-direction: column;
+          gap: 6px;
+          width: 100%;
+        }
+        .field-micro-label {
+          font-size: 11px;
+          font-weight: 800;
+          color: #71717a;
+          text-transform: uppercase;
+          letter-spacing: 0.5px;
+        }
+        .style-apply-grid {
+          display: flex;
+          align-items: center;
+          gap: 12px;
+          width: 100%;
+        }
+
         .btn-apply-batch-v2 { 
           display: flex; align-items: center; gap: 8px;
-          height: 44px; padding: 0 28px; border-radius: 12px; font-size: 14px; flex-shrink: 0; 
-          font-weight: 950; background: #1db954; color: black; border: none;
+          height: 44px; padding: 0 24px; border-radius: 12px; font-size: 13.5px; flex-shrink: 0; 
+          font-weight: 900; background: #1db954; color: black; border: none;
           white-space: nowrap; cursor: pointer; transition: all 0.2s cubic-bezier(0.175, 0.885, 0.32, 1.275);
           box-shadow: 0 4px 12px rgba(29, 185, 84, 0.15);
         }
@@ -969,7 +994,7 @@ const BulkUpload = () => {
           background: #1ed760; 
           box-shadow: 0 8px 24px rgba(29, 185, 84, 0.3); 
         }
-        .btn-apply-batch-v2:disabled { opacity: 0.1; cursor: not-allowed; filter: grayscale(1); }
+        .btn-apply-batch-v2:disabled { opacity: 0.25; cursor: not-allowed; filter: grayscale(1); background: rgba(255, 255, 255, 0.08); color: #71717a; }
 
         .style-flex { flex: 1.5; }
         
@@ -1180,27 +1205,44 @@ const BulkUpload = () => {
           }
           .batch-header-bar {
             padding: 14px;
-            border-radius: 16px;
-            gap: 14px;
+            border-radius: 18px;
+            gap: 16px;
+          }
+          .meta-block {
+            gap: 5px;
+          }
+          .field-micro-label {
+            font-size: 10.5px;
+            letter-spacing: 0.6px;
           }
           .inputs-row {
             flex-direction: column;
-            gap: 10px;
+            gap: 12px;
+          }
+          .style-apply-grid {
+            flex-direction: column;
+            gap: 8px;
+            width: 100%;
+          }
+          .style-flex {
+            width: 100%;
           }
           .meta-field input, .meta-select {
-            height: 42px;
-            font-size: 13px;
+            height: 44px;
+            font-size: 13.5px;
+            border-radius: 12px;
           }
           .meta-select {
             text-overflow: ellipsis;
             white-space: nowrap;
             overflow: hidden;
-            padding-right: 32px;
+            padding-right: 36px;
           }
           .recent-artists-suggestions {
             gap: 4px;
-            max-height: 80px;
+            max-height: 72px;
             overflow-y: auto;
+            margin-top: 2px;
           }
           .artist-suggestion-chip {
             padding: 4px 8px;
@@ -1210,11 +1252,14 @@ const BulkUpload = () => {
             width: 100%;
             height: 42px;
             justify-content: center;
+            font-size: 13px;
+            border-radius: 12px;
           }
           .batch-tags-row {
             flex-direction: column;
             align-items: flex-start;
             gap: 8px;
+            padding-top: 4px;
           }
           .tags-scroller {
             width: 100%;
@@ -1223,16 +1268,22 @@ const BulkUpload = () => {
           .batch-side-panel {
             flex-direction: row;
             justify-content: space-between;
+            align-items: flex-end;
             gap: 12px;
-            padding-top: 12px;
+            padding-top: 14px;
           }
           .batch-cover-box, .batch-folder-box {
             flex: 1;
             align-items: center;
           }
+          .batch-cover-zone {
+            width: 68px;
+            height: 68px;
+          }
           .side-folder-select {
             max-width: 130px;
             width: 100%;
+            height: 36px;
           }
           .dropzone {
             padding: 20px 14px;

@@ -387,7 +387,7 @@
 @media (max-width: 800px) {
   /* Fix fixed footer status bar layout overlap on mobile */
   .dashboard-status-bar {
-    position: relative !important;
+    position: static !important;
     bottom: auto !important;
     left: auto !important;
     transform: none !important;
@@ -395,10 +395,10 @@
     height: auto !important;
     flex-direction: column !important;
     padding: 16px !important;
-    gap: 16px !important;
-    margin-top: 32px;
+    gap: 14px !important;
+    margin-top: 24px !important;
     border-radius: 16px !important;
-    box-shadow: 0 8px 32px rgba(0,0,0,0.4) !important;
+    box-shadow: 0 4px 20px rgba(0,0,0,0.3) !important;
   }
   .status-left {
     display: flex !important;
@@ -410,15 +410,18 @@
     padding: 0 !important;
   }
   .stats-horizontal-scroll {
-    flex-wrap: wrap !important;
-    justify-content: center;
+    display: grid !important;
+    grid-template-columns: repeat(2, 1fr) !important;
     gap: 8px !important;
-    width: 100%;
+    width: 100% !important;
   }
   .status-stat-pill {
-    flex: 1 1 calc(50% - 8px);
-    min-width: 120px;
+    min-width: 0 !important;
+    padding: 8px 10px !important;
     justify-content: flex-start;
+  }
+  .status-right {
+    display: none !important;
   }
 }
 

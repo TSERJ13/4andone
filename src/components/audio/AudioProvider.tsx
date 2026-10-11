@@ -89,6 +89,14 @@ const AD_BREAK_ENABLED = false;
 const QUALIFY_SECONDS = 15;
 const AD_COUNT_KEY = '4andone-ad-track-count';
 
+const SILENT_WAV = "data:audio/wav;base64,UklGRjIAAABXQVZFRm10IBAAAAABAAEAIlYAAESsAAACABAAZGF0YRAAAAAAAAAAAAAAAAAAAAAAAAAA";
+
+const isIOS = (): boolean => {
+  if (typeof navigator === 'undefined') return false;
+  return /iPad|iPhone|iPod/.test(navigator.userAgent || '') ||
+    (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+};
+
 // SIGNED-URL CACHE: re-using the same signed URL for a track lets the browser
 // HTTP cache serve replays instantly instead of re-downloading the whole file,
 // and removes the /api/upload round-trip before every play. Entries are reused
@@ -299,18 +307,9 @@ export const AudioProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   // Can this browser change HTMLMediaElement.volume? (false on iPhone/iPad,
   // where volume is read-only). Only those devices need the WebAudio gain
   // chain for the Final-Mode fade; everyone else fades the plain element.
-  const volumeWritableRef = useRef<boolean | null>(null);
   const isVolumeWritable = () => {
-    if (volumeWritableRef.current === null) {
-      try {
-        const probe = new Audio();
-        probe.volume = 0.5;
-        volumeWritableRef.current = Math.abs(probe.volume - 0.5) < 0.01;
-      } catch {
-        volumeWritableRef.current = true;
-      }
-    }
-    return volumeWritableRef.current;
+    if (isIOS()) return false;
+    return true;
   };
 
   // True when the CURRENTLY ACTIVE element is the gain-routed Final one.
@@ -593,7 +592,7 @@ export const AudioProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     if (nextTrack?.audioUrl) {
       resolvePlaybackUrl(nextTrack.audioUrl).catch(() => {});
     }
-  }, []);
+  }, [albums]);
 
 
   useEffect(() => {
@@ -616,8 +615,7 @@ export const AudioProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       nativePlayerRef.current = audio; // active element = plain by default
 
       // 2. Tiny silent WAV to keep iOS audio session alive
-      const silentWav = "data:audio/wav;base64,UklGRjIAAABXQVZFRm10IBAAAAABAAEAIlYAAESsAAACABAAZGF0YRAAAAAAAAAAAAAAAAAAAAAAAAAA";
-      const hb = new Audio(silentWav);
+      const hb = new Audio(SILENT_WAV);
       hb.loop = true;
       hb.volume = 0.01; 
       hb.style.display = 'none';
@@ -868,19 +866,10 @@ export const AudioProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         resumeAfterAdRef.current = true; // …and start it when the break closes
       }
 
-      // ELEMENT SWAP: pick the right output path for this track.
-      // Final Mode → gain-routed element (iOS fade works). Normal → plain
-      // element (pristine native quality + native speed). Pause the inactive
-      // element so two tracks never play at once.
-      // The gain element is used ONLY when it is really needed: Final Mode on a
-      // device whose element volume is read-only (iPhone/iPad) AND at 100% speed.
-      // Its pitch correction is off (WebKit garbles rate-changed audio inside a
-      // graph), so at any other speed it would play slowed tracks pitched down
-      // ("blown"/distorted sound in Final Mode). Desktop and Android always use
-      // the plain element: native pitch-corrected speed + element-volume fade.
-      const needsGainElement = isFinalModeRef.current
-        && !isVolumeWritable()
-        && Math.abs(bpmRef.current - 100) < 0.5;
+      // ELEMENT SWAP: In Final Mode, ALWAYS route through the WebAudio GainNode element (finalPlayerRef)
+      // so the 1:42-1:45 acoustic fade-out works smoothly on ALL devices (especially iPhone/iPad).
+      // Normal mode uses the plain element (pristine native speed control).
+      const needsGainElement = isFinalModeRef.current;
       if (needsGainElement) {
         ensureFinalGraph();
         if (webAudioStateRef.current === 'ready' && finalPlayerRef.current) {
@@ -890,7 +879,7 @@ export const AudioProvider: React.FC<{ children: React.ReactNode }> = ({ childre
           nativePlayerRef.current = plainPlayerRef.current; // graph failed → fallback
         }
       } else if (plainPlayerRef.current) {
-        // Normal mode, or Final Mode where the plain element can do the fade.
+        // Normal mode: plain element keeps pristine native speed control
         if (finalPlayerRef.current && !finalPlayerRef.current.paused) finalPlayerRef.current.pause();
         nativePlayerRef.current = plainPlayerRef.current;
       }
@@ -930,7 +919,9 @@ export const AudioProvider: React.FC<{ children: React.ReactNode }> = ({ childre
           nativePlayerRef.current.oncanplay = null;
           nativePlayerRef.current.ontimeupdate = null;
           nativePlayerRef.current.onended = null;
-          nativePlayerRef.current.pause();
+          if (!isPauseCountdownRef.current) {
+            nativePlayerRef.current.pause();
+          }
         }
         if (fadeIntervalRef.current) {
           clearInterval(fadeIntervalRef.current);
@@ -1021,6 +1012,7 @@ export const AudioProvider: React.FC<{ children: React.ReactNode }> = ({ childre
           }
           
           audio.crossOrigin = "anonymous";
+          audio.loop = false;
           
           // RESET VOLUME: Ensure any previous fade-out is reversed (works on iOS via gain)
           cancelFadeAndRestore();
@@ -1133,6 +1125,11 @@ export const AudioProvider: React.FC<{ children: React.ReactNode }> = ({ childre
                 finalEndHandledRef.current = false;
                 return;
               }
+              // Active program: maintain continuous background audio session on the same element
+              audio.loop = true;
+              audio.src = SILENT_WAV;
+              cancelFadeAndRestore();
+              audio.play().catch(() => {});
               advanceFinalSession();
             } else {
               if (!isRepeatRef.current) {
@@ -1204,6 +1201,15 @@ export const AudioProvider: React.FC<{ children: React.ReactNode }> = ({ childre
           // ATTACH EVENT-DRIVEN MONITORING (Frame-accurate limit checks)
           audio.ontimeupdate = () => {
             if (currentToken !== loadingTokenRef.current) return;
+
+            // In pause countdown (looping SILENT_WAV): drive pause countdown directly from audio clock
+            if (isPauseCountdownRef.current) {
+              if (checkPauseCountdownRef.current) {
+                checkPauseCountdownRef.current();
+              }
+              return;
+            }
+
             const currentTimeVal = audio.currentTime;
 
             // 0. 15-SECOND REAL PLAYBACK QUALIFICATION (FOR THE 5-TRACK AD BREAK)
@@ -1340,13 +1346,13 @@ export const AudioProvider: React.FC<{ children: React.ReactNode }> = ({ childre
                 finalEndHandledRef.current = true;
 
                 audio.onended = null;
-                audio.pause();
-                setIsPlaying(false);
-                isPlayingRef.current = false;
 
                 if (toggledPastLimitRef.current) {
                   toggledPastLimitRef.current = false;
                   customTimeLimitRef.current = null;
+                  audio.pause();
+                  setIsPlaying(false);
+                  isPlayingRef.current = false;
                   audio.currentTime = 0;
                   setCurrentTime(0);
                   trackCurrentTimeRef.current = 0;
@@ -1357,9 +1363,19 @@ export const AudioProvider: React.FC<{ children: React.ReactNode }> = ({ childre
                 }
 
                 if (activeModeRef.current) {
+                  // CRITICAL FOR IOS: DO NOT PAUSE THE AUDIO ELEMENT!
+                  // Transition the SAME audio element to looping silence so the background
+                  // audio session and user-gesture entitlement stay alive throughout the 15s pause.
+                  audio.loop = true;
+                  audio.src = SILENT_WAV;
+                  cancelFadeAndRestore();
+                  audio.play().catch(() => {});
                   advanceFinalSession();
                 } else {
                   // Single-track Final Mode (no program): just auto-stop cleanly
+                  audio.pause();
+                  setIsPlaying(false);
+                  isPlayingRef.current = false;
                   audio.currentTime = 0;
                   setCurrentTime(0);
                   // Restore volume (iOS-safe)
@@ -1785,22 +1801,7 @@ export const AudioProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       setBpmState(newBpm);
       localStorage.setItem('4andone-bpm', newBpm.toString());
 
-      // iPhone/iPad FINAL MODE: the gain element (needed for the fade) has
-      // pitch correction OFF, so slowing it down mid-track dropped the pitch —
-      // the "deep / hoarse voice" on slowed Final tracks. Hand the track over
-      // to the right element at the same position: plain (pitch-corrected)
-      // element for any speed ≠ 100%, gain element back at 100%.
-      const audio = nativePlayerRef.current;
-      if (isFinalModeRef.current && !isVolumeWritable() && audio && playingTrackRef.current
-          && !isPauseCountdownRef.current && audio.src) {
-        const wantGain = Math.abs(newBpm - 100) < 0.5;
-        const onGain = audio === finalPlayerRef.current;
-        if (wantGain !== onGain) {
-          const position = audio.currentTime || 0;
-          const wasPlaying = !audio.paused;
-          loadTrackRef.current(playingTrackRef.current, true, true, { startAt: position, paused: !wasPlaying });
-        }
-      }
+
     }
   }, []);
 
@@ -1908,8 +1909,8 @@ export const AudioProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     // same position (same as setBpm does): gain element for Final at 100%,
     // plain element otherwise.
     const track = playingTrackRef.current;
-    if (audio && track && audio.src && !isVolumeWritable() && !isPauseCountdownRef.current) {
-      const wantGain = nextVal && Math.abs(bpmRef.current - 100) < 0.5;
+    if (audio && track && audio.src && !isPauseCountdownRef.current) {
+      const wantGain = nextVal;
       const onGain = audio === finalPlayerRef.current;
       if (wantGain !== onGain) {
         loadTrackRef.current(track, true, nextVal, { startAt: audio.currentTime || 0, paused: audio.paused });

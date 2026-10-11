@@ -85,6 +85,21 @@ export async function POST(req: NextRequest) {
       }
     }
 
+    // Map recipient profiles for personalized variables ({name}, {first_name}, {username})
+    const userMap = new Map<number, { first_name?: string; last_name?: string; username?: string }>();
+    const numericIds = targetIds.filter(id => typeof id === 'number') as number[];
+    if (numericIds.length > 0) {
+      const { data: profiles } = await db
+        .from('telegram_users')
+        .select('telegram_id, first_name, last_name, username')
+        .in('telegram_id', numericIds);
+      if (profiles) {
+        for (const p of profiles) {
+          userMap.set(Number(p.telegram_id), p);
+        }
+      }
+    }
+
     // Send messages via Telegram Bot API with rate limiting
     let sentCount = 0;
     let failedCount = 0;
@@ -92,9 +107,30 @@ export async function POST(req: NextRequest) {
 
     for (const chatId of targetIds) {
       try {
+        // Personalize message text if variables are used
+        let personalizedText = message;
+        if (typeof chatId === 'number') {
+          const profile = userMap.get(chatId);
+          const firstName = profile?.first_name?.trim() || '';
+          const lastName = profile?.last_name?.trim() || '';
+          const fullName = [firstName, lastName].filter(Boolean).join(' ') || firstName || 'Dancer';
+          const username = profile?.username ? `@${profile.username}` : fullName;
+
+          personalizedText = personalizedText
+            .replace(/\{name\}/gi, fullName)
+            .replace(/\{first_name\}/gi, firstName || fullName)
+            .replace(/\{username\}/gi, username);
+        } else {
+          // Channel target fallback
+          personalizedText = personalizedText
+            .replace(/\{name\}/gi, 'Dancer')
+            .replace(/\{first_name\}/gi, 'Dancer')
+            .replace(/\{username\}/gi, 'Dancer');
+        }
+
         const payload: Record<string, any> = {
           chat_id: chatId,
-          text: message,
+          text: personalizedText,
           parse_mode: 'HTML',
           disable_web_page_preview: false,
         };

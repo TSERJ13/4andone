@@ -27,17 +27,43 @@ export default function EarnPremiumPage() {
   const [copied, setCopied] = useState(false);
   const [reloadKey, setReloadKey] = useState(0);
 
+  // Restore cached invite data immediately for 0-latency display
+  useEffect(() => {
+    if (!user?.id) return;
+    try {
+      const cached = localStorage.getItem(`4andone_ref_data_${user.id}`);
+      if (cached) {
+        const parsed = JSON.parse(cached);
+        if (parsed?.code) {
+          setData(parsed);
+          setState('ready');
+        }
+      }
+    } catch { /* ignore */ }
+  }, [user?.id]);
+
   useEffect(() => {
     if (!user?.id) return;
     let cancelled = false;
     sessionFetch(`/api/referral?tid=${user.id}`, { cache: 'no-store' })
       .then(r => {
-        if (r.status === 401) return null; // server session still being set up
-        if (r.status === 503) { if (!cancelled) setState('unavailable'); return null; }
+        if (r.status === 401) {
+          // If session token not ready, fallback to direct tid fetch
+          return fetch(`/api/referral?tid=${user.id}`);
+        }
+        if (r.status === 503) { if (!cancelled && !data) setState('unavailable'); return null; }
         return r.ok ? r.json() : null;
       })
-      .then(d => { if (!cancelled && d?.setup) { setData(d); setState('ready'); } })
-      .catch(() => { if (!cancelled) setState('unavailable'); });
+      .then(d => { 
+        if (!cancelled && d?.setup) { 
+          setData(d); 
+          setState('ready'); 
+          try {
+            localStorage.setItem(`4andone_ref_data_${user.id}`, JSON.stringify(d));
+          } catch { /* ignore */ }
+        } 
+      })
+      .catch(() => { if (!cancelled && !data) setState('unavailable'); });
     return () => { cancelled = true; };
   }, [user?.id, sessionVersion, reloadKey]);
 

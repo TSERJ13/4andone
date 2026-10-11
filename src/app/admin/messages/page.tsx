@@ -1141,11 +1141,40 @@ export default function AdminMessagesPage() {
                   </div>
                 )}
 
+                {/* Personalization variable tags */}
+                <div className="personalize-tags-row">
+                  <span className="personalize-label">სახელის ჩასმა (Personalize):</span>
+                  <button
+                    type="button"
+                    className="personalize-tag-btn"
+                    onClick={() => setTgMessageText(prev => prev + '{first_name}')}
+                    title="მომხმარებლის სახელი (მაგ. Giorgi)"
+                  >
+                    + &#123;first_name&#125;
+                  </button>
+                  <button
+                    type="button"
+                    className="personalize-tag-btn"
+                    onClick={() => setTgMessageText(prev => prev + '{name}')}
+                    title="სრული სახელი და გვარი (მაგ. Giorgi Beridze)"
+                  >
+                    + &#123;name&#125;
+                  </button>
+                  <button
+                    type="button"
+                    className="personalize-tag-btn"
+                    onClick={() => setTgMessageText(prev => prev + '{username}')}
+                    title="ტელეგრამის @username"
+                  >
+                    + &#123;username&#125;
+                  </button>
+                </div>
+
                 <textarea
                   value={tgMessageText}
                   onChange={(e) => setTgMessageText(e.target.value)}
                   rows={6}
-                  placeholder="Type your message here using HTML formatting..."
+                  placeholder="მაგ: გამარჯობა {first_name}! 🎵 გვაქვს ახალი მუსიკა..."
                   className="textarea-field"
                 />
               </div>
@@ -1272,7 +1301,11 @@ export default function AdminMessagesPage() {
                       className="tg-bubble-body"
                       dangerouslySetInnerHTML={{ 
                         __html: tgMessageText.trim() 
-                          ? tgMessageText.replace(/\n/g, '<br/>') 
+                          ? tgMessageText
+                              .replace(/\{first_name\}/gi, '<span style="color: #38bdf8; font-weight: 700;">Alexander</span>')
+                              .replace(/\{name\}/gi, '<span style="color: #38bdf8; font-weight: 700;">Alexander Smith</span>')
+                              .replace(/\{username\}/gi, '<span style="color: #38bdf8; font-weight: 700;">@alexander</span>')
+                              .replace(/\n/g, '<br/>') 
                           : '<i>Type your message to see a live preview here...</i>' 
                       }} 
                     />
@@ -1900,6 +1933,43 @@ export default function AdminMessagesPage() {
           background: rgba(255, 255, 255, 0.1);
           transform: scale(1.2);
           border-color: rgba(255, 255, 255, 0.15);
+        }
+
+        /* Personalize Variable Tags */
+        .personalize-tags-row {
+          display: flex;
+          align-items: center;
+          gap: 6px;
+          flex-wrap: wrap;
+          margin-bottom: 6px;
+          padding: 6px 10px;
+          background: rgba(0, 0, 0, 0.2);
+          border-radius: 8px;
+          border: 1px solid rgba(255, 255, 255, 0.05);
+        }
+        .personalize-label {
+          font-size: 11px;
+          font-weight: 700;
+          color: #94a3b8;
+          margin-right: 4px;
+        }
+        .personalize-tag-btn {
+          background: rgba(56, 189, 248, 0.1);
+          border: 1px solid rgba(56, 189, 248, 0.25);
+          color: #38bdf8;
+          padding: 3px 8px;
+          border-radius: 6px;
+          font-size: 11px;
+          font-weight: 800;
+          cursor: pointer;
+          font-family: monospace;
+          transition: all 0.2s;
+        }
+        .personalize-tag-btn:hover {
+          background: rgba(56, 189, 248, 0.25);
+          border-color: #38bdf8;
+          color: white;
+          transform: translateY(-1px);
         }
 
         /* Action Buttons Editor */

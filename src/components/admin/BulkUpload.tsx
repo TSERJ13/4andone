@@ -100,7 +100,7 @@ export const computeDestinationTagsAndAlbum = (
 };
 
 const BulkUpload = () => {
-  const { addTrack, folders, styles, tags: availableTags, albums } = useStudio();
+  const { addTrack, styles, tags: availableTags, albums } = useStudio();
   const [files, setFiles] = useState<StagedFile[]>([]);
   const [isDragging, setIsDragging] = useState(false);
   
@@ -115,7 +115,6 @@ const BulkUpload = () => {
   const [batchStyle, setBatchStyle] = useState('Samba');
   const [batchTags, setBatchTags] = useState<string[]>([]);
   const [recentArtists, setRecentArtists] = useState<string[]>([]);
-  const [targetFolderId, setTargetFolderId] = useState('');
   const [batchCoverFile, setBatchCoverFile] = useState<File | null>(null);
   const [batchCoverPreview, setBatchCoverPreview] = useState<string | null>(null);
   const [isUploadingCover, setIsUploadingCover] = useState(false);
@@ -434,7 +433,7 @@ const BulkUpload = () => {
           duration: f.duration || 0,
           audioUrl: publicUrl,
           artworkUrl: commonArtworkUrl || undefined,
-          folderId: targetFolderId || undefined,
+          folderId: undefined,
           tags: destMeta.tags
         });
 
@@ -483,73 +482,106 @@ const BulkUpload = () => {
         <>
           <div className="batch-header-bar glass">
             <div className="batch-main-meta">
-              {/* Destination (Album Dropdown) */}
-              <div className="meta-block">
-                <label className="field-micro-label">Destination Album</label>
-                <div className="meta-field dest-field">
-                  <Disc 
-                    size={16} 
-                    className="meta-icon" 
-                    style={{ 
-                      color: batchDestKey !== "standard" && batchDestKey !== "__custom__" 
-                        ? (albums.find(a => a.slug === batchDestKey)?.themeColor || "#ff416c") 
-                        : "#38bdf8" 
-                    }} 
-                  />
-                  <select 
-                    className="meta-select dest-meta-select"
-                    value={batchDestKey}
-                    onChange={(e) => handleDestinationChange(e.target.value)}
-                  >
-                    <option value="standard">📁 Standard Library (Main)</option>
-                    {albums.length > 0 && (
-                      <optgroup label="── Albums & Collections ──">
-                        {albums.map(alb => (
-                          <option key={alb.id || alb.slug} value={alb.slug}>
-                            💿 {alb.title} {alb.badge ? `(${alb.badge})` : ""}
-                          </option>
-                        ))}
-                      </optgroup>
-                    )}
-                    <option value="__custom__">✏️ Custom Album Name...</option>
-                  </select>
-                  <ChevronDown size={14} className="meta-chevron" />
+              {/* Destination Album & Batch Cover Art Row */}
+              <div className="album-cover-row">
+                <div className="meta-block flex-1">
+                  <label className="field-micro-label">Destination Album</label>
+                  <div className="meta-field dest-field">
+                    <Disc 
+                      size={16} 
+                      className="meta-icon" 
+                      style={{ 
+                        color: batchDestKey !== "standard" && batchDestKey !== "__custom__" 
+                          ? (albums.find(a => a.slug === batchDestKey)?.themeColor || "#ff416c") 
+                          : "#38bdf8" 
+                      }} 
+                    />
+                    <select 
+                      className="meta-select dest-meta-select"
+                      value={batchDestKey}
+                      onChange={(e) => handleDestinationChange(e.target.value)}
+                    >
+                      <option value="standard">📁 Standard Library (Main)</option>
+                      {albums.length > 0 && (
+                        <optgroup label="── Albums & Collections ──">
+                          {albums.map(alb => (
+                            <option key={alb.id || alb.slug} value={alb.slug}>
+                              💿 {alb.title} {alb.badge ? `(${alb.badge})` : ""}
+                            </option>
+                          ))}
+                        </optgroup>
+                      )}
+                      <option value="__custom__">✏️ Custom Album Name...</option>
+                    </select>
+                    <ChevronDown size={14} className="meta-chevron" />
+                  </div>
+
+                  {batchDestKey === "__custom__" && (
+                    <div className="meta-field custom-album-subfield animate-in">
+                      <FolderPlus size={15} className="meta-icon" />
+                      <input 
+                        type="text" 
+                        placeholder="Type Album or Collection Title..." 
+                        value={batchAlbum === "Standard Library" ? "" : batchAlbum}
+                        onChange={(e) => setBatchAlbum(e.target.value)}
+                        autoFocus
+                      />
+                    </div>
+                  )}
+
+                  {(batchDestKey === "goc-2026" || batchDestKey === "goc") && (
+                    <div className="batch-goc-discipline-box animate-in">
+                      <span className="goc-discipline-label">Discipline:</span>
+                      <div className="goc-discipline-btns">
+                        <button
+                          type="button"
+                          className={`goc-discipline-btn latin ${batchGocDiscipline === "Latin" ? "active" : ""}`}
+                          onClick={() => setBatchGocDiscipline("Latin")}
+                        >
+                          🔥 Latin
+                        </button>
+                        <button
+                          type="button"
+                          className={`goc-discipline-btn standard ${batchGocDiscipline === "Standard" ? "active" : ""}`}
+                          onClick={() => setBatchGocDiscipline("Standard")}
+                        >
+                          ⚡ Standard
+                        </button>
+                      </div>
+                    </div>
+                  )}
                 </div>
 
-                {batchDestKey === "__custom__" && (
-                  <div className="meta-field custom-album-subfield animate-in">
-                    <FolderPlus size={15} className="meta-icon" />
+                {/* Batch Cover Art Thumbnail */}
+                <div className="batch-cover-thumbnail-wrap">
+                  <label className="field-micro-label">Cover Art</label>
+                  <div 
+                    className={`batch-cover-zone glass ${batchCoverPreview ? 'has-preview' : ''}`}
+                    onClick={() => coverInputRef.current?.click()}
+                    title="Upload cover art for this batch"
+                  >
+                    {batchCoverPreview ? (
+                      <img src={batchCoverPreview} alt="Cover Preview" className="batch-cover-img" />
+                    ) : (
+                      <div className="cover-empty-prompt">
+                        <Plus size={16} />
+                        <span>Add Cover</span>
+                      </div>
+                    )}
                     <input 
-                      type="text" 
-                      placeholder="Type Album or Collection Title..." 
-                      value={batchAlbum === "Standard Library" ? "" : batchAlbum}
-                      onChange={(e) => setBatchAlbum(e.target.value)}
-                      autoFocus
+                      type="file" 
+                      ref={coverInputRef} 
+                      className="hidden" 
+                      accept="image/*" 
+                      onChange={(e) => {
+                        if (e.target.files && e.target.files[0]) {
+                          setBatchCoverFile(e.target.files[0]);
+                          setBatchCoverPreview(URL.createObjectURL(e.target.files[0]));
+                        }
+                      }} 
                     />
                   </div>
-                )}
-
-                {(batchDestKey === "goc-2026" || batchDestKey === "goc") && (
-                  <div className="batch-goc-discipline-box animate-in">
-                    <span className="goc-discipline-label">Discipline:</span>
-                    <div className="goc-discipline-btns">
-                      <button
-                        type="button"
-                        className={`goc-discipline-btn latin ${batchGocDiscipline === "Latin" ? "active" : ""}`}
-                        onClick={() => setBatchGocDiscipline("Latin")}
-                      >
-                        🔥 Latin
-                      </button>
-                      <button
-                        type="button"
-                        className={`goc-discipline-btn standard ${batchGocDiscipline === "Standard" ? "active" : ""}`}
-                        onClick={() => setBatchGocDiscipline("Standard")}
-                      >
-                        ⚡ Standard
-                      </button>
-                    </div>
-                  </div>
-                )}
+                </div>
               </div>
 
               {/* Artist / Composer with Suggestions */}
@@ -638,53 +670,6 @@ const BulkUpload = () => {
                       </button>
                     ))}
                  </div>
-              </div>
-            </div>
-            
-            {/* Right Side: Cover Art + Target Folder (Stacked together) */}
-            <div className="batch-side-panel">
-              <div className="batch-cover-box">
-                <span className="side-panel-label">Batch Cover</span>
-                <div 
-                  className={`batch-cover-zone glass ${batchCoverPreview ? 'has-preview' : ''}`}
-                  onClick={() => coverInputRef.current?.click()}
-                  title="Upload Cover Art for this batch"
-                >
-                  {batchCoverPreview ? (
-                    <img src={batchCoverPreview} alt="Batch Cover" className="batch-cover-img" />
-                  ) : (
-                    <div className="cover-empty-prompt">
-                      <Plus size={18} />
-                      <span>Art</span>
-                    </div>
-                  )}
-                  <input 
-                    type="file" 
-                    ref={coverInputRef} 
-                    className="hidden" 
-                    accept="image/*" 
-                    onChange={(e) => {
-                      if (e.target.files && e.target.files[0]) {
-                        setBatchCoverFile(e.target.files[0]);
-                        setBatchCoverPreview(URL.createObjectURL(e.target.files[0]));
-                      }
-                    }} 
-                  />
-                </div>
-              </div>
-
-              <div className="batch-folder-box">
-                <span className="side-panel-label">Target Folder</span>
-                <select 
-                  className="side-folder-select"
-                  value={targetFolderId}
-                  onChange={(e) => setTargetFolderId(e.target.value)}
-                >
-                  <option value="">Studio Inbox</option>
-                  {folders.map((f: Folder) => (
-                    <option key={f.id} value={f.id}>{f.name}</option>
-                  ))}
-                </select>
               </div>
             </div>
           </div>
@@ -998,39 +983,27 @@ const BulkUpload = () => {
 
         .style-flex { flex: 1.5; }
         
-        /* Clean side panel containing Cover & Target Folder */
-        .batch-side-panel {
-          width: 105px;
-          flex-shrink: 0;
+        /* Album & Cover Art Row */
+        .album-cover-row {
           display: flex;
-          flex-direction: column;
-          align-items: center;
-          justify-content: flex-start;
-          gap: 12px;
-          padding-left: 18px;
-          border-left: 1px solid rgba(255,255,255,0.06);
-          box-sizing: border-box;
-        }
-        .batch-cover-box {
-          display: flex;
-          flex-direction: column;
-          align-items: center;
-          gap: 5px;
+          gap: 16px;
+          align-items: flex-start;
           width: 100%;
         }
-        .side-panel-label {
-          font-size: 10px;
-          font-weight: 900;
-          color: #71717a;
-          text-transform: uppercase;
-          letter-spacing: 0.5px;
-          text-align: center;
-          white-space: nowrap;
+        .flex-1 {
+          flex: 1;
+          min-width: 0;
+        }
+        .batch-cover-thumbnail-wrap {
+          display: flex;
+          flex-direction: column;
+          gap: 6px;
+          flex-shrink: 0;
         }
         .batch-cover-zone { 
-          width: 76px; height: 76px; border-radius: 12px; border: 1px dashed rgba(255,255,255,0.15); 
+          width: 68px; height: 44px; border-radius: 12px; border: 1px dashed rgba(255,255,255,0.18); 
           display: flex; align-items: center; justify-content: center; cursor: pointer; overflow: hidden;
-          background: rgba(255,255,255,0.02); transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+          background: rgba(255,255,255,0.03); transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
         }
         .batch-cover-zone:hover { 
           border-color: #1db954; background: rgba(29, 185, 84, 0.08); 
@@ -1039,31 +1012,10 @@ const BulkUpload = () => {
         .batch-cover-zone.has-preview { border: 1px solid #1db954; }
         .batch-cover-img { width: 100%; height: 100%; object-fit: cover; }
         .cover-empty-prompt {
-          display: flex; flex-direction: column; align-items: center; gap: 2px; color: #71717a; transition: color 0.2s;
+          display: flex; align-items: center; gap: 4px; color: #71717a; transition: color 0.2s;
         }
-        .cover-empty-prompt span { font-size: 9px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.5px; }
+        .cover-empty-prompt span { font-size: 11px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.5px; }
         .batch-cover-zone:hover .cover-empty-prompt { color: #1db954; }
-
-        .batch-folder-box {
-          display: flex;
-          flex-direction: column;
-          align-items: center;
-          gap: 5px;
-          width: 100%;
-        }
-        .side-folder-select { 
-          width: 100%; max-width: 95px; height: 28px;
-          background: rgba(255,255,255,0.04); color: #a1a1aa; 
-          border: 1px solid rgba(255,255,255,0.08); border-radius: 8px; 
-          font-size: 11px; font-weight: 700; padding: 0 6px; 
-          cursor: pointer; outline: none; text-align: center; transition: all 0.2s;
-        }
-        .side-folder-select:hover, .side-folder-select:focus {
-          border-color: #1db954; color: white; background: rgba(255,255,255,0.08);
-        }
-        .side-folder-select option {
-          background: #18181b; color: white;
-        }
 
         .dropzone { 
           border: 1px dashed rgba(255,255,255,0.1); border-radius: 24px; 
@@ -1175,22 +1127,7 @@ const BulkUpload = () => {
 
         @media (max-width: 900px) {
           .batch-header-bar {
-            flex-direction: column;
-            gap: 16px;
-            padding: 16px;
-          }
-          .batch-side-panel {
-            width: 100%;
-            flex-direction: row;
-            justify-content: space-around;
-            align-items: center;
-            border-left: none;
-            border-top: 1px solid rgba(255, 255, 255, 0.08);
-            padding-left: 0;
-            padding-top: 16px;
-          }
-          .batch-cover-box, .batch-folder-box {
-            width: auto;
+            padding: 18px;
           }
           .table-header { display: none; }
           .table-row { grid-template-columns: 1fr 1fr; gap: 12px; padding: 20px; height: auto; }
@@ -1206,7 +1143,18 @@ const BulkUpload = () => {
           .batch-header-bar {
             padding: 14px;
             border-radius: 18px;
-            gap: 16px;
+            gap: 14px;
+          }
+          .album-cover-row {
+            gap: 10px;
+          }
+          .batch-cover-thumbnail-wrap {
+            gap: 5px;
+          }
+          .batch-cover-zone {
+            width: 58px;
+            height: 44px;
+            border-radius: 12px;
           }
           .meta-block {
             gap: 5px;
@@ -1264,26 +1212,6 @@ const BulkUpload = () => {
           .tags-scroller {
             width: 100%;
             -webkit-overflow-scrolling: touch;
-          }
-          .batch-side-panel {
-            flex-direction: row;
-            justify-content: space-between;
-            align-items: flex-end;
-            gap: 12px;
-            padding-top: 14px;
-          }
-          .batch-cover-box, .batch-folder-box {
-            flex: 1;
-            align-items: center;
-          }
-          .batch-cover-zone {
-            width: 68px;
-            height: 68px;
-          }
-          .side-folder-select {
-            max-width: 130px;
-            width: 100%;
-            height: 36px;
           }
           .dropzone {
             padding: 20px 14px;

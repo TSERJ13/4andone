@@ -217,6 +217,8 @@ export const AudioProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   const pauseDeadlineRef = useRef<number>(0); // Wall-clock deadline for pause countdown (survives screen-off)
   const customTimeLimitRef = useRef<number | null>(null); // Custom dynamic limit when Finals Mode is toggled mid-playback
   const toggledPastLimitRef = useRef(false); // Flag indicating if Finals Mode was manually toggled past the 1:45 mark
+  const workerRef = useRef<Worker | null>(null);
+  const checkPauseCountdownRef = useRef<() => void>(() => {});
 
   // ---------------------------------------------------------------------------
   // WEB AUDIO GAIN CHAIN (the ONLY way volume control works on iPhone/iPad).
@@ -445,6 +447,74 @@ export const AudioProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   const loadTrackRef = useRef<(track: any, isRetry?: boolean, forceFinalMode?: boolean, opts?: LoadOptions) => void>(() => {});
   const stopRef = useRef<() => void>(() => {});
 
+  const checkPauseCountdown = React.useCallback(() => {
+    if (!isPauseCountdownRef.current) return;
+    if (!pauseDeadlineRef.current) {
+      pauseDeadlineRef.current = Date.now() + pauseTimeRef.current * 1000;
+    }
+    const remainingMs = pauseDeadlineRef.current - Date.now();
+    const newPauseTime = Math.max(0, remainingMs / 1000);
+    pauseTimeRef.current = newPauseTime;
+    setPauseTime(Math.ceil(newPauseTime));
+
+    // Update lockscreen / MediaSession countdown
+    if ('mediaSession' in navigator && (navigator.mediaSession as any).metadata) {
+      try {
+        const sec = Math.ceil(newPauseTime);
+        const meta = navigator.mediaSession.metadata;
+        if (meta && meta.title !== `Rest (${sec}s)`) {
+          meta.title = `Rest (${sec}s)`;
+        }
+      } catch {}
+    }
+
+    // Keep session clock moving smoothly through rest
+    const list = sessionTracksRef.current;
+    let idx = sessionIndexRef.current;
+    if (idx < 0 || idx >= list.length || list[idx]?.id !== trackIdRef.current) {
+      idx = list.findIndex(t => t.id === trackIdRef.current);
+    }
+    if (idx !== -1) {
+      let elapsed = 0;
+      for (let k = 0; k < idx; k++) elapsed += finalLimitFor(list[k], false) + 15;
+      elapsed += finalLimitFor(list[idx], false) + (15 - newPauseTime);
+      if (Number.isFinite(elapsed) && Math.abs((currentTimeRef.current ?? -1) - elapsed) >= 0.2) {
+        currentTimeRef.current = elapsed;
+        setCurrentTime(elapsed);
+      }
+    }
+
+    if (newPauseTime <= 0) {
+      pauseDeadlineRef.current = 0;
+      isPauseCountdownRef.current = false;
+      setIsPauseCountdown(false);
+      try { workerRef.current?.postMessage('stop'); } catch {}
+
+      const tracksList = sessionTracksRef.current;
+      let currentIndex = sessionIndexRef.current;
+      if (currentIndex < 0 || currentIndex >= tracksList.length ||
+          tracksList[currentIndex]?.id !== trackIdRef.current) {
+        currentIndex = tracksList.findIndex(t => t.id === trackIdRef.current);
+      }
+
+      if (currentIndex !== -1 && currentIndex < tracksList.length - 1) {
+        const nextIndex = currentIndex + 1;
+        sessionIndexRef.current = nextIndex;
+        const nextTrack = tracksList[nextIndex];
+        // Restore volume before loading next track
+        cancelFadeAndRestore();
+        loadTrackRef.current(nextTrack, false, true);
+      } else {
+        // No more tracks - stop
+        stopRef.current();
+      }
+    }
+  }, []);
+
+  useEffect(() => {
+    checkPauseCountdownRef.current = checkPauseCountdown;
+  }, [checkPauseCountdown]);
+
   const advanceFinalSession = React.useCallback(() => {
     const tracksList = sessionTracksRef.current;
 
@@ -478,6 +548,51 @@ export const AudioProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     setPauseTime(15);
     pauseTimeRef.current = 15;
     pauseDeadlineRef.current = Date.now() + 15000; // wall-clock deadline (screen-off safe)
+
+    // CRITICAL: KEEP AUDIO SESSION ALIVE IN THE BACKGROUND!
+    // iOS and Android suspend background tabs if no audio element is actively outputting sound.
+    // If the audio session drops during the 15s pause, JavaScript execution freezes and iOS blocks
+    // the next track's autoplay without user interaction.
+    // By playing the silent looping heartbeat throughout the 15s rest, the OS keeps the background
+    // audio session fully active and never suspends the process.
+    if (heartbeatRef.current) {
+      try {
+        heartbeatRef.current.currentTime = 0;
+        heartbeatRef.current.play().catch(() => {});
+      } catch {}
+    }
+
+    // Start background WebWorker ticker to guarantee ticks even if OS throttles main thread
+    try {
+      workerRef.current?.postMessage('start');
+    } catch {}
+
+    // Update lockscreen / MediaSession so it stays in "playing" state and displays upcoming dance
+    const nextIdx = currentIdx + 1;
+    const nextTrack = tracksList[nextIdx];
+    if ('mediaSession' in navigator) {
+      navigator.mediaSession.playbackState = 'playing';
+      try {
+        const coverPath = nextTrack ? getTrackCover(nextTrack, albums) : '/icons/icon-512x512.png';
+        const absoluteCover = (typeof window !== 'undefined' && coverPath.startsWith('/'))
+          ? `${window.location.origin}${coverPath}`
+          : coverPath;
+        navigator.mediaSession.metadata = new MediaMetadata({
+          title: 'Rest (15s)',
+          artist: nextTrack ? `Next: ${nextTrack.title}` : 'Final Mode',
+          album: activeModeRef.current ? `${activeModeRef.current.toUpperCase()} Final` : 'Final Mode',
+          artwork: [
+            { src: absoluteCover, sizes: '512x512', type: /\.png($|\?)/i.test(coverPath) ? 'image/png' : 'image/jpeg' },
+            { src: `${window.location.origin}/icons/icon-512x512.png`, sizes: '512x512', type: 'image/png' }
+          ]
+        });
+      } catch {}
+    }
+
+    // Pre-cache upcoming track's signed playback URL during the 15s pause for zero-latency start
+    if (nextTrack?.audioUrl) {
+      resolvePlaybackUrl(nextTrack.audioUrl).catch(() => {});
+    }
   }, []);
 
 
@@ -506,8 +621,39 @@ export const AudioProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       hb.loop = true;
       hb.volume = 0.01; 
       hb.style.display = 'none';
+      // Hardware-driven ticker: ontimeupdate is triggered by native audio frames even when screen is locked
+      hb.ontimeupdate = () => {
+        if (isPauseCountdownRef.current && checkPauseCountdownRef.current) {
+          checkPauseCountdownRef.current();
+        }
+      };
       document.body.appendChild(hb);
       heartbeatRef.current = hb;
+
+      // 3. Background WebWorker ticker (immune to window background/lock-screen throttling)
+      try {
+        const workerBlob = new Blob([
+          `let timer = null;
+           self.onmessage = function(e) {
+             if (e.data === 'start') {
+               if (timer) clearInterval(timer);
+               timer = setInterval(function() { self.postMessage('tick'); }, 500);
+             } else if (e.data === 'stop') {
+               if (timer) clearInterval(timer);
+               timer = null;
+             }
+           };`
+        ], { type: 'application/javascript' });
+        const worker = new Worker(URL.createObjectURL(workerBlob));
+        worker.onmessage = (e) => {
+          if (e.data === 'tick' && isPauseCountdownRef.current && checkPauseCountdownRef.current) {
+            checkPauseCountdownRef.current();
+          }
+        };
+        workerRef.current = worker;
+      } catch (e) {
+        console.warn('[AUDIO-ENGINE] Background WebWorker timer unavailable:', e);
+      }
     }
 
     const savedVol = localStorage.getItem('4andone-volume');
@@ -574,32 +720,9 @@ export const AudioProvider: React.FC<{ children: React.ReactNode }> = ({ childre
           }
         }
 
-        // PAUSE COUNTDOWN CATCH-UP: setInterval is frozen while the screen is off,
-        // so when we come back we must re-evaluate the wall-clock deadline immediately.
-        // If the rest period already elapsed in the background, advance right away.
-        if (isPauseCountdownRef.current && pauseDeadlineRef.current) {
-          const remainingMs = pauseDeadlineRef.current - Date.now();
-          if (remainingMs <= 0) {
-            pauseDeadlineRef.current = 0;
-            const tracksList = sessionTracksRef.current;
-            let currentIndex = sessionIndexRef.current;
-            if (currentIndex < 0 || currentIndex >= tracksList.length ||
-                tracksList[currentIndex]?.id !== trackIdRef.current) {
-              currentIndex = tracksList.findIndex(t => t.id === trackIdRef.current);
-            }
-            if (currentIndex !== -1 && currentIndex < tracksList.length - 1) {
-              const nextIndex = currentIndex + 1;
-              sessionIndexRef.current = nextIndex;
-              cancelFadeAndRestore();
-              loadTrackRef.current(tracksList[nextIndex], false, true);
-            } else {
-              stopRef.current();
-            }
-          } else {
-            // Still counting — sync the visible number to the real remaining time
-            pauseTimeRef.current = remainingMs / 1000;
-            setPauseTime(Math.ceil(remainingMs / 1000));
-          }
+        // PAUSE COUNTDOWN CATCH-UP: Re-evaluate deadline immediately upon screen wake
+        if (isPauseCountdownRef.current && pauseDeadlineRef.current && checkPauseCountdownRef.current) {
+          checkPauseCountdownRef.current();
         }
       }
     };
@@ -612,6 +735,10 @@ export const AudioProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       document.removeEventListener('touchstart', unlockAudio);
       document.removeEventListener('mousedown', unlockAudio);
       document.removeEventListener('visibilitychange', handleVisibilityChange);
+      if (workerRef.current) {
+        try { workerRef.current.terminate(); } catch {}
+        workerRef.current = null;
+      }
     };
   }, []);
 
@@ -811,6 +938,8 @@ export const AudioProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         }
         setIsPauseCountdown(false);
         isPauseCountdownRef.current = false;
+        pauseDeadlineRef.current = 0;
+        try { workerRef.current?.postMessage('stop'); } catch {}
         setPauseTime(15);
         pauseTimeRef.current = 15;
         finalEndHandledRef.current = false; // Allow end-handling for the new track
@@ -1390,59 +1519,8 @@ export const AudioProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     if (isPlaying || isPauseCountdown || isLoading) {
       timerRef.current = setInterval(() => {
         if (isPauseCountdownRef.current) {
-          // WALL-CLOCK COUNTDOWN: derive remaining time from a real timestamp deadline
-          // instead of decrementing a counter. setInterval is throttled/frozen when the
-          // screen is off (iOS), so a counter would "pause" with it. Date.now() keeps
-          // advancing, so when the screen wakes the countdown is already correct.
-          if (!pauseDeadlineRef.current) {
-            pauseDeadlineRef.current = Date.now() + pauseTimeRef.current * 1000;
-          }
-          const remainingMs = pauseDeadlineRef.current - Date.now();
-          const newPauseTime = Math.max(0, remainingMs / 1000);
-          pauseTimeRef.current = newPauseTime;
-          setPauseTime(Math.ceil(newPauseTime));
-
-          // SESSION CLOCK KEEPS RUNNING during the 15s rest. It used to stay
-          // frozen at the end of the dance (e.g. 1:45) and then jump to 2:00
-          // when the next dance loaded — now it moves smoothly through the rest.
-          {
-            const list = sessionTracksRef.current;
-            let idx = sessionIndexRef.current;
-            if (idx < 0 || idx >= list.length || list[idx]?.id !== trackIdRef.current) {
-              idx = list.findIndex(t => t.id === trackIdRef.current);
-            }
-            if (idx !== -1) {
-              let elapsed = 0;
-              for (let k = 0; k < idx; k++) elapsed += finalLimitFor(list[k], false) + 15;
-              elapsed += finalLimitFor(list[idx], false) + (15 - newPauseTime);
-              if (Number.isFinite(elapsed) && Math.abs((currentTimeRef.current ?? -1) - elapsed) >= 0.2) {
-                currentTimeRef.current = elapsed;
-                setCurrentTime(elapsed);
-              }
-            }
-          }
-
-          if (newPauseTime <= 0) {
-            pauseDeadlineRef.current = 0;
-            // CRITICAL: use the tracked session index (duplicate-safe), with a fallback search
-            const tracksList = sessionTracksRef.current;
-            let currentIndex = sessionIndexRef.current;
-            if (currentIndex < 0 || currentIndex >= tracksList.length ||
-                tracksList[currentIndex]?.id !== trackIdRef.current) {
-              currentIndex = tracksList.findIndex(t => t.id === trackIdRef.current);
-            }
-
-            if (currentIndex !== -1 && currentIndex < tracksList.length - 1) {
-              const nextIndex = currentIndex + 1;
-              sessionIndexRef.current = nextIndex;
-              const nextTrack = tracksList[nextIndex];
-              // Restore volume before loading next track
-              cancelFadeAndRestore();
-              loadTrackRef.current(nextTrack, false, true);
-            } else {
-              // No more tracks - stop
-              stopRef.current();
-            }
+          if (checkPauseCountdownRef.current) {
+            checkPauseCountdownRef.current();
           }
           return;
         }
@@ -1550,6 +1628,21 @@ export const AudioProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   }, [isPlaying, isPauseCountdown, isLoading, duration, isFinalMode, title]);
 
   const playAudio = React.useCallback(async () => {
+    // If paused during Final Mode 15s rest, resume the countdown and heartbeat
+    if (isPauseCountdownRef.current) {
+      pauseDeadlineRef.current = Date.now() + (pauseTimeRef.current || 15) * 1000;
+      if (heartbeatRef.current && heartbeatRef.current.paused) {
+        try { await heartbeatRef.current.play(); } catch {}
+      }
+      try { workerRef.current?.postMessage('start'); } catch {}
+      setIsPlaying(true);
+      isPlayingRef.current = true;
+      if ('mediaSession' in navigator) {
+        navigator.mediaSession.playbackState = 'playing';
+      }
+      return;
+    }
+
     const audio = nativePlayerRef.current;
     if (!audio) return;
     try {
@@ -1630,6 +1723,15 @@ export const AudioProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   const pauseAudio = React.useCallback(() => {
     if (nativePlayerRef.current) {
       nativePlayerRef.current.pause();
+    }
+    // Pause during Final Mode rest: save remaining wall-clock time
+    if (isPauseCountdownRef.current) {
+      if (pauseDeadlineRef.current) {
+        const remaining = Math.max(0, (pauseDeadlineRef.current - Date.now()) / 1000);
+        pauseTimeRef.current = remaining;
+        pauseDeadlineRef.current = 0;
+      }
+      try { workerRef.current?.postMessage('stop'); } catch {}
     }
     // NOTE: heartbeat is intentionally NOT paused here. The silent looping WAV
     // must keep running while the main audio is paused so that iOS does not
@@ -1822,11 +1924,22 @@ export const AudioProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     const list = isFinalModeRef.current ? sessionTracksRef.current : playOrder(tracks, playingTrackRef.current, shuffleSeedRef.current);
     if (list.length === 0) return;
 
-    const currentIndex = list.findIndex(t => t.id === trackIdRef.current || t.title === playingTrackRef.current?.title);
-    const nextIndex = (currentIndex + 1) % list.length;
-    // Pass forceFinalMode so navigating inside a Final Mode session stays in it,
-    // and a normal next-track stays normal. (Without this, a plain loadTrack call
-    // would now always drop out of Final Mode.)
+    let nextIndex = 0;
+    if (isFinalModeRef.current && sessionTracksRef.current.length > 0) {
+      let cur = sessionIndexRef.current;
+      if (cur < 0 || cur >= list.length || list[cur]?.id !== trackIdRef.current) {
+        cur = list.findIndex(t => t.id === trackIdRef.current);
+      }
+      if (cur !== -1 && cur < list.length - 1) {
+        nextIndex = cur + 1;
+      } else {
+        stopRef.current();
+        return;
+      }
+    } else {
+      const currentIndex = list.findIndex(t => t.id === trackIdRef.current || t.title === playingTrackRef.current?.title);
+      nextIndex = (currentIndex + 1) % list.length;
+    }
     loadTrackRef.current(list[nextIndex], false, isFinalModeRef.current);
   }, [tracks]);
 
@@ -1860,6 +1973,7 @@ export const AudioProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     if (heartbeatRef.current) {
         heartbeatRef.current.pause();
     }
+    try { workerRef.current?.postMessage('stop'); } catch {}
     setIsPlaying(false);
     isPlayingRef.current = false;
     setCurrentTime(0);

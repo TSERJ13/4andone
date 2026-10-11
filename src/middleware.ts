@@ -23,6 +23,6 @@ export const config = {
      * - icon.png (icon file)
      * - apple-icon.png (apple icon file)
      */
-    '/((?!api|_next/static|_next/image|favicon.ico|manifest.json|icon.png|apple-icon.png).*)',
+    '/((?!api|_next/static|_next/image|favicon|manifest|icon|apple-icon|audio|.*\\..*).*)',
   ],
 };

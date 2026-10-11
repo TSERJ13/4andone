@@ -442,7 +442,7 @@ export const AudioProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   //  3. Short tracks: this is reached via onended for tracks shorter than 1:45 too.
   // NOTE: loadTrack and stop are defined later in this component, so we call them
   // through refs to avoid the temporal-dead-zone / stale-closure problem.
-  type LoadOptions = { startAt?: number; paused?: boolean };
+  type LoadOptions = { startAt?: number; paused?: boolean; fromRest?: boolean };
   const loadTrackRef = useRef<(track: any, isRetry?: boolean, forceFinalMode?: boolean, opts?: LoadOptions) => void>(() => {});
   const stopRef = useRef<() => void>(() => {});
 
@@ -502,7 +502,7 @@ export const AudioProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         const nextTrack = tracksList[nextIndex];
         // Restore volume before loading next track
         cancelFadeAndRestore();
-        loadTrackRef.current(nextTrack, false, true);
+        loadTrackRef.current(nextTrack, false, true, { fromRest: true });
       } else {
         // No more tracks - stop
         stopRef.current();
@@ -548,12 +548,28 @@ export const AudioProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     pauseTimeRef.current = 15;
     pauseDeadlineRef.current = Date.now() + 15000; // wall-clock deadline (screen-off safe)
 
+    // PLAY THE 15-SECOND SILENT REST MP3 ON THE SAME AUDIO ELEMENT
+    // Stop the previous track completely so it NEVER leaks into the rest pause!
+    const audio = nativePlayerRef.current;
+    if (audio) {
+      audio.pause();
+      audio.currentTime = 0;
+      audio.loop = false;
+      audio.playbackRate = 1.0;
+      audio.src = '/audio/rest-15s.mp3';
+      audio.load();
+      cancelFadeAndRestore(); // volume is 1.0, but rest-15s.mp3 is 100% silent
+      audio.onended = () => {
+        if (!isPauseCountdownRef.current) return;
+        pauseDeadlineRef.current = 0;
+        if (checkPauseCountdownRef.current) {
+          checkPauseCountdownRef.current();
+        }
+      };
+      audio.play().catch(() => {});
+    }
+
     // CRITICAL: KEEP AUDIO SESSION ALIVE IN THE BACKGROUND!
-    // iOS and Android suspend background tabs if no audio element is actively outputting sound.
-    // If the audio session drops during the 15s pause, JavaScript execution freezes and iOS blocks
-    // the next track's autoplay without user interaction.
-    // By playing the silent looping heartbeat throughout the 15s rest, the OS keeps the background
-    // audio session fully active and never suspends the process.
     if (heartbeatRef.current) {
       try {
         heartbeatRef.current.currentTime = 0;
@@ -919,7 +935,7 @@ export const AudioProvider: React.FC<{ children: React.ReactNode }> = ({ childre
           nativePlayerRef.current.oncanplay = null;
           nativePlayerRef.current.ontimeupdate = null;
           nativePlayerRef.current.onended = null;
-          if (!isPauseCountdownRef.current) {
+          if (!isPauseCountdownRef.current && !opts?.fromRest) {
             nativePlayerRef.current.pause();
           }
         }
@@ -1113,9 +1129,9 @@ export const AudioProvider: React.FC<{ children: React.ReactNode }> = ({ childre
               //  1. Paso Doble — plays the full track, ends naturally.
               //  2. Any track shorter than 1:45 — ends before reaching the 105s limit.
               // In a program we advance the session (or finish it).
-              if (!activeModeRef.current) {
+              const isSession = Boolean(activeModeRef.current || (sessionTracksRef.current && sessionTracksRef.current.length > 1));
+              if (!isSession) {
                 // Single-track Final: same as the 1:45 stop — rewind and wait
-                // (stop() used to wipe the track from the player).
                 audio.pause();
                 setIsPlaying(false);
                 isPlayingRef.current = false;
@@ -1125,11 +1141,6 @@ export const AudioProvider: React.FC<{ children: React.ReactNode }> = ({ childre
                 finalEndHandledRef.current = false;
                 return;
               }
-              // Active program: maintain continuous background audio session on the same element
-              audio.loop = true;
-              audio.src = SILENT_WAV;
-              cancelFadeAndRestore();
-              audio.play().catch(() => {});
               advanceFinalSession();
             } else {
               if (!isRepeatRef.current) {
@@ -1362,14 +1373,8 @@ export const AudioProvider: React.FC<{ children: React.ReactNode }> = ({ childre
                   return;
                 }
 
-                if (activeModeRef.current) {
-                  // CRITICAL FOR IOS: DO NOT PAUSE THE AUDIO ELEMENT!
-                  // Transition the SAME audio element to looping silence so the background
-                  // audio session and user-gesture entitlement stay alive throughout the 15s pause.
-                  audio.loop = true;
-                  audio.src = SILENT_WAV;
-                  cancelFadeAndRestore();
-                  audio.play().catch(() => {});
+                const isSession = Boolean(activeModeRef.current || (sessionTracksRef.current && sessionTracksRef.current.length > 1));
+                if (isSession) {
                   advanceFinalSession();
                 } else {
                   // Single-track Final Mode (no program): just auto-stop cleanly

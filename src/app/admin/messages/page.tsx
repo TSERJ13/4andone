@@ -36,7 +36,7 @@ interface InlineBtn {
 }
 
 export default function AdminMessagesPage() {
-  const [activeTab, setActiveTab] = useState<'incoming' | 'telegram'>('incoming');
+  const [activeTab, setActiveTab] = useState<'incoming' | 'telegram'>('telegram');
   
   // INCOMING MESSAGES STATE
   const [messages, setMessages] = useState<ContactMessage[]>([]);
@@ -435,18 +435,18 @@ export default function AdminMessagesPage() {
         {/* Tab Switcher */}
         <div className="tab-switcher glass">
           <button
-            className={`tab-btn ${activeTab === 'incoming' ? 'active' : ''}`}
-            onClick={() => setActiveTab('incoming')}
-          >
-            <Mail size={16} />
-            <span>Inquiries ({messages.length})</span>
-          </button>
-          <button
             className={`tab-btn ${activeTab === 'telegram' ? 'active' : ''}`}
             onClick={() => setActiveTab('telegram')}
           >
             <Send size={16} />
             <span>Send Telegram ({tgUsers.length} Users)</span>
+          </button>
+          <button
+            className={`tab-btn ${activeTab === 'incoming' ? 'active' : ''}`}
+            onClick={() => setActiveTab('incoming')}
+          >
+            <Mail size={16} />
+            <span>Inquiries ({messages.length})</span>
           </button>
         </div>
       </div>

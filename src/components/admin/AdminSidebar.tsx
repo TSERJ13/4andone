@@ -16,7 +16,8 @@ import {
   Users,
   Mail,
   Coins,
-  Gift
+  Gift,
+  Send
 } from 'lucide-react';
 import { useStudio } from './StudioProvider';
 import { useRouter } from 'next/navigation';
@@ -86,8 +87,8 @@ const AdminSidebar = ({ isCollapsed, onToggle }: { isCollapsed: boolean, onToggl
     { icon: <Users size={24} />, label: 'Users', href: '/admin/users' },
     { icon: <Gift size={24} />, label: 'Affiliates', href: '/admin/affiliates' },
     { 
-      icon: <Mail size={24} />, 
-      label: 'Messages', 
+      icon: <Send size={24} />, 
+      label: 'Telegram Bot', 
       href: '/admin/messages',
       badge: unreadCount > 0 ? `+${unreadCount}` : undefined
     },

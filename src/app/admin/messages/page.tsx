@@ -9,7 +9,7 @@ import {
   Filter, Send, Users, Sparkles, ExternalLink, ShieldCheck, 
   Bot, AlertCircle, Plus, Eye, EyeOff, Bold, Italic, Link2, Code, 
   BellRing, Award, CheckSquare, Square, Megaphone, Crown, UserCheck, UserX,
-  Smile, X, Image as ImageIcon
+  Smile, X, Image as ImageIcon, Upload, Loader2
 } from 'lucide-react';
 import ConfirmModal from '@/components/admin/ConfirmModal';
 
@@ -94,7 +94,62 @@ export default function AdminMessagesPage() {
   const [tgMessageText, setTgMessageText] = useState('');
   const [tgPhotoUrl, setTgPhotoUrl] = useState('');
   const [showPhotoInput, setShowPhotoInput] = useState(false);
+  const [isUploadingPhoto, setIsUploadingPhoto] = useState(false);
+  const [photoUploadError, setPhotoUploadError] = useState<string | null>(null);
+  const photoFileInputRef = useRef<HTMLInputElement | null>(null);
   const textareaRef = useRef<HTMLTextAreaElement | null>(null);
+
+  const handlePhotoFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    // Validate size (max 10MB)
+    if (file.size > 10 * 1024 * 1024) {
+      setPhotoUploadError('ფოტოს ზომა არ უნდა აღემატებოდეს 10MB-ს');
+      return;
+    }
+
+    setIsUploadingPhoto(true);
+    setPhotoUploadError(null);
+
+    try {
+      const fileType = file.type || 'image/jpeg';
+      const signRes = await fetch('/api/upload', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          fileName: `tg_posts/${Date.now()}_${file.name}`,
+          fileType
+        })
+      });
+
+      if (!signRes.ok) {
+        const err = await signRes.json().catch(() => ({}));
+        throw new Error(err.error || 'ატვირთვის მისამართის გენერირება ვერ მოხერხდა');
+      }
+
+      const { uploadUrl, publicUrl } = await signRes.json();
+      const putRes = await fetch(uploadUrl, {
+        method: 'PUT',
+        body: file,
+        headers: { 'Content-Type': fileType }
+      });
+
+      if (!putRes.ok) {
+        throw new Error('ფოტოს შენახვა საცავში ვერ მოხერხდა');
+      }
+
+      setTgPhotoUrl(publicUrl);
+    } catch (err: any) {
+      console.error('[PHOTO_UPLOAD_ERROR]', err);
+      setPhotoUploadError(err.message || 'ფოტოს ატვირთვა ვერ მოხერხდა');
+    } finally {
+      setIsUploadingPhoto(false);
+      if (photoFileInputRef.current) {
+        photoFileInputRef.current.value = '';
+      }
+    }
+  };
   const [botToken, setBotToken] = useState('');
   const [showToken, setShowToken] = useState(false);
   const [isEditingToken, setIsEditingToken] = useState(false);
@@ -1230,45 +1285,99 @@ export default function AdminMessagesPage() {
                   </div>
                 )}
 
-                {/* Photo URL Input Drawer (Zero Memory, External Direct Link) */}
+                {/* Photo Input Drawer (Upload from Device or Direct Link) */}
                 {(showPhotoInput || tgPhotoUrl) && (
                   <div className="photo-input-drawer glass animate-in" style={{
                     display: 'flex',
-                    alignItems: 'center',
-                    gap: '10px',
-                    padding: '8px 12px',
+                    flexDirection: 'column',
+                    gap: '8px',
+                    padding: '10px 14px',
                     background: 'rgba(56, 189, 248, 0.06)',
                     border: '1px solid rgba(56, 189, 248, 0.25)',
-                    borderRadius: '10px',
-                    marginBottom: '8px'
+                    borderRadius: '12px',
+                    marginBottom: '10px'
                   }}>
-                    <ImageIcon size={16} color="#38bdf8" />
                     <input
-                      type="url"
-                      placeholder="ჩასვით ფოტოს პირდაპირი ლინკი (URL, მაგ: https://images.unsplash.com/... ან https://...)"
-                      value={tgPhotoUrl}
-                      onChange={(e) => setTgPhotoUrl(e.target.value)}
-                      className="input-field-sm"
-                      style={{ flex: 1, height: '34px' }}
+                      type="file"
+                      ref={photoFileInputRef}
+                      onChange={handlePhotoFileUpload}
+                      accept="image/*"
+                      style={{ display: 'none' }}
                     />
-                    {tgPhotoUrl && (
+
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap' }}>
                       <button
                         type="button"
-                        onClick={() => {
-                          setTgPhotoUrl('');
-                          setShowPhotoInput(false);
-                        }}
+                        onClick={() => photoFileInputRef.current?.click()}
+                        disabled={isUploadingPhoto}
+                        className="upload-photo-btn"
                         style={{
-                          background: 'none',
+                          display: 'inline-flex',
+                          alignItems: 'center',
+                          gap: '6px',
+                          padding: '7px 14px',
+                          borderRadius: '8px',
+                          background: '#38bdf8',
+                          color: '#000',
+                          fontWeight: 700,
+                          fontSize: '12px',
                           border: 'none',
-                          color: '#f87171',
-                          cursor: 'pointer',
-                          fontSize: '11px',
-                          fontWeight: 700
+                          cursor: isUploadingPhoto ? 'not-allowed' : 'pointer',
+                          transition: 'all 0.15s ease',
+                          flexShrink: 0
                         }}
                       >
-                        ✕ გასუფთავება
+                        {isUploadingPhoto ? (
+                          <>
+                            <Loader2 size={14} className="spin" />
+                            <span>იტვირთება...</span>
+                          </>
+                        ) : (
+                          <>
+                            <Upload size={14} />
+                            <span>ფოტოს ატვირთვა</span>
+                          </>
+                        )}
                       </button>
+
+                      <span style={{ fontSize: '11px', color: 'rgba(255, 255, 255, 0.4)', fontWeight: 600 }}>ან URL:</span>
+
+                      <div style={{ flex: 1, minWidth: '220px', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                        <input
+                          type="url"
+                          placeholder="ჩასვით ფოტოს ლინკი (URL, მაგ: https://...)"
+                          value={tgPhotoUrl}
+                          onChange={(e) => setTgPhotoUrl(e.target.value)}
+                          className="input-field-sm"
+                          style={{ flex: 1, height: '34px' }}
+                        />
+                        {tgPhotoUrl && (
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setTgPhotoUrl('');
+                              setShowPhotoInput(false);
+                            }}
+                            style={{
+                              background: 'none',
+                              border: 'none',
+                              color: '#f87171',
+                              cursor: 'pointer',
+                              fontSize: '11px',
+                              fontWeight: 700,
+                              whiteSpace: 'nowrap'
+                            }}
+                          >
+                            ✕ გასუფთავება
+                          </button>
+                        )}
+                      </div>
+                    </div>
+
+                    {photoUploadError && (
+                      <div style={{ fontSize: '11px', color: '#f87171', fontWeight: 600 }}>
+                        {photoUploadError}
+                      </div>
                     )}
                   </div>
                 )}

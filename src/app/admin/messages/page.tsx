@@ -595,15 +595,17 @@ export default function AdminMessagesPage() {
             className={`tab-btn ${activeTab === 'telegram' ? 'active' : ''}`}
             onClick={() => setActiveTab('telegram')}
           >
-            <Send size={16} />
-            <span>Send Telegram ({tgUsers.length} Users)</span>
+            <Send size={15} />
+            <span className="tab-label-desktop">Send Telegram ({tgUsers.length} Users)</span>
+            <span className="tab-label-mobile">Telegram ({tgUsers.length})</span>
           </button>
           <button
             className={`tab-btn ${activeTab === 'incoming' ? 'active' : ''}`}
             onClick={() => setActiveTab('incoming')}
           >
-            <Mail size={16} />
-            <span>Inquiries ({messages.length})</span>
+            <Mail size={15} />
+            <span className="tab-label-desktop">Inquiries ({messages.length})</span>
+            <span className="tab-label-mobile">Inquiries ({messages.length})</span>
           </button>
         </div>
       </div>
@@ -2761,6 +2763,13 @@ export default function AdminMessagesPage() {
           display: none;
         }
 
+        .tab-label-desktop {
+          display: inline;
+        }
+        .tab-label-mobile {
+          display: none;
+        }
+
         .channel-target-btn {
           /* normal button styling */
         }
@@ -2826,93 +2835,185 @@ export default function AdminMessagesPage() {
         @media (max-width: 640px) {
           .admin-messages-page {
             padding: 0 0 80px 0 !important;
+            width: 100%;
+            max-width: 100%;
+            box-sizing: border-box;
+            overflow-x: hidden;
           }
           .msg-header-row {
-            margin-bottom: 4px;
-            gap: 8px;
+            margin-bottom: 6px;
+            gap: 10px;
+            flex-direction: column;
+            align-items: stretch;
           }
           .msg-header-title {
-            font-size: 18px;
+            font-size: 19px;
+            gap: 8px;
           }
           .msg-header-desc {
             display: none;
           }
           .tab-switcher {
             width: 100%;
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 4px;
+            box-sizing: border-box;
           }
           .tab-btn {
-            flex: 1;
+            width: 100%;
             justify-content: center;
-            font-size: 11.5px;
-            padding: 8px 6px;
+            font-size: 12px;
+            padding: 9px 4px;
+            white-space: nowrap;
           }
+          .tab-label-desktop {
+            display: none;
+          }
+          .tab-label-mobile {
+            display: inline;
+          }
+
           .tg-composer {
-            padding: 14px;
+            padding: 12px;
             gap: 14px;
             border-radius: 14px;
+            width: 100%;
+            box-sizing: border-box;
           }
           .panel-title-row {
-            gap: 10px;
+            gap: 8px;
           }
           .token-saved-compact-bar {
             flex-direction: column;
             align-items: stretch;
             gap: 10px;
             padding: 12px;
+            width: 100%;
+            box-sizing: border-box;
           }
           .target-toggle {
             display: grid;
             grid-template-columns: 1fr 1fr;
             gap: 6px;
             width: 100%;
+            box-sizing: border-box;
           }
           .target-btn {
             width: 100%;
-            padding: 9px 6px;
+            padding: 8px 6px;
             font-size: 11px;
             justify-content: center;
-            min-height: 44px;
+            min-height: 42px;
             white-space: normal;
-            line-height: 1.2;
+            line-height: 1.25;
             text-align: center;
+            box-sizing: border-box;
           }
           .channel-target-btn {
             grid-column: span 2;
           }
+          .audience-info-banner {
+            width: 100%;
+            box-sizing: border-box;
+          }
+          .info-banner-inner {
+            width: 100%;
+            box-sizing: border-box;
+            word-break: break-word;
+            overflow-wrap: anywhere;
+            line-height: 1.45;
+            font-size: 11.5px;
+          }
+          .info-banner-channel {
+            width: 100%;
+            box-sizing: border-box;
+          }
+          .channel-username-input {
+            width: 100%;
+            box-sizing: border-box;
+          }
+
           .template-chips {
             display: flex;
-            gap: 8px;
+            gap: 6px;
             overflow-x: auto;
             -webkit-overflow-scrolling: touch;
-            padding-bottom: 4px;
+            padding-bottom: 6px;
             flex-wrap: nowrap;
+            width: 100%;
+            scrollbar-width: none;
+          }
+          .template-chips::-webkit-scrollbar {
+            display: none;
           }
           .template-chip {
             flex-shrink: 0;
             white-space: nowrap;
+            font-size: 10.5px;
+            padding: 6px 10px;
           }
+
           .format-toolbar-row {
             flex-direction: column;
             align-items: flex-start;
-            gap: 8px;
+            gap: 6px;
+            width: 100%;
           }
           .format-tools {
             width: 100%;
+            max-width: 100%;
             overflow-x: auto;
             -webkit-overflow-scrolling: touch;
             padding: 4px 6px;
             justify-content: flex-start;
+            box-sizing: border-box;
+            scrollbar-width: none;
+          }
+          .format-tools::-webkit-scrollbar {
+            display: none;
           }
           .tool-btn, .emoji-btn {
-            width: 30px;
-            height: 30px;
-            min-width: 30px;
+            width: 32px;
+            height: 32px;
+            min-width: 32px;
             font-size: 14px;
+            flex-shrink: 0;
           }
+
+          .personalize-tags-row {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 6px;
+            padding: 8px 10px;
+            width: 100%;
+            box-sizing: border-box;
+          }
+          .personalize-label {
+            width: 100%;
+            margin-bottom: 2px;
+            font-size: 11px;
+          }
+          .personalize-tag-btn {
+            font-size: 10.5px;
+            padding: 4px 8px;
+            white-space: nowrap;
+          }
+
+          .emoji-picker-container {
+            width: 100%;
+            box-sizing: border-box;
+          }
+          .emoji-tabs {
+            max-width: calc(100vw - 80px);
+          }
+
           .photo-drawer-actions {
             flex-direction: column;
             align-items: stretch;
             gap: 8px;
+            width: 100%;
+            box-sizing: border-box;
           }
           .upload-photo-btn {
             width: 100%;
@@ -2923,37 +3024,53 @@ export default function AdminMessagesPage() {
             min-width: 100%;
             width: 100%;
             flex-wrap: wrap;
+            box-sizing: border-box;
           }
+
           .btn-edit-row {
             flex-direction: column;
             align-items: stretch;
             gap: 6px;
             position: relative;
-            padding-right: 36px;
+            padding-right: 38px;
+            width: 100%;
+            box-sizing: border-box;
+          }
+          .input-btn-text, .input-btn-url {
+            width: 100%;
+            box-sizing: border-box;
           }
           .btn-del-btn {
             position: absolute;
             right: 0;
             top: 50%;
             transform: translateY(-50%);
+            width: 34px;
+            height: 34px;
           }
+
           .btn-send-tg {
-            padding: 14px 18px;
+            padding: 14px 16px;
             font-size: 13.5px;
             width: 100%;
+            box-sizing: border-box;
+            text-align: center;
           }
           .tg-users-sidebar {
             height: auto;
             min-height: 480px;
-            max-height: calc(100vh - 220px);
+            max-height: calc(100vh - 200px);
             padding: 12px;
+            width: 100%;
+            box-sizing: border-box;
           }
           .sidebar-filter-pills {
             gap: 3px;
+            width: 100%;
           }
           .sidebar-pill {
             font-size: 10px;
-            padding: 4px 2px;
+            padding: 5px 2px;
             text-align: center;
           }
         }

@@ -390,7 +390,7 @@ export default function AdminMessagesPage() {
     }
   };
 
-  const applyTemplate = (type: 'update' | 'gift' | 'referral' | 'expiring') => {
+  const applyTemplate = (type: 'update' | 'gift' | 'referral' | 'expiring' | 'channel') => {
     if (type === 'update') {
       setTgMessageText("🎵 <b>New Tracks Added!</b>\n\nFresh dancesport music has just been uploaded to 4and.one with native BPM tempo control. Check out the latest Ballroom & Latin releases today!");
       setButtons([{ text: '🎵 Open Music Player', url: 'https://4and.one' }]);
@@ -403,6 +403,9 @@ export default function AdminMessagesPage() {
     } else if (type === 'expiring') {
       setTgMessageText("⏳ <b>Your 4and.one Premium expires soon!</b>\n\nYour Premium subscription will end in 5 days. Renew now to keep uninterrupted ad-free playback, offline downloads, and competition Final Mode practice!");
       setButtons([{ text: '💎 Renew Premium Now', url: 'https://4and.one/earn' }]);
+    } else if (type === 'channel') {
+      setTgMessageText("📢 <b>Join our official Telegram Channel!</b>\n\nHey {first_name}! 🎵 Follow @fourandonemusic to get the freshest ballroom & latin track releases, competition playlists, and exclusive dance gifts first!");
+      setButtons([{ text: '📢 Join @fourandonemusic', url: 'https://t.me/fourandonemusic' }]);
     }
   };
 
@@ -1059,6 +1062,14 @@ export default function AdminMessagesPage() {
                   >
                     ⏳ Expiry (5 Days)
                   </button>
+                  <button
+                    type="button"
+                    className="template-chip"
+                    onClick={() => applyTemplate('channel')}
+                    style={{ borderColor: 'rgba(56, 189, 248, 0.4)', color: '#38bdf8' }}
+                  >
+                    📢 Channel Invite (@fourandonemusic)
+                  </button>
                 </div>
               </div>
 
@@ -1167,6 +1178,23 @@ export default function AdminMessagesPage() {
                     title="ტელეგრამის @username"
                   >
                     + &#123;username&#125;
+                  </button>
+                  <div style={{ width: '1px', height: '14px', background: 'rgba(255, 255, 255, 0.1)', margin: '0 4px' }} />
+                  <button
+                    type="button"
+                    className="personalize-tag-btn"
+                    onClick={() => {
+                      setTgMessageText(prev => prev + ' @fourandonemusic ');
+                      // If channel button isn't already added, add it
+                      setButtons(prev => {
+                        if (prev.some(b => b.url.includes('fourandonemusic'))) return prev;
+                        return [...prev, { text: '📢 Join @fourandonemusic', url: 'https://t.me/fourandonemusic' }];
+                      });
+                    }}
+                    style={{ background: 'rgba(56, 189, 248, 0.18)', borderColor: '#38bdf8', color: '#38bdf8' }}
+                    title="არხის მოწვევის ტექსტისა და ღილაკის ჩამატება"
+                  >
+                    📢 + არხში მოწვევა (@fourandonemusic)
                   </button>
                 </div>
 

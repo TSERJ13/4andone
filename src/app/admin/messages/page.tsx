@@ -7,7 +7,7 @@ import {
   Mail, MessageSquare, Trash2, Reply, RefreshCw, 
   Search, Calendar, User, Clock, CheckCircle2, AlertTriangle, 
   Filter, Send, Users, Sparkles, ExternalLink, ShieldCheck, 
-  Bot, AlertCircle, Plus, Eye, Bold, Italic, Link2, Code, 
+  Bot, AlertCircle, Plus, Eye, EyeOff, Bold, Italic, Link2, Code, 
   BellRing, Award 
 } from 'lucide-react';
 import ConfirmModal from '@/components/admin/ConfirmModal';
@@ -62,6 +62,7 @@ export default function AdminMessagesPage() {
   const [userSearchQuery, setUserSearchQuery] = useState('');
   const [tgMessageText, setTgMessageText] = useState('');
   const [botToken, setBotToken] = useState('');
+  const [showToken, setShowToken] = useState(false);
   const [buttons, setButtons] = useState<InlineBtn[]>([
     { text: '🎵 Open 4and.one Player', url: 'https://4and.one' }
   ]);
@@ -675,16 +676,56 @@ export default function AdminMessagesPage() {
 
               {/* Bot Token Configuration */}
               <div className="form-group">
-                <label className="field-label">Telegram Bot Token (from @BotFather)</label>
-                <input
-                  type="password"
-                  value={botToken}
-                  onChange={(e) => setBotToken(e.target.value)}
-                  placeholder="Paste your 123456789:ABCdefGhI... bot token"
-                  className="input-field"
-                />
-                <span className="field-hint">
-                  {botToken ? '✓ Bot token ready.' : 'Enter your Bot Token once; it is saved in your browser.'}
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '6px' }}>
+                  <label className="field-label" style={{ margin: 0 }}>Telegram Bot Token (from @BotFather)</label>
+                  {botToken && (
+                    <span style={{ fontSize: '11px', color: '#10b981', fontWeight: 600, display: 'flex', alignItems: 'center', gap: '4px' }}>
+                      <CheckCircle2 size={12} /> დამახსოვრებულია ბრაუზერში
+                    </span>
+                  )}
+                </div>
+                <div style={{ position: 'relative', display: 'flex', alignItems: 'center' }}>
+                  <input
+                    type={showToken ? 'text' : 'password'}
+                    value={botToken}
+                    onChange={(e) => {
+                      const val = e.target.value;
+                      setBotToken(val);
+                      if (typeof window !== 'undefined') {
+                        if (val.trim()) {
+                          localStorage.setItem('4andone_admin_bot_token', val.trim());
+                        } else {
+                          localStorage.removeItem('4andone_admin_bot_token');
+                        }
+                      }
+                    }}
+                    placeholder="Paste your 123456789:ABCdefGhI... bot token"
+                    className="input-field"
+                    style={{ paddingRight: '42px', fontFamily: showToken ? 'monospace' : 'inherit' }}
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowToken(!showToken)}
+                    style={{
+                      position: 'absolute',
+                      right: '10px',
+                      background: 'none',
+                      border: 'none',
+                      color: '#a1a1aa',
+                      cursor: 'pointer',
+                      padding: '4px',
+                      display: 'flex',
+                      alignItems: 'center',
+                    }}
+                    title={showToken ? 'Hide token' : 'Show token'}
+                  >
+                    {showToken ? <EyeOff size={16} /> : <Eye size={16} />}
+                  </button>
+                </div>
+                <span className="field-hint" style={{ color: botToken ? '#34d399' : '#a1a1aa' }}>
+                  {botToken 
+                    ? '✓ ტოკენი შენახულია — გვერდიც რომ გადატვირთოთ ან ხვალ გახსნათ, აღარ წაიშლება.' 
+                    : 'ჩასვით თქვენი ბოტის ტოკენი ერთხელ; ის ავტომატურად შეინახება თქვენს ბრაუზერში.'}
                 </span>
               </div>
 

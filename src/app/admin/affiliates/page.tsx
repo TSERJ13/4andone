@@ -632,12 +632,24 @@ export default function AdminAffiliatesPage() {
                 <input
                   type="password"
                   value={messageModal.botToken}
-                  onChange={(e) => setMessageModal(prev => ({ ...prev, botToken: e.target.value }))}
+                  onChange={(e) => {
+                    const val = e.target.value;
+                    setMessageModal(prev => ({ ...prev, botToken: val }));
+                    if (typeof window !== 'undefined') {
+                      if (val.trim()) {
+                        localStorage.setItem('4andone_admin_bot_token', val.trim());
+                      } else {
+                        localStorage.removeItem('4andone_admin_bot_token');
+                      }
+                    }
+                  }}
                   placeholder="Paste your 123456789:ABCdefGhI... bot token"
                   className="input-field"
                 />
-                <span className="field-hint">
-                  Saved automatically in your browser for future messages.
+                <span className="field-hint" style={{ color: messageModal.botToken ? '#34d399' : '#a1a1aa' }}>
+                  {messageModal.botToken 
+                    ? '✓ შენახულია ბრაუზერში (LocalStorage) მომავალი შეტყობინებებისთვის.'
+                    : 'Saved automatically in your browser for future messages.'}
                 </span>
               </div>
 

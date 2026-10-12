@@ -240,6 +240,39 @@ export default function AdminMessagesPage() {
     }
   }, []);
 
+  const [isCheckingBotStatus, setIsCheckingBotStatus] = useState<boolean>(false);
+
+  const checkBotActiveUsers = useCallback(async (usersList?: TelegramUser[], tokenToUse?: string) => {
+    const list = usersList || tgUsers;
+    const token = tokenToUse || botToken;
+    if (!list || list.length === 0 || !token || !token.trim()) return;
+
+    setIsCheckingBotStatus(true);
+    try {
+      const res = await fetch('/api/admin/telegram/check-status', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          botToken: token.trim(),
+          telegramIds: list.map(u => u.telegram_id),
+        }),
+      });
+      const data = await res.json();
+      if (res.ok && data.success) {
+        if (Array.isArray(data.activeIds)) {
+          setKnownActiveBotIds(data.activeIds.map(Number));
+        }
+        if (Array.isArray(data.inactiveIds)) {
+          setKnownInactiveBotIds(data.inactiveIds.map(Number));
+        }
+      }
+    } catch (err) {
+      console.warn('Bot status check error:', err);
+    } finally {
+      setIsCheckingBotStatus(false);
+    }
+  }, [tgUsers, botToken]);
+
   useEffect(() => {
     fetchMessages();
     fetchTgUsers();
@@ -251,6 +284,13 @@ export default function AdminMessagesPage() {
       setIsEditingToken(true);
     }
   }, [fetchMessages, fetchTgUsers]);
+
+  // When botToken and tgUsers become available, auto-verify bot active users
+  useEffect(() => {
+    if (botToken.trim() && tgUsers.length > 0 && knownActiveBotIds.length === 0 && !isCheckingBotStatus) {
+      checkBotActiveUsers(tgUsers, botToken);
+    }
+  }, [botToken, tgUsers, knownActiveBotIds.length, isCheckingBotStatus, checkBotActiveUsers]);
 
   // User segments
   const freeUsers = useMemo(() => tgUsers.filter(u => !u.is_premium), [tgUsers]);
@@ -1698,11 +1738,16 @@ export default function AdminMessagesPage() {
                   <button
                     type="button"
                     className={`sidebar-pill ${sidebarFilter === 'activeBot' ? 'active' : ''}`}
-                    onClick={() => setSidebarFilter('activeBot')}
+                    onClick={() => {
+                      setSidebarFilter('activeBot');
+                      if (knownActiveBotIds.length === 0 && !isCheckingBotStatus) {
+                        checkBotActiveUsers();
+                      }
+                    }}
                     title="მომხმარებლები, ვისაც ბოტი ჩართული აქვთ"
                     style={{ borderColor: sidebarFilter === 'activeBot' ? '#4ade80' : undefined, color: sidebarFilter === 'activeBot' ? '#4ade80' : undefined }}
                   >
-                    ✓ Bot ({knownActiveBotIds.length > 0 ? knownActiveBotIds.length : 'Active'})
+                    {isCheckingBotStatus ? '⏳ Bot (Checking...)' : `✓ Bot (${knownActiveBotIds.length})`}
                   </button>
                   <button
                     type="button"

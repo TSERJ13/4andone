@@ -2774,7 +2774,7 @@ export default function AdminMessagesPage() {
           /* normal button styling */
         }
 
-        @media (max-width: 950px) {
+        @media (max-width: 1024px) {
           .mobile-tg-tabs {
             display: grid;
             grid-template-columns: repeat(3, 1fr);
@@ -2829,6 +2829,24 @@ export default function AdminMessagesPage() {
           .mobile-users-actions {
             display: block;
             margin-top: 10px;
+          }
+
+          .target-toggle {
+            display: grid !important;
+            grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)) !important;
+            gap: 6px !important;
+            width: 100% !important;
+          }
+          .target-btn {
+            width: 100% !important;
+            min-height: 40px !important;
+            padding: 8px 6px !important;
+            font-size: 11px !important;
+            white-space: normal !important;
+            text-align: center !important;
+          }
+          .channel-target-btn {
+            grid-column: 1 / -1 !important;
           }
         }
 

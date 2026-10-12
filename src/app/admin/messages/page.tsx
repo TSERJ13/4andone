@@ -1023,8 +1023,8 @@ export default function AdminMessagesPage() {
                     )}
                   </div>
 
-                  <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
-                    <div style={{ position: 'relative', display: 'flex', alignItems: 'center', flex: 1 }}>
+                  <div className="token-input-row">
+                    <div style={{ position: 'relative', display: 'flex', alignItems: 'center', flex: 1, minWidth: 0 }}>
                       <input
                         type={showToken ? 'text' : 'password'}
                         value={botToken}
@@ -1133,7 +1133,7 @@ export default function AdminMessagesPage() {
                   </button>
                   <button
                     type="button"
-                    className={`target-btn ${sendTarget === 'selected' ? 'active' : ''}`}
+                    className={`target-btn selected-target-btn ${sendTarget === 'selected' ? 'active' : ''}`}
                     onClick={() => {
                       setSendTarget('selected');
                       if (selectedUserIds.length === 0) {
@@ -1981,14 +1981,27 @@ export default function AdminMessagesPage() {
         }
 
         /* Telegram Layout */
+        .telegram-panel {
+          width: 100%;
+          max-width: 100%;
+          min-width: 0;
+          box-sizing: border-box;
+          display: flex;
+          flex-direction: column;
+        }
+
         .tg-layout {
           display: grid;
-          grid-template-columns: 1fr 380px;
+          grid-template-columns: minmax(0, 1fr) 380px;
           gap: 20px;
+          width: 100%;
+          max-width: 100%;
+          min-width: 0;
+          box-sizing: border-box;
         }
         @media (max-width: 950px) {
           .tg-layout {
-            grid-template-columns: 1fr;
+            grid-template-columns: minmax(0, 1fr);
           }
         }
 
@@ -2000,6 +2013,10 @@ export default function AdminMessagesPage() {
           display: flex;
           flex-direction: column;
           gap: 20px;
+          width: 100%;
+          max-width: 100%;
+          min-width: 0;
+          box-sizing: border-box;
         }
 
         .panel-title-row {
@@ -2085,10 +2102,65 @@ export default function AdminMessagesPage() {
           cursor: not-allowed;
         }
 
+        .token-saved-compact-bar {
+          display: flex;
+          align-items: center;
+          justify-content: space-between;
+          gap: 12px;
+          padding: 12px 16px;
+          border-radius: 14px;
+          background: rgba(16, 185, 129, 0.06);
+          border: 1px solid rgba(16, 185, 129, 0.25);
+          width: 100%;
+          max-width: 100%;
+          min-width: 0;
+          box-sizing: border-box;
+        }
+        .btn-token-mini-action {
+          padding: 6px 12px;
+          border-radius: 8px;
+          font-size: 11px;
+          font-weight: 700;
+          cursor: pointer;
+          background: rgba(255, 255, 255, 0.06);
+          border: 1px solid rgba(255, 255, 255, 0.12);
+          color: #e4e4e7;
+          display: inline-flex;
+          align-items: center;
+          justify-content: center;
+          gap: 4px;
+          transition: all 0.2s;
+        }
+        .btn-token-mini-action:hover {
+          background: rgba(255, 255, 255, 0.12);
+          color: #ffffff;
+        }
+        .btn-token-mini-action.text-danger {
+          color: #f87171;
+          border-color: rgba(239, 68, 68, 0.3);
+        }
+        .btn-token-mini-action.text-danger:hover {
+          background: rgba(239, 68, 68, 0.2);
+          color: #ffffff;
+        }
+        .token-input-row {
+          display: flex;
+          gap: 8px;
+          align-items: center;
+          width: 100%;
+          max-width: 100%;
+          min-width: 0;
+          box-sizing: border-box;
+        }
+
         .target-toggle {
           display: flex;
           gap: 8px;
           flex-wrap: wrap;
+          width: 100%;
+          max-width: 100%;
+          min-width: 0;
+          box-sizing: border-box;
         }
         .target-btn {
           flex: 1;
@@ -2105,7 +2177,9 @@ export default function AdminMessagesPage() {
           font-weight: 700;
           cursor: pointer;
           transition: all 0.2s;
-          white-space: nowrap;
+          min-width: 0;
+          box-sizing: border-box;
+          text-align: center;
         }
         .target-btn.active {
           background: rgba(56, 189, 248, 0.15);
@@ -2859,282 +2933,426 @@ export default function AdminMessagesPage() {
           }
 
           .tg-layout {
-            grid-template-columns: 1fr !important;
-            gap: 12px;
+            display: flex !important;
+            flex-direction: column !important;
+            width: 100% !important;
+            max-width: 100% !important;
+            min-width: 0 !important;
+            box-sizing: border-box !important;
+            gap: 12px !important;
           }
           .tg-sidebar-column {
-            width: 100%;
+            width: 100% !important;
+            max-width: 100% !important;
+            min-width: 0 !important;
+            box-sizing: border-box !important;
           }
           .mobile-preview-actions {
-            display: flex;
-            flex-direction: column;
-            gap: 8px;
-            margin-top: 14px;
+            display: flex !important;
+            flex-direction: column !important;
+            width: 100% !important;
+            box-sizing: border-box !important;
+            gap: 8px !important;
+            margin-top: 14px !important;
           }
           .mobile-users-actions {
-            display: block;
-            margin-top: 10px;
+            display: block !important;
+            width: 100% !important;
+            box-sizing: border-box !important;
+            margin-top: 10px !important;
           }
 
-          .target-toggle {
+          .admin-messages-page .target-toggle {
             display: grid !important;
-            grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)) !important;
+            grid-template-columns: 1fr 1fr !important;
             gap: 6px !important;
             width: 100% !important;
+            max-width: 100% !important;
+            min-width: 0 !important;
+            box-sizing: border-box !important;
           }
-          .target-btn {
+          .admin-messages-page .target-btn {
             width: 100% !important;
-            min-height: 40px !important;
-            padding: 8px 6px !important;
+            max-width: 100% !important;
+            min-width: 0 !important;
+            min-height: 42px !important;
+            padding: 8px 4px !important;
             font-size: 11px !important;
+            line-height: 1.25 !important;
             white-space: normal !important;
+            word-break: break-word !important;
             text-align: center !important;
+            justify-content: center !important;
+            box-sizing: border-box !important;
           }
-          .channel-target-btn {
+          .admin-messages-page .selected-target-btn {
             grid-column: 1 / -1 !important;
+            width: 100% !important;
+          }
+          .admin-messages-page .channel-target-btn {
+            grid-column: 1 / -1 !important;
+            width: 100% !important;
           }
         }
 
         @media (max-width: 640px) {
           .admin-messages-page {
             padding: 0 0 80px 0 !important;
-            width: 100%;
-            max-width: 100%;
-            box-sizing: border-box;
-            overflow-x: hidden;
+            width: 100% !important;
+            max-width: 100% !important;
+            min-width: 0 !important;
+            box-sizing: border-box !important;
+            overflow-x: hidden !important;
+          }
+          .telegram-panel {
+            width: 100% !important;
+            max-width: 100% !important;
+            min-width: 0 !important;
+            box-sizing: border-box !important;
+            overflow-x: hidden !important;
           }
           .msg-header-row {
-            margin-bottom: 6px;
-            gap: 10px;
-            flex-direction: column;
-            align-items: stretch;
+            margin-bottom: 6px !important;
+            gap: 10px !important;
+            flex-direction: column !important;
+            align-items: stretch !important;
+            width: 100% !important;
+            max-width: 100% !important;
+            min-width: 0 !important;
+            box-sizing: border-box !important;
           }
           .msg-header-title {
-            font-size: 19px;
-            gap: 8px;
+            font-size: 19px !important;
+            gap: 8px !important;
           }
           .msg-header-desc {
-            display: none;
+            display: none !important;
           }
           .tab-switcher {
-            width: 100%;
-            display: grid;
-            grid-template-columns: 1fr 1fr;
-            gap: 4px;
-            box-sizing: border-box;
+            width: 100% !important;
+            max-width: 100% !important;
+            display: grid !important;
+            grid-template-columns: 1fr 1fr !important;
+            gap: 4px !important;
+            box-sizing: border-box !important;
           }
           .tab-btn {
-            width: 100%;
-            justify-content: center;
-            font-size: 12px;
-            padding: 9px 4px;
-            white-space: nowrap;
+            width: 100% !important;
+            justify-content: center !important;
+            font-size: 12px !important;
+            padding: 9px 4px !important;
+            white-space: nowrap !important;
+            min-width: 0 !important;
           }
           .tab-label-desktop {
-            display: none;
+            display: none !important;
           }
           .tab-label-mobile {
-            display: inline;
+            display: inline !important;
           }
 
           .tg-composer {
-            padding: 12px;
-            gap: 14px;
-            border-radius: 14px;
-            width: 100%;
-            box-sizing: border-box;
+            padding: 10px !important;
+            gap: 12px !important;
+            border-radius: 14px !important;
+            width: 100% !important;
+            max-width: 100% !important;
+            min-width: 0 !important;
+            box-sizing: border-box !important;
+            overflow-x: hidden !important;
           }
           .panel-title-row {
-            gap: 8px;
+            gap: 8px !important;
+            width: 100% !important;
+            box-sizing: border-box !important;
           }
           .token-saved-compact-bar {
-            flex-direction: column;
-            align-items: stretch;
-            gap: 10px;
-            padding: 12px;
-            width: 100%;
-            box-sizing: border-box;
+            flex-direction: column !important;
+            align-items: stretch !important;
+            gap: 10px !important;
+            padding: 10px !important;
+            width: 100% !important;
+            max-width: 100% !important;
+            min-width: 0 !important;
+            box-sizing: border-box !important;
           }
-          .target-toggle {
-            display: grid;
-            grid-template-columns: 1fr 1fr;
-            gap: 6px;
-            width: 100%;
-            box-sizing: border-box;
+          .token-saved-compact-bar > div:last-child {
+            width: 100% !important;
+            display: grid !important;
+            grid-template-columns: 1fr 1fr !important;
+            gap: 8px !important;
           }
-          .target-btn {
-            width: 100%;
-            padding: 8px 6px;
-            font-size: 11px;
-            justify-content: center;
-            min-height: 42px;
-            white-space: normal;
-            line-height: 1.25;
-            text-align: center;
-            box-sizing: border-box;
+          .token-input-row {
+            flex-wrap: wrap !important;
+            width: 100% !important;
+            max-width: 100% !important;
+            min-width: 0 !important;
+            box-sizing: border-box !important;
           }
-          .channel-target-btn {
-            grid-column: span 2;
+          .token-input-row > div {
+            width: 100% !important;
+            min-width: 100% !important;
+            box-sizing: border-box !important;
+          }
+          .token-input-row .btn-token-save,
+          .token-input-row .btn-token-delete {
+            flex: 1 !important;
+            justify-content: center !important;
+            text-align: center !important;
+          }
+
+          .admin-messages-page .target-toggle {
+            display: grid !important;
+            grid-template-columns: 1fr 1fr !important;
+            gap: 6px !important;
+            width: 100% !important;
+            max-width: 100% !important;
+            min-width: 0 !important;
+            box-sizing: border-box !important;
+          }
+          .admin-messages-page .target-btn {
+            width: 100% !important;
+            max-width: 100% !important;
+            min-width: 0 !important;
+            padding: 8px 4px !important;
+            font-size: 11px !important;
+            justify-content: center !important;
+            min-height: 42px !important;
+            white-space: normal !important;
+            line-height: 1.25 !important;
+            text-align: center !important;
+            box-sizing: border-box !important;
+            word-break: break-word !important;
+          }
+          .admin-messages-page .selected-target-btn {
+            grid-column: 1 / -1 !important;
+            width: 100% !important;
+          }
+          .admin-messages-page .channel-target-btn {
+            grid-column: 1 / -1 !important;
+            width: 100% !important;
           }
           .audience-info-banner {
-            width: 100%;
-            box-sizing: border-box;
+            width: 100% !important;
+            max-width: 100% !important;
+            min-width: 0 !important;
+            box-sizing: border-box !important;
           }
           .info-banner-inner {
-            width: 100%;
-            box-sizing: border-box;
-            word-break: break-word;
-            overflow-wrap: anywhere;
-            line-height: 1.45;
-            font-size: 11.5px;
+            width: 100% !important;
+            max-width: 100% !important;
+            min-width: 0 !important;
+            box-sizing: border-box !important;
+            word-break: break-word !important;
+            overflow-wrap: anywhere !important;
+            line-height: 1.45 !important;
+            font-size: 11.5px !important;
+            padding: 8px 10px !important;
           }
           .info-banner-channel {
-            width: 100%;
-            box-sizing: border-box;
+            width: 100% !important;
+            max-width: 100% !important;
+            min-width: 0 !important;
+            box-sizing: border-box !important;
+            padding: 10px !important;
           }
           .channel-username-input {
-            width: 100%;
-            box-sizing: border-box;
+            width: 100% !important;
+            max-width: 100% !important;
+            min-width: 0 !important;
+            box-sizing: border-box !important;
           }
 
           .template-chips {
-            display: flex;
-            gap: 6px;
-            overflow-x: auto;
-            -webkit-overflow-scrolling: touch;
-            padding-bottom: 6px;
-            flex-wrap: nowrap;
-            width: 100%;
-            scrollbar-width: none;
+            display: flex !important;
+            gap: 6px !important;
+            overflow-x: auto !important;
+            -webkit-overflow-scrolling: touch !important;
+            padding-bottom: 6px !important;
+            flex-wrap: nowrap !important;
+            width: 100% !important;
+            max-width: 100% !important;
+            min-width: 0 !important;
+            box-sizing: border-box !important;
+            scrollbar-width: none !important;
           }
           .template-chips::-webkit-scrollbar {
-            display: none;
+            display: none !important;
           }
           .template-chip {
-            flex-shrink: 0;
-            white-space: nowrap;
-            font-size: 10.5px;
-            padding: 6px 10px;
+            flex-shrink: 0 !important;
+            white-space: nowrap !important;
+            font-size: 10.5px !important;
+            padding: 6px 10px !important;
           }
 
           .format-toolbar-row {
-            flex-direction: column;
-            align-items: flex-start;
-            gap: 6px;
-            width: 100%;
+            flex-direction: column !important;
+            align-items: flex-start !important;
+            gap: 6px !important;
+            width: 100% !important;
+            max-width: 100% !important;
+            min-width: 0 !important;
+            box-sizing: border-box !important;
           }
           .format-tools {
-            width: 100%;
-            max-width: 100%;
-            overflow-x: auto;
-            -webkit-overflow-scrolling: touch;
-            padding: 4px 6px;
-            justify-content: flex-start;
-            box-sizing: border-box;
-            scrollbar-width: none;
+            width: 100% !important;
+            max-width: 100% !important;
+            min-width: 0 !important;
+            overflow-x: auto !important;
+            -webkit-overflow-scrolling: touch !important;
+            padding: 4px 6px !important;
+            justify-content: flex-start !important;
+            box-sizing: border-box !important;
+            scrollbar-width: none !important;
+            flex-wrap: nowrap !important;
           }
           .format-tools::-webkit-scrollbar {
-            display: none;
+            display: none !important;
           }
           .tool-btn, .emoji-btn {
-            width: 32px;
-            height: 32px;
-            min-width: 32px;
-            font-size: 14px;
-            flex-shrink: 0;
+            width: 30px !important;
+            height: 30px !important;
+            min-width: 30px !important;
+            font-size: 13px !important;
+            flex-shrink: 0 !important;
           }
 
           .personalize-tags-row {
-            display: flex;
-            flex-wrap: wrap;
-            gap: 6px;
-            padding: 8px 10px;
-            width: 100%;
-            box-sizing: border-box;
+            display: flex !important;
+            flex-wrap: wrap !important;
+            gap: 6px !important;
+            padding: 8px 10px !important;
+            width: 100% !important;
+            max-width: 100% !important;
+            min-width: 0 !important;
+            box-sizing: border-box !important;
           }
           .personalize-label {
-            width: 100%;
-            margin-bottom: 2px;
-            font-size: 11px;
+            width: 100% !important;
+            margin-bottom: 2px !important;
+            font-size: 11px !important;
           }
           .personalize-tag-btn {
-            font-size: 10.5px;
-            padding: 4px 8px;
-            white-space: nowrap;
+            font-size: 10.5px !important;
+            padding: 5px 8px !important;
+            white-space: normal !important;
+            word-break: break-word !important;
+            max-width: 100% !important;
+            box-sizing: border-box !important;
+            text-align: center !important;
+          }
+
+          .textarea-field {
+            width: 100% !important;
+            max-width: 100% !important;
+            min-width: 0 !important;
+            box-sizing: border-box !important;
+            padding: 10px 12px !important;
+            font-size: 13px !important;
           }
 
           .emoji-picker-container {
-            width: 100%;
-            box-sizing: border-box;
+            width: 100% !important;
+            max-width: 100% !important;
+            min-width: 0 !important;
+            box-sizing: border-box !important;
           }
           .emoji-tabs {
-            max-width: calc(100vw - 80px);
+            max-width: calc(100vw - 60px) !important;
           }
 
           .photo-drawer-actions {
-            flex-direction: column;
-            align-items: stretch;
-            gap: 8px;
-            width: 100%;
-            box-sizing: border-box;
+            flex-direction: column !important;
+            align-items: stretch !important;
+            gap: 8px !important;
+            width: 100% !important;
+            max-width: 100% !important;
+            min-width: 0 !important;
+            box-sizing: border-box !important;
           }
           .upload-photo-btn {
-            width: 100%;
-            justify-content: center;
-            padding: 10px 14px;
+            width: 100% !important;
+            justify-content: center !important;
+            padding: 10px 14px !important;
+            box-sizing: border-box !important;
           }
           .photo-url-wrap {
-            min-width: 100%;
-            width: 100%;
-            flex-wrap: wrap;
-            box-sizing: border-box;
+            min-width: 100% !important;
+            width: 100% !important;
+            max-width: 100% !important;
+            flex-wrap: wrap !important;
+            box-sizing: border-box !important;
+          }
+          .photo-url-input {
+            width: 100% !important;
+            max-width: 100% !important;
+            min-width: 0 !important;
+            box-sizing: border-box !important;
           }
 
+          .buttons-editor-list {
+            width: 100% !important;
+            max-width: 100% !important;
+            min-width: 0 !important;
+            box-sizing: border-box !important;
+          }
           .btn-edit-row {
-            flex-direction: column;
-            align-items: stretch;
-            gap: 6px;
-            position: relative;
-            padding-right: 38px;
-            width: 100%;
-            box-sizing: border-box;
+            flex-direction: column !important;
+            align-items: stretch !important;
+            gap: 6px !important;
+            position: relative !important;
+            padding-right: 42px !important;
+            width: 100% !important;
+            max-width: 100% !important;
+            min-width: 0 !important;
+            box-sizing: border-box !important;
           }
           .input-btn-text, .input-btn-url {
-            width: 100%;
-            box-sizing: border-box;
+            width: 100% !important;
+            max-width: 100% !important;
+            min-width: 0 !important;
+            box-sizing: border-box !important;
           }
           .btn-del-btn {
-            position: absolute;
-            right: 0;
-            top: 50%;
-            transform: translateY(-50%);
-            width: 34px;
-            height: 34px;
+            position: absolute !important;
+            right: 0 !important;
+            top: 50% !important;
+            transform: translateY(-50%) !important;
+            width: 36px !important;
+            height: 36px !important;
+            border-radius: 8px !important;
           }
 
           .btn-send-tg {
-            padding: 14px 16px;
-            font-size: 13.5px;
-            width: 100%;
-            box-sizing: border-box;
-            text-align: center;
+            padding: 14px 16px !important;
+            font-size: 13.5px !important;
+            width: 100% !important;
+            max-width: 100% !important;
+            min-width: 0 !important;
+            box-sizing: border-box !important;
+            text-align: center !important;
           }
           .tg-users-sidebar {
-            height: auto;
-            min-height: 480px;
-            max-height: calc(100vh - 200px);
-            padding: 12px;
-            width: 100%;
-            box-sizing: border-box;
+            height: auto !important;
+            min-height: 480px !important;
+            max-height: calc(100vh - 200px) !important;
+            padding: 10px !important;
+            width: 100% !important;
+            max-width: 100% !important;
+            min-width: 0 !important;
+            box-sizing: border-box !important;
           }
           .sidebar-filter-pills {
-            gap: 3px;
-            width: 100%;
+            gap: 3px !important;
+            width: 100% !important;
+            box-sizing: border-box !important;
           }
           .sidebar-pill {
-            font-size: 10px;
-            padding: 5px 2px;
-            text-align: center;
+            font-size: 10px !important;
+            padding: 6px 2px !important;
+            text-align: center !important;
+            min-width: 0 !important;
           }
         }
       `}</style>

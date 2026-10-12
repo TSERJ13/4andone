@@ -119,6 +119,8 @@
 .admin-main > div {
   width: 100%;
   max-width: 100%;
+  min-width: 0;
+  box-sizing: border-box;
   flex: 1;
 }
 
@@ -377,11 +379,13 @@
   }
   .admin-content {
     width: 100%;
-    min-width: 100%;
+    max-width: 100%;
+    min-width: 0;
     flex: 1;
+    overflow-x: hidden;
   }
   .admin-header { padding: 0 20px; }
-  .admin-main { padding: 20px; }
+  .admin-main { padding: 20px; min-width: 0; }
 }
 
 @media (max-width: 800px) {
@@ -429,10 +433,24 @@
   .admin-header {
     height: 60px;
     padding: 0 16px;
+    width: 100%;
+    max-width: 100%;
+    box-sizing: border-box;
   }
   .admin-main {
-    padding: 12px;
+    padding: 10px;
     padding-bottom: 60px;
+    width: 100%;
+    max-width: 100%;
+    min-width: 0;
+    box-sizing: border-box;
+    overflow-x: hidden;
+  }
+  .admin-main > div {
+    width: 100% !important;
+    max-width: 100% !important;
+    min-width: 0 !important;
+    box-sizing: border-box !important;
   }
   .user-info { display: none; }
   .user-avatar { width: 32px; height: 32px; border-radius: 10px; font-size: 13px; }

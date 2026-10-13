@@ -1,0 +1,11 @@
+{
+  "public_catalog_read": true,
+  "public_catalog_write": false,
+  "public_private_read": false,
+  "authenticated_private_read": false,
+  "public_play_insert": true,
+  "public_event_read": false,
+  "service_private_read": true,
+  "public_reward_rpc": false,
+  "public_security_definer_functions": 0
+}

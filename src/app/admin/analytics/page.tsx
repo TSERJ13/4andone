@@ -6,7 +6,8 @@ import {
   RefreshCw, Globe, Clock, Radio, Share2, Eye, ExternalLink, Wifi, Coffee, MessageSquare, Mail
 } from 'lucide-react';
 import { useStudio } from '@/components/admin/StudioProvider';
-import { supabase } from '@/utils/supabase';
+import { supabase as realtime } from '@/utils/supabase';
+import { adminDb as supabase } from '@/lib/admin-db';
 import { adminDb } from '@/lib/admin-db';
 import AdStatsPanel from '@/components/admin/AdStatsPanel';
 
@@ -513,7 +514,7 @@ export default function AdminAnalytics() {
   // Live Presence
   useEffect(() => {
     let mounted = true;
-    let channel: ReturnType<typeof supabase.channel> | undefined;
+    let channel: ReturnType<typeof realtime.channel> | undefined;
 
     const syncLive = () => {
       if (!channel || !mounted) return;
@@ -559,7 +560,7 @@ export default function AdminAnalytics() {
     };
 
     try {
-      channel = supabase.channel('4andone-live', {
+      channel = realtime.channel('4andone-live', {
         config: { presence: { key: 'admin-dashboard-' + Math.random().toString(36).substring(2, 7) } }
       });
       channel
@@ -573,7 +574,7 @@ export default function AdminAnalytics() {
 
     return () => {
       mounted = false;
-      if (channel) supabase.removeChannel(channel);
+      if (channel) realtime.removeChannel(channel);
     };
   }, []);
 

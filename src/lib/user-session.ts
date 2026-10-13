@@ -9,14 +9,14 @@ import { parseTelegramId } from '@/lib/premium';
 // bot token, then a signed, httpOnly cookie carries the Telegram ID.
 //
 // Needs TELEGRAM_BOT_TOKEN (server-only env var, from @BotFather for the login
-// bot). Until it is set, the old "?tid=" lookups keep working so nothing breaks.
+// bot). Requests fail closed if server authentication is not configured.
 
 export const USER_COOKIE = '4a_user_session';
 /** Same signed value, sent by the app as a header — works where cookies don't (Telegram in-app views, iframes). */
 export const USER_HEADER = 'x-4a-session';
 const SESSION_TTL_SECONDS = 180 * 24 * 60 * 60;
 // A saved Telegram login older than this must sign in again.
-const MAX_LOGIN_AGE_SECONDS = 365 * 24 * 60 * 60;
+const MAX_LOGIN_AGE_SECONDS = 24 * 60 * 60;
 
 // The login-widget bot and the Mini App bot can be different bots: every
 // token listed is accepted (comma-separated, or the two optional variables).
@@ -111,13 +111,12 @@ export const getSessionTelegramId = async () => {
 
 /**
  * Which account a request may read. With the bot token set, ONLY the session
- * cookie counts (a "?tid=" for anyone else is refused). Without it, the
- * requested tid is used as before.
+ * cookie/header counts (a "?tid=" for anyone else is refused).
  */
 export const resolveReadableTelegramId = async (requestedTid: string | null):
   Promise<{ telegramId: number } | { status: 400 | 401 | 403 }> => {
   const requested = parseTelegramId(requestedTid);
-  if (!isUserSessionConfigured()) return requested ? { telegramId: requested } : { status: 400 };
+  if (!isUserSessionConfigured()) return { status: 401 };
   const sessionId = await getSessionTelegramId();
   if (!sessionId) return { status: 401 };
   if (requested && requested !== sessionId) return { status: 403 };

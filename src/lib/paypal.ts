@@ -19,6 +19,7 @@ const getToken = async () => {
     },
     body: 'grant_type=client_credentials',
     cache: 'no-store',
+    signal: AbortSignal.timeout(10000),
   });
   if (!res.ok) return null;
   const json = await res.json();
@@ -26,12 +27,12 @@ const getToken = async () => {
 };
 
 export type PayPalVerification =
-  | { ok: true; paidUntil: Date }
+  | { ok: true; paidUntil: Date; customId: string | null }
   | { ok: false; error: string };
 
 /**
  * Confirms with PayPal that the subscription is ACTIVE on our plan and returns
- * until when it is paid (next billing date + 3 days grace).
+ * the end of the current billing period without inventing a grace period.
  */
 export const verifyPayPalSubscription = async (subscriptionId: string): Promise<PayPalVerification> => {
   if (!isPayPalConfigured()) return { ok: false, error: 'PayPal is not configured' };
@@ -41,16 +42,34 @@ export const verifyPayPalSubscription = async (subscriptionId: string): Promise<
   const res = await fetch(`${PAYPAL_API}/v1/billing/subscriptions/${encodeURIComponent(subscriptionId)}`, {
     headers: { authorization: `Bearer ${token}` },
     cache: 'no-store',
+    signal: AbortSignal.timeout(10000),
   });
   if (!res.ok) return { ok: false, error: 'Subscription not found at PayPal' };
   const sub = await res.json();
 
   const status = String(sub.status || '');
-  if (!['ACTIVE', 'APPROVED'].includes(status) || sub.plan_id !== PLAN_ID) {
+  if (status !== 'ACTIVE' || sub.plan_id !== PLAN_ID) {
     return { ok: false, error: `Subscription is not active (${status || 'unknown'})` };
   }
   const next = sub.billing_info?.next_billing_time ? new Date(sub.billing_info.next_billing_time) : null;
-  const paidUntil = next && !Number.isNaN(next.getTime()) ? next : new Date(Date.now() + 31 * 86400000);
-  paidUntil.setDate(paidUntil.getDate() + 3);
-  return { ok: true, paidUntil };
+  if (!next || !Number.isFinite(next.getTime()) || next.getTime() <= Date.now()) {
+    return { ok: false, error: 'PayPal has not confirmed the current billing period' };
+  }
+  return { ok: true, paidUntil: next, customId: typeof sub.custom_id === 'string' ? sub.custom_id : null };
+};
+
+/** Cancel recurring billing at PayPal, keeping the already paid access period. */
+export const cancelPayPalSubscription = async (subscriptionId: string): Promise<boolean> => {
+  const token = await getToken();
+  if (!token) return false;
+  const url = `${PAYPAL_API}/v1/billing/subscriptions/${encodeURIComponent(subscriptionId)}`;
+  const headers = { authorization: `Bearer ${token}`, 'content-type': 'application/json' };
+  const result = await fetch(`${url}/cancel`, {
+    method: 'POST', headers, body: JSON.stringify({ reason: 'Cancelled by the account holder' }),
+    cache: 'no-store', signal: AbortSignal.timeout(10000),
+  });
+  if (result.ok) return true;
+  // Retrying an already cancelled subscription is safe and idempotent.
+  const details = await fetch(url, { headers, cache: 'no-store', signal: AbortSignal.timeout(10000) });
+  return details.ok && (await details.json()).status === 'CANCELLED';
 };

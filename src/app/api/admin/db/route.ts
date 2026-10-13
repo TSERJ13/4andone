@@ -50,6 +50,7 @@ export async function POST(request: NextRequest) {
   let body: AdminDbRequest;
   try {
     body = await request.json();
+    if (!body || typeof body !== 'object' || Array.isArray(body)) throw new Error('Invalid body');
   } catch {
     return NextResponse.json({ data: null, error: { message: 'Invalid JSON' } }, { status: 400 });
   }
@@ -68,6 +69,7 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ data: null, error: { message: 'Table or operation not allowed' } }, { status: 400 });
   }
   const filters = Array.isArray(body.filters) ? body.filters : [];
+  if (filters.some(f => !Array.isArray(f) || f.length !== 3)) return NextResponse.json({ error: 'Invalid filters' }, { status: 400 });
   for (const [kind, column] of filters) {
     if (!['eq', 'neq', 'in', 'gt', 'gte', 'lt', 'lte'].includes(kind) || !IDENT.test(column)) {
       return NextResponse.json({ data: null, error: { message: 'Invalid filter' } }, { status: 400 });

@@ -1,3 +1,4 @@
+import { isPublicMediaKey } from '@/lib/media-key';
 import { NextRequest, NextResponse } from 'next/server';
 import { S3Client, GetObjectCommand } from '@aws-sdk/client-s3';
 
@@ -30,7 +31,8 @@ export async function GET(
       return new NextResponse('Key is required', { status: 400 });
     }
 
-    let key = decodeURIComponent(rawKey);
+    const key = rawKey;
+    if (!isPublicMediaKey(key)) return new NextResponse('Invalid media key', { status: 400 });
 
     const command = new GetObjectCommand({
       Bucket: R2_BUCKET_NAME,
@@ -50,6 +52,7 @@ export async function GET(
       status: 200,
       headers: {
         'Content-Type': contentType,
+        'X-Content-Type-Options': 'nosniff',
         'Cache-Control': 'public, max-age=31536000, immutable',
         ...(response.ContentLength ? { 'Content-Length': String(response.ContentLength) } : {}),
       },

@@ -1,3 +1,4 @@
+import { cookies } from 'next/headers';
 import { requireAdmin } from '@/lib/admin-auth';
 import { NextResponse } from 'next/server';
 import { google } from 'googleapis';
@@ -10,6 +11,12 @@ export async function GET(request: Request) {
   const denied = await requireAdmin();
   if (denied) return denied;
   const { searchParams, origin } = new URL(request.url);
+  const cookieStore = await cookies();
+  const expectedState = cookieStore.get('4a_adsense_state')?.value;
+  cookieStore.set('4a_adsense_state', '', { maxAge: 0, path: '/api/admin/adsense' });
+  if (!expectedState || searchParams.get('state') !== expectedState) {
+    return NextResponse.json({ error: 'Invalid OAuth state' }, { status: 400 });
+  }
   const code = searchParams.get('code');
   const error = searchParams.get('error');
 

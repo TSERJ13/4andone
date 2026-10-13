@@ -1,4 +1,5 @@
 "use client";
+import { sessionFetch } from '@/utils/userSession';
 
 import { useEffect, useRef } from "react";
 import { supabase } from "@/utils/supabase";
@@ -24,6 +25,7 @@ export default function AnalyticsTracker() {
     if (pathname?.startsWith("/admin") || pathname === "/sa-login") {
       return;
     }
+    let disposed = false;
 
     // 1. Initialize Persistent Visitor & Session
     let visitorId = typeof window !== 'undefined' ? localStorage.getItem("4andone_visitor_id") : null;
@@ -74,16 +76,11 @@ export default function AnalyticsTracker() {
     }
 
     const sendPresence = (code: string, name: string, ipAddr: string, cityStr: string) => {
-      if (!presenceChannel) return;
+      if (!presenceChannel || disposed) return;
       try {
         presenceChannel.track({
           session_id: sessionId,
-          visitor_id: visitorId,
-          ip: ipAddr || null,
-          city: cityStr || null,
-          visit_count: visitCount,
-          name: displayName,
-          is_telegram: isTg,
+          name: 'Listener',
           country_code: code,
           country_name: name,
           online_at: new Date().toISOString(),
@@ -170,7 +167,7 @@ export default function AnalyticsTracker() {
 
           // Sync Telegram User (server-side: telegram_users is not writable
           // with the public key)
-          await fetch("/api/user/sync", {
+          await sessionFetch("/api/user/sync", {
             method: "POST",
             headers: { "content-type": "application/json" },
             body: JSON.stringify({
@@ -200,24 +197,14 @@ export default function AnalyticsTracker() {
           referrer: document.referrer || null,
         };
 
-        const { data, error } = await supabase
-          .from("page_visits")
-          .insert(visitPayload)
-          .select("id")
-          .single();
-
-        if (error) throw error;
-        if (data) visitIdRef.current = data.id;
-
-        // 5. Periodic Duration Update (every 20 seconds)
-        let elapsed = 0;
-        updateIntervalRef.current = setInterval(async () => {
-          if (!visitIdRef.current) return;
-          elapsed += 20;
-          await supabase
-            .from("page_visits")
-            .update({ duration_seconds: elapsed })
-            .eq("id", visitIdRef.current);
+        const response = await fetch('/api/visits', {
+          method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(visitPayload),
+        });
+        if (!response.ok) return;
+        const { token } = await response.json();
+        if (!token || disposed) return;
+        updateIntervalRef.current = setInterval(() => {
+          fetch('/api/visits', { method: 'PATCH', headers: { authorization: `Bearer ${token}` } }).catch(() => {});
         }, 20000);
 
       } catch (err) {
@@ -228,6 +215,7 @@ export default function AnalyticsTracker() {
     logVisit();
 
     return () => {
+      disposed = true;
       if (updateIntervalRef.current) clearInterval(updateIntervalRef.current);
       if (presenceChannel) {
         presenceChannel.untrack();

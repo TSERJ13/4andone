@@ -1,3 +1,4 @@
+import { isPublicMediaKey } from '@/lib/media-key';
 import { NextRequest, NextResponse } from 'next/server';
 import { S3Client, PutObjectCommand, GetObjectCommand } from '@aws-sdk/client-s3';
 import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
@@ -31,11 +32,7 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: 'Key is required' }, { status: 400 });
     }
 
-    try {
-      key = decodeURIComponent(key);
-    } catch (e) {
-      // Keep key as is if decoding fails
-    }
+    if (!isPublicMediaKey(key)) return NextResponse.json({ error: 'Invalid media key' }, { status: 400 });
 
     const command = new GetObjectCommand({
       Bucket: R2_BUCKET_NAME,
@@ -79,6 +76,7 @@ export async function POST(request: NextRequest) {
       
     const safeFileName = `${Date.now()}-${cleanName}.${ext}`;
 
+    if (!isPublicMediaKey(safeFileName)) return NextResponse.json({ error: 'Unsupported media type' }, { status: 400 });
     const command = new PutObjectCommand({
       Bucket: R2_BUCKET_NAME,
       Key: safeFileName,

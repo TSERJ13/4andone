@@ -12,6 +12,7 @@ const withPWA = withPWAInit({
   skipWaiting: true,
   buildExcludes: [/.*\.css$/],
   publicExcludes: ['!**/*'],
+  additionalManifestEntries: [{ url: '/audio/rest-15s.mp3', revision: 'rest-15s-v1' }],
   fallbacks: {
     document: '/_offline',
   },

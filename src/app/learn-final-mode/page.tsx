@@ -69,7 +69,7 @@ export default function LearnFinalMode() {
     {
       number: "03",
       title: "Automatic Playback",
-      description: "Music starts playing automatically. Between each track, the system gives you a 15-second competition break. No need to touch your device during the set.",
+      description: "Each dance plays for 1:45, including a smooth 3-second fade-out. Between dances, there is a 15-second silent break. Tempo changes preserve pitch and do not change the dance timer. No need to touch your device during the set.",
       icon: <MonitorPlay className="text-rose-400" size={24} />,
       demo: (
         <div className="demo-mini text-center">

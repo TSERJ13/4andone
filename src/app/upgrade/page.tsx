@@ -88,14 +88,15 @@ export default function UpgradePage() {
                 ) : (
                   <div className="yt-prem-cancel-box">
                     <p className="yt-prem-cancel-confirm-text">
-                      Are you sure you want to cancel your Premium subscription?
+                      Cancel recurring billing? Your paid Premium access remains until the end of the current period.
                     </p>
                     <div className="yt-prem-cancel-btns-row">
                       <button
                         type="button"
                         className="yt-prem-btn-danger"
                         onClick={async () => {
-                          await cancelSubscription();
+                          try { await cancelSubscription(); }
+                        catch (error) { setErrorMsg(error instanceof Error ? error.message : 'Cancellation failed.'); return; }
                           setShowCancelConfirm(false);
                           setSuccess(false);
                         }}

@@ -1,8 +1,7 @@
 "use client";
 
 import React, { createContext, useContext, useState, useEffect } from 'react';
-import { supabase } from '@/utils/supabase';
-import { saveSessionToken } from '@/utils/userSession';
+import { saveSessionToken, sessionFetch } from '@/utils/userSession';
 
 export interface TelegramUser {
   id: number;
@@ -50,6 +49,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   // account's own data — listening history, profile — on any device.
   const establishServerSession = async (userData: TelegramUser) => {
     try {
+      const existing = await sessionFetch('/api/user/session', { cache: 'no-store' });
+      if (existing.ok && (await existing.json()).telegramId === userData.id) {
+        setSessionVersion(v => v + 1);
+        return;
+      }
       const initData = (window as unknown as { Telegram?: { WebApp?: { initData?: string } } }).Telegram?.WebApp?.initData;
       // Send every proof we have: Mini App initData and the Login Widget data
       const body = typeof initData === 'string' && initData.includes('hash=')
@@ -65,7 +69,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         saveSessionToken(data?.token);
         setSessionVersion(v => v + 1);
       } else if (res.status === 503) {
-        setSessionVersion(v => v + 1); // not configured yet → old ?tid= mode
+        saveSessionToken(null);
       } else if (res.status === 401) {
         console.warn('[4and.one] Telegram sign-in could not be verified — sign in again to sync your history');
       }
@@ -74,43 +78,12 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   };
 
-  const syncWithSupabase = async (userData: TelegramUser) => {
-    try {
-      // 1. Check if we already have a valid session to avoid redundant password sign-ins
-      const { data: { session } } = await supabase.auth.getSession();
-      
-      if (session && session.user.email === `tg_${userData.id}@4and.one`) {
-        return; // Session already active and matches
-      }
-
-      const email = `tg_${userData.id}@4and.one`;
-      const password = `tg_pass_${userData.id}_secure_99`; 
-      
-      const { error } = await supabase.auth.signInWithPassword({
-        email,
-        password,
-      });
-
-      if (error && error.message.includes('Invalid login credentials')) {
-        await supabase.auth.signUp({
-          email,
-          password,
-          options: {
-            data: { telegram_id: userData.id, first_name: userData.first_name }
-          }
-        });
-      }
-    } catch (err) {
-      console.error("[AUTH-SYNC-ERROR]", err);
-    }
-  };
-
   // Subscription status from the server (expiry-aware, auto-renews verified
   // PayPal subscriptions). Returns null when it could not be read (offline,
   // server not configured) — callers then keep what they have.
   const fetchPremiumStatus = async (telegramId: number): Promise<{ active: boolean; subscriptionId: string | null } | null> => {
     try {
-      const res = await fetch(`/api/user/premium?tid=${encodeURIComponent(String(telegramId))}`, { cache: 'no-store' });
+      const res = await sessionFetch(`/api/user/premium?tid=${encodeURIComponent(String(telegramId))}`, { cache: 'no-store' });
       if (!res.ok) return null;
       const data = await res.json();
       return { active: !!data.active, subscriptionId: data.subscriptionId ?? null };
@@ -123,23 +96,17 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   // verify right now (not configured / offline) → keep the local premium.
   const activateOnServer = async (telegramId: number, subscriptionId: string): Promise<'active' | 'rejected' | 'unavailable'> => {
     try {
-      const res = await fetch('/api/subscription/activate', {
+      const res = await sessionFetch('/api/subscription/activate', {
         method: 'POST',
         headers: { 'content-type': 'application/json' },
         body: JSON.stringify({ telegramId, subscriptionId }),
       });
       if (res.ok) return 'active';
-      if (res.status === 402 || res.status === 400) return 'rejected';
+      if ([400, 401, 402, 403, 409].includes(res.status)) return 'rejected';
       return 'unavailable';
     } catch {
       return 'unavailable';
     }
-  };
-
-  const isOwnerOrAdmin = (u: TelegramUser | null) => {
-    if (!u) return false;
-    const handle = (u.username || '').toLowerCase();
-    return handle === 'stdancestudio' || handle === 'tserj13' || handle === 'sergitsivtsivadze';
   };
 
   useEffect(() => {
@@ -147,23 +114,23 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     if (savedUser) {
       try {
         const parsedUser = JSON.parse(savedUser);
-        const hasLifetime = isOwnerOrAdmin(parsedUser);
-        if (hasLifetime) parsedUser.is_premium = true;
         setUser(parsedUser);
-        setIsPremium(hasLifetime || !!parsedUser.is_premium);
-        syncWithSupabase(parsedUser);
-        establishServerSession(parsedUser);
+        setIsPremium(!!parsedUser.is_premium);
+        const sessionReady = establishServerSession(parsedUser);
         // The saved copy can be stale (subscription expired, or granted from the
         // admin panel on another device) — re-check the real status quietly.
-        if (!hasLifetime && parsedUser.id) {
-          fetchPremiumStatus(parsedUser.id).then(async (status) => {
+        if (parsedUser.id) {
+          sessionReady.then(() => fetchPremiumStatus(parsedUser.id)).then(async (status) => {
             if (!status) return; // offline: keep the saved value
             // Paid in this browser but not recorded on the server yet (e.g. the
             // server could not verify at purchase time) → try to record it now.
             if (!status.active && parsedUser.is_premium && typeof parsedUser.subscription_id === 'string'
                 && parsedUser.subscription_id.startsWith('I-')) {
               const result = await activateOnServer(parsedUser.id, parsedUser.subscription_id);
-              if (result !== 'rejected') return; // active now, or can't tell → keep premium
+              if (result === 'active') {
+                const verified = await fetchPremiumStatus(parsedUser.id);
+                if (verified?.active) { setIsPremium(true); return; }
+              }
             }
             const refreshed = { ...parsedUser, is_premium: status.active, subscription_id: status.subscriptionId ?? undefined };
             setUser(refreshed);
@@ -193,25 +160,15 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   }, []);
 
   const login = async (userData: TelegramUser) => {
-    const hasLifetime = isOwnerOrAdmin(userData);
-    if (hasLifetime) {
-      userData.is_premium = true;
-      userData.subscription_id = 'LIFETIME_OWNER';
-    }
-
-    // Subscription status from the server (expiry-aware)
-    if (!hasLifetime) {
-      const status = await fetchPremiumStatus(userData.id);
-      userData.is_premium = !!status?.active;
-      if (status?.subscriptionId) userData.subscription_id = status.subscriptionId;
-    }
+    await establishServerSession(userData);
+    const status = await fetchPremiumStatus(userData.id);
+    userData = { ...userData, is_premium: !!status?.active, subscription_id: status?.subscriptionId };
 
     setUser(userData);
     setIsPremium(!!userData.is_premium);
     localStorage.setItem('4andone-user', JSON.stringify(userData));
     setIsAuthModalOpen(false);
-    await establishServerSession(userData);
-    await syncWithSupabase(userData);
+
 
     // Record the profile/visit (server-side; premium columns are not writable here)
     try {
@@ -219,7 +176,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         .then(r => r.json())
         .catch(() => null);
 
-      await fetch('/api/user/sync', {
+      await sessionFetch('/api/user/sync', {
         method: 'POST',
         headers: { 'content-type': 'application/json' },
         body: JSON.stringify({
@@ -238,7 +195,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   };
 
   const refreshPremium = async () => {
-    if (!user || isOwnerOrAdmin(user)) return;
+    if (!user) return;
     const status = await fetchPremiumStatus(user.id);
     if (!status) return;
     const refreshed = { ...user, is_premium: status.active, subscription_id: status.subscriptionId ?? undefined };
@@ -248,41 +205,22 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   };
 
   const activatePremium = async (subscriptionId: string) => {
-    setIsPremium(true);
-    if (user) {
-      const updatedUser = { ...user, is_premium: true, subscription_id: subscriptionId };
-      setUser(updatedUser);
-      localStorage.setItem('4andone-user', JSON.stringify(updatedUser));
-      // Verified with PayPal and saved on the server, so Premium follows the
-      // account to every device.
-      const result = await activateOnServer(user.id, subscriptionId);
-      if (result === 'rejected') {
-        console.warn('[PREMIUM] PayPal did not confirm the subscription yet; will retry on next visit.');
-      }
-    } else {
-      localStorage.setItem('4andone_guest_premium', subscriptionId);
-    }
+    if (!user) throw new Error('Sign in before subscribing.');
+    const result = await activateOnServer(user.id, subscriptionId);
+    if (result !== 'active') throw new Error('Payment could not be verified yet. Please retry or contact support.');
+    await refreshPremium();
     setIsSubscriptionModalOpen(false);
   };
 
   const cancelSubscription = async () => {
-    setIsPremium(false);
-    if (user) {
-      const updatedUser = { ...user, is_premium: false, subscription_id: undefined };
-      setUser(updatedUser);
-      try {
-        localStorage.setItem('4andone-user', JSON.stringify(updatedUser));
-        await fetch('/api/subscription/cancel', {
-          method: 'POST',
-          headers: { 'content-type': 'application/json' },
-          body: JSON.stringify({ telegramId: user.id }),
-        });
-      } catch (e) {
-        console.warn('[PREMIUM] Failed to cancel on server:', e);
-      }
-    } else {
-      localStorage.removeItem('4andone_guest_premium');
-    }
+    if (!user) throw new Error('Sign in to manage your subscription.');
+    const response = await sessionFetch('/api/subscription/cancel', {
+      method: 'POST', headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ telegramId: user.id }),
+    });
+    const result = await response.json();
+    if (!response.ok) throw new Error(result.error || 'Cancellation failed. Please retry.');
+    await refreshPremium();
   };
 
   const logout = () => {

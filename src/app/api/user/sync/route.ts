@@ -1,3 +1,4 @@
+import { resolveReadableTelegramId } from '@/lib/user-session';
 import { NextRequest, NextResponse } from 'next/server';
 import { getSupabaseAdmin, serviceRoleMissing } from '@/lib/supabase-admin';
 import { parseTelegramId, readPremiumStatus } from '@/lib/premium';
@@ -11,10 +12,13 @@ export async function POST(request: NextRequest) {
   let body: Record<string, unknown>;
   try {
     body = await request.json();
+    if (!body || typeof body !== 'object' || Array.isArray(body)) throw new Error('Invalid body');
   } catch {
     return NextResponse.json({ error: 'Invalid JSON' }, { status: 400 });
   }
-  const telegramId = parseTelegramId(body.telegram_id);
+  const who = await resolveReadableTelegramId(body.telegram_id == null ? null : String(body.telegram_id));
+  if ('status' in who) return NextResponse.json({ error: 'Sign in again' }, { status: who.status });
+  const telegramId = who.telegramId;
   if (!telegramId) return NextResponse.json({ error: 'telegram_id required' }, { status: 400 });
 
   const db = getSupabaseAdmin();

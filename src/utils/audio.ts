@@ -28,10 +28,11 @@ export const DANCE_STYLES: DanceStyleInfo[] = [
  * Uses a combination of energy peaks and median interval analysis.
  */
 export async function detectBPM(file: File): Promise<number> {
+  let tempContext: AudioContext | undefined;
   try {
     const arrayBuffer = await file.arrayBuffer();
-    const tempContext = new (window.AudioContext || (window as any).webkitAudioContext)();
-    const audioBuffer = await tempContext.decodeAudioData(arrayBuffer);
+    tempContext = new (window.AudioContext || (window as any).webkitAudioContext)();
+    const audioBuffer = await tempContext!.decodeAudioData(arrayBuffer);
     const duration = audioBuffer.duration;
     
     // Analyze up to 90 seconds (more representative than 45s)
@@ -101,14 +102,11 @@ export async function detectBPM(file: File): Promise<number> {
 
     // Precision Result analyzed
     
-    // CRITICAL: Close context to prevent leaking hundreds of contexts on mobile
-    if (tempContext && (tempContext as any).close) {
-      await (tempContext as any).close();
-    }
-    
     return detectedBpm;
   } catch (err) {
     return 0;
+  } finally {
+    await tempContext?.close().catch(() => {});
   }
 }
 

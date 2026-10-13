@@ -37,13 +37,13 @@ const AdminSidebar = ({ isCollapsed, onToggle }: { isCollapsed: boolean, onToggl
           .from('track_plays')
           .select('id')
           .eq('event_type', 'contact_message'),
-        supabase
+        adminDb
           .from('folders')
           .select('color')
           .eq('name', '__deleted_msg__')
       ]);
 
-      const deletedIds = new Set((delRows || []).map(r => r.color));
+      const deletedIds = new Set((delRows || []).map((r: { color: string }) => r.color));
       const activeCount = (rawMessages || []).filter((m: { id: string }) => !deletedIds.has(m.id)).length;
       setUnreadCount(activeCount);
     } catch (err) {

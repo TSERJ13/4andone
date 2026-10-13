@@ -47,7 +47,7 @@ const SpeedSelector: React.FC<SpeedSelectorProps> = React.memo(({ currentBpm, on
     }
 
     // Still update the local state but do NOT use it for the primary display during drag
-    // setLocalBpm(newVal); // Commented out to reduce React overhead during drag
+    setLocalBpm(newVal);
 
     // SMART THROTTLE: Audio Engine is throttled to 60ms
     const now = Date.now();
@@ -84,12 +84,14 @@ const SpeedSelector: React.FC<SpeedSelectorProps> = React.memo(({ currentBpm, on
           min="50" 
           max="150" 
           step="1"
-          defaultValue={localBpm}
+          value={localBpm}
           onChange={handleSliderChange}
-          onMouseDown={handleInteractionStart}
-          onTouchStart={handleInteractionStart}
-          onMouseUp={handleSliderEnd}
-          onTouchEnd={handleSliderEnd}
+          onPointerDown={handleInteractionStart}
+          onPointerUp={handleSliderEnd}
+          onPointerCancel={handleSliderEnd}
+          onBlur={handleSliderEnd}
+          onKeyUp={handleSliderEnd}
+          aria-label="Playback speed"
           className="speed-slider"
         />
 
@@ -160,6 +162,7 @@ const SpeedSelector: React.FC<SpeedSelectorProps> = React.memo(({ currentBpm, on
 
         .speed-slider {
           flex: 1;
+          min-width: 0;
           -webkit-appearance: none;
           height: 6px;
           background: rgba(255, 255, 255, 0.1);

@@ -243,7 +243,6 @@ const PlayerBar = ({ onExpand }: { onExpand?: () => void }) => {
 
   const currentTrack = (trackId ? (tracks.find(t => t.id === trackId) || finalTracks.find(t => t.id === trackId)) : null) || audioCurrentTrack || tracks.find(t => t.title === title) || finalTracks.find(t => t.title === title);
 
-  if (isAdmin) return null;
 
   const formatTime = (time: number) => {
     const mins = Math.floor(time / 60);
@@ -256,6 +255,8 @@ const PlayerBar = ({ onExpand }: { onExpand?: () => void }) => {
   const onSelectSpeed = React.useCallback((val: number, persistent?: boolean) => {
     setBpm(val, persistent);
   }, [setBpm]);
+
+  if (isAdmin) return null;
 
   return (
     <>

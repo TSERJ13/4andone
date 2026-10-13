@@ -1,0 +1,32 @@
+[
+  {
+    "speed": 100,
+    "preservesPitch": true,
+    "measuredHz": 440.0848388671875,
+    "peakDb": -36.27803421020508
+  },
+  {
+    "speed": 80,
+    "preservesPitch": true,
+    "measuredHz": 440.0848388671875,
+    "peakDb": -31.172582626342773
+  },
+  {
+    "speed": 50,
+    "preservesPitch": true,
+    "measuredHz": 440.0848388671875,
+    "peakDb": -28.530237197875977
+  },
+  {
+    "speed": 120,
+    "preservesPitch": true,
+    "measuredHz": 440.0848388671875,
+    "peakDb": -26.87570571899414
+  },
+  {
+    "speed": 150,
+    "preservesPitch": true,
+    "measuredHz": 440.0848388671875,
+    "peakDb": -25.747112274169922
+  }
+]

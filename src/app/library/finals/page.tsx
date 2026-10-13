@@ -81,7 +81,7 @@ const PROGRAMS: ProgramDef[] = [
     key: 'Latin',
     label: 'Latin Final',
     category: 'official',
-    subtitle: '5 Dances • ~9 Min • Samba to Jive',
+    subtitle: '5 Dances • 9:45 • Samba to Jive',
     color: '#ef4444',
     coverImg: '/styles/samba.jpg',
     icon: <Zap size={22} />
@@ -90,7 +90,7 @@ const PROGRAMS: ProgramDef[] = [
     key: 'Standard',
     label: 'Standard Final',
     category: 'official',
-    subtitle: '5 Dances • ~9 Min • Waltz to Quickstep',
+    subtitle: '5 Dances • 9:45 • Waltz to Quickstep',
     color: '#3b82f6',
     coverImg: '/styles/slow-waltz.jpg',
     icon: <Activity size={22} />
@@ -99,7 +99,7 @@ const PROGRAMS: ProgramDef[] = [
     key: '10Dance',
     label: '10-Dance Final',
     category: 'official',
-    subtitle: '10 Dances • ~18 Min • Full Marathon',
+    subtitle: '10 Dances • 19:45 • Full Marathon',
     color: '#10b981',
     coverImg: '/styles/paso-doble.jpg',
     icon: <Disc size={22} />
@@ -110,7 +110,7 @@ const PROGRAMS: ProgramDef[] = [
     key: '2Dance',
     label: '2-Dance Warmup',
     category: 'multi',
-    subtitle: '2 Dances • ~4 Min • Slow Waltz & Cha-Cha',
+    subtitle: '2 Dances • 3:45 • Slow Waltz & Cha-Cha',
     color: '#8b5cf6',
     coverImg: '/styles/cha-cha-cha.jpg',
     icon: <Music2 size={22} />
@@ -119,7 +119,7 @@ const PROGRAMS: ProgramDef[] = [
     key: '4Dance',
     label: '4-Dance Session',
     category: 'multi',
-    subtitle: '4 Dances • ~7 Min • Mixed Selection',
+    subtitle: '4 Dances • 7:45 • Mixed Selection',
     color: '#f59e0b',
     coverImg: '/styles/jive.jpg',
     icon: <Music2 size={22} />
@@ -128,7 +128,7 @@ const PROGRAMS: ProgramDef[] = [
     key: '6Dance',
     label: '6-Dance Session',
     category: 'multi',
-    subtitle: '6 Dances • ~11 Min • Extended Practice',
+    subtitle: '6 Dances • 11:45 • Extended Practice',
     color: '#ec4899',
     coverImg: '/styles/rumba.jpg',
     icon: <Zap size={22} />
@@ -137,7 +137,7 @@ const PROGRAMS: ProgramDef[] = [
     key: '8Dance',
     label: '8-Dance Session',
     category: 'multi',
-    subtitle: '8 Dances • ~15 Min • Advanced Final',
+    subtitle: '8 Dances • 15:45 • Advanced Final',
     color: '#f97316',
     coverImg: '/styles/quickstep.jpg',
     icon: <Music2 size={22} />

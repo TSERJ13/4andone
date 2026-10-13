@@ -1,5 +1,6 @@
 "use client";
 
+import { userDb } from '@/lib/user-db';
 import React, { createContext, useContext, useState, useEffect, useMemo } from 'react';
 import { supabase } from '@/utils/supabase';
 import { adminDb } from '@/lib/admin-db';
@@ -64,7 +65,7 @@ interface StudioContextType {
   styles: Style[];
   tags: Tag[];
   isLoading: boolean;
-  
+
   folderTracksMap: Record<string, string[]>;
 
   // Tracks
@@ -72,7 +73,7 @@ interface StudioContextType {
   removeTrack: (id: string) => Promise<void>;
   updateTrack: (id: string, updates: Partial<Track>) => Promise<void>;
   toggleFavorite: (id: string) => Promise<void>;
-  
+
   // Folders
   addFolder: (name: string, color: string) => Promise<Folder | undefined>;
   updateFolder: (id: string, updates: Partial<Folder>) => void;
@@ -88,7 +89,7 @@ interface StudioContextType {
   addTag: (tag: Partial<Tag>) => void;
   updateTag: (id: string, updates: Partial<Tag>) => void;
   removeTag: (id: string) => void;
-  
+
   // Finals
   finalTracks: Track[];
   finalFolders: FinalFolder[];
@@ -98,7 +99,7 @@ interface StudioContextType {
   removeFromFinal: (id: string) => void;
   reorderFinalTracks: (startIndex: number, endIndex: number, folderId?: string | null) => void;
   setFinalTracks: (tracks: Track[]) => void;
-  
+
   // Advanced Reordering
   reorderGlobalTracks: (startIndex: number, endIndex: number, visibleList?: Track[]) => Promise<void>;
   reorderTracks: (draggedTrackId: string, dropTrackId: string, visibleList?: Track[]) => Promise<void>;
@@ -165,7 +166,7 @@ const fetchAllTracks = async () => {
 };
 
 export const StudioProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const { user, isAuthenticated, setIsAuthModalOpen } = useAuth();
+  const { user, isAuthenticated, setIsAuthModalOpen, sessionVersion } = useAuth();
   const [tracks, setTracks] = useState<Track[]>([]);
   const [folders, setFolders] = useState<Folder[]>([]);
   const [folderTracksMap, setFolderTracksMap] = useState<Record<string, string[]>>({});
@@ -193,20 +194,20 @@ export const StudioProvider: React.FC<{ children: React.ReactNode }> = ({ childr
           .catch((e) => { console.warn('Failed to load albums:', e); return null; }),
       ]);
       const tracksData = await fetchAllTracks();
-      
+
       // 2. Fetch User Specific Collections
       let foldersData: Folder[] = [];
       let finalFoldersData: FinalFolder[] = [];
       const newFolderTracksMap: Record<string, string[]> = {};
 
-      if (isAuthenticated && user?.id) {
+      if (isAuthenticated && user?.id && sessionVersion > 0) {
         // Fetch user folders by telegram_id or user_id
-        const { data: fData } = await supabase
+        const { data: fData } = await userDb
           .from('folders')
           .select('*')
-          .or(`telegram_id.eq.${user.id},user_id.eq.${user.id}`)
+          .eq('telegram_id', user.id)
           .order('created_at', { ascending: true });
-        
+
         if (fData && fData.length > 0) {
           foldersData = fData.map(f => ({
             id: f.id,
@@ -215,7 +216,7 @@ export const StudioProvider: React.FC<{ children: React.ReactNode }> = ({ childr
           }));
 
           const folderIds = fData.map(f => f.id);
-          const { data: ftData } = await supabase
+          const { data: ftData } = await userDb
             .from('folder_tracks')
             .select('folder_id, track_id')
             .in('folder_id', folderIds);
@@ -230,14 +231,21 @@ export const StudioProvider: React.FC<{ children: React.ReactNode }> = ({ childr
           }
         }
 
-        const { data: ffData } = await supabase.from('final_folders').select('*').eq('user_id', user.id);
-        if (ffData) finalFoldersData = ffData;
-        
+        const { data: ffData } = await userDb.from<FinalFolder[]>('final_folders').select('*').eq('telegram_id', user.id);
+        if (ffData) {
+          finalFoldersData = ffData;
+          const { data: children } = await userDb.from('final_folder_tracks')
+            .select('final_folder_id, track_id').in('final_folder_id', ffData.map((f: any) => f.id)).order('order');
+          const map: Record<string, string[]> = {};
+          for (const child of children || []) (map[child.final_folder_id] ||= []).push(child.track_id);
+          setFinalFolderTracksMap(map);
+        }
+
         // Final Tracks Queue
-        const { data: ftData } = await supabase.from('final_tracks').select('track_id').eq('user_id', user.id);
+        const { data: ftData } = await userDb.from('final_tracks').select('track_id').eq('telegram_id', user.id).order('order');
         if (ftData) {
            const ftIds = ftData.map(f => f.track_id);
-           const ftTracks = tracksData?.filter(t => ftIds.includes(t.id)) || [];
+           const ftTracks = ftIds.map((id: string) => tracksData?.find(t => t.id === id)).filter(Boolean).map((t: any) => ({ ...t, audioUrl: t.audio_url, artworkUrl: t.artwork_url }));
            setFinalTracks(ftTracks);
         }
       }
@@ -246,7 +254,7 @@ export const StudioProvider: React.FC<{ children: React.ReactNode }> = ({ childr
 
       // 3. User Favorites Cloud & Local Sync
       let userLikes: string[] = [];
-      if (isAuthenticated && user?.id) {
+      if (isAuthenticated && user?.id && sessionVersion > 0) {
         const userKey = `4andone_liked_tracks_${user.id}`;
         try {
           const saved = localStorage.getItem(userKey) || localStorage.getItem('4andone_liked_tracks');
@@ -254,7 +262,7 @@ export const StudioProvider: React.FC<{ children: React.ReactNode }> = ({ childr
         } catch (e) {}
 
         try {
-          const { data: favData } = await supabase
+          const { data: favData } = await userDb
             .from('user_favorites')
             .select('track_id')
             .eq('telegram_id', user.id);
@@ -265,7 +273,7 @@ export const StudioProvider: React.FC<{ children: React.ReactNode }> = ({ childr
             // Sync any local likes not yet in cloud
             const unsynced = userLikes.filter(id => !cloudTrackIds.includes(id));
             if (unsynced.length > 0) {
-              supabase.from('user_favorites').insert(
+              userDb.from('user_favorites').insert(
                 unsynced.map(track_id => ({ telegram_id: user.id, track_id }))
               ).then(() => {});
             }
@@ -276,7 +284,7 @@ export const StudioProvider: React.FC<{ children: React.ReactNode }> = ({ childr
             } catch (e) {}
           } else if (userLikes.length > 0) {
             // First time cloud sync for existing local likes
-            supabase.from('user_favorites').insert(
+            userDb.from('user_favorites').insert(
               userLikes.map(track_id => ({ telegram_id: user.id, track_id }))
             ).then(() => {});
           }
@@ -359,14 +367,14 @@ export const StudioProvider: React.FC<{ children: React.ReactNode }> = ({ childr
                 const saved = user?.id ? localStorage.getItem(`4andone_liked_tracks_${user.id}`) : null;
                 if (saved) isLiked = JSON.parse(saved).includes(nt.id);
               } catch (e) {}
-              const newTrackItem = { 
-                ...nt, 
-                audioUrl: nt.audio_url, 
-                artworkUrl: nt.artwork_url, 
-                folderId: nt.folder_id, 
+              const newTrackItem = {
+                ...nt,
+                audioUrl: nt.audio_url,
+                artworkUrl: nt.artwork_url,
+                folderId: nt.folder_id,
                 createdAt: nt.created_at || nt.date,
-                duration: nt.duration || 0, 
-                isFavorite: isLiked, 
+                duration: nt.duration || 0,
+                isFavorite: isLiked,
                 globalOrder: typeof nt.global_order === 'number' ? nt.global_order : (Number(nt.global_order) || 0)
               };
               return [...prev, newTrackItem].sort((a, b) => {
@@ -380,11 +388,11 @@ export const StudioProvider: React.FC<{ children: React.ReactNode }> = ({ childr
             const ut = payload.new as any;
             setTracks(prev => prev.map(t => {
               if (t.id !== ut.id) return t;
-              return { 
-                ...ut, 
-                audioUrl: ut.audio_url, 
-                artworkUrl: ut.artwork_url, 
-                folderId: ut.folder_id, 
+              return {
+                ...ut,
+                audioUrl: ut.audio_url,
+                artworkUrl: ut.artwork_url,
+                folderId: ut.folder_id,
                 createdAt: ut.created_at || ut.date || t.createdAt,
                 isFavorite: t.isFavorite, // Keep the user's local like status
                 duration: ut.duration || 0,
@@ -450,7 +458,7 @@ export const StudioProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       }
     }, 180000);
 
-    return () => { 
+    return () => {
       supabase.removeChannel(channel);
       syncChannel?.close();
       clearInterval(pollInterval);
@@ -460,7 +468,7 @@ export const StudioProvider: React.FC<{ children: React.ReactNode }> = ({ childr
         document.removeEventListener('visibilitychange', handleVisibility);
       }
     };
-  }, [isAuthenticated, user]);
+  }, [isAuthenticated, user, sessionVersion]);
 
   const addTrack = async (trackData: Partial<Track>) => {
     let initialOrder = trackData.globalOrder;
@@ -507,7 +515,7 @@ export const StudioProvider: React.FC<{ children: React.ReactNode }> = ({ childr
         duration: nt.duration || 0,
         isFavorite: false
       };
-      
+
       setTracks(prev => {
         // Prevent duplicate from real-time INSERT if it fired quickly
         if (prev.some(t => t.id === newTrack.id)) return prev;
@@ -531,7 +539,7 @@ export const StudioProvider: React.FC<{ children: React.ReactNode }> = ({ childr
           localStorage.setItem('4andone_track_sync', Date.now().toString());
         }
       } catch (e) {}
-      
+
       return newTrack;
     }
   };
@@ -615,7 +623,7 @@ export const StudioProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     if (!track) return;
 
     const newVal = !track.isFavorite;
-    
+
     // Update state optimistically
     setTracks(prev => prev.map(t => t.id === id ? { ...t, isFavorite: newVal } : t));
 
@@ -623,7 +631,7 @@ export const StudioProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     // reads. (It wrote the old global key, so an unliked song came back from
     // the stale per-user cache on reload and was re-uploaded to the cloud.)
     // Guests keep no likes.
-    if (isAuthenticated && user?.id) {
+    if (isAuthenticated && user?.id && sessionVersion > 0) {
       try {
         const key = `4andone_liked_tracks_${user.id}`;
         let userLikes: string[] = [];
@@ -642,14 +650,14 @@ export const StudioProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     }
 
     // Persist to Supabase cloud
-    if (isAuthenticated && user?.id) {
+    if (isAuthenticated && user?.id && sessionVersion > 0) {
       try {
         if (newVal) {
-          await supabase
+          await userDb
             .from('user_favorites')
             .upsert({ telegram_id: user.id, track_id: id }, { onConflict: 'telegram_id,track_id' });
         } else {
-          await supabase
+          await userDb
             .from('user_favorites')
             .delete()
             .eq('telegram_id', user.id)
@@ -665,14 +673,14 @@ export const StudioProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     const userId = user?.id ? String(user.id) : null;
     const telegramId = user?.id ? user.id : null;
 
-    const folderObj = { 
-      name, 
-      color, 
+    const folderObj = {
+      name,
+      color,
       user_id: userId,
       telegram_id: telegramId
     };
 
-    const { data, error } = await supabase.from('folders').insert([folderObj]).select();
+    const { data, error } = await userDb.from('folders').insert([folderObj]).select();
     if (error) {
       console.error('[STUDIO-ERROR] addFolder failed:', error);
       throw error;
@@ -690,14 +698,14 @@ export const StudioProvider: React.FC<{ children: React.ReactNode }> = ({ childr
   };
 
   const updateFolder = async (id: string, updates: Partial<Folder>) => {
-    await supabase.from('folders').update(updates).eq('id', id);
+    await userDb.from('folders').update(updates).eq('id', id);
     setFolders(prev => prev.map(f => f.id === id ? { ...f, ...updates } : f));
   };
 
   const removeFolder = async (id: string) => {
     try {
-      await supabase.from('folder_tracks').delete().eq('folder_id', id);
-      await supabase.from('folders').delete().eq('id', id);
+      await userDb.from('folder_tracks').delete().eq('folder_id', id);
+      await userDb.from('folders').delete().eq('id', id);
     } catch (err) {
       console.error('[STUDIO] removeFolder error:', err);
     }
@@ -717,7 +725,7 @@ export const StudioProvider: React.FC<{ children: React.ReactNode }> = ({ childr
 
   const addTrackToFolder = async (folderId: string, trackId: string) => {
     try {
-      await supabase
+      await userDb
         .from('folder_tracks')
         .upsert({ folder_id: folderId, track_id: trackId }, { onConflict: 'folder_id,track_id' });
     } catch (e) {
@@ -731,7 +739,7 @@ export const StudioProvider: React.FC<{ children: React.ReactNode }> = ({ childr
 
   const removeTrackFromFolder = async (folderId: string, trackId: string) => {
     try {
-      await supabase
+      await userDb
         .from('folder_tracks')
         .delete()
         .eq('folder_id', folderId)
@@ -782,12 +790,13 @@ export const StudioProvider: React.FC<{ children: React.ReactNode }> = ({ childr
   };
 
   const addToFinal = async (track: Track) => {
-    const { data: { user: authUser } } = await supabase.auth.getUser();
-    const userId = authUser?.id || null;
+    if (!user?.id) { setIsAuthModalOpen(true); return; }
+    if (finalTracks.some(t => t.id === track.id)) return;
 
-    const { error } = await supabase.from('final_tracks').insert([{ 
-      track_id: track.id, 
-      user_id: userId
+    const { error } = await userDb.from('final_tracks').insert([{
+      track_id: track.id,
+      telegram_id: user.id,
+      order: finalTracks.length
     }]);
 
     if (error) {
@@ -802,27 +811,31 @@ export const StudioProvider: React.FC<{ children: React.ReactNode }> = ({ childr
   };
 
   const removeFromFinal = async (id: string) => {
-    await supabase.from('final_tracks').delete().eq('track_id', id);
+    const { error } = await userDb.from('final_tracks').delete().eq('track_id', id);
+    if (error) { alert('Could not remove track: ' + error.message); return; }
     setFinalTracks(prev => prev.filter(t => t.id !== id));
   };
 
   const reorderFinalTracks = async (startIndex: number, endIndex: number, folderId?: string | null) => {
-    if (folderId) {
-      setFinalFolderTracksMap(prev => {
-        const result = Array.from(prev[folderId] || []);
-        const [removed] = result.splice(startIndex, 1);
-        result.splice(endIndex, 0, removed);
-        return { ...prev, [folderId]: result };
-      });
+    const ids = folderId ? [...(finalFolderTracksMap[folderId] || [])] : finalTracks.map(t => t.id);
+    if (startIndex < 0 || endIndex < 0 || startIndex >= ids.length || endIndex >= ids.length || startIndex === endIndex) return;
+    const [moved] = ids.splice(startIndex, 1);
+    ids.splice(endIndex, 0, moved);
+    const results = await Promise.all(ids.map((id, order) => {
+      const query = userDb.from(folderId ? 'final_folder_tracks' : 'final_tracks')
+        .update({ order }).eq('track_id', id);
+      return folderId ? query.eq('final_folder_id', folderId) : query;
+    }));
+    if (results.some(result => result.error)) {
+      alert('Could not save the complete order. Reloading the saved list.');
+      await fetchData(true);
       return;
     }
-
-    setFinalTracks(prev => {
-      const result = Array.from(prev);
-      const [removed] = result.splice(startIndex, 1);
-      result.splice(endIndex, 0, removed);
-      return result;
-    });
+    if (folderId) {
+      setFinalFolderTracksMap(prev => ({ ...prev, [folderId]: ids }));
+      return;
+    }
+    setFinalTracks(prev => ids.map(id => prev.find(t => t.id === id)).filter((t): t is Track => !!t));
   };
 
   const addFinalFolder = async (name: string, color: string) => {
@@ -831,17 +844,9 @@ export const StudioProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       return;
     }
 
-    const { data: { user: authUser } } = await supabase.auth.getUser();
-    const userId = authUser?.id;
-
-    if (!userId) {
-      console.warn("[STUDIO-WARN] No Supabase session found for addFinalFolder");
-      // Fallback to anonymous if RLS allows, but we expect sync to resolve this
-    }
-
-    const { data, error } = await supabase
-      .from('final_folders')
-      .insert([{ name, color, user_id: userId || null }])
+    const { data, error } = await userDb
+      .from<FinalFolder[]>('final_folders')
+      .insert([{ name, color, telegram_id: user.id }])
       .select();
 
     if (error) {
@@ -856,7 +861,8 @@ export const StudioProvider: React.FC<{ children: React.ReactNode }> = ({ childr
   };
 
   const removeFinalFolder = async (id: string) => {
-    await supabase.from('final_folders').delete().eq('id', id);
+    const { error } = await userDb.from<FinalFolder[]>('final_folders').delete().eq('id', id);
+    if (error) { alert('Could not delete folder: ' + error.message); return; }
     setFinalFolders(prev => prev.filter(f => f.id !== id));
   };
 
@@ -865,33 +871,25 @@ export const StudioProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     if (!track) return { success: false };
 
     const currentTracks = getTracksForFinalFolder(finalFolderId);
-    
+
     if (!force && currentTracks.some(t => t.style === track.style)) {
       return { success: false, duplicate: track.style };
     }
 
-    await supabase.from('final_folder_tracks').insert([{
+    if (currentTracks.some(t => t.id === trackId)) return { success: true };
+    const { error } = await userDb.from('final_folder_tracks').insert([{
       final_folder_id: finalFolderId,
       track_id: trackId,
       order: currentTracks.length
     }]);
+    if (error) { alert('Could not add track: ' + error.message); return { success: false }; }
 
     setFinalFolderTracksMap(prev => {
       const newIds = [...(prev[finalFolderId] || []), trackId];
-      
-      const sortedIds = newIds
-        .map(id => tracks.find(t => t.id === id))
-        .filter(Boolean)
-        .sort((a, b) => {
-          const orderA = DANCE_ORDER[a!.style] || 999;
-          const orderB = DANCE_ORDER[b!.style] || 999;
-          return orderA - orderB;
-        })
-        .map(t => t!.id);
 
       return {
         ...prev,
-        [finalFolderId]: sortedIds
+        [finalFolderId]: newIds
       };
     });
 
@@ -1117,7 +1115,7 @@ export const StudioProvider: React.FC<{ children: React.ReactNode }> = ({ childr
   };
 
   return (
-    <StudioContext.Provider value={{ 
+    <StudioContext.Provider value={{
       tracks, folders, folderTracksMap, styles, tags,
       addTrack, removeTrack, updateTrack, toggleFavorite,
       addFolder, updateFolder, removeFolder, assignToFolder,

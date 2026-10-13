@@ -317,7 +317,16 @@ export const AudioProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   // Can this browser change HTMLMediaElement.volume? (false on iPhone/iPad,
   // where volume is read-only). Only those devices need the WebAudio gain
   // chain for the Final-Mode fade; everyone else fades the plain element.
+  // Diagnostic only: compare iOS native playback against the Final WebAudio
+  // gain route without changing the default experience. Native iOS playback
+  // does not support the app-controlled 3-second fade; NEVER enable globally.
+  // Use ?iosFinalNative=1 on a test installation to isolate Safari's crackle.
+  const useNativeFinalDiagnostic = () =>
+    isIOS() && typeof window !== 'undefined' &&
+    new URLSearchParams(window.location.search).get('iosFinalNative') === '1';
+
   const isVolumeWritable = () => {
+    if (useNativeFinalDiagnostic()) return true;
     if (isIOS()) return false;
     return true;
   };

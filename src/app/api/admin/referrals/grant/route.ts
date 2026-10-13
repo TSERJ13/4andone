@@ -12,7 +12,7 @@ export async function POST(req: NextRequest) {
   try {
     const { telegramId, days = 30 } = await req.json();
     const tid = Number(telegramId);
-    if (!tid) {
+    if (!Number.isSafeInteger(tid) || tid <= 0 || !Number.isInteger(Number(days)) || Number(days) < 1 || Number(days) > 3650) {
       return NextResponse.json({ error: 'Valid telegramId is required' }, { status: 400 });
     }
 
@@ -23,6 +23,10 @@ export async function POST(req: NextRequest) {
       .maybeSingle();
 
     if (uErr) return NextResponse.json({ error: uErr.message }, { status: 500 });
+    if (!user) return NextResponse.json({ error: 'User not found' }, { status: 404 });
+    if (user.subscription_id?.startsWith('I-') || (user.is_premium && !user.premium_until)) {
+      return NextResponse.json({ error: 'A gift cannot replace a PayPal or lifetime subscription.' }, { status: 409 });
+    }
 
     const until = user?.premium_until ? new Date(user.premium_until).getTime() : null;
     const active = !!user?.is_premium && (until === null || until > Date.now());

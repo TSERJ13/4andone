@@ -11,22 +11,18 @@ import {
 } from 'lucide-react';
 
 export default function AdminAI() {
-  const tasks = [
-    { name: 'Samba de Janeiro', status: 'completed', date: '2 Mins Ago', type: 'Vocal Removal' },
-    { name: 'Ocean Waltz', status: 'processing', date: 'Just Now', type: 'Instrument Segregation' },
-    { name: 'Latin Fever', status: 'pending', date: '5 Mins Ago', type: 'Vocal Removal' },
-  ];
+  const tasks: { name: string; status: string; date: string; type: string }[] = [];
 
   return (
     <div className="admin-ai animate-in">
       <div className="ai-actions-row">
         <div className="header-info">
           <h2>Voice Isolation Engine</h2>
-          <p className="text-secondary">Track and manage automated stem separation tasks.</p>
+          <p className="text-secondary">Audio separation is not available yet. No processing jobs are running.</p>
         </div>
-        <button className="btn-primary">
+        <button className="btn-primary" disabled>
           <Zap size={18} />
-          Start New Job
+          Not available yet
         </button>
       </div>
 
@@ -34,21 +30,21 @@ export default function AdminAI() {
         <div className="stat-card glass">
           <Cpu className="text-primary" />
           <div className="stat-info">
-            <h3>412</h3>
+            <h3>0</h3>
             <p>Total Tasks</p>
           </div>
         </div>
         <div className="stat-card glass">
           <CheckCircle2 className="text-success" />
           <div className="stat-info">
-            <h3>98.2%</h3>
+            <h3>—</h3>
             <p>Success Rate</p>
           </div>
         </div>
         <div className="stat-card glass">
           <MicOff className="text-warning" />
           <div className="stat-info">
-            <h3>8,410 mins</h3>
+            <h3>0 mins</h3>
             <p>Isolated Music</p>
           </div>
         </div>
@@ -57,7 +53,7 @@ export default function AdminAI() {
       <div className="tasks-list glass">
         <div className="list-header">
           <h2>Active Queue</h2>
-          <button className="btn-text">View History</button>
+          <span className="text-secondary">No jobs</span>
         </div>
         <div className="activity-list">
           {tasks.map((task) => (

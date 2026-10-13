@@ -103,14 +103,15 @@ export const SubscriptionModal: React.FC<SubscriptionModalProps> = ({ isOpen, on
                   width: '100%'
                 }}>
                   <p style={{ fontSize: '12px', color: '#fca5a5', margin: 0 }}>
-                    Are you sure you want to cancel your Premium subscription?
+                    Cancel recurring billing? Your paid Premium access remains until the end of the current period.
                   </p>
                   <div style={{ display: 'flex', gap: '8px' }}>
                     <button
                       type="button"
                       style={{ flex: 1, background: '#ef4444', color: '#fff', border: 'none', borderRadius: '8px', padding: '6px 12px', fontSize: '12px', fontWeight: 700, cursor: 'pointer' }}
                       onClick={async () => {
-                        await cancelSubscription();
+                        try { await cancelSubscription(); }
+                        catch (error) { setErrorMsg(error instanceof Error ? error.message : 'Cancellation failed.'); return; }
                         setShowCancelConfirm(false);
                         onClose();
                       }}

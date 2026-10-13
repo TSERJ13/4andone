@@ -1,3 +1,5 @@
+import { escapeHtml } from '@/utils/telegram-html';
+import { isPublicMediaKey } from '@/lib/media-key';
 import { NextRequest, NextResponse } from 'next/server';
 import { requireAdmin } from '@/lib/admin-auth';
 import { getSupabaseAdmin, serviceRoleMissing } from '@/lib/supabase-admin';
@@ -121,9 +123,9 @@ export async function POST(req: NextRequest) {
           const username = profile?.username ? `@${profile.username}` : fullName;
 
           personalizedText = personalizedText
-            .replace(/\{name\}/gi, fullName)
-            .replace(/\{first_name\}/gi, firstName || fullName)
-            .replace(/\{username\}/gi, username);
+            .replace(/\{name\}/gi, () => escapeHtml(fullName))
+            .replace(/\{first_name\}/gi, () => escapeHtml(firstName || fullName))
+            .replace(/\{username\}/gi, () => escapeHtml(username));
         } else {
           // Channel target fallback
           personalizedText = personalizedText
@@ -165,7 +167,7 @@ export async function POST(req: NextRequest) {
               r2Key = decodeURIComponent(urlParts[urlParts.length - 1].split('?')[0]);
             }
 
-            if (r2Key && process.env.R2_BUCKET_NAME) {
+            if (r2Key && isPublicMediaKey(r2Key) && process.env.R2_BUCKET_NAME) {
               const { S3Client, GetObjectCommand } = await import('@aws-sdk/client-s3');
               const s3 = new S3Client({
                 region: 'auto',
@@ -191,15 +193,7 @@ export async function POST(req: NextRequest) {
               }
             }
 
-            // Fallback: fetch via HTTP if not found or external URL
-            if (!photoBuffer) {
-              const fetchImg = await fetch(cleanPhotoUrl);
-              if (fetchImg.ok) {
-                const arr = await fetchImg.arrayBuffer();
-                photoBuffer = Buffer.from(arr);
-                photoMime = fetchImg.headers.get('content-type') || 'image/jpeg';
-              }
-            }
+            // External URLs are fetched by Telegram, never by this server.
           } catch (e) {
             console.warn('[PHOTO_BUFFER_FETCH_WARN]', e);
           }

@@ -46,3 +46,6 @@ next-env.d.ts
 public/sw.js
 public/workbox-*.js
 public/fallback-*.js
+
+# Local Supabase CLI cache
+supabase/.temp/

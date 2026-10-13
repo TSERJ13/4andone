@@ -5,6 +5,7 @@ import { getAudioFile } from '@/utils/storage';
 import { getTrackCover } from '@/utils/trackCover';
 import { playOrder } from '@/utils/playQueue';
 import { recordTrackPlayed } from '@/utils/history';
+import { FinalsClock, FINAL_DANCE_SECONDS, FINAL_REST_SECONDS, FINAL_FADE_SECONDS, FINAL_REST_URL, playbackRateFor, setMusicTempo } from '@/utils/finals';
 
 interface AudioContextType {
   isPlaying: boolean;
@@ -67,18 +68,10 @@ type AudioTimeType = Pick<AudioContextType, TimeKeys>;
 const PlayerContext = createContext<AudioControlsType | undefined>(undefined);
 const PlayerTimeContext = createContext<AudioTimeType | undefined>(undefined);
 
-// How long one dance lasts inside a Final program (track-seconds). ONE rule
-// for both the session total and the running session clock — they used to
-// differ (Viennese 85s vs 105s, Paso 120s vs 210s), so the line jumped.
-const finalLimitFor = (track: { style?: string; duration?: number } | undefined, fitness: boolean): number => {
-  if (!track) return 105;
-  const dur = track.duration && track.duration > 0 ? track.duration : 0;
-  if (fitness) return dur || 180;
-  const style = track.style?.toLowerCase() || '';
-  if (style.includes('paso')) return dur || 120;            // Paso plays to its natural end
-  const limit = style.includes('viennese') || (style.includes('waltz') && style.includes('v')) ? 85 : 105;
-  return dur ? Math.min(limit, dur) : limit;                 // short tracks end early
-};
+// Every dance gets 105 real playback seconds, including its 3-second fade.
+// Fitness retains its independent continuous-workout duration.
+const finalLimitFor = (track: { duration?: number } | undefined, fitness: boolean): number =>
+  fitness ? (track?.duration || 180) : FINAL_DANCE_SECONDS;
 
 // Every 5 qualified tracks (15s+ of real listening) a free user gets an ad break.
 const AD_EVERY_TRACKS = 5;
@@ -180,11 +173,11 @@ export const AudioProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   const isShuffle = shuffleSeed !== null;
   const [isPauseCountdown, setIsPauseCountdown] = useState(false);
   const [pauseTime, setPauseTime] = useState(15);
-  const [isFitness, setIsFitness] = useState(false);
+  const [isFitness, setIsFitnessState] = useState(false);
   const [fitnessTargetTime, setFitnessTargetTime] = useState<number>(0);
   const [sessionDuration, setSessionDuration] = useState(0);
-  const [activeMode, setActiveMode] = useState<string | null>(null);
-  const [sessionTracks, setSessionTracks] = useState<Track[]>([]);
+  const [activeMode, setActiveModeState] = useState<string | null>(null);
+  const [sessionTracks, setSessionTracksState] = useState<Track[]>([]);
 
   const fitnessTargetTimeRef = useRef(fitnessTargetTime);
   useEffect(() => { fitnessTargetTimeRef.current = fitnessTargetTime; }, [fitnessTargetTime]);
@@ -211,6 +204,16 @@ export const AudioProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   const pauseTimeRef = useRef(pauseTime);
   const isFinalModeRef = useRef(isFinalMode);
   const sessionTracksRef = useRef(sessionTracks);
+  // Program selection and loadTrack happen in the same click, before effects.
+  const setSessionTracks = useCallback((next: Track[]) => {
+    sessionTracksRef.current = next;
+    sessionIndexRef.current = -1;
+    setSessionTracksState(next);
+  }, []);
+  const finalsClockRef = useRef(new FinalsClock());
+  const monitorPlaybackRef = useRef<(() => void) | null>(null);
+  const restRunningRef = useRef(false);
+  const cancelLoadRef = useRef<(() => void) | null>(null);
   const isFitnessRef = useRef(isFitness);
   const isRepeatRef = useRef(isRepeat);
   const shuffleSeedRef = useRef(shuffleSeed);
@@ -219,12 +222,18 @@ export const AudioProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   const bpmRef = useRef(bpm);
   const volumeRef = useRef(volume);
   const activeModeRef = useRef(activeMode);
+  const setIsFitness = useCallback((value: boolean) => {
+    isFitnessRef.current = value;
+    setIsFitnessState(value);
+  }, []);
+  const setActiveMode = useCallback((value: string | null) => {
+    activeModeRef.current = value;
+    setActiveModeState(value);
+  }, []);
   const fadeIntervalRef = useRef<NodeJS.Timeout | null>(null); // Interval for smooth acoustic fade-out
   const finalEndHandledRef = useRef(false); // Guard: prevent double-advance on track end
   const sessionIndexRef = useRef<number>(-1); // Position in the Final Mode session (handles duplicate tracks)
   const pauseDeadlineRef = useRef<number>(0); // Wall-clock deadline for pause countdown (survives screen-off)
-  const customTimeLimitRef = useRef<number | null>(null); // Custom dynamic limit when Finals Mode is toggled mid-playback
-  const toggledPastLimitRef = useRef(false); // Flag indicating if Finals Mode was manually toggled past the 1:45 mark
   const workerRef = useRef<Worker | null>(null);
   const checkPauseCountdownRef = useRef<() => void>(() => {});
 
@@ -268,25 +277,24 @@ export const AudioProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   // begins at a click — satisfies iOS's user-gesture rule for AudioContext).
   const ensureFinalGraph = React.useCallback(() => {
     if (webAudioStateRef.current !== 'off') return; // already ready or failed
+    let pendingElement: HTMLAudioElement | null = null;
+    let pendingContext: AudioContext | null = null;
     try {
       const Ctx: typeof AudioContext | undefined =
         window.AudioContext || (window as Window & { webkitAudioContext?: typeof AudioContext }).webkitAudioContext;
       if (!Ctx) { webAudioStateRef.current = 'failed'; return; }
 
       const el = new Audio();
+      pendingElement = el;
       el.crossOrigin = "anonymous"; // must be set BEFORE any src
       el.autoplay = false;
-      // PITCH CORRECTION OFF on this element only: WebKit's pitch-correction
-      // is what garbles rate-changed audio inside a WebAudio graph ("skipping
-      // vocals"). Without it, speed changes shift pitch slightly (turntable
-      // behaviour) but the sound stays clean AND the fade works at any speed.
-      el.preservesPitch = false;
-      (el as HTMLAudioElement & { webkitPreservesPitch?: boolean }).webkitPreservesPitch = false;
+      setMusicTempo(el, bpmRef.current);
       el.volume = 1.0; // loudness is controlled by the gain node from here on
       el.style.display = 'none';
       document.body.appendChild(el);
 
       const ctx = new Ctx({ latencyHint: 'playback' });
+      pendingContext = ctx;
       const source = ctx.createMediaElementSource(el);
       const gain = ctx.createGain();
       gain.gain.value = volumeRef.current;
@@ -299,6 +307,8 @@ export const AudioProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       gainNodeRef.current = gain;
       webAudioStateRef.current = 'ready';
     } catch (e) {
+      pendingElement?.remove();
+      void pendingContext?.close().catch(() => {});
       console.warn('[AUDIO-ENGINE] Final-mode gain chain failed, falling back to plain element:', e);
       webAudioStateRef.current = 'failed';
     }
@@ -352,7 +362,7 @@ export const AudioProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   useEffect(() => {
     isFinalModeRef.current = isFinalMode;
     if (!isFinalMode) {
-      customTimeLimitRef.current = null;
+      finalsClockRef.current.reset();
     }
   }, [isFinalMode]);
   useEffect(() => { sessionTracksRef.current = sessionTracks; }, [sessionTracks]);
@@ -392,9 +402,9 @@ export const AudioProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         setSessionDuration(safeTotal);
       } else {
         // Single track Final Mode logic
-        // Single-track Final Mode: same rule as programs (Viennese 1:25, others 1:45)
+        // Single-track Final Mode uses the same 1:45 slot as programs.
         const t = playingTrackRef.current;
-        setSessionDuration(finalLimitFor({ style: t?.style, duration: duration || t?.duration }, false));
+        setSessionDuration(finalLimitFor({ duration: duration || t?.duration }, false));
       }
     } else {
       const safeDur = Number.isFinite(duration) && duration >= 0 ? duration : 0;
@@ -447,7 +457,7 @@ export const AudioProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   const stopRef = useRef<() => void>(() => {});
 
   const checkPauseCountdown = React.useCallback(() => {
-    if (!isPauseCountdownRef.current) return;
+    if (!isPauseCountdownRef.current || !restRunningRef.current || !isPlayingRef.current) return;
     if (!pauseDeadlineRef.current) {
       pauseDeadlineRef.current = Date.now() + pauseTimeRef.current * 1000;
     }
@@ -485,6 +495,7 @@ export const AudioProvider: React.FC<{ children: React.ReactNode }> = ({ childre
 
     if (newPauseTime <= 0) {
       pauseDeadlineRef.current = 0;
+      restRunningRef.current = false;
       isPauseCountdownRef.current = false;
       setIsPauseCountdown(false);
       try { workerRef.current?.postMessage('stop'); } catch {}
@@ -548,25 +559,56 @@ export const AudioProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     pauseTimeRef.current = 15;
     pauseDeadlineRef.current = Date.now() + 15000; // wall-clock deadline (screen-off safe)
 
-    // PLAY THE 15-SECOND SILENT REST MP3 ON THE SAME AUDIO ELEMENT
-    // Stop the previous track completely so it NEVER leaks into the rest pause!
+    // Isolate rest handlers from the song: old canplay/error handlers otherwise
+    // reapply the song's speed or reload it during the silence.
     const audio = nativePlayerRef.current;
+    restRunningRef.current = false;
+    pauseDeadlineRef.current = 0;
+    monitorPlaybackRef.current = null;
     if (audio) {
+      audio.oncanplay = null;
+      audio.onplay = null;
+      audio.onseeked = null;
+      audio.onended = null;
+      audio.ontimeupdate = null;
+      audio.onplaying = null;
+      audio.onwaiting = null;
+      audio.onpause = null;
+      audio.onerror = null;
       audio.pause();
-      audio.currentTime = 0;
       audio.loop = false;
-      audio.playbackRate = 1.0;
-      audio.src = '/audio/rest-15s.mp3';
+      setMusicTempo(audio, 100);
+      audio.src = FINAL_REST_URL;
       audio.load();
-      cancelFadeAndRestore(); // volume is 1.0, but rest-15s.mp3 is 100% silent
-      audio.onended = () => {
+      cancelFadeAndRestore();
+      audio.onplaying = () => {
         if (!isPauseCountdownRef.current) return;
-        pauseDeadlineRef.current = 0;
-        if (checkPauseCountdownRef.current) {
-          checkPauseCountdownRef.current();
-        }
+        restRunningRef.current = true;
+        isPlayingRef.current = true;
+        setIsPlaying(true);
+        pauseDeadlineRef.current = Date.now() + pauseTimeRef.current * 1000;
       };
-      audio.play().catch(() => {});
+      audio.ontimeupdate = () => checkPauseCountdownRef.current();
+      audio.onended = () => {
+        if (!isPauseCountdownRef.current || !restRunningRef.current) return;
+        // MP3 padding can make the decoded file slightly shorter than 15s.
+        // Keep the existing deadline; never restart a new 15-second pause.
+        checkPauseCountdownRef.current();
+      };
+      audio.onerror = () => {
+        // A missing/offline rest asset still means 15 seconds of silence.
+        restRunningRef.current = true;
+        isPlayingRef.current = true;
+        setIsPlaying(true);
+        pauseDeadlineRef.current = Date.now() + pauseTimeRef.current * 1000;
+      };
+      audio.play().catch(() => {
+        if (audio.error && isPauseCountdownRef.current && restRunningRef.current) return;
+        restRunningRef.current = false;
+        isPlayingRef.current = false;
+        setIsPlaying(false);
+        setError('Tap Play to continue the rest interval.');
+      });
     }
 
     // CRITICAL: KEEP AUDIO SESSION ALIVE IN THE BACKGROUND!
@@ -577,7 +619,7 @@ export const AudioProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       } catch {}
     }
 
-    // Start background WebWorker ticker to guarantee ticks even if OS throttles main thread
+    // Secondary ticker; the OS may suspend both workers and the main thread.
     try {
       workerRef.current?.postMessage('start');
     } catch {}
@@ -615,7 +657,7 @@ export const AudioProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     // Initialize Persistent Player & Heartbeat
     if (typeof window !== 'undefined') {
       // 1. PLAIN element — used for ALL normal-mode playback. It is NEVER routed
-      // through WebAudio, so normal listening keeps native, pristine quality and
+      // through WebAudio, so normal listening keeps native playback and
       // native speed control (this is what fixed the "speed garbles the sound"
       // regression: WebKit distorts rate-changed audio inside a WebAudio graph).
       const audio = new Audio();
@@ -644,7 +686,7 @@ export const AudioProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       document.body.appendChild(hb);
       heartbeatRef.current = hb;
 
-      // 3. Background WebWorker ticker (immune to window background/lock-screen throttling)
+      // 3. Secondary ticker for background tabs (not a guarantee against OS suspension).
       try {
         const workerBlob = new Blob([
           `let timer = null;
@@ -658,7 +700,9 @@ export const AudioProvider: React.FC<{ children: React.ReactNode }> = ({ childre
              }
            };`
         ], { type: 'application/javascript' });
-        const worker = new Worker(URL.createObjectURL(workerBlob));
+        const workerUrl = URL.createObjectURL(workerBlob);
+        const worker = new Worker(workerUrl);
+        URL.revokeObjectURL(workerUrl);
         worker.onmessage = (e) => {
           if (e.data === 'tick' && isPauseCountdownRef.current && checkPauseCountdownRef.current) {
             checkPauseCountdownRef.current();
@@ -679,7 +723,7 @@ export const AudioProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     const savedBpm = localStorage.getItem('4andone-bpm');
     if (savedBpm) {
       const parsed = parseFloat(savedBpm);
-      if (!isNaN(parsed) && parsed > 0) {
+      if (Number.isFinite(parsed) && parsed >= 50 && parsed <= 150) {
         setBpmState(parsed);
         bpmRef.current = parsed;
       }
@@ -749,6 +793,29 @@ export const AudioProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       document.removeEventListener('touchstart', unlockAudio);
       document.removeEventListener('mousedown', unlockAudio);
       document.removeEventListener('visibilitychange', handleVisibilityChange);
+      loadingTokenRef.current += 1;
+      cancelLoadRef.current?.();
+      monitorPlaybackRef.current = null;
+      for (const el of [plainPlayerRef.current, finalPlayerRef.current, heartbeatRef.current]) {
+        if (!el) continue;
+        el.onplay = el.onpause = el.onplaying = el.onwaiting = null;
+        el.oncanplay = el.onended = el.ontimeupdate = el.onerror = el.onseeked = null;
+        el.pause();
+        el.removeAttribute('src');
+        el.load();
+        el.remove();
+      }
+      mediaSourceRef.current?.disconnect();
+      gainNodeRef.current?.disconnect();
+      audioCtxRef.current?.close().catch(() => {});
+      plainPlayerRef.current = finalPlayerRef.current = nativePlayerRef.current = heartbeatRef.current = null;
+      audioCtxRef.current = null;
+      mediaSourceRef.current = null;
+      gainNodeRef.current = null;
+      webAudioStateRef.current = 'off';
+      if (activeBlobUrlRef.current) URL.revokeObjectURL(activeBlobUrlRef.current);
+      activeBlobUrlRef.current = null;
+      wakeLockRef.current?.release().catch(() => {});
       if (workerRef.current) {
         try { workerRef.current.terminate(); } catch {}
         workerRef.current = null;
@@ -839,7 +906,7 @@ export const AudioProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       return;
     }
     // If the same track is clicked and it's already loaded, toggle play/pause instead of reloading
-    if (!isRetry && trackIdRef.current === track.id && isLoaded) {
+    if (!isRetry && !opts?.fromRest && forceFinalMode !== true && !isFinalModeRef.current && trackIdRef.current === track.id && isLoaded) {
       togglePlay();
       return;
     }
@@ -847,7 +914,11 @@ export const AudioProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     // This device's history, with the play time (orders it with the account's plays)
     if (track?.id) recordTrackPlayed(track.id);
 
+    cancelLoadRef.current?.();
     const currentToken = ++loadingTokenRef.current;
+    isPlayingRef.current = false;
+    monitorPlaybackRef.current = null;
+    restRunningRef.current = false;
 
     try {
       if (forceFinalMode !== undefined) {
@@ -882,10 +953,8 @@ export const AudioProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         resumeAfterAdRef.current = true; // …and start it when the break closes
       }
 
-      // ELEMENT SWAP: In Final Mode, ALWAYS route through the WebAudio GainNode element (finalPlayerRef)
-      // so the 1:42-1:45 acoustic fade-out works smoothly on ALL devices (especially iPhone/iPad).
-      // Normal mode uses the plain element (pristine native speed control).
-      const needsGainElement = isFinalModeRef.current;
+      // Use native pitch-corrected playback. iOS alone needs a gain path for fades.
+      const needsGainElement = isFinalModeRef.current && !isVolumeWritable();
       if (needsGainElement) {
         ensureFinalGraph();
         if (webAudioStateRef.current === 'ready' && finalPlayerRef.current) {
@@ -950,15 +1019,15 @@ export const AudioProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         setPauseTime(15);
         pauseTimeRef.current = 15;
         finalEndHandledRef.current = false; // Allow end-handling for the new track
-        customTimeLimitRef.current = null;
-        toggledPastLimitRef.current = false;
+        finalsClockRef.current.reset(startAt, playbackRateFor(bpmRef.current),
+          startAt ? Math.min(FINAL_DANCE_SECONDS - FINAL_FADE_SECONDS, startAt / playbackRateFor(bpmRef.current)) : 0);
         currentTrackQualifiedRef.current = false;
       };
 
       stopAndPrepare();
       if (startAt >= QUALIFY_SECONDS) currentTrackQualifiedRef.current = true; // same play, already counted
 
-      if (!isRetry && activeBlobUrlRef.current) {
+      if (activeBlobUrlRef.current) {
         URL.revokeObjectURL(activeBlobUrlRef.current);
         activeBlobUrlRef.current = null;
       }
@@ -994,6 +1063,7 @@ export const AudioProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       if (track.id) {
         try {
           const cachedBlob = await getAudioFile(track.id);
+          if (currentToken !== loadingTokenRef.current) return;
           if (cachedBlob && cachedBlob.size > 0) {
             finalUrl = URL.createObjectURL(cachedBlob);
             activeBlobUrlRef.current = finalUrl;
@@ -1016,6 +1086,15 @@ export const AudioProvider: React.FC<{ children: React.ReactNode }> = ({ childre
 
       const setupPlayer = (url: string) => {
         return new Promise<HTMLAudioElement>((resolve, reject) => {
+          let timeout: ReturnType<typeof setTimeout>;
+          const finish = (audio?: HTMLAudioElement, error?: Error) => {
+            clearTimeout(timeout);
+            if (cancelLoadRef.current === cancel) cancelLoadRef.current = null;
+            if (error) reject(error); else if (audio) resolve(audio);
+          };
+          const cancel = () => finish(undefined, new Error('Loading cancelled by new request'));
+          cancelLoadRef.current = cancel;
+          timeout = setTimeout(() => finish(undefined, new Error('Audio loading timed out. Please try again.')), 30000);
           if (currentToken !== loadingTokenRef.current) {
             reject(new Error("Loading cancelled by new request"));
             return;
@@ -1050,14 +1129,14 @@ export const AudioProvider: React.FC<{ children: React.ReactNode }> = ({ childre
             // SPEED PERSISTENCE FIX (real cause): audio.load() resets playbackRate
             // back to 1.0, so setting it before load() was always wiped. We re-apply
             // the user's chosen speed here, AFTER the resource has finished loading.
-            const pitchOn = audio !== finalPlayerRef.current; // final element keeps pitch correction OFF
+            const pitchOn = true;
             audio.preservesPitch = pitchOn;
             (audio as HTMLAudioElement & { webkitPreservesPitch?: boolean }).webkitPreservesPitch = pitchOn;
-            const desiredRate = bpmRef.current / 100;
+            const desiredRate = playbackRateFor(bpmRef.current);
             if (desiredRate > 0 && Math.abs(audio.playbackRate - desiredRate) > 0.001) {
               audio.playbackRate = desiredRate;
             }
-            resolve(audio);
+            finish(audio);
           };
 
           audio.onerror = () => {
@@ -1078,7 +1157,7 @@ export const AudioProvider: React.FC<{ children: React.ReactNode }> = ({ childre
                   audio.removeEventListener('loadedmetadata', onMeta);
                   if (currentToken !== loadingTokenRef.current) return;
                   try { audio.currentTime = resumeAt; } catch { /* ignore */ }
-                  audio.playbackRate = bpmRef.current / 100;
+                  setMusicTempo(audio, bpmRef.current);
                   if (wasPlaying) audio.play().catch(() => {});
                 };
                 audio.addEventListener('loadedmetadata', onMeta);
@@ -1107,28 +1186,27 @@ export const AudioProvider: React.FC<{ children: React.ReactNode }> = ({ childre
               setIsPlaying(false);
               isPlayingRef.current = false;
             }
-            reject(new Error(msg));
+            finish(undefined, new Error(msg));
           };
 
-          // NATURAL END HANDLING
-          // NOTE: In Final Mode, ontimeupdate handles the 1:45 cutoff for tracks LONGER than 1:45.
-          // onended fires for: Paso Doble (full track) AND for any track SHORTER than 1:45
-          // (which never reaches the 105s limit). This is the fix for the "freeze" bug.
-          // We guard with isPauseCountdownRef + finalEndHandledRef to prevent double-pause.
+          // Finals normally loop short recordings until their real-time slot ends.
+          // Also recover if a browser emits ended despite native loop being set.
           audio.onended = () => {
             if (currentToken !== loadingTokenRef.current) return;
 
             if (isFinalModeRef.current) {
               // If pause was already triggered by ontimeupdate, do nothing
               if (isPauseCountdownRef.current) return;
+              if (!isFitnessRef.current && finalsClockRef.current.sample(audio.currentTime, audio.duration) < FINAL_DANCE_SECONDS) {
+                audio.currentTime = 0;
+                audio.play().catch(() => setError('Tap Play to continue this dance.'));
+                return;
+              }
               // Guard: prevent this handler running twice for the same track
               if (finalEndHandledRef.current) return;
               finalEndHandledRef.current = true;
 
-              // This handler now covers BOTH cases:
-              //  1. Paso Doble — plays the full track, ends naturally.
-              //  2. Any track shorter than 1:45 — ends before reaching the 105s limit.
-              // In a program we advance the session (or finish it).
+              // Fitness advances on natural completion; Finals uses the slot clock.
               const isSession = Boolean(activeModeRef.current || (sessionTracksRef.current && sessionTracksRef.current.length > 1));
               if (!isSession) {
                 // Single-track Final: same as the 1:45 stop — rewind and wait
@@ -1174,8 +1252,18 @@ export const AudioProvider: React.FC<{ children: React.ReactNode }> = ({ childre
             }
           };
 
+          audio.onplaying = () => {
+            if (currentToken !== loadingTokenRef.current || isPauseCountdownRef.current) return;
+            monitorPlaybackRef.current?.();
+          };
+          audio.onwaiting = () => {
+            if (currentToken !== loadingTokenRef.current || isPauseCountdownRef.current) return;
+            cancelFadeAndRestore();
+          };
           audio.onpause = () => {
-            if (currentToken !== loadingTokenRef.current) return;
+            if (currentToken !== loadingTokenRef.current || isPauseCountdownRef.current) return;
+            finalsClockRef.current.sample(audio.currentTime, audio.duration);
+            cancelFadeAndRestore();
             setIsPlaying(false);
             isPlayingRef.current = false;
             if ('mediaSession' in navigator) {
@@ -1210,7 +1298,7 @@ export const AudioProvider: React.FC<{ children: React.ReactNode }> = ({ childre
           };
 
           // ATTACH EVENT-DRIVEN MONITORING (Frame-accurate limit checks)
-          audio.ontimeupdate = () => {
+          const monitorPlayback = () => {
             if (currentToken !== loadingTokenRef.current) return;
 
             // In pause countdown (looping SILENT_WAV): drive pause countdown directly from audio clock
@@ -1275,138 +1363,61 @@ export const AudioProvider: React.FC<{ children: React.ReactNode }> = ({ childre
               }
             }
 
-            // 2. FINAL MODE LIMIT CHECK (1:45 / 1:25)
-            if (isFinalModeRef.current && !isFitnessRef.current && !isPauseCountdownRef.current && isPlayingRef.current) {
-              const style = playingTrackRef.current?.style?.toLowerCase() || '';
-              const isPasoDoble = style.includes('paso');
-              const isVW = style.includes('viennese') || (style.includes('waltz') && style.includes('v'));
-              const standardLimit = isPasoDoble ? Infinity : (isVW ? 85 : 105);
-
-              // Dynamically set custom override limit if playing past standard limit - 3
-              if (!isPasoDoble && currentTimeVal > (standardLimit - 3) && customTimeLimitRef.current === null) {
-                customTimeLimitRef.current = currentTimeVal + 3;
-                if (currentTimeVal >= standardLimit) {
-                  toggledPastLimitRef.current = true;
-                }
-              }
-
-              // Reset override limit if seeking back before standard limit - 3
-              if (!isPasoDoble && currentTimeVal < (standardLimit - 3) && customTimeLimitRef.current !== null) {
-                customTimeLimitRef.current = null;
-                toggledPastLimitRef.current = false;
-              }
-
-              const timeLimit = isPasoDoble ? Infinity : (customTimeLimitRef.current || standardLimit);
-
-              // EFFECTIVE END = whichever comes first: the limit OR the track's
-              // natural end. This is the fix for "fade doesn't run on every track":
-              // tracks shorter than the limit never reached the limit mark, so the fade
-              // never started. Now short tracks fade out before their real end too.
-              const trackDuration = (audio.duration && isFinite(audio.duration)) ? audio.duration : timeLimit;
-              const effectiveEnd = Math.min(timeLimit, trackDuration);
-
-              // Smooth Acoustic Fade-Out — iOS-compatible.
-              // On Apple devices element.volume is read-only, so the fade is done
-              // through the GainNode. We schedule ONE linear ramp on the audio
-              // clock when entering the window (1:42), ending exactly at the
-              // limit (1:45). The audio clock keeps running with the screen off,
-              // so the fade completes in the background too.
-              if (audio && !isPasoDoble && isFinite(effectiveEnd)) {
-                const FADE_DURATION = 3; // track-seconds before the effective end
-                const timeLeft = effectiveEnd - currentTimeVal;
-                const baseVol = volumeRef.current;
-                const g = gainNodeRef.current;
-                const ctx = audioCtxRef.current;
-
-                if (timeLeft <= FADE_DURATION && timeLeft > 0) {
-                  if (isGainActive() && g && ctx) {
-                    if (!fadeScheduledRef.current) {
-                      fadeScheduledRef.current = true;
-                      // Convert track-seconds to real seconds (speed matters!)
-                      const realSecondsLeft = timeLeft / (audio.playbackRate || 1);
-                      const now = ctx.currentTime;
-                      try {
-                        g.gain.cancelScheduledValues(now);
-                        g.gain.setValueAtTime(g.gain.value, now);
-                        g.gain.linearRampToValueAtTime(0.0001, now + realSecondsLeft);
-                      } catch { fadeScheduledRef.current = false; }
-                    }
-                  } else if (nativePlayerRef.current) {
-                    // Desktop fallback: per-tick cosine fade on the element volume
-                    const progress = Math.min(1, Math.max(0, (FADE_DURATION - timeLeft) / FADE_DURATION));
-                    const ratio = Math.cos(progress * Math.PI / 2);
-                    nativePlayerRef.current.volume = baseVol * ratio;
-                  }
-                } else if (timeLeft > FADE_DURATION && fadeScheduledRef.current) {
-                  // User seeked back before the window — cancel the ramp, restore.
-                  cancelFadeAndRestore();
-                } else if (timeLeft > FADE_DURATION && !isGainActive()
-                           && nativePlayerRef.current
-                           && Math.abs(nativePlayerRef.current.volume - baseVol) > 0.01) {
-                  nativePlayerRef.current.volume = baseVol;
-                }
-              }
-
-              // TRIGGER NEXT or END at 1:45 limit (ontimeupdate handles non-Paso tracks
-              // that are LONGER than 1:45). Tracks shorter than 1:45 are handled by onended.
-              // isPasoDoble is handled by onended, skip it here
-              if (!isPasoDoble && currentTimeVal >= timeLimit) {
-                // Guard: only trigger once
-                if (isPauseCountdownRef.current) return;
+            // 2. Fixed real-time dance slot. Tempo affects music, not the timer.
+            if (isFinalModeRef.current && !isFitnessRef.current && isPlayingRef.current && !audio.seeking) {
+              const elapsed = finalsClockRef.current.sample(audio.currentTime, audio.duration);
+              const remaining = FINAL_DANCE_SECONDS - elapsed;
+              const g = gainNodeRef.current;
+              const ctx = audioCtxRef.current;
+              if (remaining <= 0) {
                 if (finalEndHandledRef.current) return;
                 finalEndHandledRef.current = true;
-
+                audio.pause();
                 audio.onended = null;
-
-                if (toggledPastLimitRef.current) {
-                  toggledPastLimitRef.current = false;
-                  customTimeLimitRef.current = null;
-                  audio.pause();
-                  setIsPlaying(false);
-                  isPlayingRef.current = false;
+                if (sessionTracksRef.current.length > 0) advanceFinalSession();
+                else {
                   audio.currentTime = 0;
+                  finalsClockRef.current.reset(0, playbackRateFor(bpmRef.current));
                   setCurrentTime(0);
-                  trackCurrentTimeRef.current = 0;
-                  // Restore volume (iOS-safe)
-                  cancelFadeAndRestore();
+                  setTrackCurrentTime(0);
+                  currentTimeRef.current = trackCurrentTimeRef.current = 0;
                   finalEndHandledRef.current = false;
-                  return;
-                }
-
-                const isSession = Boolean(activeModeRef.current || (sessionTracksRef.current && sessionTracksRef.current.length > 1));
-                if (isSession) {
-                  advanceFinalSession();
-                } else {
-                  // Single-track Final Mode (no program): just auto-stop cleanly
-                  audio.pause();
-                  setIsPlaying(false);
-                  isPlayingRef.current = false;
-                  audio.currentTime = 0;
-                  setCurrentTime(0);
-                  // Restore volume (iOS-safe)
                   cancelFadeAndRestore();
-                  // Ready for the next play of this track to stop at 1:45 again
-                  finalEndHandledRef.current = false;
                 }
+                return;
+              }
+              const ratio = Math.min(1, remaining / FINAL_FADE_SECONDS);
+              if (isGainActive() && g && ctx && audio.readyState >= 3 && !audio.paused) {
+                // Schedule ahead on the audio clock; re-arm after pause/stall.
+                if (!fadeScheduledRef.current) {
+                  const now = ctx.currentTime;
+                  g.gain.cancelScheduledValues(now);
+                  g.gain.setValueAtTime(volumeRef.current * ratio, now);
+                  g.gain.setValueAtTime(volumeRef.current * ratio, now + Math.max(0, remaining - FINAL_FADE_SECONDS));
+                  g.gain.linearRampToValueAtTime(0, now + remaining);
+                  fadeScheduledRef.current = true;
+                }
+              } else if (!isGainActive()) {
+                audio.volume = Math.max(0, volumeRef.current * ratio);
               }
             }
           };
+          audio.ontimeupdate = monitorPlayback;
+          monitorPlaybackRef.current = monitorPlayback;
 
           // NATIVE SPEED CONTROL: No bridge needed
           {
-            const pitchOn = audio !== finalPlayerRef.current; // final element keeps pitch correction OFF
+            const pitchOn = true;
             audio.preservesPitch = pitchOn;
             (audio as HTMLAudioElement & { webkitPreservesPitch?: boolean }).webkitPreservesPitch = pitchOn;
           }
           // SPEED PERSISTENCE FIX: use the live bpmRef (user-selected speed), NOT the
           // stale `bpm` closure value. Previously a new track could reset the rate,
           // so the speed the user picked was lost on every track change.
-          audio.playbackRate = bpmRef.current / 100;
-          // Use the REF, not the state: when a Final session starts, the state in
-          // this closure is still stale (false), which set loop=true on the Final
-          // element — the track silently restarted at its end instead of firing
-          // onended, so the session never advanced ("starts over at the end" bug).
-          audio.loop = !isFinalModeRef.current && isRepeatRef.current;
+          setMusicTempo(audio, bpmRef.current);
+          // Loop short recordings to fill 105 real seconds at the selected speed.
+          // The slot clock, not the recording's natural end, advances Finals.
+          audio.loop = (isFinalModeRef.current && !isFitnessRef.current) || (!isFinalModeRef.current && isRepeatRef.current);
           audio.src = url;
           audio.load();
         });
@@ -1414,6 +1425,7 @@ export const AudioProvider: React.FC<{ children: React.ReactNode }> = ({ childre
 
       try {
         const audio = await setupPlayer(finalUrl);
+        if (currentToken !== loadingTokenRef.current) return;
         if (startAt > 0) {
           try { audio.currentTime = startAt; } catch { /* ignore */ }
         }
@@ -1424,6 +1436,7 @@ export const AudioProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         if (audioCtxRef.current && audioCtxRef.current.state === 'suspended') {
           try { await audioCtxRef.current.resume(); } catch { /* ignore */ }
         }
+        if (currentToken !== loadingTokenRef.current) return;
         if (opts?.paused) {
           // Element swap of a paused track: stay paused at the same spot
           setIsPlaying(false);
@@ -1450,11 +1463,13 @@ export const AudioProvider: React.FC<{ children: React.ReactNode }> = ({ childre
           setIsPlaying(true);
         }
       } catch (e: any) {
-        if (e.message === "Loading cancelled by new request") return;
+        if (currentToken !== loadingTokenRef.current || e.message === "Loading cancelled by new request") return;
         setError(e.message || "File Unreachable");
         setIsLoaded(false);
         setIsLoading(false);
       }
+
+      if (currentToken !== loadingTokenRef.current) return;
 
       // MEDIA SESSION SETUP
       if ('mediaSession' in navigator) {
@@ -1509,18 +1524,19 @@ export const AudioProvider: React.FC<{ children: React.ReactNode }> = ({ childre
           style: track.style || 'Unknown',
           bpm: track.bpm?.toString() || '0',
           duration_seconds: 0
-        }).select('id').single().then(({ data, error }) => {
+        }).then(({ error }) => {
           if (error) {
             console.warn('[ANALYTICS] track_plays insert failed:', error.message);
             return;
           }
-          if (data) trackLogIdRef.current = data.id;
+
         });
       } catch (e) {
         console.warn('[ANALYTICS] track play logging error:', e);
       }
 
     } catch (err: any) {
+      if (currentToken !== loadingTokenRef.current) return;
       setError(err.message || "Failed to load track");
       setIsLoaded(false);
       setIsLoading(false);
@@ -1539,6 +1555,7 @@ export const AudioProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     // RUN DURING PLAYER ACTIVE OR LOADING OR COUNTDOWN
     if (isPlaying || isPauseCountdown || isLoading) {
       timerRef.current = setInterval(() => {
+        monitorPlaybackRef.current?.();
         if (isPauseCountdownRef.current) {
           if (checkPauseCountdownRef.current) {
             checkPauseCountdownRef.current();
@@ -1583,16 +1600,16 @@ export const AudioProvider: React.FC<{ children: React.ReactNode }> = ({ childre
               const currentTrackLimit = getLimitForTrack(sessionTracksRef.current[currentIdx]);
               sessionElapsed += isPauseCountdownRef.current
                 ? (currentTrackLimit + (15 - pauseTimeRef.current))
-                : Math.min(currentTimeVal, currentTrackLimit); // never past this dance's slot
+                : Math.min(isFitnessRef.current ? currentTimeVal : finalsClockRef.current.elapsed, currentTrackLimit); // never past this dance's slot
 
               const safeSessionElapsed = Number.isFinite(sessionElapsed) ? Math.max(0, sessionElapsed) : 0;
               if (Math.abs((currentTimeRef.current ?? -1) - safeSessionElapsed) >= 0.2) {
                 currentTimeRef.current = safeSessionElapsed;
                 setCurrentTime(safeSessionElapsed);
               }
-            } else if (Math.abs((currentTimeRef.current ?? -1) - currentTimeVal) >= 0.2) {
-              currentTimeRef.current = currentTimeVal;
-              setCurrentTime(currentTimeVal);
+            } else if (Math.abs(currentTimeRef.current - finalsClockRef.current.elapsed) >= 0.2) {
+              currentTimeRef.current = finalsClockRef.current.elapsed;
+              setCurrentTime(finalsClockRef.current.elapsed);
             }
           } else {
             // Normal Mode: Simply track the relative file time
@@ -1610,10 +1627,10 @@ export const AudioProvider: React.FC<{ children: React.ReactNode }> = ({ childre
             lastPositionSyncRef.current = nowTs;
             try {
               // Ensure all values are finite and valid numbers before calling native API
-              const rawDurationVal = isFinalMode && sessionTracks.length > 0 ? (sessionDuration || 0) : (nativePlayerRef.current?.duration || 0);
+              const rawDurationVal = nativePlayerRef.current?.duration || 0;
               const safeDuration = Number.isFinite(rawDurationVal) && rawDurationVal > 0 ? rawDurationVal : 0;
               
-              const rawPositionVal = isFinalMode && sessionTracks.length > 0 ? (currentTime || 0) : currentTimeVal;
+              const rawPositionVal = currentTimeVal;
               const safePosition = Number.isFinite(rawPositionVal) && rawPositionVal >= 0 ? Math.min(rawPositionVal, safeDuration) : 0;
               
               const safeRate = Number.isFinite(bpmRef.current) && bpmRef.current > 0 ? bpmRef.current / 100 : 1.0;
@@ -1639,7 +1656,7 @@ export const AudioProvider: React.FC<{ children: React.ReactNode }> = ({ childre
               .then(() => {});
               */
         }
-      }, 250);
+      }, 100);
     } else {
       if (timerRef.current) clearInterval(timerRef.current);
     }
@@ -1649,18 +1666,20 @@ export const AudioProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   }, [isPlaying, isPauseCountdown, isLoading, duration, isFinalMode, title]);
 
   const playAudio = React.useCallback(async () => {
-    // If paused during Final Mode 15s rest, resume the countdown and heartbeat
+    // Resume the same silent file and the saved remaining rest time.
     if (isPauseCountdownRef.current) {
-      pauseDeadlineRef.current = Date.now() + (pauseTimeRef.current || 15) * 1000;
-      if (heartbeatRef.current && heartbeatRef.current.paused) {
-        try { await heartbeatRef.current.play(); } catch {}
+      restRunningRef.current = true;
+      isPlayingRef.current = true;
+      setIsPlaying(true);
+      pauseDeadlineRef.current = Date.now() + pauseTimeRef.current * 1000;
+      const rest = nativePlayerRef.current;
+      if (rest && !rest.ended) {
+        setMusicTempo(rest, 100);
+        try { await audioCtxRef.current?.resume(); await rest.play(); }
+        catch { restRunningRef.current = false; isPlayingRef.current = false; setIsPlaying(false); }
       }
       try { workerRef.current?.postMessage('start'); } catch {}
-      setIsPlaying(true);
-      isPlayingRef.current = true;
-      if ('mediaSession' in navigator) {
-        navigator.mediaSession.playbackState = 'playing';
-      }
+      if ('mediaSession' in navigator) navigator.mediaSession.playbackState = isPlayingRef.current ? 'playing' : 'paused';
       return;
     }
 
@@ -1752,6 +1771,7 @@ export const AudioProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         pauseTimeRef.current = remaining;
         pauseDeadlineRef.current = 0;
       }
+      restRunningRef.current = false;
       try { workerRef.current?.postMessage('stop'); } catch {}
     }
     // NOTE: heartbeat is intentionally NOT paused here. The silent looping WAV
@@ -1789,28 +1809,23 @@ export const AudioProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   }, [isLoaded, playAudio, pauseAudio]);
 
   const setBpm = React.useCallback((newBpm: number, persistent = true) => {
-    // 1. ALWAYS UPDATE NATIVE IMMEDIATELY (Near-zero latency)
-    if (nativePlayerRef.current) {
-      const rate = newBpm / 100;
-      if (Math.abs(nativePlayerRef.current.playbackRate - rate) > 0.001) {
-        {
-          const pitchOn = nativePlayerRef.current !== finalPlayerRef.current; // final element keeps pitch correction OFF
-          nativePlayerRef.current.preservesPitch = pitchOn;
-          (nativePlayerRef.current as HTMLAudioElement & { webkitPreservesPitch?: boolean }).webkitPreservesPitch = pitchOn;
-        }
-        nativePlayerRef.current.playbackRate = rate;
-      }
+    const rate = playbackRateFor(newBpm);
+    const audio = nativePlayerRef.current;
+    if (audio && !isPauseCountdownRef.current) {
+      finalsClockRef.current.changeRate(audio.currentTime, audio.duration, rate);
+      setMusicTempo(audio, rate * 100);
     }
-    // 2. Only update state and local storage if it's the final value 
+    // Sync immediately, even during slider drag: the next track must use it.
+    bpmRef.current = rate * 100;
     if (persistent) {
-      setBpmState(newBpm);
-      localStorage.setItem('4andone-bpm', newBpm.toString());
-
-
+      setBpmState(rate * 100);
+      try { localStorage.setItem('4andone-bpm', String(rate * 100)); } catch {}
     }
   }, []);
 
   const seek = React.useCallback((time: number) => {
+    // Finals exposes a session timeline, not a seekable track timeline.
+    if (isFinalModeRef.current || isPauseCountdownRef.current || !Number.isFinite(time)) return;
     if (nativePlayerRef.current) {
       const trackDur = duration || nativePlayerRef.current.duration || 0;
       const safeTime = Math.max(0, Math.min(time, trackDur || 999999));
@@ -1846,6 +1861,8 @@ export const AudioProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   }, [duration, seek]);
 
   const setVolume = React.useCallback((v: number) => {
+    v = Number.isFinite(v) ? Math.max(0, Math.min(1, v)) : 1;
+    volumeRef.current = v;
     setVolumeState(v);
     localStorage.setItem('4andone-volume', v.toString());
     // Route through the gain chain so the slider also works on iOS.
@@ -1863,7 +1880,7 @@ export const AudioProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     setIsRepeat(next);
     // Takes effect on the playing song right away (Final keeps its own ending)
     const audio = nativePlayerRef.current;
-    if (audio) audio.loop = next && !isFinalModeRef.current;
+    if (audio && !isFinalModeRef.current) audio.loop = next;
     savePlayOrder();
   }, []);
   const toggleShuffle = React.useCallback(() => {
@@ -1885,37 +1902,15 @@ export const AudioProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     finalEndHandledRef.current = false;
 
     const audio = nativePlayerRef.current;
-    // Same rule as loadTrack: loop in normal mode, end (→ limit/onended) in Final
-    if (audio) audio.loop = !nextVal && isRepeatRef.current;
-    if (nextVal) {
-      // Turning ON: if we are already past (standardLimit - 2), set custom time limit
-      if (audio && playingTrackRef.current) {
-        const style = playingTrackRef.current.style?.toLowerCase() || '';
-        const isPasoDoble = style.includes('paso');
-        const isVW = style.includes('viennese') || (style.includes('waltz') && style.includes('v'));
-        const standardLimit = isPasoDoble ? Infinity : (isVW ? 85 : 105);
-        if (!isPasoDoble && audio.currentTime > (standardLimit - 2)) {
-          customTimeLimitRef.current = audio.currentTime + 2;
-          if (audio.currentTime >= standardLimit) {
-            toggledPastLimitRef.current = true;
-          }
-        }
-      }
-    } else {
-      // Turning OFF: clear it and restore volume in case it was fading
-      customTimeLimitRef.current = null;
-      toggledPastLimitRef.current = false;
-      if (audio) cancelFadeAndRestore();
-    }
+    if (audio) audio.loop = nextVal || isRepeatRef.current;
+    finalsClockRef.current.reset(audio?.currentTime || 0, playbackRateFor(bpmRef.current),
+      nextVal ? Math.min(FINAL_DANCE_SECONDS - FINAL_FADE_SECONDS, (audio?.currentTime || 0) / playbackRateFor(bpmRef.current)) : 0);
+    cancelFadeAndRestore();
 
-    // iPhone/iPad: element volume is read-only, so the 1:42→1:45 fade only
-    // works on the gain-routed element. Final switched on mid-track stayed on
-    // the plain element → no fade at normal speed. Hand the track over at the
-    // same position (same as setBpm does): gain element for Final at 100%,
-    // plain element otherwise.
+    // iOS needs the gain path for fades; desktop keeps the native element.
     const track = playingTrackRef.current;
     if (audio && track && audio.src && !isPauseCountdownRef.current) {
-      const wantGain = nextVal;
+      const wantGain = nextVal && !isVolumeWritable();
       const onGain = audio === finalPlayerRef.current;
       if (wantGain !== onGain) {
         loadTrackRef.current(track, true, nextVal, { startAt: audio.currentTime || 0, paused: audio.paused });
@@ -1946,19 +1941,25 @@ export const AudioProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       const currentIndex = list.findIndex(t => t.id === trackIdRef.current || t.title === playingTrackRef.current?.title);
       nextIndex = (currentIndex + 1) % list.length;
     }
-    loadTrackRef.current(list[nextIndex], false, isFinalModeRef.current);
+    if (isFinalModeRef.current) sessionIndexRef.current = nextIndex;
+    loadTrackRef.current(list[nextIndex], isFinalModeRef.current, isFinalModeRef.current);
   }, [tracks]);
 
   const playPrevious = React.useCallback(() => {
     const list = isFinalModeRef.current ? sessionTracksRef.current : playOrder(tracks, playingTrackRef.current, shuffleSeedRef.current);
     if (list.length === 0) return;
 
-    const currentIndex = list.findIndex(t => t.id === trackIdRef.current || t.title === playingTrackRef.current?.title);
+    const currentIndex = isFinalModeRef.current ? sessionIndexRef.current : list.findIndex(t => t.id === trackIdRef.current || t.title === playingTrackRef.current?.title);
     const prevIndex = currentIndex <= 0 ? list.length - 1 : currentIndex - 1;
-    loadTrackRef.current(list[prevIndex], false, isFinalModeRef.current);
+    if (isFinalModeRef.current) sessionIndexRef.current = prevIndex;
+    loadTrackRef.current(list[prevIndex], isFinalModeRef.current, isFinalModeRef.current);
   }, [tracks]);
 
   const stop = React.useCallback(() => {
+    cancelLoadRef.current?.();
+    monitorPlaybackRef.current = null;
+    restRunningRef.current = false;
+    finalsClockRef.current.reset();
     loadingTokenRef.current += 1; // Invalidate any pending async callbacks like onerror
     if (nativePlayerRef.current) {
         nativePlayerRef.current.pause();
@@ -1969,6 +1970,10 @@ export const AudioProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         nativePlayerRef.current.ontimeupdate = null;
         nativePlayerRef.current.onplay = null;
         nativePlayerRef.current.onpause = null;
+        nativePlayerRef.current.oncanplay = null;
+        nativePlayerRef.current.onplaying = null;
+        nativePlayerRef.current.onwaiting = null;
+        nativePlayerRef.current.onseeked = null;
         nativePlayerRef.current.src = "";
         nativePlayerRef.current.removeAttribute('src');
     }
@@ -1976,9 +1981,10 @@ export const AudioProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       clearInterval(fadeIntervalRef.current);
       fadeIntervalRef.current = null;
     }
-    if (heartbeatRef.current) {
-        heartbeatRef.current.pause();
-    }
+    if (heartbeatRef.current) heartbeatRef.current.pause();
+    if (activeBlobUrlRef.current) URL.revokeObjectURL(activeBlobUrlRef.current);
+    activeBlobUrlRef.current = null;
+    wakeLockRef.current?.release().catch(() => {});
     try { workerRef.current?.postMessage('stop'); } catch {}
     setIsPlaying(false);
     isPlayingRef.current = false;
@@ -2051,6 +2057,12 @@ export const AudioProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         }
       });
     }
+    return () => {
+      if (!('mediaSession' in navigator)) return;
+      for (const action of ['play', 'pause', 'previoustrack', 'nexttrack', 'seekto'] as const) {
+        try { navigator.mediaSession.setActionHandler(action, null); } catch { /* unsupported */ }
+      }
+    };
   }, [playAudio, pauseAudio, seek]);
 
   // Global Keyboard Shortcuts for Dancers & Coaches

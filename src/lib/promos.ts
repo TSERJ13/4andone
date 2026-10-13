@@ -28,17 +28,18 @@ export async function getStoredPromoCodes(db = getSupabaseAdmin() || fallbackSup
   claimsCount: Record<string, number>;
 }> {
   // 1. Fetch promo definitions from track_plays
-  const { data: defRows } = await db
+  const { data: defRows, error: definitionsError } = await db
     .from('track_plays')
     .select('id, bpm, style, duration_seconds, session_id, created_at')
     .eq('event_type', 'promo_def')
     .order('created_at', { ascending: false });
 
   // 2. Fetch promo claims count from track_plays
-  const { data: claimRows } = await db
+  const { data: claimRows, error: claimsError } = await db
     .from('track_plays')
     .select('bpm')
     .eq('event_type', 'promo_claimed');
+  if (definitionsError || claimsError) throw new Error('Promo lookup failed');
 
   const claimsCount: Record<string, number> = {};
   (claimRows || []).forEach(r => {
@@ -66,7 +67,8 @@ export async function getStoredPromoCodes(db = getSupabaseAdmin() || fallbackSup
   // Merge default promos with custom promos (custom override defaults if same code)
   const codeMap = new Map<string, PromoCodeItem>();
   DEFAULT_PROMOS.forEach(p => codeMap.set(p.code, p));
-  customPromos.forEach(p => codeMap.set(p.code, p));
+  // Rows are newest-first: apply oldest first so a newer disable wins.
+  [...customPromos].reverse().forEach(p => codeMap.set(p.code, p));
 
   return {
     promos: Array.from(codeMap.values()),

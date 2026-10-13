@@ -1,13 +1,16 @@
+import { resolveReadableTelegramId } from '@/lib/user-session';
 import { NextRequest, NextResponse } from 'next/server';
 import { getSupabaseAdmin, serviceRoleMissing } from '@/lib/supabase-admin';
-import { parseTelegramId, readPremiumStatus } from '@/lib/premium';
+import { readPremiumStatus } from '@/lib/premium';
 import { isPayPalConfigured, verifyPayPalSubscription } from '@/lib/paypal';
 
-// Public, read-only: is this Telegram user premium? (telegram_users itself is
+// Session-authenticated: return only the signed-in account’s Premium status.
+// (telegram_users itself is
 // no longer readable with the public key — it holds personal data.)
 export async function GET(request: NextRequest) {
-  const telegramId = parseTelegramId(request.nextUrl.searchParams.get('tid'));
-  if (!telegramId) return NextResponse.json({ error: 'tid required' }, { status: 400 });
+  const who = await resolveReadableTelegramId(request.nextUrl.searchParams.get('tid'));
+  if ('status' in who) return NextResponse.json({ error: 'Sign in again' }, { status: who.status });
+  const telegramId = who.telegramId;
 
   const db = getSupabaseAdmin();
   if (!db) return serviceRoleMissing();
@@ -18,10 +21,16 @@ export async function GET(request: NextRequest) {
   // MONTHLY RENEWAL: a PayPal subscription past its paid period is re-checked
   // with PayPal; if it renewed, the paid period is extended automatically.
   if (!status.active && status.subscriptionId?.startsWith('I-') && status.premiumUntil && isPayPalConfigured()) {
-    const verified = await verifyPayPalSubscription(status.subscriptionId);
+    let verified;
+    try { verified = await verifyPayPalSubscription(status.subscriptionId); }
+    catch { return NextResponse.json({ error: 'PayPal is unavailable. Please retry.' }, { status: 502 }); }
     if (verified.ok) {
+      if (verified.customId && verified.customId !== `tg:${telegramId}`) {
+        return NextResponse.json({ error: 'Subscription account does not match' }, { status: 403 });
+      }
       const premiumUntil = verified.paidUntil.toISOString();
-      await db.from('telegram_users').update({ is_premium: true, premium_until: premiumUntil }).eq('telegram_id', telegramId);
+      const { error } = await db.from('telegram_users').update({ is_premium: true, premium_until: premiumUntil }).eq('telegram_id', telegramId);
+      if (error) return NextResponse.json({ error: 'Renewal could not be saved' }, { status: 502 });
       return NextResponse.json({ active: true, subscriptionId: status.subscriptionId, premiumUntil }, { headers: { 'cache-control': 'no-store' } });
     }
   }

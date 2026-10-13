@@ -1,7 +1,8 @@
 "use client";
 
+import { telegramPreviewHtml } from '@/utils/telegram-html';
 import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
-import { supabase } from '@/utils/supabase';
+import { adminDb as supabase } from '@/lib/admin-db';
 import { adminDb } from '@/lib/admin-db';
 import { 
   Mail, MessageSquare, Trash2, Reply, RefreshCw, 
@@ -181,7 +182,7 @@ export default function AdminMessagesPage() {
           .select('id, created_at, style, bpm, user_ref, session_id')
           .eq('event_type', 'contact_message')
           .order('created_at', { ascending: false }),
-        supabase
+        adminDb
           .from('folders')
           .select('color')
           .eq('name', '__deleted_msg__')
@@ -189,7 +190,7 @@ export default function AdminMessagesPage() {
 
       if (error) throw error;
 
-      const deletedIds = new Set((delRows || []).map(r => r.color));
+      const deletedIds = new Set((delRows || []).map((r: { color: string }) => r.color));
       const activeRaw = (data || []).filter((r: any) => !deletedIds.has(r.id));
 
       const formatted: ContactMessage[] = activeRaw.map((r: any) => {
@@ -1642,13 +1643,12 @@ export default function AdminMessagesPage() {
                           const sampleFull = [sampleUser?.first_name, sampleUser?.last_name].filter(Boolean).join(' ') || sampleFirst;
                           const sampleUserTag = sampleUser?.username ? `@${sampleUser.username}` : sampleFirst;
 
-                          return tgMessageText.trim() 
+                          return telegramPreviewHtml(tgMessageText.trim()
                             ? tgMessageText
-                                .replace(/\{first_name\}/gi, `<span style="color: #38bdf8; font-weight: 700;">${sampleFirst}</span>`)
-                                .replace(/\{name\}/gi, `<span style="color: #38bdf8; font-weight: 700;">${sampleFull}</span>`)
-                                .replace(/\{username\}/gi, `<span style="color: #38bdf8; font-weight: 700;">${sampleUserTag}</span>`)
-                                .replace(/\n/g, '<br/>') 
-                            : '<i>Type your message to see a live preview here...</i>';
+                                .replace(/\{first_name\}/gi, () => sampleFirst)
+                                .replace(/\{name\}/gi, () => sampleFull)
+                                .replace(/\{username\}/gi, () => sampleUserTag)
+                            : 'Type your message to see a live preview here...');
                         })()
                       }} 
                     />

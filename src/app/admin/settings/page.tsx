@@ -32,22 +32,22 @@ export default function AdminSettings() {
       <div className="settings-actions-row">
         <div className="header-info">
           <h2>Global Configuration</h2>
-          <p className="text-secondary">Manage technical and operational parameters.</p>
+          <p className="text-secondary">Configuration overview. Editing settings here is not available yet.</p>
         </div>
-        <button className="btn-primary">
-          Save All Changes
+        <button className="btn-primary" disabled>
+          Read-only overview
         </button>
       </div>
 
       <div className="storage-card glass">
         <div className="section-header">
           <Cloud size={20} className="text-primary" />
-          <h3>Cloudflare R2 Storage Quota</h3>
+          <h3>Estimated audio storage</h3>
         </div>
         <div className="storage-info">
           <div className="storage-text">
-            <span className="font-bold text-white">{usedGB.toFixed(2)} GB Used</span>
-            <span className="text-secondary">{(maxGB - usedGB).toFixed(2)} GB Free (of {maxGB} GB)</span>
+            <span className="font-bold text-white">{usedGB.toFixed(2)} GB estimated</span>
+            <span className="text-secondary">Based on 5 MB per track</span>
           </div>
           <div className="storage-bar-wrap">
             <div className="storage-bar" style={{ width: `${percentUsed}%` }} />
@@ -68,7 +68,7 @@ export default function AdminSettings() {
               </div>
             </div>
             <div className="card-actions">
-              <button className="btn-secondary glass">Configure</button>
+              <button className="btn-secondary glass" disabled>Not available yet</button>
             </div>
           </div>
         ))}
@@ -81,7 +81,7 @@ export default function AdminSettings() {
         </div>
         <div className="danger-content">
           <p className="text-secondary">Permanently delete all tracks, reset database, or wipe CDN caches. These actions cannot be undone.</p>
-          <button className="btn-danger">Master Reset System</button>
+          <button className="btn-danger" disabled>Reset unavailable</button>
         </div>
       </div>
 

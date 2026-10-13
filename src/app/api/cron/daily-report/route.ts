@@ -1,3 +1,4 @@
+import { isAdminRequest } from '@/lib/admin-auth';
 import { NextRequest, NextResponse } from 'next/server';
 import { generateAnalyticsReport } from '@/utils/reportGenerator';
 import { sendNotificationEmail } from '@/utils/mailer';
@@ -15,15 +16,10 @@ export async function POST(request: NextRequest) {
 
 async function handleReportTrigger(request: NextRequest) {
   try {
-    // Optional Vercel Cron authorization check
-    const authHeader = request.headers.get('authorization');
-    if (process.env.CRON_SECRET && authHeader !== `Bearer ${process.env.CRON_SECRET}`) {
-      // Check query parameter for manual admin testing
-      const { searchParams } = new URL(request.url);
-      const secretParam = searchParams.get('secret');
-      if (secretParam !== process.env.CRON_SECRET) {
-        return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-      }
+    const cronAuthorized = !!process.env.CRON_SECRET &&
+      request.headers.get('authorization') === `Bearer ${process.env.CRON_SECRET}`;
+    if (!cronAuthorized && !(await isAdminRequest())) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
     // 1. Generate analytics report

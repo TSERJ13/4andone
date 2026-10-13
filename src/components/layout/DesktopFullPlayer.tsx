@@ -425,7 +425,7 @@ export default function DesktopFullPlayer({ onClose }: DesktopFullPlayerProps) {
             {isFinalMode ? (
               <FinalStopButton onStop={endFinal} className="yt-player-icon-btn" iconSize={20} />
             ) : (
-              // Final Mode for the current track: cuts at 1:45 (Viennese 1:25) with a fade, like main
+              // Final Mode for the current track: cuts at 1:45 (all dances) with a fade, like main
               <button
                 type="button"
                 className="yt-player-icon-btn"

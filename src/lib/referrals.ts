@@ -36,68 +36,14 @@ export async function getOrCreateCode(db: SupabaseClient, telegramId: number): P
   return null;
 }
 
-/**
- * Adds a month of Premium. Returns the new end date, or null when the person
- * already has Premium that a month can't add to (PayPal subscription,
- * lifetime / forever gift) — they keep what they have.
- */
-async function grantMonth(db: SupabaseClient, telegramId: number): Promise<string | null> {
-  const { data } = await db.from('telegram_users')
-    .select('is_premium, subscription_id, premium_until')
-    .eq('telegram_id', telegramId)
-    .maybeSingle();
-  const sub: string = data?.subscription_id || '';
-  const until = data?.premium_until ? new Date(data.premium_until).getTime() : null;
-  const active = !!data?.is_premium && (until === null || until > Date.now());
-  if (active && (until === null || sub.startsWith('I-'))) return null;
-  const from = active && until ? until : Date.now();
-  const premiumUntil = new Date(from + REFERRAL_DAYS * 86400000).toISOString();
-  const patch: Record<string, unknown> = { is_premium: true, premium_until: premiumUntil };
-  if (!active) patch.subscription_id = `REFERRAL_${Date.now()}`;
-  await db.from('telegram_users').update(patch).eq('telegram_id', telegramId);
-  return premiumUntil;
-}
-
 export type ClaimResult =
   | { ok: true; inviter: { name: string; username: string | null }; premiumUntil: string | null; inviterRewarded: boolean }
   | { ok: false; reason: 'not_setup' | 'bad_code' | 'own_code' | 'already_used' | 'not_new' | 'failed' };
 
 export async function claimReferral(db: SupabaseClient, inviteeId: number, code: string): Promise<ClaimResult> {
-  const { data: inviter, error: inviterErr } = await db.from('telegram_users')
-    .select('telegram_id, first_name, last_name, username')
-    .eq('referral_code', code)
-    .maybeSingle();
-  if (inviterErr) return { ok: false, reason: 'not_setup' };
-  if (!inviter) return { ok: false, reason: 'bad_code' };
-  if (Number(inviter.telegram_id) === inviteeId) return { ok: false, reason: 'own_code' };
-
-  const { data: existing, error: exErr } = await db.from('referrals').select('id').eq('invitee_id', inviteeId).maybeSingle();
-  if (exErr) return { ok: false, reason: 'not_setup' };
-  if (existing) return { ok: false, reason: 'already_used' };
-
-  // Only NEW listeners can accept an invite (otherwise everyone could just invite each other)
-  const { data: me } = await db.from('telegram_users').select('first_seen').eq('telegram_id', inviteeId).maybeSingle();
-  if (!me) {
-    await db.from('telegram_users').upsert({ telegram_id: inviteeId }, { onConflict: 'telegram_id', ignoreDuplicates: true });
-  } else if (me.first_seen && Date.now() - new Date(me.first_seen).getTime() > NEW_ACCOUNT_HOURS * 3600000) {
-    return { ok: false, reason: 'not_new' };
-  }
-
-  // Record first (the unique keys stop double claims), then give the Premium.
-  let inviterRewarded = true;
-  let ins = await db.from('referrals').insert({ inviter_id: inviter.telegram_id, invitee_id: inviteeId, inviter_rewarded: true }).select('id').single();
-  if (ins.error?.code === '23505' && /one_reward/.test(ins.error.message)) {
-    inviterRewarded = false; // inviter already got their month for an earlier friend
-    ins = await db.from('referrals').insert({ inviter_id: inviter.telegram_id, invitee_id: inviteeId, inviter_rewarded: false }).select('id').single();
-  }
-  if (ins.error) return { ok: false, reason: ins.error.code === '23505' ? 'already_used' : 'failed' };
-
-  const inviteeUntil = await grantMonth(db, inviteeId);
-  const inviterUntil = inviterRewarded ? await grantMonth(db, Number(inviter.telegram_id)) : null;
-  await db.from('referrals').update({ invitee_premium_until: inviteeUntil, inviter_premium_until: inviterUntil }).eq('id', ins.data.id);
-
-  const name = [inviter.first_name, inviter.last_name].filter(Boolean).join(' ') || 'A friend';
-  return { ok: true, inviter: { name, username: inviter.username ?? null }, premiumUntil: inviteeUntil, inviterRewarded };
+  const { data, error } = await db.rpc('claim_referral_reward', { p_invitee_id: inviteeId, p_code: code });
+  if (error) return { ok: false, reason: error.code === 'PGRST202' ? 'not_setup' : 'failed' };
+  return data as ClaimResult;
 }
 
 type UserRow = { telegram_id: number; first_name: string | null; last_name: string | null; username: string | null };

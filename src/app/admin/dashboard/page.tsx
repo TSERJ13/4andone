@@ -16,7 +16,7 @@ import {
 import BulkUpload from "../../../components/admin/BulkUpload";
 import { useAudioControls } from '@/components/audio/AudioProvider';
 import { useStudio } from '@/components/admin/StudioProvider';
-import { supabase } from '@/utils/supabase';
+import { adminDb as supabase } from '@/lib/admin-db';
 import { adminDb } from '@/lib/admin-db';
 
 export default function AdminDashboard() {
@@ -51,13 +51,13 @@ export default function AdminDashboard() {
         setReturningUsers(returningRes.count || 0);
         if (coffeeRes.data) {
           setCoffeeClicks(coffeeRes.data.length);
-          const uniqueSupporters = new Set(coffeeRes.data.map(r => r.user_ref || r.session_id).filter(Boolean)).size;
+          const uniqueSupporters = new Set(coffeeRes.data.map((r: { user_ref: string; session_id: string }) => r.user_ref || r.session_id).filter(Boolean)).size;
           setUniqueCoffeeVisitors(uniqueSupporters);
         }
         
         if (playsRes.data) {
           setTotalPlays(playsRes.data.length);
-          const totalSec = playsRes.data.reduce((acc, row) => acc + (row.duration_seconds || 0), 0);
+          const totalSec = playsRes.data.reduce((acc: number, row: { duration_seconds: number }) => acc + (row.duration_seconds || 0), 0);
           setTotalListeningSeconds(totalSec);
           if (peopleCount > 0) {
             setAvgSecondsPerPerson(totalSec / peopleCount);

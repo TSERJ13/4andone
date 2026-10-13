@@ -17,7 +17,7 @@ export const readPremiumStatus = async (db: SupabaseClient, telegramId: number):
   if (error) return null;
   if (!data) return { active: false, subscriptionId: null, premiumUntil: null };
   const until = data.premium_until ? new Date(data.premium_until).getTime() : null;
-  const notExpired = until === null || Number.isNaN(until) || until > Date.now();
+  const notExpired = until === null || (Number.isFinite(until) && until > Date.now());
   return {
     active: !!data.is_premium && notExpired,
     subscriptionId: data.subscription_id ?? null,

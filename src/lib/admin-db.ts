@@ -13,10 +13,10 @@ export interface AdminDbResult<T = any> {
   count: number | null;
 }
 
-class AdminQuery<T = any> implements PromiseLike<AdminDbResult<T>> {
+export class AdminQuery<T = any> implements PromiseLike<AdminDbResult<T>> {
   private body: Record<string, unknown> & { filters: Filter[]; order: { column: string; ascending?: boolean }[] };
 
-  constructor(table: string) {
+  constructor(table: string, private endpoint = '/api/admin/db', private request: typeof fetch = (...args) => fetch(...args)) {
     this.body = { table, op: 'select', filters: [], order: [] };
   }
 
@@ -53,7 +53,7 @@ class AdminQuery<T = any> implements PromiseLike<AdminDbResult<T>> {
 
   private async run(): Promise<AdminDbResult<T>> {
     try {
-      const res = await fetch('/api/admin/db', {
+      const res = await this.request(this.endpoint, {
         method: 'POST',
         headers: { 'content-type': 'application/json' },
         credentials: 'same-origin',
@@ -61,6 +61,7 @@ class AdminQuery<T = any> implements PromiseLike<AdminDbResult<T>> {
       });
       const json = await res.json().catch(() => null);
       if (!json) return { data: null, error: { message: `Admin request failed (${res.status})` }, count: null };
+      if (!res.ok) return { data: null, error: { message: typeof json.error === 'string' ? json.error : json.error?.message || `Request failed (${res.status})` }, count: null };
       return json as AdminDbResult<T>;
     } catch (e) {
       return { data: null, error: { message: e instanceof Error ? e.message : 'Network error' }, count: null };

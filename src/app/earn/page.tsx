@@ -37,7 +37,7 @@ export default function EarnPremiumPage() {
   // Check if current user has an active promo
   useEffect(() => {
     if (!user?.id) return;
-    fetch(`/api/user/premium?tid=${encodeURIComponent(String(user.id))}`, { cache: 'no-store' })
+    sessionFetch(`/api/user/premium?tid=${encodeURIComponent(String(user.id))}`, { cache: 'no-store' })
       .then(r => r.json())
       .then(d => {
         if (d?.active && typeof d.subscriptionId === 'string' && d.subscriptionId.startsWith('PROMO_')) {

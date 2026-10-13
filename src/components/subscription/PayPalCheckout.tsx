@@ -4,6 +4,7 @@ import React from 'react';
 import { preconnect } from 'react-dom';
 import { PayPalScriptProvider, PayPalButtons, usePayPalScriptReducer } from '@paypal/react-paypal-js';
 import { Loader2 } from 'lucide-react';
+import { useAuth } from '@/context/AuthContext';
 
 const PAYPAL_CLIENT_ID = process.env.NEXT_PUBLIC_PAYPAL_CLIENT_ID || 'AR7DFDs4W3LqJNeFTELaFs06b8vuc3tcE6FZSmloQgAmtM05ZaR2_cRJosyOFGWF5ZEsXRAGNQVlFkDn';
 const PAYPAL_PLAN_ID = process.env.NEXT_PUBLIC_PAYPAL_PLAN_ID || 'P-2P321243C53094157NLCL5WI';
@@ -37,6 +38,7 @@ interface PayPalSubscribeButtonProps {
 
 /** The PayPal subscribe button, with a placeholder of the same height while the SDK loads. */
 export function PayPalSubscribeButton({ color = 'gold', height = 48, onApproved, onError }: PayPalSubscribeButtonProps) {
+  const { user, setIsAuthModalOpen } = useAuth();
   const [{ isPending, isRejected }] = usePayPalScriptReducer();
 
   if (isRejected) {
@@ -69,10 +71,14 @@ export function PayPalSubscribeButton({ color = 'gold', height = 48, onApproved,
       )}
       <PayPalButtons
         style={{ shape: 'pill', color, layout: 'vertical', label: 'subscribe', height }}
-        createSubscription={(_data, actions) => actions.subscription.create({ plan_id: PAYPAL_PLAN_ID })}
+        createSubscription={(_data, actions) => {
+          if (!user) { setIsAuthModalOpen(true); throw new Error('Sign in before subscribing.'); }
+          return actions.subscription.create({ plan_id: PAYPAL_PLAN_ID, custom_id: `tg:${user.id}` });
+        }}
         onApprove={async (data) => {
           if (data.subscriptionID) {
-            await onApproved(data.subscriptionID);
+            try { await onApproved(data.subscriptionID); }
+            catch (error) { onError(error instanceof Error ? error.message : 'Subscription verification failed.'); }
           } else {
             onError('Subscription approved, but no subscription ID returned.');
           }

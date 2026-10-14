@@ -297,6 +297,7 @@ export default function MobileFullPlayer({ isOpen, onClose }: MobileFullPlayerPr
             title={isBpmChanged ? `Speed ${bpmDisplay}` : 'Speed'}
           >
             <Gauge size={20} />
+            {isBpmChanged && <span className="yt-action-value">{bpmDisplay}</span>}
           </button>
 
           {/* Final Mode Pill Button (1:45 Timer + Red Highlight) */}

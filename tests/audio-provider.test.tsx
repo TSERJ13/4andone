@@ -252,16 +252,20 @@ describe('rendered Finals integration', () => {
     await tick(15); expect(api.isPauseCountdown).toBe(false); expect(active().playbackRate).toBe(1);
     await tick(105); expect(api.isPlaying).toBe(false); expect(api.isFinalMode).toBe(false);
   });
-  it('reprepares from the same musical position without resetting the 105-second clock', async () => {
+  it('changes tempo while the music keeps playing, switching at the same musical spot without resetting the 105-second clock', async () => {
     await enableRenderedFinals(); const song = track('tempo');
     await act(async () => { api.setBpm(95); api.setSessionTracks([song, track('next')] as any); api.loadTrack(song, false, true); }); await flush();
     await tick(10);
     await act(async () => { api.setBpm(80, false); }); expect(renderState.requests).toHaveLength(1);
     await act(async () => { api.setBpm(80); }); await flush();
     const request = renderState.requests.at(-1);
-    expect(request.sourceStart).toBeCloseTo(9.5); expect(request.elapsedStart).toBeCloseTo(10);
-    expect(api.bpm).toBe(80); expect(active().playbackRate).toBe(1); expect(Math.abs(api.currentTime - 10)).toBeLessThan(0.25); // progress display ticks every 100 ms
-    await tick(95); expect(api.isPauseCountdown).toBe(true);
+    // Prepared 4 s ahead of the playhead (elapsed 10 s, source 9.5 s), at the old 95% pace.
+    expect(request.elapsedStart).toBeCloseTo(14); expect(request.sourceStart).toBeCloseTo(9.5 + 4 * 0.95);
+    expect(api.isPlaying).toBe(true); expect(active().paused).toBe(false); // never stopped while preparing
+    await tick(4.5); await flush();
+    expect(api.bpm).toBe(80); expect(active().playbackRate).toBe(1); expect(api.isPlaying).toBe(true);
+    expect(Math.abs(api.currentTime - 14.5)).toBeLessThan(0.6); // continued, not restarted
+    await tick(91); expect(api.isPauseCountdown).toBe(true); // the dance still ends at exactly 105 s
   });
   it('keeps a paused dance paused when preparing a different tempo', async () => {
     await enableRenderedFinals();
@@ -368,7 +372,7 @@ describe('lock-screen metadata in Finals', () => {
     await tick(10);
     expect(session.metadata.title).toBe('Final Mode');
     expect(session.metadata.artist).toBe('first');
-    expect(session.metadata.artwork[0].src).toContain('/logo-3d.png');
+    expect(session.metadata.artwork[0].src).toContain('/logo-lockscreen.png');
     expect(session.metadata.artwork.length).toBeGreaterThan(2); // several sizes + app icon
     const last = () => session.setPositionState.mock.calls.at(-1)![0];
     expect(last().duration).toBe(2 * 105 + 15); // whole program, not one track
@@ -381,7 +385,7 @@ describe('lock-screen metadata in Finals', () => {
     expect(api.isPauseCountdown).toBe(false);
     expect(session.metadata.title).toBe('Final Mode');
     expect(session.metadata.artist).toBe('second');
-    expect(session.metadata.artwork[0].src).toContain('/logo-3d.png');
+    expect(session.metadata.artwork[0].src).toContain('/logo-lockscreen.png');
     expect(last().duration).toBe(2 * 105 + 15);
     expect(last().position).toBeGreaterThanOrEqual(119.5); // second dance starts at 105 + 15
   });

@@ -269,14 +269,15 @@ export default function MobileFullPlayer({ isOpen, onClose }: MobileFullPlayerPr
           <button
             type="button"
             className={`yt-action-pill ${isFavorite ? 'active-heart' : ''}`}
+            aria-label={isFavorite ? 'Remove from liked songs' : 'Like'}
+            title={isFavorite ? 'Liked' : 'Like'}
             onClick={async () => {
               if (currentTrack?.id) {
                 await toggleFavorite(currentTrack.id);
               }
             }}
           >
-            <Heart size={14} fill={isFavorite ? '#ef4444' : 'none'} color={isFavorite ? '#ef4444' : 'currentColor'} />
-            <span>{isFavorite ? 'Liked' : 'Like'}</span>
+            <Heart size={22} fill={isFavorite ? '#ef4444' : 'none'} color={isFavorite ? '#ef4444' : 'currentColor'} />
           </button>
 
           {/* Speedometer Pill Button */}
@@ -284,9 +285,10 @@ export default function MobileFullPlayer({ isOpen, onClose }: MobileFullPlayerPr
             type="button"
             className={`yt-action-pill ${isBpmChanged || isSpeedPopoverOpen ? 'active-speed' : ''}`}
             onClick={() => setIsSpeedPopoverOpen(!isSpeedPopoverOpen)}
+            aria-label={isBpmChanged ? `Speed ${bpmDisplay}` : 'Speed'}
+            title={isBpmChanged ? `Speed ${bpmDisplay}` : 'Speed'}
           >
-            <Gauge size={14} />
-            <span>{isBpmChanged ? `Speed ${bpmDisplay}` : 'Speed'}</span>
+            <Gauge size={22} />
           </button>
 
           {/* Final Mode Pill Button (1:45 Timer + Red Highlight) */}
@@ -306,17 +308,17 @@ export default function MobileFullPlayer({ isOpen, onClose }: MobileFullPlayerPr
             title={isFinalMode ? 'Stop Final Mode' : 'Final Mode (1:45 Timer)'}
             aria-label={isFinalMode ? 'Stop Final Mode' : 'Final Mode'}
           >
-            {isFinalMode ? <X size={14} color="#ef4444" strokeWidth={2.75} /> : <Trophy size={14} color="currentColor" />}
-            <span>{isFinalMode ? 'Stop Final' : 'Final'}</span>
+            {isFinalMode ? <X size={22} color="#ef4444" strokeWidth={2.75} /> : <Trophy size={22} color="currentColor" />}
           </button>
 
           <button
             type="button"
             className="yt-action-pill"
             onClick={() => openAddToPlaylist(currentTrack)}
+            aria-label="Save to playlist"
+            title="Save"
           >
-            <Bookmark size={14} />
-            <span>Save</span>
+            <Bookmark size={22} />
           </button>
         </div>
 

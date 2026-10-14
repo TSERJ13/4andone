@@ -262,7 +262,8 @@ describe('rendered Finals integration', () => {
     // Prepared 4 s ahead of the playhead (elapsed 10 s, source 9.5 s), at the old 95% pace.
     expect(request.elapsedStart).toBeCloseTo(14); expect(request.sourceStart).toBeCloseTo(9.5 + 4 * 0.95);
     expect(api.isPlaying).toBe(true); expect(active().paused).toBe(false); // never stopped while preparing
-    await tick(4.5); await flush();
+    for (let i = 0; i < 9; i++) { await tick(0.5); expect(api.isPlaying).toBe(true); } // no stop at any point, including the switch
+    await flush();
     expect(api.bpm).toBe(80); expect(active().playbackRate).toBe(1); expect(api.isPlaying).toBe(true);
     expect(Math.abs(api.currentTime - 14.5)).toBeLessThan(0.6); // continued, not restarted
     await tick(91); expect(api.isPauseCountdown).toBe(true); // the dance still ends at exactly 105 s

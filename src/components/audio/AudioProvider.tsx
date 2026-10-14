@@ -1011,7 +1011,9 @@ export const AudioProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     retempoAbortRef.current?.abort();
     retempoSeqRef.current++;
     const currentToken = ++loadingTokenRef.current;
-    isPlayingRef.current = false;
+    // A prepared replacement (tempo change while playing) swaps in without stopping first.
+    const seamless = !!opts?.prepared;
+    if (!seamless) isPlayingRef.current = false;
     monitorPlaybackRef.current = null;
     restRunningRef.current = false;
 
@@ -1128,7 +1130,7 @@ export const AudioProvider: React.FC<{ children: React.ReactNode }> = ({ childre
           nativePlayerRef.current.oncanplay = null;
           nativePlayerRef.current.ontimeupdate = null;
           nativePlayerRef.current.onended = null;
-          if (!isPauseCountdownRef.current && !opts?.fromRest) {
+          if (!isPauseCountdownRef.current && !opts?.fromRest && !seamless) {
             nativePlayerRef.current.pause();
           }
         }
@@ -1150,15 +1152,20 @@ export const AudioProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       stopAndPrepare();
       if (startAt >= QUALIFY_SECONDS) currentTrackQualifiedRef.current = true; // same play, already counted
 
+      // The old prepared file is still playing during a seamless swap: free it only after the new one runs.
+      let oldBlobUrl: string | null = null;
       if (activeBlobUrlRef.current) {
-        URL.revokeObjectURL(activeBlobUrlRef.current);
+        if (seamless) oldBlobUrl = activeBlobUrlRef.current;
+        else URL.revokeObjectURL(activeBlobUrlRef.current);
         activeBlobUrlRef.current = null;
       }
 
       // INSTANT FEEDBACK: Update UI info immediately so the PlayerBar pops up right away
-      setIsPlaying(false);
-      setIsLoaded(false);
-      setIsLoading(true);
+      if (!seamless) {
+        setIsPlaying(false);
+        setIsLoaded(false);
+        setIsLoading(true);
+      }
       setError(null);
       // In a Final program currentTime is the SESSION clock. Resetting it to 0
       // here made the progress line jump back to the start for a moment at
@@ -1199,7 +1206,7 @@ export const AudioProvider: React.FC<{ children: React.ReactNode }> = ({ childre
 
       // 0. LOCAL OFFLINE STORAGE (IndexedDB) CHECK FIRST
       let isLocalAvailable = false;
-      if (track.id) {
+      if (track.id && !seamless) {
         try {
           const cachedBlob = await getAudioFile(track.id);
           if (currentToken !== loadingTokenRef.current) return;
@@ -1214,7 +1221,7 @@ export const AudioProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       }
 
       // 1. If not available offline, sign the Cloudflare R2 URL (cached)
-      if (!isLocalAvailable && finalUrl) {
+      if (!isLocalAvailable && finalUrl && !seamless) {
         finalUrl = await resolvePlaybackUrl(finalUrl);
       }
       if (currentToken !== loadingTokenRef.current) return; // a newer track was picked meanwhile
@@ -1228,7 +1235,7 @@ export const AudioProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         renderAbortRef.current = controller;
         const request = { url: finalUrl, cacheKey: String(track.id) + '|' + String(track.audioUrl), percent: renderPlan.percent,
           sourceStart: renderPlan.sourceStart, elapsedStart: renderPlan.elapsedStart, signal: controller.signal };
-        lastRenderSourceRef.current = { trackId: track.id, url: request.url, cacheKey: request.cacheKey };
+        if (!seamless) lastRenderSourceRef.current = { trackId: track.id, url: request.url, cacheKey: request.cacheKey };
         let prepared: RenderedFinalAudio | undefined;
         // A browser that never finishes preparing must not leave Finals loading forever.
         let timedOut = false;
@@ -1627,6 +1634,7 @@ export const AudioProvider: React.FC<{ children: React.ReactNode }> = ({ childre
 
       try {
         const audio = await setupPlayer(finalUrl);
+        if (oldBlobUrl) { const stale = oldBlobUrl; setTimeout(() => URL.revokeObjectURL(stale), 3000); }
         if (currentToken !== loadingTokenRef.current) return;
         if (renderPlan) renderPlan.ready = true;
         if (startAt > 0) {

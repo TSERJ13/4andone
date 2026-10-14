@@ -133,7 +133,7 @@ const MobileMiniPlayer = ({ onExpand }: { onExpand: () => void }) => {
                   className="play-btn"
                   onClick={(e) => { e.stopPropagation(); togglePlay(); }}
                 >
-                  {isPlaying ? <Pause size={24} fill="currentColor" /> : <Play size={24} fill="currentColor" />}
+                  {isLoading && !isPlaying ? <span className="yt-spin-ring" role="status" aria-label="Loading" /> : isPlaying ? <Pause size={24} fill="currentColor" /> : <Play size={24} fill="currentColor" />}
                 </button>
                 {/* Next track (hidden in Final Mode: the program decides the order) */}
                 {!isFinalMode && (

@@ -2604,3 +2604,18 @@
 
 
 
+
+
+/* Loading ring shown on the play button while music is being prepared. */
+.yt-spin-ring {
+  display: inline-block;
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  border: 3px solid rgba(0, 0, 0, 0.18);
+  border-top-color: currentColor;
+  animation: yt-spin 0.8s linear infinite;
+}
+.yt-mobile-play-main-circle .yt-spin-ring { color: #000; }
+@keyframes yt-spin { to { transform: rotate(360deg); } }
+@media (prefers-reduced-motion: reduce) { .yt-spin-ring { animation-duration: 2s; } }

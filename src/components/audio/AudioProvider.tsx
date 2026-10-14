@@ -107,6 +107,22 @@ const lockScreenArtwork = (coverPath: string): MediaImage[] => [
   ...ARTWORK_SIZES.map(sizes => ({ src: absoluteUrl(coverPath), sizes, type: coverMime(coverPath) })),
   { src: absoluteUrl('/icons/icon-512x512.png'), sizes: '512x512', type: 'image/png' },
 ];
+// A proper 0.2 s silent WAV for unlocking extra elements. (The 8-frame data URI above can be too
+// short for iPhone to start, which left the unlock promise hanging.)
+let silentBlobUrl: string | null = null;
+const unlockSource = (): string => {
+  if (silentBlobUrl) return silentBlobUrl;
+  try {
+    const rate = 8000, frames = 1600, bytes = frames * 2;
+    const buf = new ArrayBuffer(44 + bytes), v = new DataView(buf);
+    const w = (o: number, t: string) => { for (let i = 0; i < t.length; i++) v.setUint8(o + i, t.charCodeAt(i)); };
+    w(0, 'RIFF'); v.setUint32(4, 36 + bytes, true); w(8, 'WAVE'); w(12, 'fmt '); v.setUint32(16, 16, true);
+    v.setUint16(20, 1, true); v.setUint16(22, 1, true); v.setUint32(24, rate, true); v.setUint32(28, rate * 2, true);
+    v.setUint16(32, 2, true); v.setUint16(34, 16, true); w(36, 'data'); v.setUint32(40, bytes, true);
+    silentBlobUrl = URL.createObjectURL(new Blob([buf], { type: 'audio/wave' }));
+  } catch { silentBlobUrl = SILENT_WAV; }
+  return silentBlobUrl;
+};
 export const REST_TITLE = 'Rest Time';
 export const FINAL_LOCK_TITLE = 'Final Mode';
 // Opaque black square: the transparent logo shows on a WHITE background on the iPhone lock screen.
@@ -1070,22 +1086,13 @@ export const AudioProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         const unlock = plainPlayerRef.current;
         if (unlock && unlock.paused) {
           try {
-            unlock.src = SILENT_WAV;
+            unlock.src = unlockSource();
             unlock.loop = true;
-            unlock.play().catch(() => { /* not from a tap (e.g. auto-advance): nothing to unlock */ });
+            unlock.play().then(() => finalsDiag('first element started inside the tap'))
+              .catch((error: any) => finalsDiag(`first element refused: ${String(error?.name || error).slice(0, 40)}`));
           } catch { /* cosmetic */ }
         }
-        if (!spareElementRef.current) {
-          try {
-            const spare = new Audio();
-            spare.crossOrigin = 'anonymous';
-            spare.style.display = 'none';
-            document.body.appendChild(spare);
-            spare.src = SILENT_WAV;
-            spareElementRef.current = spare;
-            spare.play().then(() => { spareUnlockedRef.current = true; spare.pause(); }).catch(() => { /* not from a tap */ });
-          } catch { /* the swap then falls back to reloading */ }
-        }
+        unlockSpareElementRef.current(); // also inside this tap
       }
 
       // AD BREAK ON TAP: after 5 tracks the next track the user picks does
@@ -2090,8 +2097,11 @@ export const AudioProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   // The second element only plays from a real tap on iPhone. A tap during Finals (opening the
   // speed card, touching the slider...) is enough, so unlock it on the first one.
   const unlockSpareElementRef = useRef<() => void>(() => {});
+  const spareTryingRef = useRef(0);
   unlockSpareElementRef.current = () => {
     if (spareUnlockedRef.current || typeof document === 'undefined') return;
+    if (Date.now() - spareTryingRef.current < 1500) return; // an attempt is still running
+    spareTryingRef.current = Date.now();
     try {
       let spare = spareElementRef.current;
       if (!spare) {
@@ -2101,12 +2111,15 @@ export const AudioProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         document.body.appendChild(spare);
         spareElementRef.current = spare;
       }
-      if (!spare.paused) return; // an unlock is already running
       const el = spare;
-      el.src = SILENT_WAV;
-      el.play().then(() => { spareUnlockedRef.current = true; el.pause(); finalsDiag('second element unlocked'); })
-        .catch(() => { finalsDiag('second element unlock refused'); });
-    } catch { /* the swap then falls back to reloading */ }
+      if (!el.paused) { try { el.pause(); } catch { /* ignore */ } }
+      el.loop = false;
+      el.src = unlockSource();
+      const attempt = el.play();
+      const pending = setTimeout(() => finalsDiag('second element: play() still pending'), 1200);
+      attempt.then(() => { clearTimeout(pending); spareUnlockedRef.current = true; try { el.pause(); } catch { /* ignore */ } finalsDiag('second element unlocked'); })
+        .catch((error: any) => { clearTimeout(pending); spareTryingRef.current = 0; finalsDiag(`second element refused: ${String(error?.name || error).slice(0, 40)}`); });
+    } catch (error: any) { spareTryingRef.current = 0; finalsDiag(`second element error: ${String(error?.message || error).slice(0, 40)}`); }
   };
   useEffect(() => {
     const onTap = () => {

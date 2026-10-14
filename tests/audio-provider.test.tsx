@@ -251,24 +251,43 @@ describe('rendered Finals integration', () => {
     await tick(15); expect(api.isPauseCountdown).toBe(false); expect(active().playbackRate).toBe(1);
     await tick(105); expect(api.isPlaying).toBe(false); expect(api.isFinalMode).toBe(false);
   });
-  it('changes tempo while the music keeps playing: the new file starts on a second element in sync, then the old one stops', async () => {
+  it('changes tempo instantly on the playing element; only the faded ending is swapped in, near the end', async () => {
     await enableRenderedFinals(); const song = track('tempo');
     await act(async () => { api.setBpm(95); api.setSessionTracks([song, track('next')] as any); api.loadTrack(song, false, true); }); await flush();
     await tick(10);
+    const body = active();
     await act(async () => { api.setBpm(80, false); }); expect(renderState.requests).toHaveLength(1);
     await act(async () => { api.setBpm(80); }); expect(renderState.requests).toHaveLength(1); // waits for the taps/drags to settle
     await tick(0.3); await flush();
+    // The speed changes right away on the same element: no new file, no stop.
+    expect(active()).toBe(body); expect(body.playbackRate).toBeCloseTo(0.8 / 0.95, 3); expect(body.preservesPitch).toBe(true);
+    expect(api.isPlaying).toBe(true); expect(api.bpm).toBe(80);
+    // Only the faded ending is prepared, for the start of the fade (1:42).
     expect(renderState.requests).toHaveLength(2);
     const request = renderState.requests.at(-1);
-    // Prepared 4 s ahead of the playhead, at the old 95% pace.
-    expect(request.elapsedStart).toBeCloseTo(14.3, 0); expect(request.sourceStart).toBeCloseTo(9.5 + 4.3 * 0.95, 0);
-    expect(api.isPlaying).toBe(true);
+    expect(request.percent).toBe(80); expect(request.elapsedStart).toBeCloseTo(102, 1);
+    expect(request.sourceStart).toBeCloseTo(9.785 + (102 - 10.3) * 0.8, 0);
     const playing = () => elements.filter(e => !states.get(e)!.paused && e.src === 'blob:rendered-final');
-    for (let i = 0; i < 12; i++) { await tick(0.5); expect(api.isPlaying).toBe(true); expect(playing().length).toBeGreaterThanOrEqual(1); } // never silent
+    await tick(80);
+    expect(playing()).toEqual([body]); expect(Math.abs(api.currentTime - 90.3)).toBeLessThan(1); // same file, same element, no restart
+    await tick(9);
+    for (let i = 0; i < 8; i++) { await tick(0.5); expect(api.isPlaying).toBe(true); expect(playing().length).toBeGreaterThanOrEqual(1); } // never silent
     await flush();
-    expect(api.bpm).toBe(80); expect(playing()).toHaveLength(1); // only the new one remains
-    expect(Math.abs(api.currentTime - 16.3)).toBeLessThan(1); // continued, not restarted
-    await tick(90); expect(api.isPauseCountdown).toBe(true); // the dance still ends at exactly 105 s
+    expect(playing()).toHaveLength(1); expect(playing()[0]).not.toBe(body); expect(playing()[0].playbackRate).toBe(1); // the faded ending took over
+    await tick(2); expect(api.isPauseCountdown).toBe(true); // the dance still ends at exactly 105 s
+  });
+  it('speeding up uses the instant rate and hands over before the prepared file runs out', async () => {
+    await enableRenderedFinals(); const song = track('faster');
+    await act(async () => { api.setBpm(95); api.setSessionTracks([song, track('next')] as any); api.loadTrack(song, false, true); }); await flush();
+    await tick(10);
+    const body = active();
+    await act(async () => { api.setBpm(110); }); await tick(0.3); await flush();
+    expect(active()).toBe(body); expect(body.playbackRate).toBeCloseTo(1.1 / 0.95, 3);
+    const request = renderState.requests.at(-1);
+    expect(request.elapsedStart).toBeLessThan(90); expect(request.elapsedStart).toBeGreaterThan(80); // before the baked fade is reached
+    const playing = () => elements.filter(e => !states.get(e)!.paused && e.src === 'blob:rendered-final');
+    for (let i = 0; i < 190; i++) { await tick(0.5); if (api.isPauseCountdown) break; expect(api.isPlaying).toBe(true); expect(playing().length).toBeGreaterThanOrEqual(1); }
+    expect(api.isPauseCountdown).toBe(true); expect(Math.abs(api.pauseTime - 15)).toBeLessThan(1.5);
   });
   it('keeps a paused dance paused when preparing a different tempo', async () => {
     await enableRenderedFinals();

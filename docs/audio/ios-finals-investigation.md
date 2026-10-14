@@ -65,3 +65,12 @@ Implements the "pre-rendered, played at 1x" route from this document. Shipped be
 - Limits: mono/stereo recordings up to 5 minutes and 32 MB; one dance is prepared at a time.
 
 Evidence: 113 Vitest tests and `tsc` pass. `docs/audits/2026-10-14-rendered-pitch.json` holds Chromium/WebKit PCM measurements of the renderer (440 Hz stays ~440 Hz at 95%). Not yet verified: acoustic quality on a physical iPhone, preparation time on real devices, memory on older iPhones.
+
+## Update 2026-10-15: tempo changes are instant (native rate bridge)
+
+Swapping the audio file in the middle of a dance always costs a short gap on iPhone (new blob has to load; a second element may refuse to start). So a tempo change no longer swaps files:
+
+- The speed change is applied at once to the element that is already playing, as a pitch-preserving `playbackRate` relative to the prepared file (`new % / prepared %`). No stop, no loading. The shared clock changes rate at the same moment, so the 105 s slot stays exact.
+- Only the ending is replaced: a short clip with the 3 s fade baked in is prepared for the start of the fade (1:42, or earlier when speeding up, before the prepared file would run out) and takes over there. With the second element unlocked this is gapless; otherwise it is a single short gap at the fade, not at every change.
+- Rates outside 0.5x–2x relative to the prepared file, and changes too close to the end, use the previous behaviour (file swap / reload).
+- After any hand-over the requested tempo is re-checked and applied the same way.

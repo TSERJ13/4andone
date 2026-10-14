@@ -1,0 +1,36 @@
+[
+  {
+    "id": "signalsmith-stretch@1.3.2",
+    "name": "signalsmith-stretch",
+    "version": "1.3.2",
+    "size": 96347,
+    "unpackedSize": 232286,
+    "shasum": "8549203d56c12c1ddf6f4083e4781bab19eae839",
+    "integrity": "sha512-tJqRbwPCoWLSHXwO29UQ75u72IwPsHns3RG+TKzuOAp7OduJiJMzEtz32JEFbPFQcTR7aiKCIVc+/Kzw8bMZUw==",
+    "filename": "signalsmith-stretch-1.3.2.tgz",
+    "files": [
+      {
+        "path": "README.md",
+        "size": 4078,
+        "mode": 420
+      },
+      {
+        "path": "SignalsmithStretch.js",
+        "size": 113781,
+        "mode": 420
+      },
+      {
+        "path": "SignalsmithStretch.mjs",
+        "size": 113867,
+        "mode": 420
+      },
+      {
+        "path": "package.json",
+        "size": 560,
+        "mode": 420
+      }
+    ],
+    "entryCount": 4,
+    "bundled": []
+  }
+]

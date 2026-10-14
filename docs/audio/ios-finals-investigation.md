@@ -53,3 +53,15 @@ Primary references: [Rubber Band](https://breakfastquay.com/rubberband/), [integ
 ## Validation
 
 98 Vitest tests pass after integration with PR #43, including exposed/unavailable/prefixed-only/mixed pitch APIs, 95% clock coverage, and a 95% iOS gain-path 105-second dance -> 15-second rest -> next dance regression. Existing auth/security suites pass. `tsc --noEmit -p tsconfig.test.json` and full `tsc --noEmit` pass. A temporary headless Chrome 155 smoke test passed native/gain playback at 95%, pitch-off control, element cleanup and JSON reporting; the 390px layout was visually inspected. This does not measure iPhone acoustics. Audio mocks validate requests, routing and timing, not sound. Physical iPhone Safari/PWA, Telegram preview login and musical listening remain unverified. No database, auth, Premium, deployment configuration or playback-route policy changed.
+
+## Update 2026-10-14 (later): rendered Finals is now the default on iPhone/iPad
+
+Implements the "pre-rendered, played at 1x" route from this document. Shipped behaviour:
+
+- On iPhone/iPad, Finals no longer uses `playbackRate` or the MediaElementSource/Gain graph. The dance is time-stretched in the browser (Signalsmith Stretch 1.3.2, vendored under `public/vendor/`, rendered offline), the 3-second fade is baked into the samples, and the file plays on a plain element at rate 1. Elsewhere it stays opt-in via `?finalsRender=1`; `?finalsRender=0` turns it off on a device. `?iosFinalNative=1` (native diagnostic) still wins.
+- Changing tempo mid-dance re-renders the *remaining* time from the same musical position (source position and 105 s slot clock are tracked separately), so the music continues from the same spot. Preparing takes a moment, so expect a short pause.
+- The next dance is rendered during the 15 s rest and reused at its start when tempo is unchanged.
+- If preparation fails (unsupported browser, memory), the dance continues on the previous audio route at the right tempo, and no further attempt is made this session. `?finalsRender=1` shows the real error instead.
+- Limits: mono/stereo recordings up to 5 minutes and 32 MB; one dance is prepared at a time.
+
+Evidence: 113 Vitest tests and `tsc` pass. `docs/audits/2026-10-14-rendered-pitch.json` holds Chromium/WebKit PCM measurements of the renderer (440 Hz stays ~440 Hz at 95%). Not yet verified: acoustic quality on a physical iPhone, preparation time on real devices, memory on older iPhones.

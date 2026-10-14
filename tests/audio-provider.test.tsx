@@ -347,3 +347,33 @@ describe('rendered Finals is the default on iPhone', () => {
     } finally { ua.mockRestore(); }
   });
 });
+
+describe('lock-screen metadata in Finals', () => {
+  const withCover = (id: string, cover: string) => ({ ...track(id), coverUrl: cover });
+  const install = () => {
+    const session: any = { metadata: null, playbackState: 'none', setActionHandler: vi.fn(), setPositionState: vi.fn() };
+    Object.defineProperty(navigator, 'mediaSession', { value: session, configurable: true });
+    (globalThis as any).MediaMetadata = class { constructor(init: any) { Object.assign(this, init); } };
+    return session;
+  };
+  afterEach(() => { delete (navigator as any).mediaSession; delete (globalThis as any).MediaMetadata; });
+
+  it('shows the playing dance, then "Rest Time" with the next dance, then the next dance again', async () => {
+    const session = install();
+    const first = withCover('first', '/covers/first.jpg'), second = withCover('second', '/covers/second.jpg');
+    await act(async () => { api.setSessionTracks([first, second] as any); api.loadTrack(first, false, true); }); await flush();
+    await tick(10);
+    expect(session.metadata.title).toBe('first');
+    expect(session.metadata.artwork[0].src).toContain('/cover.png'); // test mock of getTrackCover
+    expect(session.metadata.artwork.length).toBeGreaterThan(2); // several sizes + app icon
+    await tick(95.5); await flush(); expect(api.isPauseCountdown).toBe(true);
+    expect(session.metadata.title).toBe('Rest Time');
+    expect(session.metadata.artist).toBe('Next: second');
+    await tick(5); // the title stays fixed; it is not rewritten every second
+    expect(session.metadata.title).toBe('Rest Time');
+    await tick(10.5); await flush();
+    expect(api.isPauseCountdown).toBe(false);
+    expect(session.metadata.title).toBe('second');
+    expect(session.metadata.artwork[0].src).toContain('/cover.png');
+  });
+});

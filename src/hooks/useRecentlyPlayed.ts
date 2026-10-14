@@ -22,8 +22,8 @@ const readLocal = () => ({ ids: getRecentlyPlayedTrackIds(), times: getRecentlyP
  * History page hides account plays from before that moment (on this device).
  *
  * The order stays put while the list is on screen: a song tapped in the list
- * doesn't jump to the top under the finger; it moves there the next time the
- * list is opened. Songs that weren't in the list yet appear at the top.
+ * (or played from anywhere else) doesn't jump to the top under the finger; it
+ * moves there the next time the list is opened.
  */
 const cacheKey = (uid: number | string) => `4andone_recent_cloud_${uid}`;
 const readCache = (uid?: number | string | null): CloudPlay[] | null => {
@@ -123,15 +123,14 @@ export function useRecentlyPlayedState(limit = 50): { ids: string[]; ready: bool
 
   if (!ready) return { ids: fresh, ready };
   // Freeze the order once shown; redo it once if it was drawn before the
-  // account list existed on this device (slow first load).
+  // account list existed on this device (slow first load). Songs played while
+  // the list is on screen — including ones never played before and the very
+  // first play of an empty history — do NOT move or appear under the finger;
+  // they show up (at the top) the next time the list is opened.
   if (baseline === null || (!baseline.withCloud && cloud !== null)) {
-    if (fresh.length > 0) setBaseline({ ids: fresh, withCloud: cloud !== null }); // adjust state during render
+    setBaseline({ ids: fresh, withCloud: cloud !== null }); // adjust state during render
     return { ids: fresh, ready };
   }
   const inFresh = new Set(fresh);
-  const known = new Set(baseline.ids);
-  return {
-    ids: [...fresh.filter(id => !known.has(id)), ...baseline.ids.filter(id => inFresh.has(id))].slice(0, limit),
-    ready,
-  };
+  return { ids: baseline.ids.filter(id => inFresh.has(id)).slice(0, limit), ready };
 }

@@ -1,0 +1,37 @@
+name: Prepare and test iOS Finals audio change
+on:
+  push:
+    branches: [fix/ios-finals-audio-test-v2]
+    paths:
+      - scripts/patch-ios-finals-test-v2.cjs
+      - .github/workflows/prepare-ios-finals-test-v2.yml
+permissions:
+  contents: write
+concurrency:
+  group: ios-finals-test-v2-patch
+  cancel-in-progress: false
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - name: Apply exact-anchor patch
+        run: node scripts/patch-ios-finals-test-v2.cjs
+      - name: Install locked dependencies
+        run: npm ci
+      - name: Run regression tests
+        run: npm test
+      - name: Typecheck tests
+        run: npx tsc --noEmit -p tsconfig.test.json
+      - name: Commit validated source to the isolated branch
+        run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add src/components/audio/AudioProvider.tsx tests/audio-provider.test.tsx
+          git commit -m 'Persist opt-in iOS audio routing, show active engine, and stop overlapping heartbeat'
+          git push origin HEAD:refs/heads/fix/ios-finals-audio-test-v2

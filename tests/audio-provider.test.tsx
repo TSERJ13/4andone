@@ -276,6 +276,24 @@ describe('rendered Finals integration', () => {
     expect(playing()).toHaveLength(1); expect(playing()[0]).not.toBe(body); expect(playing()[0].playbackRate).toBe(1); // the faded ending took over
     await tick(2); expect(api.isPauseCountdown).toBe(true); // the dance still ends at exactly 105 s
   });
+  it('after a slowed dance the rest plays at normal speed, a speed change during the rest waits for the next dance, and the next dance starts at the new tempo', async () => {
+    await enableRenderedFinals(); const song = track('rest');
+    const now = () => elements.find(e => !states.get(e)!.paused && (e.src.includes('rest-15s') || e.src === 'blob:rendered-final'))!;
+    await act(async () => { api.setBpm(100); api.setSessionTracks([song, track('after')] as any); api.loadTrack(song, false, true); }); await flush();
+    await tick(10);
+    await act(async () => { api.setBpm(80); }); await tick(0.5); await flush();
+    await tick(95); await flush();
+    expect(api.isPauseCountdown).toBe(true); expect(now().src).toContain('rest-15s'); expect(now().playbackRate).toBe(1);
+    const before = renderState.requests.length;
+    await act(async () => { api.setBpm(90); }); await tick(1); await flush();
+    expect(now().src).toContain('rest-15s'); expect(now().playbackRate).toBe(1); expect(api.isPauseCountdown).toBe(true);
+    await tick(5); expect(now().src).toContain('rest-15s'); // the rest is not interrupted or restarted
+    expect(renderState.requests.at(-1)).toMatchObject({ percent: 90, elapsedStart: 0 });
+    expect(renderState.requests.length).toBeGreaterThan(before);
+    await tick(10); await flush();
+    expect(api.isPauseCountdown).toBe(false); expect(api.isPlaying).toBe(true); expect(api.title).toBe('after');
+    expect(now().playbackRate).toBe(1); expect(api.bpm).toBe(90);
+  });
   it('speeding up uses the instant rate and hands over before the prepared file runs out', async () => {
     await enableRenderedFinals(); const song = track('faster');
     await act(async () => { api.setBpm(95); api.setSessionTracks([song, track('next')] as any); api.loadTrack(song, false, true); }); await flush();

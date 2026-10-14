@@ -664,6 +664,7 @@ export const AudioProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     }
 
     // Standard Final Mode: start the 15s rest countdown before the next track.
+    finalsDiag(`REST starts · speed ${Math.round(bpmRef.current)}% · player rate ${(nativePlayerRef.current?.playbackRate ?? 0).toFixed(3)} · next dance prepared at ${Math.round(bpmRef.current)}%`);
     renderedFinalRef.current = null;
     renderPlanRef.current = null;
     prefetchRenderedRef.current(tracksList[currentIdx + 1]);
@@ -1756,6 +1757,7 @@ export const AudioProvider: React.FC<{ children: React.ReactNode }> = ({ childre
 
       if (currentToken !== loadingTokenRef.current) return;
 
+      if (renderPlan) finalsDiag(`${swapFrom ? 'hand-over done' : 'dance starts'} · file ${Math.round(renderedFinalRef.current?.percent ?? 0)}% · speed ${Math.round(bpmRef.current)}% · player rate ${(nativePlayerRef.current?.playbackRate ?? 0).toFixed(3)} · at ${finalsClockRef.current.elapsed.toFixed(1)}s`);
       // The speed may have been changed while this file was being handed over; apply it now
       // (an instant rate change on the new file, so the music keeps playing).
       if (renderPlan && isFinalModeRef.current && !isPauseCountdownRef.current) {
@@ -2143,6 +2145,7 @@ export const AudioProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   // Applies the tempo chosen in the speed control to a rendered dance (called after the taps/drags settle).
   const applyRenderedTempoRef = useRef<() => void>(() => {});
   applyRenderedTempoRef.current = () => {
+    if (isPauseCountdownRef.current) return; // the rest is never stretched; the next dance picks the tempo up
     const audio = nativePlayerRef.current;
     const track = playingTrackRef.current;
     if (!track) return;

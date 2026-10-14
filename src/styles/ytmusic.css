@@ -1788,6 +1788,8 @@
   flex-direction: column;
   padding: calc(10px + env(safe-area-inset-top, 0px)) 20px calc(14px + env(safe-area-inset-bottom, 0px)) 20px;
   overflow-y: auto;
+  /* Taller screens (home-screen app): spare height becomes equal gaps between the sections, header at the top and controls at the bottom. */
+  justify-content: space-between;
   transition: background 0.8s ease, box-shadow 0.8s ease;
 }
 
@@ -1834,9 +1836,6 @@
 .yt-mobile-stage {
   display: flex;
   justify-content: center;
-  align-items: center;
-  flex: 1 1 auto; /* spare height goes around the cover, so nothing is left empty at the bottom */
-  min-height: 0;
   margin-bottom: 14px;
 }
 

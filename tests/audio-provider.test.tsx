@@ -15,6 +15,21 @@ vi.mock('@/utils/renderFinalAudio', async (original) => {
       elapsedStart: request.elapsedStart ?? 0, duration: renderState.duration };
   }) };
 });
+const liveState = vi.hoisted(() => ({ calls: [] as string[], engines: 0 }));
+vi.mock('@/utils/finalsLiveEngine', async (original) => {
+  const actual = await original<typeof import('../src/utils/finalsLiveEngine')>();
+  class FakeEngine {
+    ctx: any; running = false; duration = 180; constructor(ctx: any) { this.ctx = ctx; liveState.engines++; }
+    get sourceDuration() { return this.duration; } get isRunning() { return this.running; } get ready() { return true; }
+    async decodeAndLoad(_u: string, key: string) { liveState.calls.push('load ' + key); }
+    async start(o: any) { this.running = true; liveState.calls.push(`start ${o.percent} @${o.sourceStart} slot ${Math.round(o.slotSeconds)}`); return 0; }
+    setRate(p: number) { if (this.running) liveState.calls.push('rate ' + p); return Promise.resolve(); }
+    async pause() { if (this.running) { this.running = false; liveState.calls.push('pause'); } }
+    async resume(slot: number) { if (!this.running) { this.running = true; liveState.calls.push('resume ' + Math.round(slot)); } }
+    setVolume() {} stop() { this.running = false; liveState.calls.push('stop'); } dispose() {}
+  }
+  return { ...actual, FinalsLiveEngine: FakeEngine };
+});
 vi.mock('@/utils/storage', () => ({ getAudioFile: async () => null }));
 vi.mock('@/utils/history', () => ({ recordTrackPlayed: vi.fn() }));
 vi.mock('@/utils/trackCover', () => ({ getTrackCover: () => '/cover.png' }));
@@ -45,7 +60,7 @@ async function tick(seconds: number) {
 beforeEach(async () => {
   vi.useFakeTimers(); elements = []; states = new Map(); localStorage.clear();
   window.history.replaceState(null, '', '/');
-  renderState.duration = 105; renderState.fail = false; renderState.requests = []; renderState.gate = null;
+  renderState.duration = 105; renderState.fail = false; renderState.requests = []; renderState.gate = null; liveState.calls = []; liveState.engines = 0;
   (globalThis as any).IS_REACT_ACT_ENVIRONMENT = true;
   URL.createObjectURL = vi.fn((blob: Blob) => blob.type === 'audio/wav' ? 'blob:rendered-final' : 'blob:test'); URL.revokeObjectURL = vi.fn();
   vi.stubGlobal('Worker', class { postMessage() {} terminate() {} onmessage = null; });
@@ -341,6 +356,41 @@ async function renderIosDefault() {
   window.history.replaceState(null, '', '/'); // no test flag: production behaviour
   await act(async () => { root.render(<AudioProvider key={'ios-default-' + Math.random()}><Probe /></AudioProvider>); });
 }
+describe('live Finals engine (?finalsLive=1)', () => {
+  const enableLive = async () => {
+    vi.stubGlobal('AudioContext', class { state = 'running'; sampleRate = 48000; currentTime = 0; destination = {};
+      resume = async () => {}; createBuffer() { return {}; } createBufferSource() { return { connect() {}, start() {}, buffer: null }; } close = async () => {}; });
+    window.history.replaceState(null, '', '/?finalsRender=1&finalsLive=1');
+    await act(async () => { root.render(<AudioProvider key="live-mode"><Probe /></AudioProvider>); });
+  };
+  it('changes speed on the running engine: no new file, no reload, the timeline element keeps playing', async () => {
+    await enableLive(); const song = track('live');
+    await act(async () => { api.setBpm(95); api.setSessionTracks([song, track('next')] as any); api.loadTrack(song, false, true); }); await flush();
+    expect(renderState.requests).toHaveLength(0); // nothing is rendered
+    expect(liveState.calls.some(c => c.startsWith('start 95'))).toBe(true);
+    await tick(10);
+    const body = active();
+    await act(async () => { api.setBpm(80); }); await tick(0.5); await flush();
+    expect(liveState.calls).toContain('rate 80'); expect(renderState.requests).toHaveLength(0);
+    expect(active()).toBe(body); expect(body.playbackRate).toBe(1); expect(api.isPlaying).toBe(true);
+    await tick(60); expect(active()).toBe(body); expect(Math.abs(api.currentTime - 70.5)).toBeLessThan(1.5);
+  });
+  it('pauses and resumes the engine with the element, then stops it at the rest and starts the next dance', async () => {
+    await enableLive(); const song = track('livepause');
+    await act(async () => { api.setBpm(90); api.setSessionTracks([song, track('after')] as any); api.loadTrack(song, false, true); }); await flush();
+    await tick(5);
+    await act(async () => { await api.togglePlay(); }); await flush();
+    expect(liveState.calls).toContain('pause');
+    await act(async () => { await api.togglePlay(); }); await flush();
+    expect(liveState.calls.some(c => c.startsWith('resume'))).toBe(true);
+    await tick(101); await flush();
+    expect(api.isPauseCountdown).toBe(true); expect(liveState.calls).toContain('stop');
+    const startsBefore = liveState.calls.filter(c => c.startsWith('start')).length;
+    await tick(16); await flush();
+    expect(api.isPauseCountdown).toBe(false); expect(api.title).toBe('after');
+    expect(liveState.calls.filter(c => c.startsWith('start')).length).toBe(startsBefore + 1);
+  });
+});
 describe('rendered Finals is the default on iPhone', () => {
   beforeEach(() => { rolloutState.defaultOnApple = true; });
   afterEach(() => { rolloutState.defaultOnApple = true; });

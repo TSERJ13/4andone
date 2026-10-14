@@ -41,7 +41,7 @@ export function renderedSourcePosition(segment: Omit<RenderedFinalAudio, 'blob'>
   return (segment.sourceStart + Math.max(0, seconds) * playbackRateFor(segment.percent)) % duration;
 }
 
-async function readAudio(url: string, signal: AbortSignal): Promise<ArrayBuffer> {
+export async function readAudio(url: string, signal: AbortSignal): Promise<ArrayBuffer> {
   const controller = new AbortController();
   const cancel = () => controller.abort();
   signal.addEventListener('abort', cancel, { once: true });

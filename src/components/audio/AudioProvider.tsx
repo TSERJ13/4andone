@@ -5,7 +5,8 @@ import { requestPitchPreservation } from '@/utils/mediaPitch';
 import { getAudioFile } from '@/utils/storage';
 import { setElementVolume } from '@/utils/mediaControls';
 import { isNativeFinalTestEnabled } from '@/utils/iosFinalDiagnostic';
-import { isRenderedFinalTestEnabled, isRenderedFinalEnabled } from '@/utils/renderedFinalTest';
+import { isRenderedFinalTestEnabled, isRenderedFinalEnabled, isLiveFinalEnabled } from '@/utils/renderedFinalTest';
+import { FinalsLiveEngine, silentWav } from '@/utils/finalsLiveEngine';
 import { renderFinalAudio, renderedSourcePosition, clearFinalRenderCache, type RenderedFinalAudio, type FinalRenderPlan } from '@/utils/renderFinalAudio';
 import RenderedFinalAudioBadge from './RenderedFinalAudioBadge';
 import { finalsDiag } from '@/utils/finalsDiag';
@@ -228,8 +229,90 @@ export const AudioProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   const spareUnlockedRef = useRef(false);
   const stallRef = useRef({ pos: 0, since: 0 });
   const swapPendingRef = useRef(false); // old element still plays; the new one must not touch the shared clock
+  // Live Finals engine (opt-in, ?finalsLive=1): the music is stretched while it plays, so a speed change is a
+  // parameter change and never stops or reloads anything. The element only carries the silent 1:45 timeline.
+  const liveCtxRef = useRef<AudioContext | null>(null);
+  const liveEngineRef = useRef<FinalsLiveEngine | null>(null);
+  const liveActiveRef = useRef(false);   // the live engine makes the sound of the current dance
+  const liveStartedRef = useRef(false);
+  const liveSourceStartRef = useRef(0);
+  const liveListenersRef = useRef<{ el: HTMLAudioElement; pause: () => void; play: () => void } | null>(null);
+  const ensureLiveContext = (): AudioContext | null => {
+    if (typeof window === 'undefined') return null;
+    let ctx = liveCtxRef.current;
+    if (!ctx || ctx.state === 'closed') {
+      const Ctx: typeof AudioContext | undefined = window.AudioContext || (window as any).webkitAudioContext;
+      if (!Ctx) return null;
+      try { ctx = new Ctx({ latencyHint: 'playback' }); } catch { return null; }
+      liveCtxRef.current = ctx;
+      liveEngineRef.current = null;
+    }
+    if (ctx.state !== 'running') { try { void ctx.resume().catch(() => {}); } catch { /* ignore */ } }
+    try { // iPhone only starts audio from inside a tap: a silent buffer unlocks the context
+      const buffer = ctx.createBuffer(1, 1, ctx.sampleRate || 44100);
+      const source = ctx.createBufferSource();
+      source.buffer = buffer; source.connect(ctx.destination); source.start(0);
+    } catch { /* cosmetic */ }
+    return ctx;
+  };
+  const stopLive = () => {
+    const l = liveListenersRef.current;
+    if (l) { l.el.removeEventListener('pause', l.pause); l.el.removeEventListener('play', l.play); liveListenersRef.current = null; }
+    if (liveActiveRef.current) { try { liveEngineRef.current?.stop(); } catch { /* ignore */ } }
+    liveActiveRef.current = false;
+    liveStartedRef.current = false;
+  };
+  // Starts the music (first time) or continues it (after a pause), in step with the timeline element.
+  const startOrResumeLive = () => {
+    const engine = liveEngineRef.current;
+    if (!liveActiveRef.current || !engine) return;
+    const slot = FINAL_DANCE_SECONDS - finalsClockRef.current.elapsed;
+    if (!liveStartedRef.current) {
+      liveStartedRef.current = true;
+      finalsDiag(`live music starts · source ${liveSourceStartRef.current.toFixed(1)}s · ${Math.round(bpmRef.current)}% · fade in ${Math.max(0, slot - FINAL_FADE_SECONDS).toFixed(0)}s`);
+      engine.start({ sourceStart: liveSourceStartRef.current, percent: bpmRef.current, slotSeconds: slot, volume: volumeRef.current })
+        .catch(error => finalsDiag(`live start FAILED: ${String((error as any)?.message || error).slice(0, 60)}`));
+    } else {
+      void engine.resume(slot);
+    }
+  };
+  const attachLive = (el: HTMLAudioElement) => {
+    const old = liveListenersRef.current;
+    if (old) { old.el.removeEventListener('pause', old.pause); old.el.removeEventListener('play', old.play); }
+    const handlers = {
+      el,
+      pause: () => { if (liveActiveRef.current) void liveEngineRef.current?.pause(); },
+      play: () => startOrResumeLive(),
+    };
+    el.addEventListener('pause', handlers.pause);
+    el.addEventListener('play', handlers.play);
+    liveListenersRef.current = handlers;
+  };
   prefetchRenderedRef.current = (track: any) => {
     if (renderDisabledRef.current || !isRenderedFinalEnabled() || !track?.audioUrl) return;
+    if (isLiveFinalEnabled() && liveCtxRef.current) {
+      // Live engine: decode the next recording during the rest so the dance starts without waiting.
+      prefetchAbortRef.current?.abort();
+      const controller = new AbortController();
+      prefetchAbortRef.current = controller;
+      (async () => {
+        let url: string = track.audioUrl; let local: string | null = null;
+        try {
+          const cached = track.id ? await getAudioFile(track.id) : null;
+          if (cached && cached.size > 0) { local = URL.createObjectURL(cached); url = local; }
+        } catch { /* signed URL */ }
+        try {
+          if (!local) url = await resolvePlaybackUrl(url);
+          if (!url) return;
+          const ctx = liveCtxRef.current!;
+          let engine = liveEngineRef.current;
+          if (!engine) { engine = new FinalsLiveEngine(ctx); liveEngineRef.current = engine; }
+          await engine.decodeAndLoad(url, String(track.id) + '|' + String(track.audioUrl), controller.signal);
+          finalsDiag('next recording decoded during the rest');
+        } finally { if (local) URL.revokeObjectURL(local); }
+      })().catch(() => { /* the real load repeats this and reports its own error */ });
+      return;
+    }
     prefetchAbortRef.current?.abort();
     const controller = new AbortController();
     prefetchAbortRef.current = controller;
@@ -459,6 +542,7 @@ export const AudioProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     } else if (nativePlayerRef.current) {
       setElementVolume(nativePlayerRef.current, v, isVolumeWritable());
     }
+    if (liveActiveRef.current) liveEngineRef.current?.setVolume(v);
   }, []);
 
   // Cancel any in-flight fade and restore normal loudness (new track, seek back, stop…)
@@ -667,6 +751,7 @@ export const AudioProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     finalsDiag(`REST starts · speed ${Math.round(bpmRef.current)}% · player rate ${(nativePlayerRef.current?.playbackRate ?? 0).toFixed(3)} · next dance prepared at ${Math.round(bpmRef.current)}%`);
     renderedFinalRef.current = null;
     renderPlanRef.current = null;
+    stopLive(); // the rest is plain audio; the live music is over
     prefetchRenderedRef.current(tracksList[currentIdx + 1]);
     setIsPauseCountdown(true);
     isPauseCountdownRef.current = true;
@@ -1095,6 +1180,7 @@ export const AudioProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         }
         unlockSpareElementRef.current(); // also inside this tap
       }
+      if (!seamless && isLiveFinalEnabled() && isFinalModeRef.current && !isFitnessRef.current) ensureLiveContext(); // inside the tap
 
       // AD BREAK ON TAP: after 5 tracks the next track the user picks does
       // not start yet — the sponsored strip shows (site stays visible), then
@@ -1185,7 +1271,7 @@ export const AudioProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         setPauseTime(15);
         pauseTimeRef.current = 15;
         finalEndHandledRef.current = false; // Allow end-handling for the new track
-        if (!seamless) finalsClockRef.current.reset(startAt, playbackRateFor(bpmRef.current), initialElapsed);
+        if (!seamless) { finalsClockRef.current.reset(startAt, playbackRateFor(bpmRef.current), initialElapsed); stopLive(); }
         currentTrackQualifiedRef.current = false;
       };
 
@@ -1271,6 +1357,7 @@ export const AudioProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       }
 
       if (renderPlan) {
+        const liveRoute = isLiveFinalEnabled();
         const controller = new AbortController();
         renderAbortRef.current = controller;
         const request = { url: finalUrl, cacheKey: String(track.id) + '|' + String(track.audioUrl), percent: renderPlan.percent,
@@ -1289,13 +1376,26 @@ export const AudioProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         });
         deadline.catch(() => { /* reported through the race below */ });
         try {
+          if (liveRoute) {
+            // Live engine: decode the recording; the element only carries the silent timeline.
+            const ctx = ensureLiveContext();
+            if (!ctx) throw new Error('Live audio is unavailable in this browser');
+            let engine = liveEngineRef.current;
+            if (!engine || engine.ctx !== ctx) { engine = new FinalsLiveEngine(ctx); liveEngineRef.current = engine; }
+            const startedAt = Date.now();
+            await Promise.race([engine.decodeAndLoad(finalUrl, request.cacheKey, controller.signal), deadline]);
+            finalsDiag(`live engine ready in ${((Date.now() - startedAt) / 1000).toFixed(1)}s · audio ${ctx.state} · ${Math.round(ctx.sampleRate)} Hz`);
+            const slot = FINAL_DANCE_SECONDS - renderPlan.elapsedStart;
+            prepared = { blob: silentWav(slot), percent: 100, sourceStart: renderPlan.sourceStart,
+              sourceDuration: engine.sourceDuration, elapsedStart: renderPlan.elapsedStart, duration: slot };
+          }
           // Reuse the dance prepared during the rest when tempo and start are unchanged.
           const early = prefetchRef.current;
           prefetchRef.current = null;
           const wanted = [track.id, track.audioUrl, renderPlan.percent].join('|');
           if (early && early.key === wanted && renderPlan.sourceStart === 0 && renderPlan.elapsedStart === 0) {
             try { prepared = await Promise.race([early.promise, deadline]); } catch { prepared = undefined; }
-          } else {
+          } else if (!liveRoute) {
             prefetchAbortRef.current?.abort();
           }
           if (currentToken !== loadingTokenRef.current || (controller.signal.aborted && !timedOut)) return;
@@ -1326,6 +1426,11 @@ export const AudioProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         finalUrl = URL.createObjectURL(prepared.blob);
         activeBlobUrlRef.current = finalUrl;
         renderedFinalRef.current = prepared;
+        if (liveRoute) {
+          liveActiveRef.current = true;
+          liveStartedRef.current = false;
+          liveSourceStartRef.current = renderPlan.sourceStart;
+        }
         const into = opts?.prepared === prepared && Number.isFinite(opts?.preparedOffset) ? Math.max(0, opts!.preparedOffset!) : 0;
         startAt = into;
         if (!seamless) finalsClockRef.current.reset(into, 1, prepared.elapsedStart + into);
@@ -1748,6 +1853,10 @@ export const AudioProvider: React.FC<{ children: React.ReactNode }> = ({ childre
           });
           setIsPlaying(true);
         }
+        if (liveActiveRef.current && renderPlan) {
+          attachLive(audio);
+          if (!audio.paused && !opts?.paused) startOrResumeLive();
+        }
       } catch (e: any) {
         if (currentToken !== loadingTokenRef.current || e.message === "Loading cancelled by new request") return;
         setError(e.message || "File Unreachable");
@@ -2146,6 +2255,14 @@ export const AudioProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   const applyRenderedTempoRef = useRef<() => void>(() => {});
   applyRenderedTempoRef.current = () => {
     if (isPauseCountdownRef.current) return; // the rest is never stretched; the next dance picks the tempo up
+    if (liveActiveRef.current) {
+      // Live engine: the tempo is a parameter of the running processor. Nothing is rendered, swapped or reloaded.
+      if (liveStartedRef.current) {
+        finalsDiag(`speed → ${Math.round(bpmRef.current)}% (live, no reload)`);
+        void liveEngineRef.current?.setRate(bpmRef.current);
+      }
+      return;
+    }
     const audio = nativePlayerRef.current;
     const track = playingTrackRef.current;
     if (!track) return;
@@ -2445,6 +2562,7 @@ export const AudioProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     prefetchRef.current = null;
     renderedFinalRef.current = null;
     renderPlanRef.current = null;
+    stopLive();
     clearFinalRenderCache();
     loadingTokenRef.current += 1; // Invalidate any pending async callbacks like onerror
     if (nativePlayerRef.current) {

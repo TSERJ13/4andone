@@ -2087,6 +2087,37 @@ export const AudioProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     }
   }, [isLoaded, playAudio, pauseAudio]);
 
+  // The second element only plays from a real tap on iPhone. A tap during Finals (opening the
+  // speed card, touching the slider...) is enough, so unlock it on the first one.
+  const unlockSpareElementRef = useRef<() => void>(() => {});
+  unlockSpareElementRef.current = () => {
+    if (spareUnlockedRef.current || typeof document === 'undefined') return;
+    try {
+      let spare = spareElementRef.current;
+      if (!spare) {
+        spare = new Audio();
+        spare.crossOrigin = 'anonymous';
+        spare.style.display = 'none';
+        document.body.appendChild(spare);
+        spareElementRef.current = spare;
+      }
+      if (!spare.paused) return; // an unlock is already running
+      const el = spare;
+      el.src = SILENT_WAV;
+      el.play().then(() => { spareUnlockedRef.current = true; el.pause(); finalsDiag('second element unlocked'); })
+        .catch(() => { finalsDiag('second element unlock refused'); });
+    } catch { /* the swap then falls back to reloading */ }
+  };
+  useEffect(() => {
+    const onTap = () => {
+      if (spareUnlockedRef.current) return;
+      if (isFinalModeRef.current || isPlayingRef.current) unlockSpareElementRef.current();
+    };
+    const events = ['touchend', 'pointerup', 'click'] as const;
+    events.forEach(e => document.addEventListener(e, onTap, true));
+    return () => events.forEach(e => document.removeEventListener(e, onTap, true));
+  }, []);
+
   // Applies the tempo chosen in the speed control to a rendered dance (called after the taps/drags settle).
   const applyRenderedTempoRef = useRef<() => void>(() => {});
   applyRenderedTempoRef.current = () => {
@@ -2140,6 +2171,7 @@ export const AudioProvider: React.FC<{ children: React.ReactNode }> = ({ childre
           finalsDiag(`render done in ${((Date.now() - renderStartedAt) / 1000).toFixed(1)}s`);
           const stale = () => controller.signal.aborted || seq !== retempoSeqRef.current || token !== loadingTokenRef.current;
           if (stale()) return;
+          let sameLogged = false;
           const swap = () => {
             if (stale()) return;
             const a = nativePlayerRef.current;
@@ -2150,7 +2182,7 @@ export const AudioProvider: React.FC<{ children: React.ReactNode }> = ({ childre
               loadTrackRef.current(track, true, true, { renderFinal: true, prepared: next, finalElapsed: next.elapsedStart });
               return;
             }
-            finalsDiag('swap: SAME element (no spare)');
+            if (!sameLogged) { sameLogged = true; finalsDiag('swap: SAME element (no spare) - music will stop while it loads'); }
             const now = finalsClockRef.current.sample(a.currentTime, a.duration);
             if (now < startElapsed - 0.25 && !isPauseCountdownRef.current) { setTimeout(swap, 50); return; }
             const offset = Math.max(0, now - next.elapsedStart);

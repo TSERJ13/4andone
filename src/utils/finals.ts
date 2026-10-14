@@ -7,13 +7,19 @@ export function playbackRateFor(percent: number): number {
   return Number.isFinite(percent) ? Math.min(150, Math.max(50, percent)) / 100 : 1;
 }
 
-/** Tempo changes must never transpose the recording, including the gain path. */
+/** Request pitch-preserving tempo without repeatedly reconfiguring the native
+ * player. The flags are a browser request, not an acoustic quality measurement.
+ * Never disable pitch preservation as a workaround for crackle.
+ */
 export function setMusicTempo(audio: HTMLMediaElement, percent: number): void {
   const rate = playbackRateFor(percent);
-  audio.preservesPitch = true;
-  (audio as HTMLMediaElement & { webkitPreservesPitch?: boolean }).webkitPreservesPitch = true;
-  audio.defaultPlaybackRate = rate;
-  if (Math.abs(audio.playbackRate - rate) > 0.0001) audio.playbackRate = rate;
+  if (audio.preservesPitch !== true) audio.preservesPitch = true;
+  const legacy = audio as HTMLMediaElement & { webkitPreservesPitch?: boolean };
+  if (legacy.webkitPreservesPitch !== true) legacy.webkitPreservesPitch = true;
+  if (audio.defaultPlaybackRate !== rate) audio.defaultPlaybackRate = rate;
+  if (!Number.isFinite(audio.playbackRate) || Math.abs(audio.playbackRate - rate) > 0.0001) {
+    audio.playbackRate = rate;
+  }
 }
 
 /** Played seconds, independent of tempo. No progress while paused/buffering.

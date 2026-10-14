@@ -1,0 +1,37 @@
+name: Validate Finals native control stability
+on:
+  push:
+    branches: [fix/finals-native-pitch-stability]
+    paths:
+      - scripts/patch-finals-native-stability.cjs
+      - .github/workflows/prepare-finals-native-stability.yml
+permissions:
+  contents: write
+concurrency:
+  group: finals-native-control-stability
+  cancel-in-progress: false
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
+        with:
+          node-version: 22
+          cache: npm
+      - name: Apply guarded source changes
+        run: node scripts/patch-finals-native-stability.cjs
+      - name: Install locked dependencies
+        run: npm ci
+      - name: Run full regression suite
+        run: npm test
+      - name: Typecheck tests and their imports
+        run: npx tsc --noEmit -p tsconfig.test.json
+      - name: Commit validated edits to the isolated branch
+        run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add src/components/audio/AudioProvider.tsx src/components/audio/IosFinalAudioTestBadge.tsx tests/audio-provider.test.tsx
+          git commit -m 'Avoid unsupported native volume writes during Finals and clarify pitch diagnostics'
+          git push origin HEAD:refs/heads/fix/finals-native-pitch-stability

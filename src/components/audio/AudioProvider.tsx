@@ -108,7 +108,8 @@ const lockScreenArtwork = (coverPath: string): MediaImage[] => [
 ];
 export const REST_TITLE = 'Rest Time';
 export const FINAL_LOCK_TITLE = 'Final Mode';
-export const FINAL_LOCK_COVER = '/logo-3d.png';
+// Opaque black square: the transparent logo shows on a WHITE background on the iPhone lock screen.
+export const FINAL_LOCK_COVER = '/logo-lockscreen.png';
 
 // FINAL MODE ON THE LOCK SCREEN: the whole program looks like ONE item (title
 // "Final Mode", the site logo, total time). The in-app list is unchanged.
@@ -198,6 +199,10 @@ export const AudioProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   const prefetchRenderedRef = useRef<(track: any) => void>(() => {});
   // Set after a render failure: the rest of this session uses the previous audio route.
   const renderDisabledRef = useRef(false);
+  // Speed change while playing: the new tempo is prepared in the background while the music keeps playing.
+  const lastRenderSourceRef = useRef<{ trackId: string | undefined; url: string; cacheKey: string } | null>(null);
+  const retempoAbortRef = useRef<AbortController | null>(null);
+  const retempoSeqRef = useRef(0);
   prefetchRenderedRef.current = (track: any) => {
     if (renderDisabledRef.current || !isRenderedFinalEnabled() || !track?.audioUrl) return;
     prefetchAbortRef.current?.abort();
@@ -544,7 +549,7 @@ export const AudioProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   //  3. Short tracks: this is reached via onended for tracks shorter than 1:45 too.
   // NOTE: loadTrack and stop are defined later in this component, so we call them
   // through refs to avoid the temporal-dead-zone / stale-closure problem.
-  type LoadOptions = { startAt?: number; paused?: boolean; fromRest?: boolean; finalElapsed?: number; renderFinal?: boolean; legacyFinal?: boolean };
+  type LoadOptions = { startAt?: number; paused?: boolean; fromRest?: boolean; finalElapsed?: number; renderFinal?: boolean; legacyFinal?: boolean; prepared?: RenderedFinalAudio; preparedOffset?: number };
   const loadTrackRef = useRef<(track: any, isRetry?: boolean, forceFinalMode?: boolean, opts?: LoadOptions) => void>(() => {});
   const stopRef = useRef<() => void>(() => {});
 
@@ -1003,6 +1008,8 @@ export const AudioProvider: React.FC<{ children: React.ReactNode }> = ({ childre
 
     cancelLoadRef.current?.();
     renderAbortRef.current?.abort();
+    retempoAbortRef.current?.abort();
+    retempoSeqRef.current++;
     const currentToken = ++loadingTokenRef.current;
     isPlayingRef.current = false;
     monitorPlaybackRef.current = null;
@@ -1030,6 +1037,22 @@ export const AudioProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         pauseDeadlineRef.current = 0;
       }
       finalEndHandledRef.current = false;
+
+      // iPhone only lets an element start playing from a tap. Preparing a rendered dance
+      // takes a few seconds, so by then the tap is over and play() is refused ("press Play
+      // again"). Start the element silently right now, inside the tap; the real audio
+      // replaces it as soon as it is ready and is then allowed to play.
+      if (isFinalModeRef.current && !isFitnessRef.current && !opts?.paused && !renderDisabledRef.current
+          && opts?.legacyFinal !== true && (opts?.renderFinal === true || isRenderedFinalEnabled())) {
+        const unlock = plainPlayerRef.current;
+        if (unlock && unlock.paused) {
+          try {
+            unlock.src = SILENT_WAV;
+            unlock.loop = true;
+            unlock.play().catch(() => { /* not from a tap (e.g. auto-advance): nothing to unlock */ });
+          } catch { /* cosmetic */ }
+        }
+      }
 
       // AD BREAK ON TAP: after 5 tracks the next track the user picks does
       // not start yet — the sponsored strip shows (site stays visible), then
@@ -1205,6 +1228,7 @@ export const AudioProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         renderAbortRef.current = controller;
         const request = { url: finalUrl, cacheKey: String(track.id) + '|' + String(track.audioUrl), percent: renderPlan.percent,
           sourceStart: renderPlan.sourceStart, elapsedStart: renderPlan.elapsedStart, signal: controller.signal };
+        lastRenderSourceRef.current = { trackId: track.id, url: request.url, cacheKey: request.cacheKey };
         let prepared: RenderedFinalAudio | undefined;
         // A browser that never finishes preparing must not leave Finals loading forever.
         let timedOut = false;
@@ -1228,6 +1252,7 @@ export const AudioProvider: React.FC<{ children: React.ReactNode }> = ({ childre
             prefetchAbortRef.current?.abort();
           }
           if (currentToken !== loadingTokenRef.current || (controller.signal.aborted && !timedOut)) return;
+          if (!prepared && opts?.prepared) prepared = opts.prepared; // already prepared while the old tempo kept playing
           if (!prepared) prepared = await Promise.race([renderFinalAudio(request), deadline]);
         } catch (renderError: any) {
           if (currentToken !== loadingTokenRef.current || (!timedOut && (controller.signal.aborted || renderError?.name === 'AbortError'))) return;
@@ -1250,8 +1275,9 @@ export const AudioProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         finalUrl = URL.createObjectURL(prepared.blob);
         activeBlobUrlRef.current = finalUrl;
         renderedFinalRef.current = prepared;
-        startAt = 0;
-        finalsClockRef.current.reset(0, 1, prepared.elapsedStart);
+        const into = opts?.prepared === prepared && Number.isFinite(opts?.preparedOffset) ? Math.max(0, opts!.preparedOffset!) : 0;
+        startAt = into;
+        finalsClockRef.current.reset(into, 1, prepared.elapsedStart + into);
       }
 
       const setupPlayer = (url: string) => {
@@ -2009,6 +2035,57 @@ export const AudioProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         paused = audio.paused;
       }
       if (elapsed >= FINAL_DANCE_SECONDS) return;
+      const reload = () => {
+        const a = nativePlayerRef.current, pr = renderedFinalRef.current, pl = renderPlanRef.current;
+        let pos = pl?.sourceStart ?? a?.currentTime ?? 0;
+        let el = pl?.elapsedStart ?? finalsClockRef.current.elapsed;
+        let pz = pl?.paused ?? a?.paused ?? false;
+        if (pr && pl?.ready && a) {
+          el = finalsClockRef.current.sample(a.currentTime, a.duration);
+          pos = renderedSourcePosition(pr, a.currentTime);
+          pz = a.paused;
+        }
+        if (el >= FINAL_DANCE_SECONDS) return;
+        loadTrackRef.current(track, true, true, { startAt: pos, finalElapsed: el, paused: pz, renderFinal: true });
+      };
+      // PLAYING: keep the music going while the new tempo is prepared, then switch at the
+      // same musical spot. A few seconds ahead of the playhead is prepared; the switch
+      // happens when the playhead gets there (or right away, inside the file, if late).
+      const source = lastRenderSourceRef.current;
+      const RETEMPO_LEAD = 4;
+      const startElapsed = elapsed + RETEMPO_LEAD;
+      if (!paused && audio && prepared && plan?.ready && source && source.trackId === track.id
+          && startElapsed < FINAL_DANCE_SECONDS - FINAL_FADE_SECONDS - 3) {
+        retempoAbortRef.current?.abort();
+        const controller = new AbortController();
+        retempoAbortRef.current = controller;
+        const seq = ++retempoSeqRef.current;
+        const token = loadingTokenRef.current;
+        const startSource = position + RETEMPO_LEAD * playbackRateFor(prepared.percent);
+        renderFinalAudio({ url: source.url, cacheKey: source.cacheKey, percent: bpmRef.current,
+          sourceStart: startSource, elapsedStart: startElapsed, signal: controller.signal })
+          .then(next => {
+            const stale = () => controller.signal.aborted || seq !== retempoSeqRef.current || token !== loadingTokenRef.current;
+            if (stale()) return;
+            const swap = () => {
+              if (stale()) return;
+              const a = nativePlayerRef.current;
+              if (!a || a.paused) { reload(); return; } // paused meanwhile: continue paused
+              const now = finalsClockRef.current.sample(a.currentTime, a.duration);
+              if (now < startElapsed - 0.25 && !isPauseCountdownRef.current) { setTimeout(swap, 50); return; }
+              const offset = Math.max(0, now - next.elapsedStart);
+              if (offset >= next.duration - 1) { reload(); return; }
+              loadTrackRef.current(track, true, true, { startAt: 0, finalElapsed: now, renderFinal: true, prepared: next, preparedOffset: offset });
+            };
+            swap();
+          })
+          .catch(error => {
+            if (controller.signal.aborted || seq !== retempoSeqRef.current) return;
+            console.warn('[AUDIO-ENGINE] Seamless tempo change failed; reloading:', error);
+            reload();
+          });
+        return;
+      }
       loadTrackRef.current(track, true, true, { startAt: position, finalElapsed: elapsed, paused, renderFinal: true });
       return;
     }

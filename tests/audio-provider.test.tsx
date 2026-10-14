@@ -118,3 +118,38 @@ describe('iOS gain-path regression', () => {
     } finally { ua.mockRestore(); }
   });
 });
+
+
+describe('iOS native Finals test entry and media cleanup', () => {
+  it('retains native routing after navigation and displays the actual audio route', async () => {
+    const ua = vi.spyOn(navigator, 'userAgent', 'get').mockReturnValue('Mozilla/5.0 (iPhone; CPU iPhone OS 18_0 like Mac OS X)');
+    const createContext = vi.fn();
+    vi.stubGlobal('AudioContext', createContext);
+    try {
+      window.history.replaceState(null, '', '/?iosFinalNative=1');
+      await act(async () => { root.render(<AudioProvider key="ios-native-test"><Probe /></AudioProvider>); });
+      window.history.pushState(null, '', '/library/finals');
+      await act(async () => { api.setBpm(95); api.setSessionTracks([track('native')] as any); api.loadTrack(track('native'), false, true); });
+      await flush();
+      expect(createContext).not.toHaveBeenCalled();
+      expect(active().playbackRate).toBe(.95);
+      expect(active().preservesPitch).toBe(true);
+      const badge = document.querySelector('[data-testid="ios-finals-audio-test"]');
+      expect(badge?.getAttribute('data-audio-route')).toBe('NATIVE');
+      expect(badge?.textContent).toContain('FINALS');
+      expect(badge?.textContent).toContain('95%');
+    } finally {
+      window.history.replaceState(null, '', '/');
+      ua.mockRestore();
+    }
+  });
+  it('stops the heartbeat when a track is automatically started', async () => {
+    await act(async () => { document.dispatchEvent(new Event('mousedown')); });
+    const heartbeat = elements.find(e => e.src.startsWith('data:audio/wav'))!;
+    expect(heartbeat.paused).toBe(false);
+    await act(async () => { api.loadTrack(track('auto'), false, true); });
+    await flush();
+    expect(active().paused).toBe(false);
+    expect(heartbeat.paused).toBe(true);
+  });
+});

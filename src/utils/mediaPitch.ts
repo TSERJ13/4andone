@@ -6,8 +6,8 @@ type PitchMedia = HTMLMediaElement & { webkitPreservesPitch?: boolean };
  */
 export function requestPitchPreservation(audio: HTMLMediaElement): void {
   const media = audio as PitchMedia;
-  if ('preservesPitch' in media) media.preservesPitch = true;
-  if ('webkitPreservesPitch' in media) media.webkitPreservesPitch = true;
+  if ('preservesPitch' in media && media.preservesPitch !== true) media.preservesPitch = true;
+  if ('webkitPreservesPitch' in media && media.webkitPreservesPitch !== true) media.webkitPreservesPitch = true;
 }
 
 export function readPitchConfiguration(audio: HTMLMediaElement | null): 'ON' | 'OFF' | 'UNKNOWN' | 'MIXED' {

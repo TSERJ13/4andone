@@ -160,3 +160,61 @@ describe('iOS native Finals test entry and media cleanup', () => {
     expect(heartbeat.paused).toBe(true);
   });
 });
+
+
+describe('Finals native media-control stability', () => {
+  it('never writes native iOS volume through tempo, pause, fade and rest transitions', async () => {
+    const ua = vi.spyOn(navigator, 'userAgent', 'get').mockReturnValue('Mozilla/5.0 (iPhone; CPU iPhone OS 18_0 like Mac OS X)');
+    const createContext = vi.fn();
+    vi.stubGlobal('AudioContext', createContext);
+    const volumeWrite = vi.fn();
+    const plain = elements[0];
+    Object.defineProperty(plain, 'volume', { configurable: true, get: () => 1, set: volumeWrite });
+    try {
+      window.history.replaceState(null, '', '/?iosFinalNative=1');
+      await act(async () => { api.setBpm(95); api.setSessionTracks([track('native-a'), track('native-b')] as any); api.loadTrack(track('native-a'), false, true); });
+      await flush();
+      expect(createContext).not.toHaveBeenCalled();
+      expect(active()).toBe(plain);
+      await tick(10);
+      await act(async () => { api.setVolume(.4); await api.togglePlay(); });
+      await tick(5);
+      expect(api.isPlaying).toBe(false);
+      await act(async () => { await api.togglePlay(); api.setBpm(80); });
+      await tick(95);
+      expect(api.isPauseCountdown).toBe(true);
+      expect(active().playbackRate).toBe(1);
+      await tick(15);
+      expect(api.isPauseCountdown).toBe(false);
+      expect(api.title).toBe('native-b');
+      expect(active().playbackRate).toBe(.8);
+      expect(active().preservesPitch).toBe(true);
+      expect(volumeWrite).not.toHaveBeenCalled();
+    } finally {
+      window.history.replaceState(null, '', '/');
+      localStorage.clear();
+      ua.mockRestore();
+    }
+  });
+  it('shows requested test diagnostics on desktop without changing desktop routing', async () => {
+    const ua = vi.spyOn(navigator, 'userAgent', 'get').mockReturnValue('Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7)');
+    const createContext = vi.fn();
+    vi.stubGlobal('AudioContext', createContext);
+    try {
+      window.history.replaceState(null, '', '/?iosFinalNative=1');
+      await act(async () => { root.render(<AudioProvider key="desktop-native-test"><Probe /></AudioProvider>); });
+      await act(async () => { api.setBpm(95); api.loadTrack(track('desktop'), false, true); });
+      await flush();
+      expect(createContext).not.toHaveBeenCalled();
+      const badge = document.querySelector('[data-testid="ios-finals-audio-test"]');
+      expect(badge?.textContent).toContain('AUDIO TEST 3');
+      expect(badge?.textContent).toContain('PITCH SETTING ON');
+      expect(badge?.getAttribute('data-audio-route')).toBe('NATIVE');
+      expect(active().playbackRate).toBe(.95);
+    } finally {
+      window.history.replaceState(null, '', '/');
+      localStorage.clear();
+      ua.mockRestore();
+    }
+  });
+});

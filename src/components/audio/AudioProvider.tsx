@@ -3,6 +3,7 @@
 import React, { createContext, useContext, useState, useEffect, useRef, useMemo, useCallback } from 'react';
 import { requestPitchPreservation } from '@/utils/mediaPitch';
 import { getAudioFile } from '@/utils/storage';
+import { setElementVolume } from '@/utils/mediaControls';
 import { isNativeFinalTestEnabled } from '@/utils/iosFinalDiagnostic';
 import IosFinalAudioTestBadge from './IosFinalAudioTestBadge';
 import { getTrackCover } from '@/utils/trackCover';
@@ -149,7 +150,7 @@ export const AudioProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   const [showIosAudioTest, setShowIosAudioTest] = useState(false);
   useEffect(() => {
     // Capture the entry URL before login/navigation drops its query parameters.
-    setShowIosAudioTest(isIOS() && isNativeFinalTestEnabled());
+    setShowIosAudioTest(isNativeFinalTestEnabled());
   }, []);
   const [currentTime, setCurrentTime] = useState(0);
   const [trackCurrentTime, setTrackCurrentTime] = useState(0); // For round-specific progress
@@ -351,7 +352,7 @@ export const AudioProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       } catch { /* scheduling on a closed context — ignore */ }
       fadeScheduledRef.current = false;
     } else if (nativePlayerRef.current) {
-      nativePlayerRef.current.volume = Math.max(0, Math.min(1, v));
+      setElementVolume(nativePlayerRef.current, v, isVolumeWritable());
     }
   }, []);
 
@@ -1352,7 +1353,7 @@ export const AudioProvider: React.FC<{ children: React.ReactNode }> = ({ childre
                 } else if (nativePlayerRef.current) {
                   const progress = Math.min(1, Math.max(0, (3 - remainingSessionSecs) / 3));
                   const ratio = Math.cos(progress * Math.PI / 2);
-                  nativePlayerRef.current.volume = baseVol * ratio;
+                  setElementVolume(nativePlayerRef.current, baseVol * ratio, isVolumeWritable());
                 }
               }
 
@@ -1403,7 +1404,9 @@ export const AudioProvider: React.FC<{ children: React.ReactNode }> = ({ childre
                   fadeScheduledRef.current = true;
                 }
               } else if (!isGainActive()) {
-                audio.volume = Math.max(0, volumeRef.current * ratio);
+                // Native iOS has no app-controlled volume/fade. Do not keep
+                // writing this property during pitch-corrected playback.
+                setElementVolume(audio, volumeRef.current * ratio, isVolumeWritable());
               }
             }
           };

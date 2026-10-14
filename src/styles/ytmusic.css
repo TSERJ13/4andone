@@ -1789,7 +1789,7 @@
   padding: calc(10px + env(safe-area-inset-top, 0px)) 20px calc(14px + env(safe-area-inset-bottom, 0px)) 20px;
   overflow-y: auto;
   /* Same arrangement as before: everything starts at the top. Gaps grow with the screen height (and shrink on short screens). */
-  --pgap: clamp(8px, 3.4dvh, 36px);
+  --pgap: clamp(8px, 2.4dvh, 24px);
   transition: background 0.8s ease, box-shadow 0.8s ease;
 }
 
@@ -1833,7 +1833,7 @@
   color: #fff;
 }
 
-.yt-mobile-space-top { flex: 1 1 0; max-height: 24px; min-height: 0; }
+.yt-mobile-space-top { flex: 1 1 0; max-height: 6px; min-height: 0; }
 .yt-mobile-space-bottom { flex: 4 1 0; min-height: 0; }
 .yt-mobile-stage {
   display: flex;

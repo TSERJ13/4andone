@@ -1958,8 +1958,9 @@
   letter-spacing: 0.2px;
   font-variant-numeric: tabular-nums;
 }
+/* Active state = colour on the icon only (no filled cell). */
 .yt-mobile-actions-row .yt-action-pill.active-speed {
-  background: rgba(16, 185, 129, 0.14);
+  background: transparent !important;
   color: #10b981;
   box-shadow: none;
 }
@@ -2210,7 +2211,7 @@
 }
 
 .yt-action-pill.active-final {
-  background: rgba(239, 68, 68, 0.12) !important;
+  background: transparent !important;
   border: 0 !important;
   color: #f87171 !important;
   box-shadow: none;

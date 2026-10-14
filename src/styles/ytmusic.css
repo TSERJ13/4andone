@@ -1834,6 +1834,9 @@
 .yt-mobile-stage {
   display: flex;
   justify-content: center;
+  align-items: center;
+  flex: 1 1 auto; /* spare height goes around the cover, so nothing is left empty at the bottom */
+  min-height: 0;
   margin-bottom: 14px;
 }
 

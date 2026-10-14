@@ -2382,6 +2382,8 @@ export const AudioProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   };
 
   const setBpm = React.useCallback((newBpm: number, persistent = true) => {
+    // Finals: the speed is chosen BEFORE the session starts and stays fixed, so nothing ever stops or jumps.
+    if (isFinalModeRef.current && !isFitnessRef.current && !isLiveFinalEnabled()) return;
     const rate = playbackRateFor(newBpm);
     const audio = nativePlayerRef.current;
     const renderedMode = isFinalModeRef.current && !isFitnessRef.current

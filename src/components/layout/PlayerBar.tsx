@@ -460,6 +460,8 @@ const PlayerBar = ({ onExpand }: { onExpand?: () => void }) => {
               <button
                 className={`action-btn-speed icon-only ${bpm !== 100 ? 'active' : ''} ${isFinalMode ? 'final-speed' : ''}`}
                 aria-label={`Control music tempo speed. Current tempo ${bpm}%`}
+                disabled={isFinalMode}
+                style={isFinalMode ? { opacity: 0.35 } : undefined}
                 onClick={(e) => {
                   e.stopPropagation();
                   setShowSpeedSelector(!showSpeedSelector);

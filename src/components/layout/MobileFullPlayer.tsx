@@ -293,6 +293,8 @@ export default function MobileFullPlayer({ isOpen, onClose }: MobileFullPlayerPr
           <button
             type="button"
             className={`yt-action-pill ${isBpmChanged || isSpeedPopoverOpen ? 'active-speed' : ''}`}
+            disabled={isFinalMode}
+            style={isFinalMode ? { opacity: 0.35 } : undefined}
             onClick={() => setIsSpeedPopoverOpen(!isSpeedPopoverOpen)}
             aria-label={isBpmChanged ? `Speed ${bpmDisplay}` : 'Speed'}
             title={isBpmChanged ? `Speed ${bpmDisplay}` : 'Speed'}

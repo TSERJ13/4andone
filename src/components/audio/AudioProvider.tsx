@@ -107,6 +107,8 @@ const lockScreenArtwork = (coverPath: string): MediaImage[] => [
   { src: absoluteUrl('/icons/icon-512x512.png'), sizes: '512x512', type: 'image/png' },
 ];
 export const REST_TITLE = 'Rest Time';
+// Preparing one dance takes a few seconds; past this the browser is stuck, so give up.
+const RENDER_TIMEOUT_MS = 25000;
 
 // SIGNED-URL CACHE: re-using the same signed URL for a track lets the browser
 // HTTP cache serve replays instantly instead of re-downloading the whole file,
@@ -1161,20 +1163,31 @@ export const AudioProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         const request = { url: finalUrl, cacheKey: String(track.id) + '|' + String(track.audioUrl), percent: renderPlan.percent,
           sourceStart: renderPlan.sourceStart, elapsedStart: renderPlan.elapsedStart, signal: controller.signal };
         let prepared: RenderedFinalAudio | undefined;
+        // A browser that never finishes preparing must not leave Finals loading forever.
+        let timedOut = false;
+        let watchdog: ReturnType<typeof setTimeout> | undefined;
+        const deadline = new Promise<never>((_, reject) => {
+          watchdog = setTimeout(() => {
+            timedOut = true;
+            controller.abort();
+            reject(new Error('Audio preparation timed out'));
+          }, RENDER_TIMEOUT_MS);
+        });
+        deadline.catch(() => { /* reported through the race below */ });
         try {
           // Reuse the dance prepared during the rest when tempo and start are unchanged.
           const early = prefetchRef.current;
           prefetchRef.current = null;
           const wanted = [track.id, track.audioUrl, renderPlan.percent].join('|');
           if (early && early.key === wanted && renderPlan.sourceStart === 0 && renderPlan.elapsedStart === 0) {
-            try { prepared = await early.promise; } catch { prepared = undefined; }
+            try { prepared = await Promise.race([early.promise, deadline]); } catch { prepared = undefined; }
           } else {
             prefetchAbortRef.current?.abort();
           }
-          if (currentToken !== loadingTokenRef.current || controller.signal.aborted) return;
-          if (!prepared) prepared = await renderFinalAudio(request);
+          if (currentToken !== loadingTokenRef.current || (controller.signal.aborted && !timedOut)) return;
+          if (!prepared) prepared = await Promise.race([renderFinalAudio(request), deadline]);
         } catch (renderError: any) {
-          if (currentToken !== loadingTokenRef.current || controller.signal.aborted || renderError?.name === 'AbortError') return;
+          if (currentToken !== loadingTokenRef.current || (!timedOut && (controller.signal.aborted || renderError?.name === 'AbortError'))) return;
           // Explicit test (?finalsRender=1) shows the real error. Otherwise keep the dance
           // going at the right tempo on the previous audio route instead of stopping it.
           if (isRenderedFinalTestEnabled()) throw renderError;
@@ -1185,6 +1198,8 @@ export const AudioProvider: React.FC<{ children: React.ReactNode }> = ({ childre
             finalElapsed: initialElapsed > 0 ? initialElapsed : undefined, paused: !!opts?.paused,
             fromRest: opts?.fromRest, legacyFinal: true });
           return;
+        } finally {
+          clearTimeout(watchdog);
         }
         if (currentToken !== loadingTokenRef.current || controller.signal.aborted) return;
         // The input blob, when offline, is no longer needed after decoding.

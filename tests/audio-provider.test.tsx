@@ -21,6 +21,7 @@ vi.mock('@/utils/trackCover', () => ({ getTrackCover: () => '/cover.png' }));
 vi.mock('@/components/admin/StudioProvider', () => ({ useStudio: () => ({ tracks: [], finalTracks: [], albums: [] }) }));
 vi.mock('@/context/AuthContext', () => ({ useAuth: () => ({ user: null, isPremium: true, setIsSubscriptionModalOpen: vi.fn() }) }));
 vi.mock('@/utils/supabase', () => ({ supabase: { from: () => ({ insert: async () => ({ error: null }) }) } }));
+import { rolloutState } from '../src/utils/renderedFinalTest';
 import { AudioProvider, useAudio } from '../src/components/audio/AudioProvider';
 let api: ReturnType<typeof useAudio>;
 let root: Root;
@@ -297,6 +298,8 @@ async function renderIosDefault() {
   await act(async () => { root.render(<AudioProvider key={'ios-default-' + Math.random()}><Probe /></AudioProvider>); });
 }
 describe('rendered Finals is the default on iPhone', () => {
+  beforeEach(() => { rolloutState.defaultOnApple = true; });
+  afterEach(() => { rolloutState.defaultOnApple = false; });
   it('uses prepared 1x audio without any URL flag and keeps the requested tempo', async () => {
     const ua = vi.spyOn(navigator, 'userAgent', 'get').mockReturnValue(IPHONE);
     try {
@@ -375,5 +378,36 @@ describe('lock-screen metadata in Finals', () => {
     expect(api.isPauseCountdown).toBe(false);
     expect(session.metadata.title).toBe('second');
     expect(session.metadata.artwork[0].src).toContain('/cover.png');
+  });
+});
+
+describe('rendered Finals safety switches', () => {
+  it('is OFF by default on iPhone until it is verified on a real device', async () => {
+    const ua = vi.spyOn(navigator, 'userAgent', 'get').mockReturnValue(IPHONE);
+    try {
+      await renderIosDefault();
+      await act(async () => { api.setBpm(95); api.loadTrack(track('safe'), false, true); }); await flush();
+      expect(renderState.requests).toHaveLength(0);
+      expect(api.isFinalMode).toBe(true); expect(api.error).toBeNull();
+    } finally { ua.mockRestore(); }
+  });
+  it('never leaves Finals loading forever: a stuck preparation times out and the dance plays on the previous route', async () => {
+    rolloutState.defaultOnApple = true;
+    const ua = vi.spyOn(navigator, 'userAgent', 'get').mockReturnValue(IPHONE);
+    try {
+      await renderIosDefault();
+      renderState.gate = new Promise<void>(() => { /* never resolves */ });
+      await act(async () => { api.setBpm(95); api.loadTrack(track('stuck'), false, true); }); await flush();
+      expect(api.isPlaying).toBe(false);
+      await tick(26); await flush();
+      expect(api.error).toBeNull(); expect(api.isFinalMode).toBe(true); expect(api.isPlaying).toBe(true);
+    } finally { rolloutState.defaultOnApple = false; ua.mockRestore(); }
+  });
+  it('shows the timeout in the explicit test mode instead of hiding it', async () => {
+    await enableRenderedFinals();
+    renderState.gate = new Promise<void>(() => { /* never resolves */ });
+    await act(async () => { api.loadTrack(track('stuck-explicit'), false, true); }); await flush();
+    await tick(26); await flush();
+    expect(api.error).toBe('Audio preparation timed out'); expect(api.isPlaying).toBe(false);
   });
 });

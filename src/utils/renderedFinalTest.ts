@@ -33,11 +33,16 @@ function isAppleTouchDevice(): boolean {
     || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
 }
 
+/** Rollout switch. Rendered Finals was shipped default-on for iPhone/iPad and
+ * Finals would not start on a real device, so it is OFF by default again until
+ * it is verified on a physical iPhone. Opt in per device with ?finalsRender=1.
+ */
+export const rolloutState = { defaultOnApple: false };
+
 /** Behaviour switch for rendered Finals.
- * ON by default on iPhone/iPad, where Safari's live time-stretch (and the
- * MediaElementSource gain graph needed for the fade) is the problem. Elsewhere
- * it stays opt-in (?finalsRender=1). ?finalsRender=0 turns it off on this device;
- * the explicit native-audio diagnostic (?iosFinalNative=1) still wins.
+ * Opt-in (?finalsRender=1) unless rolloutState.defaultOnApple is set, in which
+ * case iPhone/iPad use it by default. ?finalsRender=0 turns it off on this
+ * device; the explicit native-audio diagnostic (?iosFinalNative=1) still wins.
  */
 export function isRenderedFinalEnabled(): boolean {
   if (typeof window === 'undefined') return false;
@@ -51,5 +56,5 @@ export function isRenderedFinalEnabled(): boolean {
   } catch { optedOut = requested === '0'; }
   if (optedOut || requested === '0') return false;
   if (isNativeFinalTestEnabled()) return false;
-  return isAppleTouchDevice();
+  return rolloutState.defaultOnApple && isAppleTouchDevice();
 }

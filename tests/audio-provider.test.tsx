@@ -361,22 +361,37 @@ describe('lock-screen metadata in Finals', () => {
   };
   afterEach(() => { delete (navigator as any).mediaSession; delete (globalThis as any).MediaMetadata; });
 
-  it('shows the playing dance, then "Rest Time" with the next dance, then the next dance again', async () => {
+  it('shows ONE "Final Mode" item with the site logo, the playing music below it, "Rest Time" during pauses and the total time', async () => {
     const session = install();
     const first = withCover('first', '/covers/first.jpg'), second = withCover('second', '/covers/second.jpg');
     await act(async () => { api.setSessionTracks([first, second] as any); api.loadTrack(first, false, true); }); await flush();
     await tick(10);
-    expect(session.metadata.title).toBe('first');
-    expect(session.metadata.artwork[0].src).toContain('/cover.png'); // test mock of getTrackCover
+    expect(session.metadata.title).toBe('Final Mode');
+    expect(session.metadata.artist).toBe('first');
+    expect(session.metadata.artwork[0].src).toContain('/logo-3d.png');
     expect(session.metadata.artwork.length).toBeGreaterThan(2); // several sizes + app icon
+    const last = () => session.setPositionState.mock.calls.at(-1)![0];
+    expect(last().duration).toBe(2 * 105 + 15); // whole program, not one track
     await tick(95.5); await flush(); expect(api.isPauseCountdown).toBe(true);
-    expect(session.metadata.title).toBe('Rest Time');
-    expect(session.metadata.artist).toBe('Next: second');
-    await tick(5); // the title stays fixed; it is not rewritten every second
-    expect(session.metadata.title).toBe('Rest Time');
+    expect(session.metadata.title).toBe('Final Mode');
+    expect(session.metadata.artist).toBe('Rest Time');
+    await tick(5); // fixed while resting; not rewritten every second
+    expect(session.metadata.artist).toBe('Rest Time');
     await tick(10.5); await flush();
     expect(api.isPauseCountdown).toBe(false);
-    expect(session.metadata.title).toBe('second');
+    expect(session.metadata.title).toBe('Final Mode');
+    expect(session.metadata.artist).toBe('second');
+    expect(session.metadata.artwork[0].src).toContain('/logo-3d.png');
+    expect(last().duration).toBe(2 * 105 + 15);
+    expect(last().position).toBeGreaterThanOrEqual(119.5); // second dance starts at 105 + 15
+  });
+
+  it('normal listening keeps the song title and its own cover', async () => {
+    const session = install();
+    const solo = withCover('solo', '/covers/solo.jpg');
+    await act(async () => { api.loadTrack(solo, false, false); }); await flush();
+    await tick(2);
+    expect(session.metadata.title).toBe('solo');
     expect(session.metadata.artwork[0].src).toContain('/cover.png');
   });
 });

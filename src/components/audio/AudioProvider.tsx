@@ -107,6 +107,30 @@ const lockScreenArtwork = (coverPath: string): MediaImage[] => [
   { src: absoluteUrl('/icons/icon-512x512.png'), sizes: '512x512', type: 'image/png' },
 ];
 export const REST_TITLE = 'Rest Time';
+export const FINAL_LOCK_TITLE = 'Final Mode';
+export const FINAL_LOCK_COVER = '/logo-3d.png';
+
+// FINAL MODE ON THE LOCK SCREEN: the whole program looks like ONE item (title
+// "Final Mode", the site logo, total time). The in-app list is unchanged.
+type FinalLock = { duration: number; position: number };
+let finalLockProvider: (() => FinalLock | null) | null = null;
+const setLockPositionState = (state: MediaPositionState) => {
+  let next = state;
+  try {
+    const lock = finalLockProvider?.();
+    if (lock && lock.duration > 0 && Number.isFinite(lock.position)) {
+      next = { duration: lock.duration, playbackRate: 1, position: Math.min(Math.max(0, lock.position), lock.duration) };
+    }
+  } catch { /* fall back to the plain track position */ }
+  navigator.mediaSession.setPositionState(next);
+};
+const danceLabel = (mode: unknown) => typeof mode === 'string' && mode ? mode.charAt(0).toUpperCase() + mode.slice(1) : '';
+const finalLockMetadata = (musicTitle: string, danceName: string, resting: boolean) => new MediaMetadata({
+  title: FINAL_LOCK_TITLE,
+  artist: resting ? REST_TITLE : musicTitle,
+  album: danceName || FINAL_LOCK_TITLE,
+  artwork: lockScreenArtwork(FINAL_LOCK_COVER),
+});
 // Preparing one dance takes a few seconds; past this the browser is stuck, so give up.
 const RENDER_TIMEOUT_MS = 25000;
 
@@ -434,6 +458,17 @@ export const AudioProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     } catch { /* ignore */ }
   }, []);
   useEffect(() => { activeModeRef.current = activeMode; }, [activeMode]);
+  // Lock-screen scrubber: one total time for the whole Final Mode program.
+  useEffect(() => {
+    finalLockProvider = () => {
+      const list = sessionTracksRef.current;
+      if (!isFinalModeRef.current || isFitnessRef.current || list.length === 0) return null;
+      const rest = (list.length - 1) * FINAL_REST_SECONDS;
+      const total = list.reduce((sum, t) => sum + finalLimitFor(t, false), 0) + rest;
+      return { duration: total, position: currentTimeRef.current ?? 0 };
+    };
+    return () => { finalLockProvider = null; };
+  }, []);
   useEffect(() => { bpmRef.current = bpm; }, [bpm]);
   useEffect(() => { volumeRef.current = volume; }, [volume]);
 
@@ -679,13 +714,17 @@ export const AudioProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     if ('mediaSession' in navigator) {
       navigator.mediaSession.playbackState = 'playing';
       try {
-        const coverPath = nextTrack ? getTrackCover(nextTrack, albums) : '/icons/icon-512x512.png';
-        navigator.mediaSession.metadata = new MediaMetadata({
-          title: REST_TITLE,
-          artist: nextTrack ? `Next: ${nextTrack.title}` : 'Final Mode',
-          album: activeModeRef.current ? `${activeModeRef.current.toUpperCase()} Final` : 'Final Mode',
-          artwork: lockScreenArtwork(coverPath),
-        });
+        if (!isFitnessRef.current) {
+          navigator.mediaSession.metadata = finalLockMetadata(nextTrack?.title || '', danceLabel(activeModeRef.current), true);
+        } else {
+          const coverPath = nextTrack ? getTrackCover(nextTrack, albums) : '/icons/icon-512x512.png';
+          navigator.mediaSession.metadata = new MediaMetadata({
+            title: REST_TITLE,
+            artist: nextTrack ? `Next: ${nextTrack.title}` : 'Final Mode',
+            album: activeModeRef.current ? `${activeModeRef.current.toUpperCase()} Final` : 'Final Mode',
+            artwork: lockScreenArtwork(coverPath),
+          });
+        }
       } catch {}
     }
 
@@ -1120,6 +1159,10 @@ export const AudioProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       const applyTrackMetadata = () => {
         if (!('mediaSession' in navigator) || typeof MediaMetadata === 'undefined') return;
         try {
+          if (isInFinalSession() && !isFitnessRef.current) {
+            navigator.mediaSession.metadata = finalLockMetadata(track.title, danceLabel(activeModeRef.current), false);
+            return;
+          }
           navigator.mediaSession.metadata = new MediaMetadata({
             title: track.title,
             artist: track.artist || '4ANDONE Artist',
@@ -1367,7 +1410,7 @@ export const AudioProvider: React.FC<{ children: React.ReactNode }> = ({ childre
               const trackDur = audio.duration || duration || 0;
               if ((navigator.mediaSession as any).setPositionState && trackDur > 0) {
                 try {
-                  navigator.mediaSession.setPositionState({
+                  setLockPositionState({
                     duration: trackDur,
                     playbackRate: audio.playbackRate || 1.0,
                     position: Math.min(audio.currentTime, trackDur)
@@ -1385,7 +1428,11 @@ export const AudioProvider: React.FC<{ children: React.ReactNode }> = ({ childre
             heartbeatRef.current?.pause();
             monitorPlaybackRef.current?.();
             // Rest Time may still be on the lock screen from the break before this dance.
-            if ('mediaSession' in navigator && navigator.mediaSession.metadata?.title !== track.title) applyTrackMetadata();
+            if ('mediaSession' in navigator) {
+              const shown = navigator.mediaSession.metadata;
+              const inProgram = isInFinalSession() && !isFitnessRef.current;
+              if (inProgram ? shown?.artist !== track.title : shown?.title !== track.title) applyTrackMetadata();
+            }
           };
           audio.onwaiting = () => {
             if (currentToken !== loadingTokenRef.current || isPauseCountdownRef.current) return;
@@ -1402,7 +1449,7 @@ export const AudioProvider: React.FC<{ children: React.ReactNode }> = ({ childre
               const trackDur = audio.duration || duration || 0;
               if ((navigator.mediaSession as any).setPositionState && trackDur > 0) {
                 try {
-                  navigator.mediaSession.setPositionState({
+                  setLockPositionState({
                     duration: trackDur,
                     playbackRate: audio.playbackRate || 1.0,
                     position: Math.min(audio.currentTime, trackDur)
@@ -1418,7 +1465,7 @@ export const AudioProvider: React.FC<{ children: React.ReactNode }> = ({ childre
               const trackDur = audio.duration || duration || 0;
               if ((navigator.mediaSession as any).setPositionState && trackDur > 0) {
                 try {
-                  navigator.mediaSession.setPositionState({
+                  setLockPositionState({
                     duration: trackDur,
                     playbackRate: audio.playbackRate || 1.0,
                     position: Math.min(audio.currentTime, trackDur)
@@ -1752,7 +1799,7 @@ export const AudioProvider: React.FC<{ children: React.ReactNode }> = ({ childre
               const safeRate = Number.isFinite(actualRate) && actualRate > 0 ? actualRate : 1;
 
               if (safeDuration > 0 && safePosition >= 0) {
-                navigator.mediaSession.setPositionState({
+                setLockPositionState({
                   duration: safeDuration,
                   playbackRate: safeRate,
                   position: safePosition
@@ -1855,7 +1902,7 @@ export const AudioProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         const trackDur = audio.duration || duration || 0;
         if ((navigator.mediaSession as any).setPositionState && trackDur > 0) {
           try {
-            navigator.mediaSession.setPositionState({
+            setLockPositionState({
               duration: trackDur,
               playbackRate: audio.playbackRate || 1.0,
               position: Math.min(audio.currentTime, trackDur)
@@ -1912,7 +1959,7 @@ export const AudioProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       const trackDur = nativePlayerRef.current?.duration || duration || 0;
       if ((navigator.mediaSession as any).setPositionState && trackDur > 0 && nativePlayerRef.current) {
         try {
-          navigator.mediaSession.setPositionState({
+          setLockPositionState({
             duration: trackDur,
             playbackRate: nativePlayerRef.current.playbackRate || 1.0,
             position: Math.min(nativePlayerRef.current.currentTime, trackDur)
@@ -1989,7 +2036,7 @@ export const AudioProvider: React.FC<{ children: React.ReactNode }> = ({ childre
 
       if ('mediaSession' in navigator && (navigator.mediaSession as any).setPositionState && trackDur > 0) {
         try {
-          navigator.mediaSession.setPositionState({
+          setLockPositionState({
             duration: trackDur,
             playbackRate: nativePlayerRef.current.playbackRate || 1.0,
             position: safeTime

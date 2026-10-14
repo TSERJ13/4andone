@@ -1,0 +1,49 @@
+name: Validate rendered Finals candidate
+on:
+  push:
+    branches: [fix/finals-rendered-tempo]
+permissions:
+  contents: write
+concurrency:
+  group: rendered-finals-candidate
+  cancel-in-progress: true
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - name: Vendor pinned MIT audio processor
+        run: |
+          mkdir -p /tmp/signalsmith public/vendor/signalsmith-stretch-1.3.2
+          cd /tmp/signalsmith
+          npm pack signalsmith-stretch@1.3.2 --ignore-scripts --json > pack-info.json
+          tar -xzf signalsmith-stretch-1.3.2.tgz
+          test -f package/SignalsmithStretch.mjs
+          cp -R package/. "$GITHUB_WORKSPACE/public/vendor/signalsmith-stretch-1.3.2/"
+          cp pack-info.json "$GITHUB_WORKSPACE/public/vendor/signalsmith-stretch-1.3.2/pack-info.json"
+          find package -maxdepth 1 -type f -printf '%f\n'
+      - name: Existing tests and typecheck
+        run: |
+          npm test
+          npx tsc --noEmit -p tsconfig.test.json
+      - name: Install isolated browser tools
+        run: |
+          npm install --prefix /tmp/audio-browser --no-audit --no-fund playwright@1.56.1
+          /tmp/audio-browser/node_modules/.bin/playwright install --with-deps chromium webkit
+      - name: Verify actual rendered note frequencies and fade
+        env:
+          PLAYWRIGHT_MODULE: /tmp/audio-browser/node_modules/playwright
+        run: node scripts/audit/rendered-pitch.cjs
+      - name: Commit validated vendor and PCM evidence to candidate branch
+        run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add public/vendor/signalsmith-stretch-1.3.2 docs/audits/2026-10-14-rendered-pitch.json
+          git diff --cached --quiet || git commit -m 'Vendor fixed Signalsmith release and record two-engine PCM pitch checks'
+          git push origin HEAD:refs/heads/fix/finals-rendered-tempo

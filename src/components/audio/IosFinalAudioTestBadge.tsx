@@ -21,15 +21,15 @@ export default function IosFinalAudioTestBadge({ audio, gainActive, finalMode, r
         zIndex: 2147483000, background: '#101810', border: '1px solid #58b96b', borderRadius: 10,
         color: '#fff', padding: '10px 12px', fontSize: 12, lineHeight: 1.4, maxWidth: 430 }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 8 }}>
-        <strong>AUDIO TEST 2 · {route}</strong>
+        <strong>AUDIO TEST 3 · {route}</strong>
         <button type="button" onClick={disableNativeFinalTest}
           style={{ color: '#fff', background: '#243024', border: '1px solid #52705a', borderRadius: 6,
             padding: '7px 9px', minHeight: 36, cursor: 'pointer' }}>
           ტესტის გამორთვა
         </button>
       </div>
-      <div>{rest ? 'REST' : finalMode ? 'FINALS' : 'NORMAL'} · {percent}% · PITCH {pitch === true ? 'ON' : pitch === false ? 'OFF' : 'UNKNOWN'}</div>
-      <div>საცდელი რეჟიმი — iPhone-ზე ფეიდაუთი გარანტირებული არ არის.</div>
+      <div>{rest ? 'REST' : finalMode ? 'FINALS' : 'NORMAL'} · {percent}% · PITCH SETTING {pitch === true ? 'ON' : pitch === false ? 'OFF' : 'UNKNOWN'}</div>
+      <div>ტონის პარამეტრი ჩანს — ხმის ხარისხი არ იზომება. iPhone-ზე ფეიდაუთი გარანტირებული არ არის.</div>
     </aside>
   );
 }

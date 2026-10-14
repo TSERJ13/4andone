@@ -1,5 +1,6 @@
 "use client";
 
+import { isFinalSpeedLockedRoute } from '@/utils/renderedFinalTest';
 import React, { useState, useRef, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import {
@@ -109,6 +110,7 @@ export default function MobileFullPlayer({ isOpen, onClose }: MobileFullPlayerPr
   const isFavorite = liveTrack?.isFavorite || false;
   const coverImg = getTrackCover(currentTrack, albums);
   // Final Mode: the bar shows the whole session and can't be dragged.
+  const speedLocked = isFinalMode && isFinalSpeedLockedRoute();
   const totalDur = isFinalMode && sessionDuration > 0 ? sessionDuration : duration;
 
   const currentBpm = bpm || 100;
@@ -293,8 +295,8 @@ export default function MobileFullPlayer({ isOpen, onClose }: MobileFullPlayerPr
           <button
             type="button"
             className={`yt-action-pill ${isBpmChanged || isSpeedPopoverOpen ? 'active-speed' : ''}`}
-            disabled={isFinalMode}
-            style={isFinalMode ? { opacity: 0.35 } : undefined}
+            disabled={speedLocked}
+            style={speedLocked ? { opacity: 0.35 } : undefined}
             onClick={() => setIsSpeedPopoverOpen(!isSpeedPopoverOpen)}
             aria-label={isBpmChanged ? `Speed ${bpmDisplay}` : 'Speed'}
             title={isBpmChanged ? `Speed ${bpmDisplay}` : 'Speed'}

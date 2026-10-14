@@ -110,14 +110,14 @@ describe('AudioProvider complete Finals flow', () => {
   it('freezes rest on pause, resumes remaining 10 seconds and isolates speed changes', async () => {
     await act(async () => { api.setSessionTracks([track('a'), track('b')] as any); api.loadTrack(track('a'), false, true); }); await flush();
     await tick(105); await tick(5);
-    await act(async () => { await api.togglePlay(); api.setBpm(120, false); }); // speed is locked in Finals: ignored
+    await act(async () => { await api.togglePlay(); api.setBpm(120, false); });
     await tick(20);
     expect(api.pauseTime).toBe(10);
     expect(active().playbackRate).toBe(1);
     await act(async () => { await api.togglePlay(); });
     await tick(10);
     expect(api.title).toBe('b');
-    expect(active().playbackRate).toBe(1); expect(api.bpm).toBe(100);
+    expect(active().playbackRate).toBe(1.2);
   });
   it('uses the same duration for Viennese Waltz and Paso and cleans up media', async () => {
     await act(async () => { api.setSessionTracks([track('a', 'Viennese Waltz'), track('b', 'Paso Doble')] as any); api.loadTrack(track('a', 'Viennese Waltz'), false, true); }); await flush();
@@ -211,14 +211,14 @@ describe('Finals native media-control stability', () => {
       await act(async () => { api.setVolume(.4); await api.togglePlay(); });
       await tick(5);
       expect(api.isPlaying).toBe(false);
-      await act(async () => { await api.togglePlay(); api.setBpm(80); }); // ignored: speed is locked in Finals
+      await act(async () => { await api.togglePlay(); api.setBpm(80); });
       await tick(95);
       expect(api.isPauseCountdown).toBe(true);
       expect(active().playbackRate).toBe(1);
       await tick(15);
       expect(api.isPauseCountdown).toBe(false);
       expect(api.title).toBe('native-b');
-      expect(active().playbackRate).toBe(.95);
+      expect(active().playbackRate).toBe(.8);
       expect(active().preservesPitch).toBe(true);
       expect(volumeWrite).not.toHaveBeenCalled();
     } finally {

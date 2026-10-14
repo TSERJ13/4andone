@@ -1788,8 +1788,8 @@
   flex-direction: column;
   padding: calc(10px + env(safe-area-inset-top, 0px)) 20px calc(14px + env(safe-area-inset-bottom, 0px)) 20px;
   overflow-y: auto;
-  /* Taller screens (home-screen app): spare height becomes equal gaps between the sections, header at the top and controls at the bottom. */
-  justify-content: space-between;
+  /* Same arrangement as before: everything starts at the top. Gaps grow with the screen height (and shrink on short screens). */
+  --pgap: clamp(8px, 3.4dvh, 36px);
   transition: background 0.8s ease, box-shadow 0.8s ease;
 }
 
@@ -1797,7 +1797,7 @@
   display: flex;
   align-items: center;
   justify-content: space-between;
-  margin-bottom: 6px;
+  margin-bottom: calc(var(--pgap) * 0.6);
   position: relative;
   z-index: 100;
 }
@@ -1836,13 +1836,13 @@
 .yt-mobile-stage {
   display: flex;
   justify-content: center;
-  margin-bottom: 14px;
+  margin-bottom: var(--pgap);
 }
 
 /* The cover takes whatever height is left so the whole player fits without scrolling. */
 .yt-mobile-art-box {
   width: 100%;
-  max-width: min(320px, max(130px, calc(100dvh - 340px)));
+  max-width: min(330px, max(130px, calc(100dvh - 390px)));
   aspect-ratio: 1 / 1;
   border-radius: 16px;
   overflow: hidden;
@@ -1855,7 +1855,7 @@
   margin: -4px 0 10px;
 }
 .yt-mobile-full-ad ~ .yt-mobile-stage .yt-mobile-art-box {
-  max-width: min(320px, max(130px, calc(100dvh - 440px)));
+  max-width: min(330px, max(130px, calc(100dvh - 490px)));
 }
 .yt-desktop-full-ad {
   position: absolute !important;
@@ -1872,7 +1872,7 @@
 }
 
 .yt-mobile-meta-section {
-  margin-bottom: 12px;
+  margin-bottom: var(--pgap);
 }
 
 .yt-mobile-title-row {
@@ -1902,7 +1902,7 @@
 
 .yt-mobile-actions-wrapper {
   position: relative;
-  margin-bottom: 10px;
+  margin-bottom: var(--pgap);
   z-index: 100;
   width: 100%;
 }
@@ -1979,7 +1979,7 @@
 }
 
 .yt-mobile-progress-wrap {
-  margin-bottom: 6px;
+  margin-bottom: calc(var(--pgap) * 0.9);
 }
 
 .yt-mobile-time-row {

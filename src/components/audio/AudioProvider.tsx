@@ -1756,6 +1756,15 @@ export const AudioProvider: React.FC<{ children: React.ReactNode }> = ({ childre
 
       if (currentToken !== loadingTokenRef.current) return;
 
+      // The speed may have been changed while this file was being handed over; apply it now
+      // (an instant rate change on the new file, so the music keeps playing).
+      if (renderPlan && isFinalModeRef.current && !isPauseCountdownRef.current) {
+        const shippedNow = renderedFinalRef.current;
+        if (shippedNow && Math.abs(shippedNow.percent - bpmRef.current) > 0.5) {
+          setTimeout(() => applyRenderedTempoRef.current(), 400);
+        }
+      }
+
       // MEDIA SESSION SETUP
       if ('mediaSession' in navigator) {
         applyTrackMetadata();
@@ -2167,37 +2176,73 @@ export const AudioProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     // happens when the playhead gets there (or right away, inside the file, if late).
     const source = lastRenderSourceRef.current;
     const RETEMPO_LEAD = 4;
-    const startElapsed = elapsed + RETEMPO_LEAD;
-    if (!paused && audio && prepared && plan?.ready && source && source.trackId === track.id
-        && startElapsed < FINAL_DANCE_SECONDS - FINAL_FADE_SECONDS - 3) {
+    const newRate = playbackRateFor(bpmRef.current);
+    // How much faster/slower than the prepared file the music should now run. The browser's own
+    // pitch-preserving rate change applies instantly to the element that is already playing.
+    const nativeRate = prepared ? newRate / playbackRateFor(prepared.percent) : 1;
+    const live = !paused && !!audio && !!prepared && !!plan?.ready && !!source && source!.trackId === track.id;
+    if (live && swapPendingRef.current) return; // a hand-over is running; the tempo is checked again when it ends
+    const bridge = live && nativeRate >= 0.5 && nativeRate <= 2;
+    // The prepared file carries the fade at ITS end, so it must be replaced by a short faded
+    // clip before the music reaches that point (normally at 1:42, the start of the fade).
+    let swapAt = elapsed + RETEMPO_LEAD;
+    if (bridge && audio && prepared) {
+      const filePos = audio.currentTime;
+      const fadeStart = FINAL_DANCE_SECONDS - FINAL_FADE_SECONDS;
+      const bodyFadeAt = elapsed + (prepared.duration - FINAL_FADE_SECONDS - filePos) / nativeRate;
+      swapAt = Math.min(fadeStart, bodyFadeAt - 0.5);
+    }
+    const canSwap = bridge ? swapAt >= elapsed + 2.5 && swapAt < FINAL_DANCE_SECONDS - 0.5
+      : swapAt < FINAL_DANCE_SECONDS - FINAL_FADE_SECONDS - 3;
+
+    if (live && audio && prepared && source) {
       retempoAbortRef.current?.abort();
       const controller = new AbortController();
       retempoAbortRef.current = controller;
       const seq = ++retempoSeqRef.current;
       const token = loadingTokenRef.current;
-      const startSource = position + RETEMPO_LEAD * playbackRateFor(prepared.percent);
+      const stale = () => controller.signal.aborted || seq !== retempoSeqRef.current || token !== loadingTokenRef.current;
+      const spare = spareUnlockedRef.current ? 'yes' : 'NO';
+      if (bridge) {
+        // 1) Instant: the music keeps playing, just faster or slower. No stop, no loading.
+        finalsClockRef.current.changeRate(audio.currentTime, audio.duration, nativeRate);
+        requestPitchPreservation(audio);
+        try { audio.playbackRate = nativeRate; } catch { /* keep current */ }
+        finalsDiag(`TEMPO ${Math.round(prepared.percent)}→${Math.round(bpmRef.current)}% at ${elapsed.toFixed(1)}s · instant (rate ${nativeRate.toFixed(3)}) · spare ${spare}`);
+        if (Math.abs(nativeRate - 1) < 0.002) return; // back at the prepared tempo: its own fade is already right
+      } else {
+        finalsDiag(`TEMPO ${Math.round(prepared.percent)}→${Math.round(bpmRef.current)}% at ${elapsed.toFixed(1)}s · file swap · spare ${spare}`);
+      }
+      if (!canSwap) {
+        finalsDiag(bridge ? 'tempo applied; too close to the end to prepare a new fade (fade may land slightly off)' : 'no live swap: too late in the dance → reload');
+        if (bridge) return;
+        loadTrackRef.current(track, true, true, { startAt: position, finalElapsed: elapsed, paused, renderFinal: true });
+        return;
+      }
+      // 2) Prepare the replacement (only the rest of the dance, or just the faded ending).
+      const sourceRateNow = bridge ? newRate : playbackRateFor(prepared.percent);
+      const startSource = position + (swapAt - elapsed) * sourceRateNow;
       const renderStartedAt = Date.now();
-      finalsDiag(`TEMPO ${Math.round(prepared.percent)}→${Math.round(bpmRef.current)}% at ${elapsed.toFixed(1)}s · spare ${spareUnlockedRef.current ? 'yes' : 'NO'} · render starts`);
       renderFinalAudio({ url: source.url, cacheKey: source.cacheKey, percent: bpmRef.current,
-        sourceStart: startSource, elapsedStart: startElapsed, signal: controller.signal })
+        sourceStart: startSource, elapsedStart: swapAt, signal: controller.signal })
         .then(next => {
-          finalsDiag(`render done in ${((Date.now() - renderStartedAt) / 1000).toFixed(1)}s`);
-          const stale = () => controller.signal.aborted || seq !== retempoSeqRef.current || token !== loadingTokenRef.current;
+          finalsDiag(`${bridge ? 'faded ending' : 'new tempo'} prepared in ${((Date.now() - renderStartedAt) / 1000).toFixed(1)}s, takes over at ${swapAt.toFixed(1)}s`);
           if (stale()) return;
           let sameLogged = false;
           const swap = () => {
-            if (stale()) return;
+            if (stale() || isPauseCountdownRef.current) return;
             const a = nativePlayerRef.current;
             if (!a || a.paused) { reload(); return; } // paused meanwhile: continue paused
-            if (spareUnlockedRef.current && spareElementRef.current) {
+            const now = finalsClockRef.current.sample(a.currentTime, a.duration);
+            const useSpare = spareUnlockedRef.current && !!spareElementRef.current;
+            if (now < swapAt - (useSpare ? 2 : 0.25)) { setTimeout(swap, 200); return; }
+            if (useSpare) {
               finalsDiag('swap: second element');
               // The new file starts on the spare element, in sync with the old playhead (see loadTrack).
               loadTrackRef.current(track, true, true, { renderFinal: true, prepared: next, finalElapsed: next.elapsedStart });
               return;
             }
-            if (!sameLogged) { sameLogged = true; finalsDiag('swap: SAME element (no spare) - music will stop while it loads'); }
-            const now = finalsClockRef.current.sample(a.currentTime, a.duration);
-            if (now < startElapsed - 0.25 && !isPauseCountdownRef.current) { setTimeout(swap, 50); return; }
+            if (!sameLogged) { sameLogged = true; finalsDiag('swap: SAME element (no spare) - short gap while it loads'); }
             const offset = Math.max(0, now - next.elapsedStart);
             if (offset >= next.duration - 1) { reload(); return; }
             loadTrackRef.current(track, true, true, { startAt: 0, finalElapsed: now, renderFinal: true, prepared: next, preparedOffset: offset });
@@ -2206,13 +2251,13 @@ export const AudioProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         })
         .catch(error => {
           if (controller.signal.aborted || seq !== retempoSeqRef.current) return;
-          console.warn('[AUDIO-ENGINE] Seamless tempo change failed; reloading:', error);
-          finalsDiag(`render FAILED → reload (stops music): ${String((error as any)?.message || error).slice(0, 60)}`);
-          reload();
+          console.warn('[AUDIO-ENGINE] Tempo change preparation failed:', error);
+          finalsDiag(`preparing FAILED: ${String((error as any)?.message || error).slice(0, 60)}`);
+          if (!bridge) reload(); // with the instant rate the music is already at the new tempo; keep playing
         });
       return;
     }
-    finalsDiag(`no live swap (paused=${paused} ready=${!!plan?.ready} source=${!!source} lateInDance=${startElapsed >= FINAL_DANCE_SECONDS - FINAL_FADE_SECONDS - 3}) → reload`);
+    finalsDiag(`no live swap (paused=${paused} ready=${!!plan?.ready} source=${!!source}) → reload`);
     loadTrackRef.current(track, true, true, { startAt: position, finalElapsed: elapsed, paused, renderFinal: true });
   };
 

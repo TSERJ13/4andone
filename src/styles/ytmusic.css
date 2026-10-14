@@ -1833,8 +1833,8 @@
   color: #fff;
 }
 
-.yt-mobile-space-top { flex: 1 1 0; max-height: 44px; min-height: 0; }
-.yt-mobile-space-bottom { flex: 2 1 0; min-height: 0; }
+.yt-mobile-space-top { flex: 1 1 0; max-height: 24px; min-height: 0; }
+.yt-mobile-space-bottom { flex: 4 1 0; min-height: 0; }
 .yt-mobile-stage {
   display: flex;
   justify-content: center;

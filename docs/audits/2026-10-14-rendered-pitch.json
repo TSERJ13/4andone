@@ -1,0 +1,276 @@
+[
+  {
+    "engine": "chromium",
+    "rows": [
+      {
+        "percent": 100,
+        "duration": 6,
+        "channels": 2,
+        "notes": [
+          {
+            "frequency": 440,
+            "amplitude": 0.044999069081203664
+          },
+          {
+            "frequency": 660,
+            "amplitude": 0.024999531671382646
+          },
+          {
+            "frequency": 880,
+            "amplitude": 0.04499897685314615
+          }
+        ],
+        "fadeRatio": 0.021414437476621098,
+        "lastSample": 0,
+        "renderMs": 174.90000000002328
+      },
+      {
+        "percent": 95,
+        "duration": 6,
+        "channels": 2,
+        "notes": [
+          {
+            "frequency": 440.5,
+            "amplitude": 0.044637135470426116
+          },
+          {
+            "frequency": 660.5,
+            "amplitude": 0.024910162082779748
+          },
+          {
+            "frequency": 880.5,
+            "amplitude": 0.044830362226370504
+          }
+        ],
+        "fadeRatio": 0.02145792753386411,
+        "lastSample": 0,
+        "renderMs": 330.79999999998836
+      },
+      {
+        "percent": 80,
+        "duration": 6,
+        "channels": 2,
+        "notes": [
+          {
+            "frequency": 440.5,
+            "amplitude": 0.044727738245689624
+          },
+          {
+            "frequency": 660.5,
+            "amplitude": 0.024925719845314342
+          },
+          {
+            "frequency": 880.5,
+            "amplitude": 0.04487367105105872
+          }
+        ],
+        "fadeRatio": 0.02143119330195177,
+        "lastSample": 0,
+        "renderMs": 309.70000000001164
+      },
+      {
+        "percent": 50,
+        "duration": 6,
+        "channels": 2,
+        "notes": [
+          {
+            "frequency": 440.5,
+            "amplitude": 0.043843996423527896
+          },
+          {
+            "frequency": 660.5,
+            "amplitude": 0.022799192187395834
+          },
+          {
+            "frequency": 880.5,
+            "amplitude": 0.0439718943741192
+          }
+        ],
+        "fadeRatio": 0.021443218940632492,
+        "lastSample": 0,
+        "renderMs": 309.0999999999767
+      },
+      {
+        "percent": 120,
+        "duration": 6,
+        "channels": 2,
+        "notes": [
+          {
+            "frequency": 440.5,
+            "amplitude": 0.04439972801515067
+          },
+          {
+            "frequency": 660.5,
+            "amplitude": 0.024843296853039716
+          },
+          {
+            "frequency": 880.5,
+            "amplitude": 0.04461895689777106
+          }
+        ],
+        "fadeRatio": 0.02143492855050154,
+        "lastSample": 0,
+        "renderMs": 310.6000000000058
+      },
+      {
+        "percent": 150,
+        "duration": 6,
+        "channels": 2,
+        "notes": [
+          {
+            "frequency": 440.5,
+            "amplitude": 0.04415653078562867
+          },
+          {
+            "frequency": 660.5,
+            "amplitude": 0.024747096667431724
+          },
+          {
+            "frequency": 880.5,
+            "amplitude": 0.04432632410503404
+          }
+        ],
+        "fadeRatio": 0.021464532221809014,
+        "lastSample": 0,
+        "renderMs": 309.1000000000058
+      }
+    ]
+  },
+  {
+    "engine": "webkit",
+    "rows": [
+      {
+        "percent": 100,
+        "duration": 6,
+        "channels": 2,
+        "notes": [
+          {
+            "frequency": 440,
+            "amplitude": 0.04499838242974582
+          },
+          {
+            "frequency": 660,
+            "amplitude": 0.02499915020052649
+          },
+          {
+            "frequency": 880,
+            "amplitude": 0.04499829023801776
+          }
+        ],
+        "fadeRatio": 0.021414132236404017,
+        "lastSample": 0,
+        "renderMs": 229
+      },
+      {
+        "percent": 95,
+        "duration": 6,
+        "channels": 2,
+        "notes": [
+          {
+            "frequency": 440.5,
+            "amplitude": 0.04463577205848834
+          },
+          {
+            "frequency": 660.5,
+            "amplitude": 0.024909448977970396
+          },
+          {
+            "frequency": 880.5,
+            "amplitude": 0.04482893250575751
+          }
+        ],
+        "fadeRatio": 0.021456950115300192,
+        "lastSample": 0,
+        "renderMs": 406
+      },
+      {
+        "percent": 80,
+        "duration": 6,
+        "channels": 2,
+        "notes": [
+          {
+            "frequency": 440.5,
+            "amplitude": 0.04472640564955427
+          },
+          {
+            "frequency": 660.5,
+            "amplitude": 0.02492492483006843
+          },
+          {
+            "frequency": 880.5,
+            "amplitude": 0.04487226604091482
+          }
+        ],
+        "fadeRatio": 0.02143152351307134,
+        "lastSample": 0,
+        "renderMs": 400
+      },
+      {
+        "percent": 50,
+        "duration": 6,
+        "channels": 2,
+        "notes": [
+          {
+            "frequency": 440.5,
+            "amplitude": 0.04384266886927394
+          },
+          {
+            "frequency": 660.5,
+            "amplitude": 0.02279849978202386
+          },
+          {
+            "frequency": 880.5,
+            "amplitude": 0.04397054471103261
+          }
+        ],
+        "fadeRatio": 0.021444732506651718,
+        "lastSample": 0,
+        "renderMs": 412
+      },
+      {
+        "percent": 120,
+        "duration": 6,
+        "channels": 2,
+        "notes": [
+          {
+            "frequency": 440.5,
+            "amplitude": 0.044398395866615294
+          },
+          {
+            "frequency": 660.5,
+            "amplitude": 0.02484255051154682
+          },
+          {
+            "frequency": 880.5,
+            "amplitude": 0.044617549012961846
+          }
+        ],
+        "fadeRatio": 0.021436287725420874,
+        "lastSample": 0,
+        "renderMs": 410
+      },
+      {
+        "percent": 150,
+        "duration": 6,
+        "channels": 2,
+        "notes": [
+          {
+            "frequency": 440.5,
+            "amplitude": 0.04415522199452793
+          },
+          {
+            "frequency": 660.5,
+            "amplitude": 0.02474633435122642
+          },
+          {
+            "frequency": 880.5,
+            "amplitude": 0.044324937701398025
+          }
+        ],
+        "fadeRatio": 0.021463792999332418,
+        "lastSample": 0,
+        "renderMs": 404
+      }
+    ]
+  }
+]

@@ -35,8 +35,7 @@ async function tick(seconds: number) {
   for (let ms = 0; ms < Math.round(seconds * 1000); ms += 100) {
     const step = Math.min(100, Math.round(seconds * 1000) - ms);
     await act(async () => {
-      const audio = active();
-      if (audio) { const state = states.get(audio)!; if (!state.paused) state.time = (state.time + step / 1000 * audio.playbackRate) % audio.duration; }
+      for (const audio of elements) { const state = states.get(audio)!; if (!state.paused && audio.src) state.time = (state.time + step / 1000 * audio.playbackRate) % audio.duration; }
       vi.advanceTimersByTime(step);
       await Promise.resolve(); await Promise.resolve();
     });
@@ -252,26 +251,29 @@ describe('rendered Finals integration', () => {
     await tick(15); expect(api.isPauseCountdown).toBe(false); expect(active().playbackRate).toBe(1);
     await tick(105); expect(api.isPlaying).toBe(false); expect(api.isFinalMode).toBe(false);
   });
-  it('changes tempo while the music keeps playing, switching at the same musical spot without resetting the 105-second clock', async () => {
+  it('changes tempo while the music keeps playing: the new file starts on a second element in sync, then the old one stops', async () => {
     await enableRenderedFinals(); const song = track('tempo');
     await act(async () => { api.setBpm(95); api.setSessionTracks([song, track('next')] as any); api.loadTrack(song, false, true); }); await flush();
     await tick(10);
     await act(async () => { api.setBpm(80, false); }); expect(renderState.requests).toHaveLength(1);
-    await act(async () => { api.setBpm(80); }); await flush();
+    await act(async () => { api.setBpm(80); }); expect(renderState.requests).toHaveLength(1); // waits for the taps/drags to settle
+    await tick(0.3); await flush();
+    expect(renderState.requests).toHaveLength(2);
     const request = renderState.requests.at(-1);
-    // Prepared 4 s ahead of the playhead (elapsed 10 s, source 9.5 s), at the old 95% pace.
-    expect(request.elapsedStart).toBeCloseTo(14); expect(request.sourceStart).toBeCloseTo(9.5 + 4 * 0.95);
-    expect(api.isPlaying).toBe(true); expect(active().paused).toBe(false); // never stopped while preparing
-    for (let i = 0; i < 9; i++) { await tick(0.5); expect(api.isPlaying).toBe(true); } // no stop at any point, including the switch
+    // Prepared 4 s ahead of the playhead, at the old 95% pace.
+    expect(request.elapsedStart).toBeCloseTo(14.3, 0); expect(request.sourceStart).toBeCloseTo(9.5 + 4.3 * 0.95, 0);
+    expect(api.isPlaying).toBe(true);
+    const playing = () => elements.filter(e => !states.get(e)!.paused && e.src === 'blob:rendered-final');
+    for (let i = 0; i < 12; i++) { await tick(0.5); expect(api.isPlaying).toBe(true); expect(playing().length).toBeGreaterThanOrEqual(1); } // never silent
     await flush();
-    expect(api.bpm).toBe(80); expect(active().playbackRate).toBe(1); expect(api.isPlaying).toBe(true);
-    expect(Math.abs(api.currentTime - 14.5)).toBeLessThan(0.6); // continued, not restarted
-    await tick(91); expect(api.isPauseCountdown).toBe(true); // the dance still ends at exactly 105 s
+    expect(api.bpm).toBe(80); expect(playing()).toHaveLength(1); // only the new one remains
+    expect(Math.abs(api.currentTime - 16.3)).toBeLessThan(1); // continued, not restarted
+    await tick(90); expect(api.isPauseCountdown).toBe(true); // the dance still ends at exactly 105 s
   });
   it('keeps a paused dance paused when preparing a different tempo', async () => {
     await enableRenderedFinals();
     await act(async () => { api.setBpm(95); api.loadTrack(track('paused'), false, true); }); await flush(); await tick(5);
-    await act(async () => { await api.togglePlay(); api.setBpm(80); }); await flush();
+    await act(async () => { await api.togglePlay(); api.setBpm(80); }); await tick(0.3); await flush();
     expect(api.isPlaying).toBe(false); expect(active().paused).toBe(true); expect(active().playbackRate).toBe(1);
   });
   it('returns to the original file and source position when Finals is disabled', async () => {

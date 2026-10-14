@@ -1,6 +1,7 @@
 "use client";
 
 import React, { createContext, useContext, useState, useEffect, useRef, useMemo, useCallback } from 'react';
+import { requestPitchPreservation } from '@/utils/mediaPitch';
 import { getAudioFile } from '@/utils/storage';
 import { isNativeFinalTestEnabled } from '@/utils/iosFinalDiagnostic';
 import IosFinalAudioTestBadge from './IosFinalAudioTestBadge';
@@ -667,9 +668,7 @@ export const AudioProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       const audio = new Audio();
       audio.crossOrigin = "anonymous";
       audio.autoplay = false;
-      audio.preservesPitch = true;
-      // Older iOS Safari needs the prefixed property for pitch-corrected speed.
-      (audio as HTMLAudioElement & { webkitPreservesPitch?: boolean }).webkitPreservesPitch = true;
+      requestPitchPreservation(audio);
       audio.style.display = 'none';
       document.body.appendChild(audio);
 
@@ -1133,9 +1132,7 @@ export const AudioProvider: React.FC<{ children: React.ReactNode }> = ({ childre
             // SPEED PERSISTENCE FIX (real cause): audio.load() resets playbackRate
             // back to 1.0, so setting it before load() was always wiped. We re-apply
             // the user's chosen speed here, AFTER the resource has finished loading.
-            const pitchOn = true;
-            audio.preservesPitch = pitchOn;
-            (audio as HTMLAudioElement & { webkitPreservesPitch?: boolean }).webkitPreservesPitch = pitchOn;
+            requestPitchPreservation(audio);
             const desiredRate = playbackRateFor(bpmRef.current);
             if (desiredRate > 0 && Math.abs(audio.playbackRate - desiredRate) > 0.001) {
               audio.playbackRate = desiredRate;
@@ -1413,12 +1410,6 @@ export const AudioProvider: React.FC<{ children: React.ReactNode }> = ({ childre
           audio.ontimeupdate = monitorPlayback;
           monitorPlaybackRef.current = monitorPlayback;
 
-          // NATIVE SPEED CONTROL: No bridge needed
-          {
-            const pitchOn = true;
-            audio.preservesPitch = pitchOn;
-            (audio as HTMLAudioElement & { webkitPreservesPitch?: boolean }).webkitPreservesPitch = pitchOn;
-          }
           // SPEED PERSISTENCE FIX: use the live bpmRef (user-selected speed), NOT the
           // stale `bpm` closure value. Previously a new track could reset the rate,
           // so the speed the user picked was lost on every track change.

@@ -1,0 +1,73 @@
+<!doctype html>
+<html lang="en"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="robots" content="noindex"><title>Finals audio comparison</title>
+<style>body{font:17px system-ui;max-width:680px;margin:24px auto;padding:0 18px;background:#101713;color:#edf5ef}label{display:block;margin:18px 0}select,button,input{font:inherit;max-width:100%;padding:12px;border-radius:8px}button{margin:6px 4px 6px 0}pre{white-space:pre-wrap;overflow-wrap:anywhere;background:#202b23;padding:16px;border-radius:10px}small{color:#bbcebe}</style>
+<h1>Finals audio comparison · v1</h1>
+<p>Diagnostic only. Start at low device volume. Each Play creates a fresh audio element. Stop other music first.</p>
+<label>Source <select id="source"><option value="tone">440 Hz reference tone</option><option value="file">Local music file</option></select></label>
+<label>Local file <input id="file" type="file" accept="audio/*"></label>
+<small>The file stays on this device. No upload, account access, or microphone recording.</small>
+<label>Audio route <select id="route"><option value="native">NATIVE</option><option value="gain">GAIN (WebAudio)</option></select></label>
+<label>Speed <select id="speed"><option>100</option><option selected>95</option><option>90</option><option>85</option><option>80</option><option>105</option></select>%</label>
+<label>Pitch preservation <select id="pitch"><option value="on">ON</option><option value="off">OFF (control)</option></select></label>
+<button id="play">Play from start</button><button id="stop">Stop</button>
+<p>Compare 100% / ON, 95% / ON, then 95% / OFF. A preserved reference stays at 440 Hz; OFF should be about 418 Hz at 95%. Use a separate tuner/recorder for NATIVE: connecting an analyser would change that route.</p>
+<p>This page does not run a Finals session or certify musical quality. Test the 105-second dance, 3-second fade and 15-second rest separately in the app. NATIVE cannot guarantee an app-controlled fade on iPhone.</p>
+<pre id="status" aria-live="polite">Stopped</pre>
+<label>Device model, iOS version, output (speaker / wired / Bluetooth) and listening result<textarea id="notes" rows="3" style="width:100%"></textarea></label>
+<button id="report">Prepare report</button><textarea id="reportText" aria-label="Copyable diagnostic report" rows="8" style="width:100%" readonly></textarea>
+<script>
+'use strict';
+const $ = id => document.getElementById(id);
+let audio = null, context = null, sourceNode = null, gainNode = null, objectUrl = null, run = null;
+const history = [];
+function flags(a) { return {standardSupported:'preservesPitch' in a, webkitSupported:'webkitPreservesPitch' in a, standard:a.preservesPitch ?? null, webkit:a.webkitPreservesPitch ?? null}; }
+function stop() {
+  if (audio) { audio.pause(); audio.removeAttribute('src'); audio.load(); audio.remove(); }
+  sourceNode?.disconnect(); gainNode?.disconnect();
+  if (context) void context.close().catch(()=>{});
+  if (objectUrl) URL.revokeObjectURL(objectUrl);
+  audio = context = sourceNode = gainNode = objectUrl = null;
+}
+function tone() {
+  const rate=48000, count=rate*12, data=new ArrayBuffer(44+count*2), v=new DataView(data);
+  const text=(o,s)=>{for(let i=0;i<s.length;i++)v.setUint8(o+i,s.charCodeAt(i));};
+  text(0,'RIFF');v.setUint32(4,data.byteLength-8,true);text(8,'WAVE');text(12,'fmt ');v.setUint32(16,16,true);v.setUint16(20,1,true);v.setUint16(22,1,true);v.setUint32(24,rate,true);v.setUint32(28,rate*2,true);v.setUint16(32,2,true);v.setUint16(34,16,true);text(36,'data');v.setUint32(40,count*2,true);
+  for(let i=0;i<count;i++){const envelope=Math.min(1,i/(rate*.02),(count-1-i)/(rate*.02));v.setInt16(44+i*2,Math.sin(2*Math.PI*440*i/rate)*5000*envelope,true);}
+  return new Blob([data],{type:'audio/wav'});
+}
+function update() {
+  if(!audio || !run) return;
+  run.actual = {rate:audio.playbackRate, ...flags(audio), currentTime:audio.currentTime, paused:audio.paused, contextState:context?.state ?? null, sampleRate:context?.sampleRate ?? null};
+  $('status').textContent=JSON.stringify(run,null,2)+'\nPitch flags are NOT measured output pitch.';
+}
+$('play').onclick=()=>{
+  stop();
+  const blob=$('source').value==='tone'?tone():$('file').files[0];
+  if(!blob){$('status').textContent='Choose a local audio file first.';return;}
+  try {
+    audio=new Audio();audio.preload='auto';audio.controls=false;document.body.appendChild(audio);
+    run={at:new Date().toISOString(),route:$('route').value,source:$('source').value,requestedPercent:Number($('speed').value),requestedPitch:$('pitch').value,before:flags(audio)};
+    history.push(run);if(history.length>30)history.shift();
+    const thisAudio=audio, thisRun=run;
+    const pitch=$('pitch').value==='on';
+    const configure=()=>{if(audio!==thisAudio)return;if('preservesPitch' in audio)audio.preservesPitch=pitch;if('webkitPreservesPitch' in audio)audio.webkitPreservesPitch=pitch;audio.defaultPlaybackRate=audio.playbackRate=run.requestedPercent/100;};
+    if(run.route==='gain'){
+      const Ctx=window.AudioContext||window.webkitAudioContext;
+      if(!Ctx)throw new Error('AudioContext unavailable');
+      context=new Ctx({latencyHint:'playback'});sourceNode=context.createMediaElementSource(audio);gainNode=context.createGain();gainNode.gain.value=1;sourceNode.connect(gainNode).connect(context.destination);
+      void context.resume().catch(e=>{if(audio===thisAudio){thisRun.error=String(e);update();}});
+    }
+    configure();objectUrl=URL.createObjectURL(blob);audio.src=objectUrl;
+    audio.addEventListener('loadedmetadata',()=>{configure();update();},{once:true});
+    audio.addEventListener('error',()=>{if(audio===thisAudio){thisRun.error='Media error '+thisAudio.error?.code;update();}});
+    for(const event of ['playing','pause','ratechange','ended'])audio.addEventListener(event,update);
+    const currentAudio=audio, currentRun=run;
+    void audio.play().catch(e=>{if(audio===currentAudio){currentRun.error=String(e);update();}});
+    update();
+  }catch(e){stop();$('status').textContent=String(e);}
+};
+$('stop').onclick=()=>{update();stop();$('status').textContent='Stopped';};
+for(const id of ['source','file','route','speed','pitch'])$(id).onchange=()=>{update();stop();$('status').textContent='Selection changed. Press Play.';};
+$('report').onclick=()=>{update();$('reportText').value=JSON.stringify({version:1,userAgent:navigator.userAgent,standalone:matchMedia('(display-mode: standalone)').matches||navigator.standalone===true,notes:$('notes').value,runs:history},null,2);};
+window.addEventListener('pagehide',stop);
+</script></html>

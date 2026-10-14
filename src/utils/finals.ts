@@ -1,3 +1,5 @@
+import { requestPitchPreservation } from './mediaPitch';
+
 export const FINAL_DANCE_SECONDS = 105;
 export const FINAL_REST_SECONDS = 15;
 export const FINAL_FADE_SECONDS = 3;
@@ -10,8 +12,7 @@ export function playbackRateFor(percent: number): number {
 /** Tempo changes must never transpose the recording, including the gain path. */
 export function setMusicTempo(audio: HTMLMediaElement, percent: number): void {
   const rate = playbackRateFor(percent);
-  audio.preservesPitch = true;
-  (audio as HTMLMediaElement & { webkitPreservesPitch?: boolean }).webkitPreservesPitch = true;
+  requestPitchPreservation(audio);
   audio.defaultPlaybackRate = rate;
   if (Math.abs(audio.playbackRate - rate) > 0.0001) audio.playbackRate = rate;
 }

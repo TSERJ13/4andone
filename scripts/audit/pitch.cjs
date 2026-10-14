@@ -3,7 +3,7 @@ const fs=require('fs');const ts=require(process.cwd()+'/node_modules/typescript'
 (async()=>{
  const browser=await chromium.launch({headless:true,args:['--no-sandbox','--autoplay-policy=no-user-gesture-required']});
  const page=await browser.newPage();await page.route('**/audit-audio',r=>r.fulfill({contentType:'text/html',body:'<!doctype html><title>Audio audit</title>'}));await page.goto('http://127.0.0.1:3000/audit-audio');
- const source=fs.readFileSync('src/utils/finals.ts','utf8').replace(/^export /gm,'');
+ const source=(fs.readFileSync('src/utils/mediaPitch.ts','utf8')+'\n'+fs.readFileSync('src/utils/finals.ts','utf8').replace(/^import .*mediaPitch.*;\n/m,'')).replace(/^export /gm,'');
  const code=ts.transpileModule(source,{compilerOptions:{target:ts.ScriptTarget.ES2020}}).outputText;
  await page.addScriptTag({content:code+';window.setMusicTempo=setMusicTempo;'});
  const results=await page.evaluate(async()=>{
@@ -14,7 +14,7 @@ const fs=require('fs');const ts=require(process.cwd()+'/node_modules/typescript'
    const url=URL.createObjectURL(new Blob([buffer],{type:'audio/wav'}));
    const audio=new Audio(url);audio.loop=true;const ctx=new AudioContext({latencyHint:'playback'});const source=ctx.createMediaElementSource(audio);const analyser=ctx.createAnalyser();analyser.fftSize=32768;const gain=ctx.createGain();source.connect(analyser).connect(gain).connect(ctx.destination);
    await ctx.resume();const samples=new Float32Array(analyser.frequencyBinCount);const result=[];
-   for(const speed of [100,80,50,120,150]){
+   for(const speed of [100,95,80,50,120,150]){
      window.setMusicTempo(audio,speed);await audio.play();await new Promise(r=>setTimeout(r,1200));
      analyser.getFloatFrequencyData(samples);let max=-Infinity,index=0;for(let i=0;i<samples.length;i++){if(samples[i]>max){max=samples[i];index=i;}}
      result.push({speed,preservesPitch:audio.preservesPitch,measuredHz:index*ctx.sampleRate/analyser.fftSize,peakDb:max});

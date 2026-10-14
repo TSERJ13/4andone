@@ -38,6 +38,7 @@ beforeEach(async () => {
   vi.stubGlobal('Audio', function Audio(src?: string) {
     const audio = document.createElement('audio'); const state = { time: 0, paused: true }; states.set(audio, state);
     Object.defineProperties(audio, {
+      preservesPitch: { value: true, writable: true },
       currentTime: { get: () => state.time, set: v => { state.time = v; } },
       duration: { get: () => audio.src.includes('rest-15s') ? 15 : 180 },
       paused: { get: () => state.paused }, ended: { get: () => false }, readyState: { get: () => 4 },
@@ -108,11 +109,17 @@ describe('iOS gain-path regression', () => {
       createMediaElementSource: () => ({ connect: vi.fn(), disconnect: vi.fn() }), resume: vi.fn(async () => {}), close };
     vi.stubGlobal('AudioContext', function () { return context; });
     try {
-      await act(async () => { api.setBpm(80); api.setSessionTracks([track('ios')] as any); api.loadTrack(track('ios'), false, true); });
+      await act(async () => { api.setBpm(95); api.setSessionTracks([track('ios'), track('next')] as any); api.loadTrack(track('ios'), false, true); });
       await flush(); await tick(.1);
       expect(active().preservesPitch).toBe(true);
-      expect(active().playbackRate).toBe(.8);
+      expect(active().playbackRate).toBe(.95);
       expect(gain.linearRampToValueAtTime).toHaveBeenCalledWith(0, expect.any(Number));
+      await tick(104.9);
+      expect(api.isPauseCountdown).toBe(true);
+      expect(active().playbackRate).toBe(1);
+      await tick(15);
+      expect(api.title).toBe('next');
+      expect(active().playbackRate).toBe(.95);
       await act(async () => root.unmount());
       expect(close).toHaveBeenCalledTimes(1);
     } finally { ua.mockRestore(); }

@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { FinalsClock, setMusicTempo, playbackRateFor, finalSessionDuration } from '../src/utils/finals';
 describe('Finals timing and pitch', () => {
-  it.each([0.5, 0.8, 1, 1.25, 1.5])('keeps 105 real seconds at %sx, across source loops', rate => {
+  it.each([0.5, 0.8, 0.95, 1, 1.25, 1.5])('keeps 105 real seconds at %sx, across source loops', rate => {
     const clock = new FinalsClock();
     clock.reset(0, rate);
     for (let elapsed = 1; elapsed <= 105; elapsed++) clock.sample((elapsed * rate) % 76, 76);
@@ -17,7 +17,7 @@ describe('Finals timing and pitch', () => {
     expect(clock.elapsed).toBe(105);
   });
   it('preserves pitch and default rate across load()', () => {
-    const audio = { playbackRate: 1, preservesPitch: false } as HTMLMediaElement;
+    const audio = { playbackRate: 1, preservesPitch: false, webkitPreservesPitch: false } as unknown as HTMLMediaElement;
     setMusicTempo(audio, 80);
     expect(audio).toMatchObject({ playbackRate: .8, defaultPlaybackRate: .8, preservesPitch: true, webkitPreservesPitch: true });
   });

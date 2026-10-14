@@ -45,8 +45,26 @@ export const rolloutState = { defaultOnApple: true };
  * case iPhone/iPad use it by default. ?finalsRender=0 turns it off on this
  * device; the explicit native-audio diagnostic (?iosFinalNative=1) still wins.
  */
+export const LIVE_FINAL_KEY = '4andone-live-final-test-v1';
+/** Opt-in live engine for Finals (?finalsLive=1, stays on for 2 hours; ?finalsLive=0 turns it off). */
+export function isLiveFinalEnabled(): boolean {
+  if (typeof window === 'undefined') return false;
+  const requested = new URLSearchParams(window.location.search).get('finalsLive');
+  let expiry = 0;
+  try { expiry = Number(localStorage.getItem(LIVE_FINAL_KEY)) || 0; } catch { /* blocked storage */ }
+  if (requested === '0') expiry = 0;
+  else if (requested === '1' && expiry <= Date.now()) expiry = Date.now() + 2 * 60 * 60 * 1000;
+  if (!Number.isFinite(expiry) || expiry > Date.now() + 2 * 60 * 60 * 1000) expiry = 0;
+  try {
+    if (expiry > Date.now()) localStorage.setItem(LIVE_FINAL_KEY, String(expiry));
+    else localStorage.removeItem(LIVE_FINAL_KEY);
+  } catch { /* unavailable */ }
+  return expiry > Date.now();
+}
+
 export function isRenderedFinalEnabled(): boolean {
   if (typeof window === 'undefined') return false;
+  if (isLiveFinalEnabled()) return true;
   if (isRenderedFinalTestEnabled()) return true; // explicit ?finalsRender=1
   const requested = new URLSearchParams(window.location.search).get('finalsRender');
   let optedOut = false;

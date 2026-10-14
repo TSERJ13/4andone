@@ -1,3 +1,5 @@
+import { requestPitchPreservation } from './mediaPitch';
+
 export const FINAL_DANCE_SECONDS = 105;
 export const FINAL_REST_SECONDS = 15;
 export const FINAL_FADE_SECONDS = 3;
@@ -13,9 +15,7 @@ export function playbackRateFor(percent: number): number {
  */
 export function setMusicTempo(audio: HTMLMediaElement, percent: number): void {
   const rate = playbackRateFor(percent);
-  if (audio.preservesPitch !== true) audio.preservesPitch = true;
-  const legacy = audio as HTMLMediaElement & { webkitPreservesPitch?: boolean };
-  if (legacy.webkitPreservesPitch !== true) legacy.webkitPreservesPitch = true;
+  requestPitchPreservation(audio);
   if (audio.defaultPlaybackRate !== rate) audio.defaultPlaybackRate = rate;
   if (!Number.isFinite(audio.playbackRate) || Math.abs(audio.playbackRate - rate) > 0.0001) {
     audio.playbackRate = rate;

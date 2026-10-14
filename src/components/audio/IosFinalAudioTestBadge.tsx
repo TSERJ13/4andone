@@ -1,6 +1,7 @@
 "use client";
 
 import React from 'react';
+import { readPitchConfiguration } from '@/utils/mediaPitch';
 import { disableNativeFinalTest } from '@/utils/iosFinalDiagnostic';
 
 type Props = {
@@ -13,7 +14,7 @@ type Props = {
 /** Reports the provider's ACTUAL active element, not just the requested flag. */
 export default function IosFinalAudioTestBadge({ audio, gainActive, finalMode, rest }: Props) {
   const route = !audio?.getAttribute('src') ? 'IDLE' : gainActive ? 'GAIN' : 'NATIVE';
-  const pitch = audio?.preservesPitch ?? (audio as (HTMLAudioElement & { webkitPreservesPitch?: boolean }) | null)?.webkitPreservesPitch;
+  const pitch = readPitchConfiguration(audio);
   const percent = Math.round((audio?.playbackRate ?? 1) * 100);
   return (
     <aside data-testid="ios-finals-audio-test" data-audio-route={route}
@@ -28,7 +29,7 @@ export default function IosFinalAudioTestBadge({ audio, gainActive, finalMode, r
           ტესტის გამორთვა
         </button>
       </div>
-      <div>{rest ? 'REST' : finalMode ? 'FINALS' : 'NORMAL'} · {percent}% · PITCH SETTING {pitch === true ? 'ON' : pitch === false ? 'OFF' : 'UNKNOWN'}</div>
+      <div>{rest ? 'REST' : finalMode ? 'FINALS' : 'NORMAL'} · {percent}% · PITCH SETTING {pitch}</div>
       <div>ტონის პარამეტრი ჩანს — ხმის ხარისხი არ იზომება. iPhone-ზე ფეიდაუთი გარანტირებული არ არის.</div>
     </aside>
   );

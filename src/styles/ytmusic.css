@@ -1777,12 +1777,16 @@
 /* MOBILE FULL PLAYER OVERLAY (Matching Screenshot 3) */
 .yt-mobile-full-player-overlay {
   position: fixed;
-  inset: 0;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 100vh;
+  height: 100dvh; /* the visible height, so the browser's toolbar never hides the controls */
   background: linear-gradient(to bottom, #1a080c 0%, #030303 100%);
   z-index: 600;
   display: flex;
   flex-direction: column;
-  padding: 16px 20px 32px 20px;
+  padding: calc(10px + env(safe-area-inset-top, 0px)) 20px calc(14px + env(safe-area-inset-bottom, 0px)) 20px;
   overflow-y: auto;
   transition: background 0.8s ease, box-shadow 0.8s ease;
 }
@@ -1791,7 +1795,7 @@
   display: flex;
   align-items: center;
   justify-content: space-between;
-  margin-bottom: 24px;
+  margin-bottom: 6px;
   position: relative;
   z-index: 100;
 }
@@ -1830,12 +1834,13 @@
 .yt-mobile-stage {
   display: flex;
   justify-content: center;
-  margin-bottom: 24px;
+  margin-bottom: 14px;
 }
 
+/* The cover takes whatever height is left so the whole player fits without scrolling. */
 .yt-mobile-art-box {
   width: 100%;
-  max-width: 320px;
+  max-width: min(320px, max(130px, calc(100dvh - 340px)));
   aspect-ratio: 1 / 1;
   border-radius: 16px;
   overflow: hidden;
@@ -1845,10 +1850,10 @@
 /* Full-player ad: top of the screen. The cover shrinks on short phones so
    the controls stay where they were. */
 .yt-mobile-full-ad {
-  margin: -8px 0 18px;
+  margin: -4px 0 10px;
 }
 .yt-mobile-full-ad ~ .yt-mobile-stage .yt-mobile-art-box {
-  max-width: min(320px, max(190px, calc(100dvh - 500px)));
+  max-width: min(320px, max(130px, calc(100dvh - 440px)));
 }
 .yt-desktop-full-ad {
   position: absolute !important;
@@ -1865,7 +1870,7 @@
 }
 
 .yt-mobile-meta-section {
-  margin-bottom: 20px;
+  margin-bottom: 12px;
 }
 
 .yt-mobile-title-row {
@@ -1875,7 +1880,8 @@
 }
 
 .yt-mobile-track-title {
-  font-size: 22px;
+  font-size: 20px;
+  line-height: 1.2;
   font-weight: 800;
   color: #fff;
   margin: 0;
@@ -1894,7 +1900,7 @@
 
 .yt-mobile-actions-wrapper {
   position: relative;
-  margin-bottom: 24px;
+  margin-bottom: 10px;
   z-index: 100;
   width: 100%;
 }
@@ -1931,8 +1937,8 @@
   display: grid;
   grid-template-columns: repeat(4, 1fr);
   gap: 2px;
-  padding: 4px;
-  border-radius: 20px;
+  padding: 3px;
+  border-radius: 18px;
   background: rgba(255, 255, 255, 0.06);
   border: 1px solid rgba(255, 255, 255, 0.07);
 }
@@ -1940,7 +1946,7 @@
   position: relative;
   flex: none;
   width: auto;
-  height: 46px;
+  height: 38px;
   padding: 0;
   border: 0;
   border-radius: 16px;
@@ -1971,7 +1977,7 @@
 }
 
 .yt-mobile-progress-wrap {
-  margin-bottom: 24px;
+  margin-bottom: 6px;
 }
 
 .yt-mobile-time-row {
@@ -1987,7 +1993,7 @@
   display: flex;
   align-items: center;
   justify-content: space-around;
-  margin-bottom: 20px;
+  margin-bottom: 0;
 }
 
 .yt-mobile-control-btn {

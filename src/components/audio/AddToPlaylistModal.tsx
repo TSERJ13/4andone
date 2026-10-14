@@ -208,19 +208,24 @@ export const AddToPlaylistModal: React.FC<AddToPlaylistModalProps> = ({
           -webkit-backdrop-filter: blur(14px);
           z-index: 10005;
           display: flex;
-          align-items: center;
+          align-items: flex-start; /* stays at the top, above the phone keyboard */
           justify-content: center;
-          padding: 20px;
+          padding: max(12px, env(safe-area-inset-top, 0px)) 12px 12px;
+          box-sizing: border-box;
+          overflow: hidden;
           animation: atpFadeIn 0.2s ease-out;
         }
 
         .atp-dialog {
           width: 100%;
           max-width: 440px;
+          box-sizing: border-box;
+          max-height: calc(100dvh - 24px);
+          overflow-y: auto;
           background: #121212;
           border: 1px solid rgba(255, 255, 255, 0.12);
           border-radius: 24px;
-          padding: 24px;
+          padding: 20px 16px;
           box-shadow: 0 25px 60px rgba(0, 0, 0, 0.85);
           display: flex;
           flex-direction: column;
@@ -341,14 +346,17 @@ export const AddToPlaylistModal: React.FC<AddToPlaylistModalProps> = ({
         }
 
         .atp-create-input {
-          flex: 1;
+          flex: 1 1 0;
+          min-width: 0;
+          width: 100%;
+          box-sizing: border-box;
           height: 42px;
           padding: 0 14px;
           border-radius: 12px;
           background: rgba(255, 255, 255, 0.08);
           border: 1px solid rgba(255, 255, 255, 0.15);
           color: #ffffff;
-          font-size: 14px;
+          font-size: 16px; /* 16px stops iPhone Safari from zooming the page sideways on focus */
           outline: none;
         }
 
@@ -357,8 +365,9 @@ export const AddToPlaylistModal: React.FC<AddToPlaylistModalProps> = ({
         }
 
         .atp-create-submit {
+          flex: 0 0 auto;
           height: 42px;
-          padding: 0 16px;
+          padding: 0 14px;
           border-radius: 12px;
           background: #1db954;
           border: none;
@@ -369,8 +378,9 @@ export const AddToPlaylistModal: React.FC<AddToPlaylistModalProps> = ({
         }
 
         .atp-create-cancel {
+          flex: 0 0 auto;
           height: 42px;
-          padding: 0 12px;
+          padding: 0 10px;
           border-radius: 12px;
           background: transparent;
           border: 1px solid rgba(255, 255, 255, 0.12);

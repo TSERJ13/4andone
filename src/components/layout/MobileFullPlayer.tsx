@@ -459,11 +459,6 @@ export default function MobileFullPlayer({ isOpen, onClose }: MobileFullPlayerPr
           <Repeat size={20} />
         </button>
       </div>
-
-      {/* Bottom Style Badge */}
-      <div className="yt-mobile-bottom-tag">
-        <span className="yt-style-highlight">{currentTrack?.style || 'Dance Track'}</span>
-      </div>
     </div>
   );
 }

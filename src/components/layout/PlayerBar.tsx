@@ -1,5 +1,6 @@
 "use client";
 
+import { isFinalSpeedLockedRoute } from '@/utils/renderedFinalTest';
 import React, { useState, useRef, useEffect } from 'react';
 import { usePathname } from 'next/navigation';
 import {
@@ -75,6 +76,7 @@ const PlayerBar = ({ onExpand }: { onExpand?: () => void }) => {
 
   const { finalTracks, tracks, styles, toggleFavorite } = useStudio();
 
+  const speedLocked = isFinalMode && isFinalSpeedLockedRoute();
   const [showSpeedSelector, setShowSpeedSelector] = useState(false);
   const speedSelectorRef = useRef<HTMLDivElement>(null);
   const [isMuted, setIsMuted] = useState(false);
@@ -460,8 +462,8 @@ const PlayerBar = ({ onExpand }: { onExpand?: () => void }) => {
               <button
                 className={`action-btn-speed icon-only ${bpm !== 100 ? 'active' : ''} ${isFinalMode ? 'final-speed' : ''}`}
                 aria-label={`Control music tempo speed. Current tempo ${bpm}%`}
-                disabled={isFinalMode}
-                style={isFinalMode ? { opacity: 0.35 } : undefined}
+                disabled={speedLocked}
+                style={speedLocked ? { opacity: 0.35 } : undefined}
                 onClick={(e) => {
                   e.stopPropagation();
                   setShowSpeedSelector(!showSpeedSelector);

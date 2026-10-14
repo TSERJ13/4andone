@@ -77,3 +77,8 @@ export function isRenderedFinalEnabled(): boolean {
   if (isNativeFinalTestEnabled()) return false;
   return rolloutState.defaultOnApple && isAppleTouchDevice();
 }
+
+/** iPhone/iPad Finals (prepared audio): the speed is chosen before the session starts and cannot change during it. */
+export function isFinalSpeedLockedRoute(): boolean {
+  return isRenderedFinalEnabled() && !isLiveFinalEnabled();
+}

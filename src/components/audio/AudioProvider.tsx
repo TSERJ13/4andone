@@ -2382,13 +2382,13 @@ export const AudioProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   };
 
   const setBpm = React.useCallback((newBpm: number, persistent = true) => {
-    // Finals: the speed is chosen BEFORE the session starts and stays fixed, so nothing ever stops or jumps.
-    if (isFinalModeRef.current && !isFitnessRef.current && !isLiveFinalEnabled()) return;
     const rate = playbackRateFor(newBpm);
     const audio = nativePlayerRef.current;
     const renderedMode = isFinalModeRef.current && !isFitnessRef.current
       && (!renderDisabledRef.current && isRenderedFinalEnabled() || !!renderedFinalRef.current || !!renderPlanRef.current);
     if (renderedMode) {
+      // iPhone/iPad Finals: the speed is chosen BEFORE the session starts and stays fixed, so nothing ever stops or jumps.
+      if (!isLiveFinalEnabled()) return;
       // While dragging, update only the selector. Preparing intermediate speeds
       // wastes memory and repeatedly interrupts the music. Commit on release.
       if (!persistent || Math.abs(bpmRef.current - rate * 100) < 0.001) return;

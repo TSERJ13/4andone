@@ -16,6 +16,12 @@ export default function FullPlayerAd({ className = '', onClose }: FullPlayerAdPr
   const router = useRouter();
   const { isPremium, isLoading, setIsSubscriptionModalOpen } = useAuth();
   const [status, setStatus] = useState<'loading' | 'filled' | 'unfilled'>('loading');
+  const [card, setCard] = useState(0); // the two house promotions take turns in one slot
+
+  useEffect(() => {
+    const t = setInterval(() => setCard(c => (c + 1) % 2), 6000);
+    return () => clearInterval(t);
+  }, []);
 
   // Timeout: if Google hasn't answered in 4s, mark unfilled so house ads display immediately
   useEffect(() => {
@@ -98,7 +104,8 @@ export default function FullPlayerAd({ className = '', onClose }: FullPlayerAdPr
       {!isGoogleAdFilled && (
         <div className="house-ads-row animate-in">
           {/* Card 1: Invite a Friend */}
-          <div 
+          {card === 0 && <div 
+            key="invite"
             className="house-ad-card glass invite-card"
             onClick={handleInviteClick}
             role="button"
@@ -124,10 +131,11 @@ export default function FullPlayerAd({ className = '', onClose }: FullPlayerAdPr
               <span>Invite</span>
               <ArrowRight size={12} />
             </button>
-          </div>
+          </div>}
 
           {/* Card 2: Upgrade to Premium */}
-          <div 
+          {card === 1 && <div 
+            key="premium"
             className="house-ad-card glass premium-card"
             onClick={handlePremiumClick}
             role="button"
@@ -153,7 +161,7 @@ export default function FullPlayerAd({ className = '', onClose }: FullPlayerAdPr
               <span>Upgrade</span>
               <ArrowRight size={12} />
             </button>
-          </div>
+          </div>}
         </div>
       )}
 
@@ -201,11 +209,15 @@ export default function FullPlayerAd({ className = '', onClose }: FullPlayerAdPr
           max-width: 660px;
         }
 
+        @keyframes house-ad-in { from { opacity: 0; transform: translateY(3px); } to { opacity: 1; transform: none; } }
+
         /* House Ad Card */
         .house-ad-card {
           flex: 1;
           min-width: 0;
-          padding: 7px 12px;
+          min-height: 46px;
+          padding: 7px 14px;
+          animation: house-ad-in 0.5s ease;
           border-radius: 12px;
           background: rgba(255, 255, 255, 0.05);
           border: 1px solid rgba(255, 255, 255, 0.1);

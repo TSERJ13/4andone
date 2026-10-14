@@ -247,6 +247,7 @@ export default function MobileFullPlayer({ isOpen, onClose }: MobileFullPlayerPr
         </div>
       </div>
 
+      <div className="yt-mobile-space-top" aria-hidden="true" />
       {/* Ad at the top, away from the controls and the seek bar (free plan) */}
       <FullPlayerAd className="yt-mobile-full-ad" onClose={onClose} />
 
@@ -463,6 +464,7 @@ export default function MobileFullPlayer({ isOpen, onClose }: MobileFullPlayerPr
           <Repeat size={20} />
         </button>
       </div>
+      <div className="yt-mobile-space-bottom" aria-hidden="true" />
     </div>
   );
 }

@@ -2,6 +2,8 @@
 
 import React, { createContext, useContext, useState, useEffect, useRef, useMemo, useCallback } from 'react';
 import { getAudioFile } from '@/utils/storage';
+import { isNativeFinalTestEnabled } from '@/utils/iosFinalDiagnostic';
+import IosFinalAudioTestBadge from './IosFinalAudioTestBadge';
 import { getTrackCover } from '@/utils/trackCover';
 import { playOrder } from '@/utils/playQueue';
 import { recordTrackPlayed } from '@/utils/history';
@@ -143,6 +145,11 @@ export const AudioProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   const [isPlaying, setIsPlaying] = useState(false);
   const [bpm, setBpmState] = useState(100);
   const [isFinalMode, setIsFinalMode] = useState(false); // Default to Normal Mode
+  const [showIosAudioTest, setShowIosAudioTest] = useState(false);
+  useEffect(() => {
+    // Capture the entry URL before login/navigation drops its query parameters.
+    setShowIosAudioTest(isIOS() && isNativeFinalTestEnabled());
+  }, []);
   const [currentTime, setCurrentTime] = useState(0);
   const [trackCurrentTime, setTrackCurrentTime] = useState(0); // For round-specific progress
   const [duration, setDuration] = useState(0);
@@ -314,22 +321,10 @@ export const AudioProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     }
   }, []);
 
-  // Can this browser change HTMLMediaElement.volume? (false on iPhone/iPad,
-  // where volume is read-only). Only those devices need the WebAudio gain
-  // chain for the Final-Mode fade; everyone else fades the plain element.
-  // Diagnostic only: compare iOS native playback against the Final WebAudio
-  // gain route without changing the default experience. Native iOS playback
-  // does not support the app-controlled 3-second fade; NEVER enable globally.
-  // Use ?iosFinalNative=1 on a test installation to isolate Safari's crackle.
-  const useNativeFinalDiagnostic = () =>
-    isIOS() && typeof window !== 'undefined' &&
-    new URLSearchParams(window.location.search).get('iosFinalNative') === '1';
-
-  const isVolumeWritable = () => {
-    if (useNativeFinalDiagnostic()) return true;
-    if (isIOS()) return false;
-    return true;
-  };
+  // Device capability and diagnostic routing are separate: opting into native
+  // playback does NOT make element.volume writable on iOS or implement a fade.
+  const isVolumeWritable = () => !isIOS();
+  const useNativeFinalDiagnostic = () => isIOS() && isNativeFinalTestEnabled();
 
   // True when the CURRENTLY ACTIVE element is the gain-routed Final one.
   const isGainActive = () =>
@@ -963,7 +958,7 @@ export const AudioProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       }
 
       // Use native pitch-corrected playback. iOS alone needs a gain path for fades.
-      const needsGainElement = isFinalModeRef.current && !isVolumeWritable();
+      const needsGainElement = isFinalModeRef.current && !isVolumeWritable() && !useNativeFinalDiagnostic();
       if (needsGainElement) {
         ensureFinalGraph();
         if (webAudioStateRef.current === 'ready' && finalPlayerRef.current) {
@@ -1263,6 +1258,10 @@ export const AudioProvider: React.FC<{ children: React.ReactNode }> = ({ childre
 
           audio.onplaying = () => {
             if (currentToken !== loadingTokenRef.current || isPauseCountdownRef.current) return;
+            // loadTrack/autoadvance can call play() without playAudio(). Apply the
+            // same cleanup there: the song now owns the audio session, so the
+            // sub-millisecond silent looping heartbeat must not keep rendering.
+            heartbeatRef.current?.pause();
             monitorPlaybackRef.current?.();
           };
           audio.onwaiting = () => {
@@ -1919,7 +1918,7 @@ export const AudioProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     // iOS needs the gain path for fades; desktop keeps the native element.
     const track = playingTrackRef.current;
     if (audio && track && audio.src && !isPauseCountdownRef.current) {
-      const wantGain = nextVal && !isVolumeWritable();
+      const wantGain = nextVal && !isVolumeWritable() && !useNativeFinalDiagnostic();
       const onGain = audio === finalPlayerRef.current;
       if (wantGain !== onGain) {
         loadTrackRef.current(track, true, nextVal, { startAt: audio.currentTime || 0, paused: audio.paused });
@@ -2184,6 +2183,8 @@ export const AudioProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     <PlayerContext.Provider value={controlsValue}>
       <PlayerTimeContext.Provider value={timeValue}>
         {children}
+        {showIosAudioTest && <IosFinalAudioTestBadge audio={nativePlayerRef.current}
+          gainActive={isGainActive()} finalMode={isFinalMode} rest={isPauseCountdown} />}
       </PlayerTimeContext.Provider>
     </PlayerContext.Provider>
   );

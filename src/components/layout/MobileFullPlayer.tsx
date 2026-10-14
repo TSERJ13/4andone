@@ -50,6 +50,7 @@ export default function MobileFullPlayer({ isOpen, onClose }: MobileFullPlayerPr
   const { albums, tracks, toggleFavorite } = useStudio();
   const {
     isPlaying,
+    isLoading,
     togglePlay,
     playNext,
     playPrevious,
@@ -431,7 +432,9 @@ export default function MobileFullPlayer({ isOpen, onClose }: MobileFullPlayerPr
         </button>
 
         <button type="button" className="yt-mobile-play-main-circle" onClick={togglePlay}>
-          {isPlaying ? (
+          {isLoading && !isPlaying ? (
+            <span className="yt-spin-ring" role="status" aria-label="Loading" />
+          ) : isPlaying ? (
             <Pause size={28} fill="#000000" color="#000000" />
           ) : (
             <Play size={28} fill="#000000" color="#000000" style={{ marginLeft: 3 }} />

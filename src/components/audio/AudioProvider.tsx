@@ -203,6 +203,11 @@ export const AudioProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   const lastRenderSourceRef = useRef<{ trackId: string | undefined; url: string; cacheKey: string } | null>(null);
   const retempoAbortRef = useRef<AbortController | null>(null);
   const retempoSeqRef = useRef(0);
+  const retempoTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  // Second, already tap-unlocked element: the new tempo starts on it while the old one still plays.
+  const spareElementRef = useRef<HTMLAudioElement | null>(null);
+  const spareUnlockedRef = useRef(false);
+  const swapPendingRef = useRef(false); // old element still plays; the new one must not touch the shared clock
   prefetchRenderedRef.current = (track: any) => {
     if (renderDisabledRef.current || !isRenderedFinalEnabled() || !track?.audioUrl) return;
     prefetchAbortRef.current?.abort();
@@ -887,7 +892,7 @@ export const AudioProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     loadingTokenRef.current += 1;
       cancelLoadRef.current?.();
       monitorPlaybackRef.current = null;
-      for (const el of [plainPlayerRef.current, finalPlayerRef.current, heartbeatRef.current]) {
+      for (const el of [plainPlayerRef.current, finalPlayerRef.current, heartbeatRef.current, spareElementRef.current]) {
         if (!el) continue;
         el.onplay = el.onpause = el.onplaying = el.onwaiting = null;
         el.oncanplay = el.onended = el.ontimeupdate = el.onerror = el.onseeked = null;
@@ -900,6 +905,8 @@ export const AudioProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       gainNodeRef.current?.disconnect();
       audioCtxRef.current?.close().catch(() => {});
       plainPlayerRef.current = finalPlayerRef.current = nativePlayerRef.current = heartbeatRef.current = null;
+      spareElementRef.current = null; spareUnlockedRef.current = false;
+      if (retempoTimerRef.current) clearTimeout(retempoTimerRef.current);
       audioCtxRef.current = null;
       mediaSourceRef.current = null;
       gainNodeRef.current = null;
@@ -1044,7 +1051,17 @@ export const AudioProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       // takes a few seconds, so by then the tap is over and play() is refused ("press Play
       // again"). Start the element silently right now, inside the tap; the real audio
       // replaces it as soon as it is ready and is then allowed to play.
-      if (isFinalModeRef.current && !isFitnessRef.current && !opts?.paused && !renderDisabledRef.current
+      // Seamless tempo swap: the new file starts on the spare element while this one keeps playing.
+      let swapFrom: HTMLAudioElement | null = null;
+      if (seamless) {
+        const current = nativePlayerRef.current, spare = spareElementRef.current;
+        if (current && spare && spare !== current && !current.paused && spareUnlockedRef.current) {
+          swapFrom = current;
+          swapPendingRef.current = true;
+          nativePlayerRef.current = spare; plainPlayerRef.current = spare; spareElementRef.current = current;
+        }
+      }
+      if (!seamless && isFinalModeRef.current && !isFitnessRef.current && !opts?.paused && !renderDisabledRef.current
           && opts?.legacyFinal !== true && (opts?.renderFinal === true || isRenderedFinalEnabled())) {
         const unlock = plainPlayerRef.current;
         if (unlock && unlock.paused) {
@@ -1053,6 +1070,17 @@ export const AudioProvider: React.FC<{ children: React.ReactNode }> = ({ childre
             unlock.loop = true;
             unlock.play().catch(() => { /* not from a tap (e.g. auto-advance): nothing to unlock */ });
           } catch { /* cosmetic */ }
+        }
+        if (!spareElementRef.current) {
+          try {
+            const spare = new Audio();
+            spare.crossOrigin = 'anonymous';
+            spare.style.display = 'none';
+            document.body.appendChild(spare);
+            spare.src = SILENT_WAV;
+            spareElementRef.current = spare;
+            spare.play().then(() => { spareUnlockedRef.current = true; spare.pause(); }).catch(() => { /* not from a tap */ });
+          } catch { /* the swap then falls back to reloading */ }
         }
       }
 
@@ -1145,7 +1173,7 @@ export const AudioProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         setPauseTime(15);
         pauseTimeRef.current = 15;
         finalEndHandledRef.current = false; // Allow end-handling for the new track
-        finalsClockRef.current.reset(startAt, playbackRateFor(bpmRef.current), initialElapsed);
+        if (!seamless) finalsClockRef.current.reset(startAt, playbackRateFor(bpmRef.current), initialElapsed);
         currentTrackQualifiedRef.current = false;
       };
 
@@ -1284,7 +1312,8 @@ export const AudioProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         renderedFinalRef.current = prepared;
         const into = opts?.prepared === prepared && Number.isFinite(opts?.preparedOffset) ? Math.max(0, opts!.preparedOffset!) : 0;
         startAt = into;
-        finalsClockRef.current.reset(into, 1, prepared.elapsedStart + into);
+        if (!seamless) finalsClockRef.current.reset(into, 1, prepared.elapsedStart + into);
+        else if (!swapFrom) finalsClockRef.current.reset(into, 1, prepared.elapsedStart + into);
       }
 
       const setupPlayer = (url: string) => {
@@ -1511,6 +1540,7 @@ export const AudioProvider: React.FC<{ children: React.ReactNode }> = ({ childre
           // ATTACH EVENT-DRIVEN MONITORING (Frame-accurate limit checks)
           const monitorPlayback = () => {
             if (currentToken !== loadingTokenRef.current) return;
+            if (swapPendingRef.current && audio.paused) return; // waiting to take over from the playing element
 
             // In pause countdown (looping SILENT_WAV): drive pause countdown directly from audio clock
             if (isPauseCountdownRef.current) {
@@ -1637,7 +1667,35 @@ export const AudioProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         if (oldBlobUrl) { const stale = oldBlobUrl; setTimeout(() => URL.revokeObjectURL(stale), 3000); }
         if (currentToken !== loadingTokenRef.current) return;
         if (renderPlan) renderPlan.ready = true;
-        if (startAt > 0) {
+        const shipped = renderedFinalRef.current;
+        let into = 0;
+        if (swapFrom && shipped) {
+          // Old tempo is still playing. Seek the new file a little ahead of the old playhead,
+          // start it exactly when the old playhead gets there, then stop the old one.
+          const old = swapFrom;
+          const oldElapsed = () => finalsClockRef.current.sample(old.currentTime, old.duration);
+          try {
+            const target = Math.max(shipped.elapsedStart, oldElapsed() + 0.4);
+            into = Math.min(Math.max(0, shipped.duration - 1), target - shipped.elapsedStart);
+            await new Promise<void>(resolve => {
+              const done = () => { audio.removeEventListener('seeked', done); resolve(); };
+              audio.addEventListener('seeked', done);
+              setTimeout(done, 500);
+              try { audio.currentTime = into; } catch { done(); }
+            });
+            for (let waited = 0; waited < 700 && !old.paused && currentToken === loadingTokenRef.current
+                 && oldElapsed() < target - 0.03; waited++) {
+              await new Promise<void>(resolve => setTimeout(resolve, 10));
+            }
+            if (currentToken !== loadingTokenRef.current) return;
+            finalsClockRef.current.reset(into, 1, shipped.elapsedStart + into);
+          } finally {
+            swapPendingRef.current = false;
+          }
+          audio.addEventListener('playing', () => {
+            try { old.pause(); old.onended = null; old.ontimeupdate = null; } catch { /* already stopped */ }
+          }, { once: true });
+        } else if (startAt > 0) {
           try { audio.currentTime = startAt; } catch { /* ignore */ }
         }
 
@@ -1665,6 +1723,7 @@ export const AudioProvider: React.FC<{ children: React.ReactNode }> = ({ childre
 
           playPromiseRef.current.catch(() => {
             // Autoplay refused (e.g. no user gesture) — show the real state
+            if (swapFrom) { try { swapFrom.pause(); } catch { /* ignore */ } }
             if (currentToken !== loadingTokenRef.current) return;
             setIsPlaying(false);
             isPlayingRef.current = false;
@@ -2012,6 +2071,82 @@ export const AudioProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     }
   }, [isLoaded, playAudio, pauseAudio]);
 
+  // Applies the tempo chosen in the speed control to a rendered dance (called after the taps/drags settle).
+  const applyRenderedTempoRef = useRef<() => void>(() => {});
+  applyRenderedTempoRef.current = () => {
+    const audio = nativePlayerRef.current;
+    const track = playingTrackRef.current;
+    if (!track) return;
+    const plan = renderPlanRef.current;
+    const prepared = renderedFinalRef.current;
+    let position = plan?.sourceStart ?? audio?.currentTime ?? 0;
+    let elapsed = plan?.elapsedStart ?? finalsClockRef.current.elapsed;
+    let paused = plan?.paused ?? audio?.paused ?? false;
+    if (prepared && plan?.ready && audio) {
+      elapsed = finalsClockRef.current.sample(audio.currentTime, audio.duration);
+      position = renderedSourcePosition(prepared, audio.currentTime);
+      paused = audio.paused;
+    }
+    if (elapsed >= FINAL_DANCE_SECONDS) return;
+    const reload = () => {
+      const a = nativePlayerRef.current, pr = renderedFinalRef.current, pl = renderPlanRef.current;
+      let pos = pl?.sourceStart ?? a?.currentTime ?? 0;
+      let el = pl?.elapsedStart ?? finalsClockRef.current.elapsed;
+      let pz = pl?.paused ?? a?.paused ?? false;
+      if (pr && pl?.ready && a) {
+        el = finalsClockRef.current.sample(a.currentTime, a.duration);
+        pos = renderedSourcePosition(pr, a.currentTime);
+        pz = a.paused;
+      }
+      if (el >= FINAL_DANCE_SECONDS) return;
+      loadTrackRef.current(track, true, true, { startAt: pos, finalElapsed: el, paused: pz, renderFinal: true });
+    };
+    // PLAYING: keep the music going while the new tempo is prepared, then switch at the
+    // same musical spot. A few seconds ahead of the playhead is prepared; the switch
+    // happens when the playhead gets there (or right away, inside the file, if late).
+    const source = lastRenderSourceRef.current;
+    const RETEMPO_LEAD = 4;
+    const startElapsed = elapsed + RETEMPO_LEAD;
+    if (!paused && audio && prepared && plan?.ready && source && source.trackId === track.id
+        && startElapsed < FINAL_DANCE_SECONDS - FINAL_FADE_SECONDS - 3) {
+      retempoAbortRef.current?.abort();
+      const controller = new AbortController();
+      retempoAbortRef.current = controller;
+      const seq = ++retempoSeqRef.current;
+      const token = loadingTokenRef.current;
+      const startSource = position + RETEMPO_LEAD * playbackRateFor(prepared.percent);
+      renderFinalAudio({ url: source.url, cacheKey: source.cacheKey, percent: bpmRef.current,
+        sourceStart: startSource, elapsedStart: startElapsed, signal: controller.signal })
+        .then(next => {
+          const stale = () => controller.signal.aborted || seq !== retempoSeqRef.current || token !== loadingTokenRef.current;
+          if (stale()) return;
+          const swap = () => {
+            if (stale()) return;
+            const a = nativePlayerRef.current;
+            if (!a || a.paused) { reload(); return; } // paused meanwhile: continue paused
+            if (spareUnlockedRef.current && spareElementRef.current) {
+              // The new file starts on the spare element, in sync with the old playhead (see loadTrack).
+              loadTrackRef.current(track, true, true, { renderFinal: true, prepared: next, finalElapsed: next.elapsedStart });
+              return;
+            }
+            const now = finalsClockRef.current.sample(a.currentTime, a.duration);
+            if (now < startElapsed - 0.25 && !isPauseCountdownRef.current) { setTimeout(swap, 50); return; }
+            const offset = Math.max(0, now - next.elapsedStart);
+            if (offset >= next.duration - 1) { reload(); return; }
+            loadTrackRef.current(track, true, true, { startAt: 0, finalElapsed: now, renderFinal: true, prepared: next, preparedOffset: offset });
+          };
+          swap();
+        })
+        .catch(error => {
+          if (controller.signal.aborted || seq !== retempoSeqRef.current) return;
+          console.warn('[AUDIO-ENGINE] Seamless tempo change failed; reloading:', error);
+          reload();
+        });
+      return;
+    }
+    loadTrackRef.current(track, true, true, { startAt: position, finalElapsed: elapsed, paused, renderFinal: true });
+  };
+
   const setBpm = React.useCallback((newBpm: number, persistent = true) => {
     const rate = playbackRateFor(newBpm);
     const audio = nativePlayerRef.current;
@@ -2030,71 +2165,8 @@ export const AudioProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         if (at >= 0) prefetchRenderedRef.current(list[at + 1]);
         return;
       }
-      const track = playingTrackRef.current;
-      if (!track) return;
-      const plan = renderPlanRef.current;
-      const prepared = renderedFinalRef.current;
-      let position = plan?.sourceStart ?? audio?.currentTime ?? 0;
-      let elapsed = plan?.elapsedStart ?? finalsClockRef.current.elapsed;
-      let paused = plan?.paused ?? audio?.paused ?? false;
-      if (prepared && plan?.ready && audio) {
-        elapsed = finalsClockRef.current.sample(audio.currentTime, audio.duration);
-        position = renderedSourcePosition(prepared, audio.currentTime);
-        paused = audio.paused;
-      }
-      if (elapsed >= FINAL_DANCE_SECONDS) return;
-      const reload = () => {
-        const a = nativePlayerRef.current, pr = renderedFinalRef.current, pl = renderPlanRef.current;
-        let pos = pl?.sourceStart ?? a?.currentTime ?? 0;
-        let el = pl?.elapsedStart ?? finalsClockRef.current.elapsed;
-        let pz = pl?.paused ?? a?.paused ?? false;
-        if (pr && pl?.ready && a) {
-          el = finalsClockRef.current.sample(a.currentTime, a.duration);
-          pos = renderedSourcePosition(pr, a.currentTime);
-          pz = a.paused;
-        }
-        if (el >= FINAL_DANCE_SECONDS) return;
-        loadTrackRef.current(track, true, true, { startAt: pos, finalElapsed: el, paused: pz, renderFinal: true });
-      };
-      // PLAYING: keep the music going while the new tempo is prepared, then switch at the
-      // same musical spot. A few seconds ahead of the playhead is prepared; the switch
-      // happens when the playhead gets there (or right away, inside the file, if late).
-      const source = lastRenderSourceRef.current;
-      const RETEMPO_LEAD = 4;
-      const startElapsed = elapsed + RETEMPO_LEAD;
-      if (!paused && audio && prepared && plan?.ready && source && source.trackId === track.id
-          && startElapsed < FINAL_DANCE_SECONDS - FINAL_FADE_SECONDS - 3) {
-        retempoAbortRef.current?.abort();
-        const controller = new AbortController();
-        retempoAbortRef.current = controller;
-        const seq = ++retempoSeqRef.current;
-        const token = loadingTokenRef.current;
-        const startSource = position + RETEMPO_LEAD * playbackRateFor(prepared.percent);
-        renderFinalAudio({ url: source.url, cacheKey: source.cacheKey, percent: bpmRef.current,
-          sourceStart: startSource, elapsedStart: startElapsed, signal: controller.signal })
-          .then(next => {
-            const stale = () => controller.signal.aborted || seq !== retempoSeqRef.current || token !== loadingTokenRef.current;
-            if (stale()) return;
-            const swap = () => {
-              if (stale()) return;
-              const a = nativePlayerRef.current;
-              if (!a || a.paused) { reload(); return; } // paused meanwhile: continue paused
-              const now = finalsClockRef.current.sample(a.currentTime, a.duration);
-              if (now < startElapsed - 0.25 && !isPauseCountdownRef.current) { setTimeout(swap, 50); return; }
-              const offset = Math.max(0, now - next.elapsedStart);
-              if (offset >= next.duration - 1) { reload(); return; }
-              loadTrackRef.current(track, true, true, { startAt: 0, finalElapsed: now, renderFinal: true, prepared: next, preparedOffset: offset });
-            };
-            swap();
-          })
-          .catch(error => {
-            if (controller.signal.aborted || seq !== retempoSeqRef.current) return;
-            console.warn('[AUDIO-ENGINE] Seamless tempo change failed; reloading:', error);
-            reload();
-          });
-        return;
-      }
-      loadTrackRef.current(track, true, true, { startAt: position, finalElapsed: elapsed, paused, renderFinal: true });
+      if (retempoTimerRef.current) clearTimeout(retempoTimerRef.current);
+      retempoTimerRef.current = setTimeout(() => applyRenderedTempoRef.current(), 250); // taps/drags settle first
       return;
     }
     if (audio && !isPauseCountdownRef.current) {

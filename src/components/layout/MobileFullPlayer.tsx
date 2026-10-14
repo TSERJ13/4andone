@@ -78,6 +78,8 @@ export default function MobileFullPlayer({ isOpen, onClose }: MobileFullPlayerPr
   const [scrubTime, setScrubTime] = useState<number | null>(null);
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [isSpeedPopoverOpen, setIsSpeedPopoverOpen] = useState(false);
+  // Dragging the slider only changes this label; the music changes once, when the finger lifts.
+  const [draftBpm, setDraftBpm] = useState<number | null>(null);
   const [showCopiedToast, setShowCopiedToast] = useState(false);
 
   const menuRef = useRef<HTMLDivElement>(null);
@@ -109,8 +111,14 @@ export default function MobileFullPlayer({ isOpen, onClose }: MobileFullPlayerPr
   const totalDur = isFinalMode && sessionDuration > 0 ? sessionDuration : duration;
 
   const currentBpm = bpm || 100;
-  const bpmDelta = currentBpm - 100;
+  const shownBpm = draftBpm ?? currentBpm;
+  const bpmDelta = shownBpm - 100;
   const isBpmChanged = currentBpm !== 100;
+  const commitDraftBpm = () => {
+    if (draftBpm === null) return;
+    setBpm(draftBpm, true);
+    setDraftBpm(null);
+  };
   const bpmDisplay = bpmDelta === 0 ? '0%' : (bpmDelta > 0 ? `+${bpmDelta}%` : `${bpmDelta}%`);
 
   // Light red tint for the whole of Final Mode. (It compared the session clock
@@ -277,7 +285,7 @@ export default function MobileFullPlayer({ isOpen, onClose }: MobileFullPlayerPr
               }
             }}
           >
-            <Heart size={22} fill={isFavorite ? '#ef4444' : 'none'} color={isFavorite ? '#ef4444' : 'currentColor'} />
+            <Heart size={20} fill={isFavorite ? '#ef4444' : 'none'} color={isFavorite ? '#ef4444' : 'currentColor'} />
           </button>
 
           {/* Speedometer Pill Button */}
@@ -288,7 +296,7 @@ export default function MobileFullPlayer({ isOpen, onClose }: MobileFullPlayerPr
             aria-label={isBpmChanged ? `Speed ${bpmDisplay}` : 'Speed'}
             title={isBpmChanged ? `Speed ${bpmDisplay}` : 'Speed'}
           >
-            <Gauge size={22} />
+            <Gauge size={20} />
           </button>
 
           {/* Final Mode Pill Button (1:45 Timer + Red Highlight) */}
@@ -308,7 +316,7 @@ export default function MobileFullPlayer({ isOpen, onClose }: MobileFullPlayerPr
             title={isFinalMode ? 'Stop Final Mode' : 'Final Mode (1:45 Timer)'}
             aria-label={isFinalMode ? 'Stop Final Mode' : 'Final Mode'}
           >
-            {isFinalMode ? <X size={22} color="#ef4444" strokeWidth={2.75} /> : <Trophy size={22} color="currentColor" />}
+            {isFinalMode ? <X size={20} color="#ef4444" strokeWidth={2.75} /> : <Trophy size={20} color="currentColor" />}
           </button>
 
           <button
@@ -318,7 +326,7 @@ export default function MobileFullPlayer({ isOpen, onClose }: MobileFullPlayerPr
             aria-label="Save to playlist"
             title="Save"
           >
-            <Bookmark size={22} />
+            <Bookmark size={20} />
           </button>
         </div>
 
@@ -351,8 +359,14 @@ export default function MobileFullPlayer({ isOpen, onClose }: MobileFullPlayerPr
                 min={50}
                 max={150}
                 step={1}
-                value={currentBpm}
-                onChange={(e) => setBpm(parseInt(e.target.value), true)}
+                value={shownBpm}
+                onChange={(e) => setDraftBpm(parseInt(e.target.value, 10))}
+                onPointerUp={commitDraftBpm}
+                onTouchEnd={commitDraftBpm}
+                onMouseUp={commitDraftBpm}
+                onKeyUp={commitDraftBpm}
+                onBlur={commitDraftBpm}
+                aria-label="Speed"
                 className="yt-speed-range-slider"
               />
 

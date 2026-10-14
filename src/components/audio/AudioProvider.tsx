@@ -97,6 +97,17 @@ const isIOS = (): boolean => {
     (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
 };
 
+// LOCK-SCREEN METADATA. iOS picks one artwork size from the list, so offer the
+// same cover at every usual size, with the app icon as the last fallback.
+const ARTWORK_SIZES = ['96x96', '128x128', '192x192', '256x256', '384x384', '512x512'];
+const coverMime = (path: string) => /\.png($|\?)/i.test(path) ? 'image/png' : /\.webp($|\?)/i.test(path) ? 'image/webp' : 'image/jpeg';
+const absoluteUrl = (path: string) => (typeof window !== 'undefined' && path.startsWith('/')) ? `${window.location.origin}${path}` : path;
+const lockScreenArtwork = (coverPath: string): MediaImage[] => [
+  ...ARTWORK_SIZES.map(sizes => ({ src: absoluteUrl(coverPath), sizes, type: coverMime(coverPath) })),
+  { src: absoluteUrl('/icons/icon-512x512.png'), sizes: '512x512', type: 'image/png' },
+];
+export const REST_TITLE = 'Rest Time';
+
 // SIGNED-URL CACHE: re-using the same signed URL for a track lets the browser
 // HTTP cache serve replays instantly instead of re-downloading the whole file,
 // and removes the /api/upload round-trip before every play. Entries are reused
@@ -510,17 +521,6 @@ export const AudioProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     pauseTimeRef.current = newPauseTime;
     setPauseTime(Math.ceil(newPauseTime));
 
-    // Update lockscreen / MediaSession countdown
-    if ('mediaSession' in navigator && (navigator.mediaSession as any).metadata) {
-      try {
-        const sec = Math.ceil(newPauseTime);
-        const meta = navigator.mediaSession.metadata;
-        if (meta && meta.title !== `Rest (${sec}s)`) {
-          meta.title = `Rest (${sec}s)`;
-        }
-      } catch {}
-    }
-
     // Keep session clock moving smoothly through rest
     const list = sessionTracksRef.current;
     let idx = sessionIndexRef.current;
@@ -678,17 +678,11 @@ export const AudioProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       navigator.mediaSession.playbackState = 'playing';
       try {
         const coverPath = nextTrack ? getTrackCover(nextTrack, albums) : '/icons/icon-512x512.png';
-        const absoluteCover = (typeof window !== 'undefined' && coverPath.startsWith('/'))
-          ? `${window.location.origin}${coverPath}`
-          : coverPath;
         navigator.mediaSession.metadata = new MediaMetadata({
-          title: 'Rest (15s)',
+          title: REST_TITLE,
           artist: nextTrack ? `Next: ${nextTrack.title}` : 'Final Mode',
           album: activeModeRef.current ? `${activeModeRef.current.toUpperCase()} Final` : 'Final Mode',
-          artwork: [
-            { src: absoluteCover, sizes: '512x512', type: /\.png($|\?)/i.test(coverPath) ? 'image/png' : 'image/jpeg' },
-            { src: `${window.location.origin}/icons/icon-512x512.png`, sizes: '512x512', type: 'image/png' }
-          ]
+          artwork: lockScreenArtwork(coverPath),
         });
       } catch {}
     }
@@ -1120,6 +1114,18 @@ export const AudioProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       setCurrentTrack(track);
       trackIdRef.current = track.id;
       playingTrackRef.current = track;
+      // The playing song's title and cover for the lock screen / Control Centre.
+      const applyTrackMetadata = () => {
+        if (!('mediaSession' in navigator) || typeof MediaMetadata === 'undefined') return;
+        try {
+          navigator.mediaSession.metadata = new MediaMetadata({
+            title: track.title,
+            artist: track.artist || '4ANDONE Artist',
+            album: track.album || '4and.one Music',
+            artwork: lockScreenArtwork(getTrackCover(track, albums)),
+          });
+        } catch { /* metadata is cosmetic; never break playback */ }
+      };
 
       let finalUrl = track.audioUrl;
 
@@ -1363,6 +1369,8 @@ export const AudioProvider: React.FC<{ children: React.ReactNode }> = ({ childre
             // sub-millisecond silent looping heartbeat must not keep rendering.
             heartbeatRef.current?.pause();
             monitorPlaybackRef.current?.();
+            // Rest Time may still be on the lock screen from the break before this dance.
+            if ('mediaSession' in navigator && navigator.mediaSession.metadata?.title !== track.title) applyTrackMetadata();
           };
           audio.onwaiting = () => {
             if (currentToken !== loadingTokenRef.current || isPauseCountdownRef.current) return;
@@ -1580,22 +1588,7 @@ export const AudioProvider: React.FC<{ children: React.ReactNode }> = ({ childre
 
       // MEDIA SESSION SETUP
       if ('mediaSession' in navigator) {
-        const coverPath = getTrackCover(track, albums);
-        const absoluteCover = (typeof window !== 'undefined' && coverPath.startsWith('/')) 
-          ? `${window.location.origin}${coverPath}` 
-          : coverPath;
-
-        navigator.mediaSession.metadata = new MediaMetadata({
-          title: track.title,
-          artist: track.artist || '4ANDONE Artist',
-          album: track.album || '4and.one Music',
-          artwork: [
-            // One entry with the cover's real type (a .png cover was declared
-            // as image/jpeg), then the app icon as a fallback.
-            { src: absoluteCover, sizes: '512x512', type: /\.png($|\?)/i.test(coverPath) ? 'image/png' : 'image/jpeg' },
-            { src: `${window.location.origin}/icons/icon-512x512.png`, sizes: '512x512', type: 'image/png' },
-          ]
-        });
+        applyTrackMetadata();
 
         // ACTION HANDLERS: Crucial for background playback on iOS PWA & Lock-Screen
         navigator.mediaSession.setActionHandler('play', () => { playAudio(); });

@@ -12,7 +12,11 @@ const withPWA = withPWAInit({
   skipWaiting: true,
   buildExcludes: [/.*\.css$/],
   publicExcludes: ['!**/*'],
-  additionalManifestEntries: [{ url: '/audio/rest-15s.mp3', revision: 'rest-15s-v1' }],
+  additionalManifestEntries: [
+    { url: '/audio/rest-15s.mp3', revision: 'rest-15s-v1' },
+    // Finals renders the tempo in the browser; keep the processor available offline.
+    { url: '/vendor/signalsmith-stretch-1.3.2/SignalsmithStretch.mjs', revision: 'signalsmith-stretch-1.3.2' },
+  ],
   fallbacks: {
     document: '/_offline',
   },

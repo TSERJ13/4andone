@@ -299,7 +299,7 @@ async function renderIosDefault() {
 }
 describe('rendered Finals is the default on iPhone', () => {
   beforeEach(() => { rolloutState.defaultOnApple = true; });
-  afterEach(() => { rolloutState.defaultOnApple = false; });
+  afterEach(() => { rolloutState.defaultOnApple = true; });
   it('uses prepared 1x audio without any URL flag and keeps the requested tempo', async () => {
     const ua = vi.spyOn(navigator, 'userAgent', 'get').mockReturnValue(IPHONE);
     try {
@@ -397,14 +397,15 @@ describe('lock-screen metadata in Finals', () => {
 });
 
 describe('rendered Finals safety switches', () => {
-  it('is OFF by default on iPhone until it is verified on a real device', async () => {
+  it('can be switched off by the rollout switch (default route is then the old one)', async () => {
+    rolloutState.defaultOnApple = false;
     const ua = vi.spyOn(navigator, 'userAgent', 'get').mockReturnValue(IPHONE);
     try {
       await renderIosDefault();
       await act(async () => { api.setBpm(95); api.loadTrack(track('safe'), false, true); }); await flush();
       expect(renderState.requests).toHaveLength(0);
       expect(api.isFinalMode).toBe(true); expect(api.error).toBeNull();
-    } finally { ua.mockRestore(); }
+    } finally { rolloutState.defaultOnApple = true; ua.mockRestore(); }
   });
   it('never leaves Finals loading forever: a stuck preparation times out and the dance plays on the previous route', async () => {
     rolloutState.defaultOnApple = true;
@@ -416,7 +417,7 @@ describe('rendered Finals safety switches', () => {
       expect(api.isPlaying).toBe(false);
       await tick(26); await flush();
       expect(api.error).toBeNull(); expect(api.isFinalMode).toBe(true); expect(api.isPlaying).toBe(true);
-    } finally { rolloutState.defaultOnApple = false; ua.mockRestore(); }
+    } finally { rolloutState.defaultOnApple = true; ua.mockRestore(); }
   });
   it('shows the timeout in the explicit test mode instead of hiding it', async () => {
     await enableRenderedFinals();

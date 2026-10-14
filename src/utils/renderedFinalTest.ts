@@ -33,11 +33,12 @@ function isAppleTouchDevice(): boolean {
     || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
 }
 
-/** Rollout switch. Rendered Finals was shipped default-on for iPhone/iPad and
- * Finals would not start on a real device, so it is OFF by default again until
- * it is verified on a physical iPhone. Opt in per device with ?finalsRender=1.
+/** Rollout switch. On a real iPhone the old route (playbackRate + MediaElementSource/Gain
+ * graph) crackled, while both the native element and rendered Finals
+ * (?finalsRender=1) played clean — so rendered Finals is the default on
+ * iPhone/iPad again. A stuck preparation times out and falls back to the old route.
  */
-export const rolloutState = { defaultOnApple: false };
+export const rolloutState = { defaultOnApple: true };
 
 /** Behaviour switch for rendered Finals.
  * Opt-in (?finalsRender=1) unless rolloutState.defaultOnApple is set, in which

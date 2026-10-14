@@ -165,7 +165,7 @@ async function renderOnce(request: FinalRenderRequest): Promise<RenderedFinalAud
       numberOfInputs: 0, numberOfOutputs: 1, outputChannelCount: [input.numberOfChannels],
     });
     try {
-      await stretch.configure({ blockMs: 120, intervalMs: 30 });
+      await stretch.configure({ blockMs: 120, intervalMs: 15 }); // denser overlap: closer to the ideal slowed sound in a synthetic spectral test (about 1.5x the render time)
       await stretch.addBuffers(Array.from({ length: input.numberOfChannels }, (_, channel) => input.getChannelData(channel).slice()));
       // Tempo and pitch are INDEPENDENT here. A half-second lead lets the
       // processor compensate its latency before the first retained sample.

@@ -1780,8 +1780,8 @@
   top: 0;
   left: 0;
   right: 0;
-  height: 100vh;
-  height: 100dvh; /* the visible height, so the browser's toolbar never hides the controls */
+  bottom: 0; /* pinned to the real screen: after turning the phone, 100dvh can keep the old orientation's height on iPhone */
+  container-type: size; /* children size themselves from this box (cqh), not from the window height */
   background: linear-gradient(to bottom, #1a080c 0%, #030303 100%);
   z-index: 600;
   display: flex;
@@ -1789,7 +1789,7 @@
   padding: calc(10px + env(safe-area-inset-top, 0px)) 20px calc(14px + env(safe-area-inset-bottom, 0px)) 20px;
   overflow-y: auto;
   /* Same arrangement as before: everything starts at the top. Gaps grow with the screen height (and shrink on short screens). */
-  --pgap: clamp(8px, 2.4dvh, 24px);
+  --pgap: clamp(8px, 2.4cqh, 24px);
   transition: background 0.8s ease, box-shadow 0.8s ease;
 }
 
@@ -1844,7 +1844,7 @@
 /* The cover takes whatever height is left so the whole player fits without scrolling. */
 .yt-mobile-art-box {
   width: 100%;
-  max-width: min(330px, max(130px, calc(100dvh - 390px)));
+  max-width: min(330px, max(130px, calc(100cqh - 355px)));
   aspect-ratio: 1 / 1;
   border-radius: 16px;
   overflow: hidden;
@@ -1857,7 +1857,7 @@
   margin: -4px 0 10px;
 }
 .yt-mobile-full-ad ~ .yt-mobile-stage .yt-mobile-art-box {
-  max-width: min(330px, max(130px, calc(100dvh - 490px)));
+  max-width: min(330px, max(130px, calc(100cqh - 455px)));
 }
 .yt-desktop-full-ad {
   position: absolute !important;
@@ -2653,10 +2653,14 @@
   .yt-mobile-space-top, .yt-mobile-space-bottom, .yt-mobile-full-ad { display: none; }
   .yt-mobile-stage { grid-column: 1; grid-row: 2 / span 5; margin: 0; align-self: center; }
   .yt-mobile-art-box,
-  .yt-mobile-full-ad ~ .yt-mobile-stage .yt-mobile-art-box { max-width: min(100%, calc(100dvh - 170px)); }
+  .yt-mobile-full-ad ~ .yt-mobile-stage .yt-mobile-art-box { max-width: min(100%, calc(100cqh - 135px)); }
   .yt-mobile-meta-section { grid-column: 2; grid-row: 2; align-self: end; margin: 0 0 14px; }
   .yt-mobile-actions-wrapper { grid-column: 2; grid-row: 3; margin: 0 0 16px; }
   .yt-mobile-progress-wrap { grid-column: 2; grid-row: 4; margin: 0 0 10px; }
   .yt-mobile-controls-row { grid-column: 2; grid-row: 5; align-self: start; padding-bottom: 0; }
   .yt-mobile-queue-view { grid-column: 1; grid-row: 2 / span 5; margin: 0; }
 }
+
+.yt-mobile-stage { flex-shrink: 0; align-items: flex-start; }
+.yt-mobile-art-box { flex-shrink: 0; height: auto; }
+.yt-mobile-queue-view { margin-bottom: 8px; }

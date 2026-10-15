@@ -2641,9 +2641,9 @@
 @media (orientation: landscape) and (max-height: 600px) {
   .yt-mobile-full-player-overlay {
     display: grid;
-    grid-template-columns: minmax(0, 40%) minmax(0, 1fr);
+    grid-template-columns: minmax(0, 34%) minmax(0, 1fr);
     grid-template-rows: auto 1fr auto auto auto 1fr;
-    column-gap: 28px;
+    column-gap: 36px;
     align-content: start;
     padding-left: calc(20px + env(safe-area-inset-left, 0px));
     padding-right: calc(20px + env(safe-area-inset-right, 0px));
@@ -2653,10 +2653,10 @@
   .yt-mobile-space-top, .yt-mobile-space-bottom, .yt-mobile-full-ad { display: none; }
   .yt-mobile-stage { grid-column: 1; grid-row: 2 / span 5; margin: 0; align-self: center; }
   .yt-mobile-art-box,
-  .yt-mobile-full-ad ~ .yt-mobile-stage .yt-mobile-art-box { max-width: min(100%, calc(100dvh - 120px)); }
-  .yt-mobile-meta-section { grid-column: 2; grid-row: 2; align-self: end; margin: 0 0 8px; }
-  .yt-mobile-actions-wrapper { grid-column: 2; grid-row: 3; margin: 0 0 8px; }
-  .yt-mobile-progress-wrap { grid-column: 2; grid-row: 4; margin: 0 0 4px; }
+  .yt-mobile-full-ad ~ .yt-mobile-stage .yt-mobile-art-box { max-width: min(100%, calc(100dvh - 170px)); }
+  .yt-mobile-meta-section { grid-column: 2; grid-row: 2; align-self: end; margin: 0 0 14px; }
+  .yt-mobile-actions-wrapper { grid-column: 2; grid-row: 3; margin: 0 0 16px; }
+  .yt-mobile-progress-wrap { grid-column: 2; grid-row: 4; margin: 0 0 10px; }
   .yt-mobile-controls-row { grid-column: 2; grid-row: 5; align-self: start; padding-bottom: 0; }
   .yt-mobile-queue-view { grid-column: 1; grid-row: 2 / span 5; margin: 0; }
 }

@@ -165,6 +165,44 @@ const fetchAllTracks = async () => {
   return all;
 };
 
+// The last track list is kept on the device, so the app opens with the library already on screen
+// (stale-while-revalidate): the fresh list from the server replaces it a moment later.
+const TRACKS_CACHE_KEY = '4andone_tracks_cache_v1';
+const TRACKS_CACHE_MAX_CHARS = 3_000_000; // stay well inside the ~5M character storage quota
+const readTracksCache = (): any[] | null => {
+  if (typeof window === 'undefined') return null;
+  try {
+    const rows = JSON.parse(localStorage.getItem(TRACKS_CACHE_KEY) || 'null');
+    return Array.isArray(rows) && rows.length > 0 ? rows : null;
+  } catch { return null; }
+};
+const writeTracksCache = (rows: any[]) => {
+  try {
+    const text = JSON.stringify(rows);
+    if (text.length <= TRACKS_CACHE_MAX_CHARS) localStorage.setItem(TRACKS_CACHE_KEY, text);
+    else localStorage.removeItem(TRACKS_CACHE_KEY);
+  } catch { /* full or blocked: the app just loads from the network as before */ }
+};
+const mapTrackRows = (rows: any[], userLikes: string[]) => {
+  const mapped = rows.map(t => ({
+    ...t,
+    audioUrl: t.audio_url,
+    artworkUrl: t.artwork_url,
+    folderId: t.folder_id,
+    createdAt: t.created_at || t.date,
+    globalOrder: typeof t.global_order === 'number' ? t.global_order : (Number(t.global_order) || 0),
+    duration: t.duration || 0,
+    isFavorite: userLikes.includes(t.id)
+  }));
+  mapped.sort((a, b) => {
+    if ((a.globalOrder ?? 0) !== (b.globalOrder ?? 0)) {
+      return (a.globalOrder ?? 0) - (b.globalOrder ?? 0);
+    }
+    return new Date(b.createdAt || b.date || 0).getTime() - new Date(a.createdAt || a.date || 0).getTime();
+  });
+  return mapped;
+};
+
 export const StudioProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const { user, isAuthenticated, setIsAuthModalOpen, sessionVersion } = useAuth();
   const [tracks, setTracks] = useState<Track[]>([]);
@@ -307,23 +345,8 @@ export const StudioProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       }
 
       if (tracksData && tracksData.length > 0) {
-        const mapped = tracksData.map(t => ({
-          ...t,
-          audioUrl: t.audio_url,
-          artworkUrl: t.artwork_url,
-          folderId: t.folder_id,
-          createdAt: t.created_at || t.date,
-          globalOrder: typeof t.global_order === 'number' ? t.global_order : (Number(t.global_order) || 0),
-          duration: t.duration || 0,
-          isFavorite: userLikes.includes(t.id)
-        }));
-        mapped.sort((a, b) => {
-          if ((a.globalOrder ?? 0) !== (b.globalOrder ?? 0)) {
-            return (a.globalOrder ?? 0) - (b.globalOrder ?? 0);
-          }
-          return new Date(b.createdAt || b.date || 0).getTime() - new Date(a.createdAt || a.date || 0).getTime();
-        });
-        setTracks(mapped);
+        setTracks(mapTrackRows(tracksData, userLikes) as any);
+        writeTracksCache(tracksData);
       }
 
       // Fetch Folders, Styles, Tags
@@ -348,7 +371,12 @@ export const StudioProvider: React.FC<{ children: React.ReactNode }> = ({ childr
 
   // Load from Supabase and Subscribe to Real-Time Updates
   useEffect(() => {
-    fetchData();
+    const cachedRows = readTracksCache();
+    if (cachedRows) {
+      setTracks(prev => (prev.length > 0 ? prev : (mapTrackRows(cachedRows, []) as any)));
+      setIsLoading(false); // the library is already on screen; the fresh list arrives silently
+    }
+    fetchData(!!cachedRows);
 
     // Enable Real-Time Subscription
     const channel = supabase

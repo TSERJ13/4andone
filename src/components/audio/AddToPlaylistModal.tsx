@@ -25,6 +25,7 @@ export const AddToPlaylistModal: React.FC<AddToPlaylistModalProps> = ({
   const [newPlaylistName, setNewPlaylistName] = useState('');
   const [isCreating, setIsCreating] = useState(false);
   const [loadingFolderId, setLoadingFolderId] = useState<string | null>(null);
+  const [errorText, setErrorText] = useState<string | null>(null);
 
   useEffect(() => {
     setMounted(true);
@@ -42,6 +43,7 @@ export const AddToPlaylistModal: React.FC<AddToPlaylistModalProps> = ({
 
     const isAlreadyIn = folderTracksMap?.[folder.id]?.includes(track.id) || track.folderId === folder.id;
     setLoadingFolderId(folder.id);
+    setErrorText(null);
 
     try {
       if (isAlreadyIn) {
@@ -51,6 +53,7 @@ export const AddToPlaylistModal: React.FC<AddToPlaylistModalProps> = ({
       }
     } catch (err) {
       console.error('[ADD-TO-PLAYLIST-ERROR]', err);
+      setErrorText((err as Error)?.message || 'Could not save. Please try again.');
     } finally {
       setLoadingFolderId(null);
     }
@@ -79,6 +82,7 @@ export const AddToPlaylistModal: React.FC<AddToPlaylistModalProps> = ({
       }
     } catch (err) {
       console.error('[CREATE-AND-ADD-ERROR]', err);
+      setErrorText((err as Error)?.message || 'Could not save. Please try again.');
     } finally {
       setIsCreating(false);
     }
@@ -112,6 +116,8 @@ export const AddToPlaylistModal: React.FC<AddToPlaylistModalProps> = ({
             <p className="truncate">{track.artist || '4and.one Music'}</p>
           </div>
         </div>
+
+        {errorText && <p role="alert" style={{ margin: '0 0 12px', padding: '10px 12px', borderRadius: 10, background: 'rgba(239,68,68,0.12)', color: '#fca5a5', fontSize: 13 }}>{errorText}</p>}
 
         {/* Quick Create Playlist Inline */}
         {showCreateInput ? (

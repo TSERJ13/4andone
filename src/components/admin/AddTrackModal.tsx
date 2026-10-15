@@ -422,7 +422,7 @@ const AddTrackModal = ({ isOpen, onClose, onAdd, initialData }: AddTrackModalPro
     <div className="modal-overlay">
       <div className="modal-content glass animate-in">
         <header className="modal-header">
-          <div className="header-title centered"><h3>Add New Track</h3></div>
+          <div className="header-title centered"><h3>{initialData ? 'Edit Track' : 'Add New Track'}</h3></div>
         </header>
 
         {isSuccess ? (

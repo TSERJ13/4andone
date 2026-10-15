@@ -2,11 +2,20 @@
 
 import React, { useState } from 'react';
 import { useStudio } from '@/components/admin/StudioProvider';
-import { Trash2, Edit2, Plus, Tag, Music2, Check, X } from 'lucide-react';
+import { Trash2, Edit2, Plus, Tag, Music2, Check, X, AlertTriangle, CheckCircle2 } from 'lucide-react';
+import AdminPageHeader from '@/components/admin/AdminPageHeader';
+import { useFlash } from '@/hooks/useFlash';
 import ConfirmModal from '@/components/admin/ConfirmModal';
 
 export default function TaxonomyPage() {
-  const { styles, tags, addStyle, updateStyle, removeStyle, addTag, updateTag, removeTag } = useStudio();
+  const { styles, tags, tracks, addStyle, updateStyle, removeStyle, addTag, updateTag, removeTag } = useStudio();
+  const [feedback, say] = useFlash();
+  // Runs a save and tells the admin what happened (these used to be fire-and-forget: failures were silent)
+  const run = async (action: () => Promise<unknown>, okText: string): Promise<boolean> => {
+    try { await action(); say('ok', okText); return true; } catch (e) { say('error', (e as Error)?.message || 'Could not save'); return false; }
+  };
+  const tracksWithStyle = (title: string) => tracks.filter(t => (t.style || '').toLowerCase() === title.toLowerCase()).length;
+  const tracksWithTag = (name: string) => tracks.filter(t => t.tags?.some(x => x.toLowerCase() === name.toLowerCase())).length;
   
   const [newStyleTitle, setNewStyleTitle] = useState('');
   const [newStyleColor, setNewStyleColor] = useState('#1db954');
@@ -27,26 +36,22 @@ export default function TaxonomyPage() {
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
   const [deleteConfig, setDeleteConfig] = useState<{ id: string, name: string, type: 'style' | 'tag' } | null>(null);
 
-  const handleAddStyle = (e: React.FormEvent) => {
+  const handleAddStyle = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!newStyleTitle.trim()) return;
-    addStyle({
-      title: newStyleTitle,
-      color: newStyleColor,
-      program: newStyleProgram,
-      order: styles.length + 1
-    });
-    setNewStyleTitle('');
+    const title = newStyleTitle.trim();
+    if (!title) return;
+    if (styles.some(s => s.title.toLowerCase() === title.toLowerCase())) { say('error', `"${title}" already exists`); return; }
+    const ok = await run(() => addStyle({ title, color: newStyleColor, program: newStyleProgram, order: styles.length + 1 }), `Added "${title}"`);
+    if (ok) setNewStyleTitle('');
   };
 
-  const handleAddTag = (e: React.FormEvent) => {
+  const handleAddTag = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!newTagName.trim()) return;
-    addTag({
-      name: newTagName,
-      color: newTagColor
-    });
-    setNewTagName('');
+    const name = newTagName.trim();
+    if (!name) return;
+    if (tags.some(t => t.name.toLowerCase() === name.toLowerCase())) { say('error', `"${name}" already exists`); return; }
+    const ok = await run(() => addTag({ name, color: newTagColor }), `Added "${name}"`);
+    if (ok) setNewTagName('');
   };
 
   const handleDeleteClick = (id: string, name: string, type: 'style' | 'tag') => {
@@ -54,21 +59,21 @@ export default function TaxonomyPage() {
     setIsDeleteModalOpen(true);
   };
 
-  const confirmDeleteAction = () => {
+  const confirmDeleteAction = async () => {
     if (!deleteConfig) return;
-    if (deleteConfig.type === 'style') {
-      removeStyle(deleteConfig.id);
-    } else {
-      removeTag(deleteConfig.id);
-    }
+    const cfg = deleteConfig;
     setDeleteConfig(null);
+    await run(() => (cfg.type === 'style' ? removeStyle(cfg.id) : removeTag(cfg.id)), `Deleted "${cfg.name}"`);
   };
 
   return (
     <div className="taxonomy-page animate-in">
-      <div className="page-header">
-        <h1>Dance Styles</h1>
-      </div>
+      <AdminPageHeader icon={<Music2 size={22} />} title="Dance Styles & Tags" subtitle="The dance styles and labels used by the library, the player and the public site" />
+      {feedback && (
+        <div className={`t-feedback ${feedback.kind}`} role={feedback.kind === 'error' ? 'alert' : 'status'}>
+          {feedback.kind === 'error' ? <AlertTriangle size={16} /> : <CheckCircle2 size={16} />}<span>{feedback.text}</span>
+        </div>
+      )}
 
       <div className="taxonomy-grid">
         
@@ -136,9 +141,10 @@ export default function TaxonomyPage() {
                       />
                       <button 
                         className="save-btn" 
-                        onClick={() => {
-                          updateStyle(style.id, { title: editStyleTitle, color: editStyleColor, program: editStyleProgram });
-                          setEditingStyleId(null);
+                        onClick={async () => {
+                          if (!editStyleTitle.trim()) { say('error', 'The name cannot be empty'); return; }
+                          const ok = await run(() => updateStyle(style.id, { title: editStyleTitle.trim(), color: editStyleColor, program: editStyleProgram }), 'Saved');
+                          if (ok) setEditingStyleId(null);
                         }}
                       ><Check size={16}/></button>
                       <button className="del-btn" onClick={() => setEditingStyleId(null)}><X size={16}/></button>
@@ -219,9 +225,10 @@ export default function TaxonomyPage() {
                       />
                       <button 
                         className="save-btn" 
-                        onClick={() => {
-                          updateTag(tag.id, { name: editTagName, color: editTagColor });
-                          setEditingTagId(null);
+                        onClick={async () => {
+                          if (!editTagName.trim()) { say('error', 'The name cannot be empty'); return; }
+                          const ok = await run(() => updateTag(tag.id, { name: editTagName.trim(), color: editTagColor }), 'Saved');
+                          if (ok) setEditingTagId(null);
                         }}
                       ><Check size={16}/></button>
                       <button className="del-btn" onClick={() => setEditingTagId(null)}><X size={16}/></button>
@@ -262,7 +269,9 @@ export default function TaxonomyPage() {
         onClose={() => setIsDeleteModalOpen(false)}
         onConfirm={confirmDeleteAction}
         title={`Delete ${deleteConfig?.type === 'style' ? 'Dance Style' : 'Track Tag'}?`}
-        message={`Are you sure you want to permanently delete "${deleteConfig?.name}"? This will remove it from all tracks associated with it.`}
+        message={deleteConfig?.type === 'style'
+          ? `Delete the dance style "${deleteConfig?.name}"? ${tracksWithStyle(deleteConfig?.name || '')} track(s) use it and keep the name; they will stop appearing under a style until you give them another one.`
+          : `Delete the tag "${deleteConfig?.name}"? ${tracksWithTag(deleteConfig?.name || '')} track(s) already have it and keep it; it will just no longer be offered in the tag lists.`}
         confirmText={`Delete ${deleteConfig?.type === 'style' ? 'Style' : 'Tag'}`}
       />
 
@@ -274,6 +283,9 @@ export default function TaxonomyPage() {
           padding-bottom: 80px;
         }
 
+        .t-feedback { display: flex; align-items: center; gap: 10px; padding: 11px 16px; border-radius: 12px; margin-bottom: 16px; font-size: 14px; font-weight: 600; }
+        .t-feedback.ok { background: rgba(34,197,94,0.12); color: #4ade80; border: 1px solid rgba(34,197,94,0.3); }
+        .t-feedback.error { background: rgba(239,68,68,0.12); color: #fca5a5; border: 1px solid rgba(239,68,68,0.35); }
         .page-header h1 {
           font-size: 32px;
           font-weight: 900;

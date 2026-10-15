@@ -1,288 +1,218 @@
 "use client";
 
-import React, { useState, useEffect } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import Link from 'next/link';
 import {
-  Music,
-  Users,
-  PlayCircle,
-  Plus,
-  PauseCircle,
-  Eye,
-  TrendingUp,
-  Clock,
-  UserCheck,
-  Coffee
+  LayoutDashboard, Users, UserCheck, PlayCircle, Crown, Music, Coffee, Plus, Upload, Send,
+  Mail, AlertTriangle, ChevronRight, Clock, Disc
 } from 'lucide-react';
-import BulkUpload from "../../../components/admin/BulkUpload";
-import { useAudioControls } from '@/components/audio/AudioProvider';
+import AdminPageHeader from '@/components/admin/AdminPageHeader';
 import { useStudio } from '@/components/admin/StudioProvider';
-import { adminDb as supabase } from '@/lib/admin-db';
 import { adminDb } from '@/lib/admin-db';
+import { useNewInquiries } from '@/hooks/useNewInquiries';
 
-export default function AdminDashboard() {
-  const { togglePlay, isPlaying } = useAudioControls();
-  const { tracks, folders, finalFolders } = useStudio();
-  
-  // New Analytics Stats
-  const [totalPeople, setTotalPeople] = useState<number>(0);
-  const [returningUsers, setReturningUsers] = useState<number>(0);
-  const [totalPlays, setTotalPlays] = useState<number>(0);
-  const [totalListeningSeconds, setTotalListeningSeconds] = useState<number>(0);
-  const [avgSecondsPerPerson, setAvgSecondsPerPerson] = useState<number>(0);
-  const [coffeeClicks, setCoffeeClicks] = useState<number>(0);
-  const [uniqueCoffeeVisitors, setUniqueCoffeeVisitors] = useState<number>(0);
+type Stats = {
+  people: number; newPeople: number; returning: number;
+  plays: number; playsWeek: number; playsToday: number;
+  premium: number; premiumEnding: number; coffee: number;
+};
+type RecentPlay = { id: string; track_id: string | null; style: string | null; created_at: string; event_type: string | null };
 
-  useEffect(() => {
-    async function fetchStats() {
-      try {
-        const [peopleRes, returningRes, playsRes, coffeeRes] = await Promise.all([
-          // Total People (Unique telegram users or unique session IDs if anon)
-          adminDb.from('telegram_users').select('telegram_id', { count: 'exact', head: true }),
-          // Returning Users (visit_count > 1)
-          adminDb.from('telegram_users').select('telegram_id', { count: 'exact', head: true }).gt('visit_count', 1),
-          // Total Plays & Summed Duration (excluding button click events)
-          supabase.from('track_plays').select('duration_seconds').neq('event_type', 'kofi_click'),
-          // Buy Me Coffee Clicks and Visitors
-          supabase.from('track_plays').select('id, user_ref, session_id').eq('event_type', 'kofi_click'),
-        ]);
+const DAY = 86400000;
+const timeAgo = (iso: string) => {
+  const s = Math.max(0, (Date.now() - new Date(iso).getTime()) / 1000);
+  if (s < 60) return 'just now';
+  if (s < 3600) return `${Math.floor(s / 60)} min ago`;
+  if (s < 86400) return `${Math.floor(s / 3600)} h ago`;
+  return `${Math.floor(s / 86400)} d ago`;
+};
+const fmt = (n: number) => n.toLocaleString();
 
-        const peopleCount = peopleRes.count || 0;
-        setTotalPeople(peopleCount);
-        setReturningUsers(returningRes.count || 0);
-        if (coffeeRes.data) {
-          setCoffeeClicks(coffeeRes.data.length);
-          const uniqueSupporters = new Set(coffeeRes.data.map((r: { user_ref: string; session_id: string }) => r.user_ref || r.session_id).filter(Boolean)).size;
-          setUniqueCoffeeVisitors(uniqueSupporters);
-        }
-        
-        if (playsRes.data) {
-          setTotalPlays(playsRes.data.length);
-          const totalSec = playsRes.data.reduce((acc: number, row: { duration_seconds: number }) => acc + (row.duration_seconds || 0), 0);
-          setTotalListeningSeconds(totalSec);
-          if (peopleCount > 0) {
-            setAvgSecondsPerPerson(totalSec / peopleCount);
-          }
-        }
-      } catch (e) {
-        console.error("Failed to fetch admin stats", e);
-      }
+// Counts only — never download whole tables to count them (the old page fetched every play row, capped at 1000).
+const count = async (q: PromiseLike<{ count: number | null; error: unknown }>) => {
+  const r = await q;
+  return r.error ? 0 : r.count ?? 0;
+};
+const head = { count: 'exact' as const, head: true };
+
+async function loadStats(): Promise<Stats> {
+  const now = Date.now();
+  const weekAgo = new Date(now - 7 * DAY).toISOString();
+  const dayStart = new Date(new Date().setHours(0, 0, 0, 0)).toISOString();
+  const nowIso = new Date(now).toISOString();
+  const soon = new Date(now + 7 * DAY).toISOString();
+  const users = () => adminDb.from('telegram_users').select('telegram_id', head);
+  // A "play" is event_type 'play' or empty (older rows); contact messages and coffee clicks are not plays.
+  const plays = (since?: string) => Promise.all(
+    [(b: ReturnType<typeof base>) => b.eq('event_type', 'play'), (b: ReturnType<typeof base>) => b.is('event_type', null)]
+      .map(f => { let b = f(base()); if (since) b = b.gte('created_at', since); return count(b); })
+  ).then(([a, c]) => a + c);
+  const base = () => adminDb.from('track_plays').select('id', head);
+
+  const [people, newPeople, returning, playsAll, playsWeek, playsToday, premium, premiumEnding, coffee] = await Promise.all([
+    count(users()),
+    count(users().gte('first_seen', weekAgo)),
+    count(users().gt('visit_count', 1)),
+    plays(), plays(weekAgo), plays(dayStart),
+    count(users().eq('is_premium', true)),
+    count(users().eq('is_premium', true).gte('premium_until', nowIso).lte('premium_until', soon)),
+    count(base().eq('event_type', 'kofi_click')),
+  ]);
+  return { people, newPeople, returning, plays: playsAll, playsWeek, playsToday, premium, premiumEnding, coffee };
+}
+
+export default function AdminOverview() {
+  const { tracks, albums } = useStudio();
+  const newInquiries = useNewInquiries();
+  const [stats, setStats] = useState<Stats | null>(null);
+  const [recent, setRecent] = useState<RecentPlay[]>([]);
+  const [issues, setIssues] = useState(0);
+  const [failed, setFailed] = useState(false);
+
+  const refresh = useCallback(async () => {
+    try {
+      const [s, recentRes, health] = await Promise.all([
+        loadStats(),
+        adminDb.from('track_plays').select('id, track_id, style, created_at, event_type').order('created_at', { ascending: false }).limit(40),
+        fetch('/api/admin/health', { credentials: 'same-origin', cache: 'no-store' }).then(r => (r.ok ? r.json() : null)).catch(() => null),
+      ]);
+      setStats(s);
+      setFailed(false);
+      setRecent(((recentRes.data || []) as RecentPlay[]).filter(r => !r.event_type || r.event_type === 'play').slice(0, 8));
+      if (health) setIssues(health.issues ?? 0);
+    } catch (e) {
+      console.error('Failed to load overview', e);
+      setFailed(true);
     }
-
-    fetchStats();
-    // Refresh every 30s
-    const interval = setInterval(fetchStats, 30000);
-    return () => clearInterval(interval);
   }, []);
 
-  const formatHours = (seconds: number) => {
-    const hours = seconds / 3600;
-    if (hours < 1) return `${Math.round(seconds / 60)}m`;
-    return `${hours.toFixed(1)}h`;
-  };
+  useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- initial load
+    refresh();
+    // Refresh while the page is open and visible (every minute), not every 30 s in the background
+    const t = setInterval(() => { if (document.visibilityState === 'visible') refresh(); }, 60000);
+    return () => clearInterval(t);
+  }, [refresh]);
 
-  const dashboardStats = [
-    { label: 'Total People', value: totalPeople.toString(), icon: <Users size={14} />, color: '#1db954' },
-    { label: 'Returning', value: returningUsers.toString(), icon: <UserCheck size={14} />, color: '#3b82f6' },
-    { label: 'Total Plays', value: totalPlays.toString(), icon: <PlayCircle size={14} />, color: '#f59e0b' },
-    { label: 'Total Listening', value: formatHours(totalListeningSeconds), icon: <Clock size={14} />, color: '#ec4899' },
-    { label: 'Avg / Person', value: formatHours(avgSecondsPerPerson), icon: <TrendingUp size={14} />, color: '#8b5cf6' },
-    { label: 'Coffee Clicks', value: coffeeClicks > 0 ? `${coffeeClicks} (${uniqueCoffeeVisitors} unique)` : '0', icon: <Coffee size={14} />, color: '#f59e0b' },
-    { label: 'Tracks Library', value: tracks.length.toString(), icon: <Music size={14} />, color: '#06b6d4' },
+  const trackTitle = useMemo(() => {
+    const m = new Map(tracks.map(t => [t.id, t]));
+    return (id: string | null) => (id ? m.get(id) : undefined);
+  }, [tracks]);
+
+  const attention = [
+    newInquiries > 0 && { href: '/admin/messages?tab=incoming', icon: <Mail size={18} />, tone: 'blue', title: `${newInquiries} new ${newInquiries === 1 ? 'inquiry' : 'inquiries'}`, text: 'Messages from the contact form are waiting.' },
+    stats && stats.premiumEnding > 0 && { href: '/admin/earn', icon: <Crown size={18} />, tone: 'amber', title: `${stats.premiumEnding} Premium ending within 7 days`, text: 'Extend them or let them lapse.' },
+    issues > 0 && { href: '/admin/settings', icon: <AlertTriangle size={18} />, tone: 'red', title: `${issues} setup ${issues === 1 ? 'problem' : 'problems'}`, text: 'Something the site needs is not configured.' },
+  ].filter(Boolean) as { href: string; icon: React.ReactNode; tone: string; title: string; text: string }[];
+
+  const kpis = [
+    { label: 'Listeners', value: stats ? fmt(stats.people) : '—', sub: stats ? `+${fmt(stats.newPeople)} this week` : '', icon: <Users size={18} />, color: '#1db954' },
+    { label: 'Returning', value: stats ? fmt(stats.returning) : '—', sub: stats && stats.people ? `${Math.round((stats.returning / stats.people) * 100)}% came back` : '', icon: <UserCheck size={18} />, color: '#3b82f6' },
+    { label: 'Plays', value: stats ? fmt(stats.plays) : '—', sub: stats ? `${fmt(stats.playsToday)} today · ${fmt(stats.playsWeek)} this week` : '', icon: <PlayCircle size={18} />, color: '#f59e0b' },
+    { label: 'Premium', value: stats ? fmt(stats.premium) : '—', sub: 'active members', icon: <Crown size={18} />, color: '#a855f7' },
+    { label: 'Music library', value: fmt(tracks.length), sub: `${fmt(albums.length)} albums`, icon: <Music size={18} />, color: '#06b6d4' },
+    { label: 'Coffee clicks', value: stats ? fmt(stats.coffee) : '—', sub: 'support button', icon: <Coffee size={18} />, color: '#ec4899' },
   ];
 
   return (
-    <div className="dashboard-container animate-in">
-      <div className="dashboard-main-flow">
-        {/* Bulk Upload - Now Full Width and Primary Focus */}
-        <section className="dashboard-section glass">
-          <div className="section-header">
-            <div>
-              <h2>Bulk Music Upload</h2>
-              <p className="section-sub">Ingest professional tracks to your studio library.</p>
-            </div>
-            {/* Removed redundant + icon */}
-          </div>
-          <BulkUpload />
+    <div className="ov animate-in">
+      <AdminPageHeader icon={<LayoutDashboard size={22} />} title="Overview" subtitle="Your studio at a glance">
+        <Link href="/admin/library?add=1" className="ap-btn primary"><Plus size={16} /> Add track</Link>
+        <Link href="/admin/upload" className="ap-btn"><Upload size={16} /> Upload music</Link>
+        <Link href="/admin/messages" className="ap-btn"><Send size={16} /> Telegram post</Link>
+      </AdminPageHeader>
+
+      {failed && <p className="ov-error">Could not load the numbers. <button type="button" onClick={refresh}>Try again</button></p>}
+
+      {attention.length > 0 && (
+        <section className="ov-attention" aria-label="Needs attention">
+          {attention.map(a => (
+            <Link key={a.href + a.title} href={a.href} className={`ov-att ${a.tone}`}>
+              <span className="ov-att-icon">{a.icon}</span>
+              <span className="ov-att-text"><strong>{a.title}</strong><span>{a.text}</span></span>
+              <ChevronRight size={18} />
+            </Link>
+          ))}
         </section>
-      </div>
+      )}
 
-      {/* Footer Status Bar with Advanced Analytics Metrics */}
-      <div className="dashboard-status-bar glass">
-        <div className="status-left">
-          <div className="title-group-mini">
-            <h1>Studio Pulse</h1>
-            <div className="live-status">
-              <div className="pulse-dot"></div>
-              <span>LIVE TRACKING</span>
-            </div>
+      <section className="ov-kpis" aria-label="Key numbers">
+        {kpis.map(k => (
+          <div key={k.label} className="ov-kpi glass">
+            <span className="ov-kpi-icon" style={{ color: k.color, background: `${k.color}1f` }}>{k.icon}</span>
+            <span className="ov-kpi-value">{k.value}</span>
+            <span className="ov-kpi-label">{k.label}</span>
+            {k.sub && <span className="ov-kpi-sub">{k.sub}</span>}
           </div>
-        </div>
+        ))}
+      </section>
 
-        <div className="status-middle">
-          <div className="stats-horizontal-scroll">
-            {dashboardStats.map((stat) => (
-              <div key={stat.label} className="status-stat-pill glass">
-                <div className="stat-pill-icon" style={{ color: stat.color }}>{stat.icon}</div>
-                <div className="stat-pill-content">
-                  <span className="stat-pill-value">{stat.value}</span>
-                  <span className="stat-pill-label">{stat.label}</span>
-                </div>
-              </div>
-            ))}
-          </div>
+      <section className="ov-card glass">
+        <div className="ov-card-head">
+          <h2><Clock size={16} /> Latest plays</h2>
+          <Link href="/admin/analytics" className="ov-link">All statistics <ChevronRight size={14} /></Link>
         </div>
-
-        <div className="status-right">
-           <div className="sync-status">
-              <span className="sync-text">Cloud Sync Ready</span>
-              <div className="sync-dot"></div>
-           </div>
-        </div>
-      </div>
+        {recent.length === 0 ? (
+          <p className="ov-empty">No plays yet.</p>
+        ) : (
+          <ul className="ov-recent">
+            {recent.map(r => {
+              const t = trackTitle(r.track_id);
+              return (
+                <li key={r.id}>
+                  <span className="ov-recent-icon"><Disc size={16} /></span>
+                  <span className="ov-recent-text">
+                    <strong>{t?.title || 'Unknown track'}</strong>
+                    <span>{[t?.artist, r.style || t?.style].filter(Boolean).join(' · ')}</span>
+                  </span>
+                  <time>{timeAgo(r.created_at)}</time>
+                </li>
+              );
+            })}
+          </ul>
+        )}
+      </section>
 
       <style jsx>{`
-        .dashboard-container {
-          width: 100%;
-          padding-bottom: 120px;
-        }
-
-        .dashboard-main-flow {
-          width: 100%;
-          max-width: 100%;
-        }
-
-        .dashboard-status-bar {
-          position: fixed;
-          bottom: 24px;
-          left: 50%;
-          transform: translateX(-50%);
-          width: calc(100% - 340px);
-          max-width: 1400px;
-          height: 72px;
-          display: flex;
-          align-items: center;
-          justify-content: space-between;
-          padding: 0 32px;
-          border-radius: 20px;
-          z-index: 100;
-          background: rgba(9, 9, 11, 0.85);
-          backdrop-filter: blur(24px);
-          border: 1px solid rgba(255, 255, 255, 0.1);
-          box-shadow: 0 16px 48px rgba(0, 0, 0, 0.6);
-        }
-
-        .status-left { display: flex; align-items: center; gap: 20px; flex-shrink: 0; }
-        .title-group-mini h1 { font-size: 14px; font-weight: 900; margin: 0; letter-spacing: 0.5px; text-transform: uppercase; color: #71717a; }
-        .live-status { display: flex; align-items: center; gap: 6px; font-size: 10px; font-weight: 950; color: #1db954; }
-
-        .status-middle { flex: 1; display: flex; justify-content: center; padding: 0 40px; }
-        .stats-horizontal-scroll { display: flex; gap: 12px; align-items: center; }
-        
-        .status-stat-pill {
-          display: flex;
-          align-items: center;
-          gap: 12px;
-          padding: 8px 16px;
-          border-radius: 12px;
-          background: rgba(255,255,255,0.03);
-          border: 1px solid rgba(255,255,255,0.05);
-          min-width: 100px;
-        }
-
-        .stat-pill-content { display: flex; flex-direction: column; line-height: 1; }
-        .stat-pill-value { font-size: 16px; font-weight: 950; color: white; }
-        .stat-pill-label { font-size: 8px; font-weight: 800; color: #71717a; text-transform: uppercase; margin-top: 2px; }
-
-        .status-right { flex-shrink: 0; }
-        .sync-status { display: flex; align-items: center; gap: 8px; font-size: 10px; font-weight: 700; color: #52525b; }
-        .sync-dot { width: 4px; height: 4px; background: rgba(255,255,255,0.2); border-radius: 50%; }
-
-        .pulse-dot {
-          width: 5px;
-          height: 5px;
-          background: #1db954;
-          border-radius: 50%;
-          box-shadow: 0 0 0 0 rgba(29, 185, 84, 0.4);
-          animation: pulse 2s infinite;
-        }
-        @keyframes pulse {
-          0% { box-shadow: 0 0 0 0 rgba(29, 185, 84, 0.7); }
-          70% { box-shadow: 0 0 0 8px rgba(29, 185, 84, 0); }
-          100% { box-shadow: 0 0 0 0 rgba(29, 185, 84, 0); }
-        }
-
-        .dashboard-section {
-          padding: 32px;
-          border-radius: 24px;
-          border: 1px solid rgba(255,255,255,0.05);
-          width: 100%;
-        }
-
-        .section-header {
-          display: flex;
-          justify-content: space-between;
-          align-items: flex-start;
-          margin-bottom: 24px;
-        }
-
-        .section-header h2 { font-size: 20px; font-weight: 900; }
-        .section-sub { font-size: 13px; color: #71717a; margin-top: 4px; }
-        .text-primary { color: #1db954; }
-
-        .animate-in { animation: animIn 0.4s cubic-bezier(0.4,0,0.2,1); }
-        @keyframes animIn { from{opacity:0;transform:translateY(8px)} to{opacity:1;transform:translateY(0)} }
-
-        @media (max-width: 1300px) {
-          .dashboard-status-bar { width: calc(100% - 40px); bottom: 12px; padding: 0 20px; height: 64px; }
-          .status-middle { padding: 0 20px; }
-          .status-stat-pill { min-width: 80px; padding: 6px 12px; }
-          .stat-pill-value { font-size: 14px; }
-          .status-right { display: none; }
-        }
-
-        @media (max-width: 1100px) {
-          .dashboard-section { padding: 20px; }
-        }
-
-        @media (max-width: 800px) {
-          .status-left { display: none; }
-          .status-middle { padding: 0; width: 100%; }
-          .stats-horizontal-scroll { width: 100%; overflow-x: auto; padding-bottom: 4px; }
-          .stats-horizontal-scroll::-webkit-scrollbar { display: none; }
-        }
-
+        .ov { width: 100%; max-width: 1200px; margin: 0 auto; }
+        .ov-error { margin: 0 0 16px; padding: 10px 14px; border-radius: 12px; background: rgba(239,68,68,0.12); color: #fca5a5; font-size: 14px; }
+        .ov-error button { margin-left: 8px; background: none; border: none; color: #fff; text-decoration: underline; cursor: pointer; }
+        .ov-attention { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 12px; margin-bottom: 20px; }
+        :global(.ov-att) { display: flex; align-items: center; gap: 12px; padding: 14px 16px; border-radius: 16px; text-decoration: none; color: #fff; border: 1px solid rgba(255,255,255,0.1); background: rgba(255,255,255,0.04); }
+        :global(.ov-att:hover) { background: rgba(255,255,255,0.07); }
+        :global(.ov-att.blue) { border-color: rgba(59,130,246,0.4); }
+        :global(.ov-att.amber) { border-color: rgba(245,158,11,0.4); }
+        :global(.ov-att.red) { border-color: rgba(239,68,68,0.5); }
+        .ov-att-icon { width: 36px; height: 36px; border-radius: 10px; display: flex; align-items: center; justify-content: center; flex-shrink: 0; background: rgba(255,255,255,0.08); }
+        :global(.ov-att.blue) .ov-att-icon { color: #60a5fa; background: rgba(59,130,246,0.15); }
+        :global(.ov-att.amber) .ov-att-icon { color: #fbbf24; background: rgba(245,158,11,0.15); }
+        :global(.ov-att.red) .ov-att-icon { color: #f87171; background: rgba(239,68,68,0.15); }
+        .ov-att-text { display: flex; flex-direction: column; gap: 2px; flex: 1; min-width: 0; font-size: 12.5px; color: #a1a1aa; }
+        .ov-att-text strong { color: #fff; font-size: 14.5px; }
+        .ov-kpis { display: grid; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); gap: 14px; margin-bottom: 20px; }
+        .ov-kpi { display: flex; flex-direction: column; gap: 2px; padding: 16px; border-radius: 18px; border: 1px solid rgba(255,255,255,0.06); }
+        .ov-kpi-icon { width: 34px; height: 34px; border-radius: 10px; display: flex; align-items: center; justify-content: center; margin-bottom: 8px; }
+        .ov-kpi-value { font-size: 28px; font-weight: 800; line-height: 1.1; font-variant-numeric: tabular-nums; }
+        .ov-kpi-label { font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.6px; color: #a1a1aa; }
+        .ov-kpi-sub { font-size: 12px; color: #71717a; margin-top: 2px; }
+        .ov-card { padding: 18px; border-radius: 20px; border: 1px solid rgba(255,255,255,0.06); }
+        .ov-card-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px; }
+        .ov-card-head h2 { display: flex; align-items: center; gap: 8px; margin: 0; font-size: 16px; font-weight: 800; }
+        :global(.ov-link) { display: inline-flex; align-items: center; gap: 2px; font-size: 13px; color: #a1a1aa; text-decoration: none; }
+        :global(.ov-link:hover) { color: #fff; }
+        .ov-empty { margin: 8px 0; color: #71717a; font-size: 14px; }
+        .ov-recent { list-style: none; margin: 0; padding: 0; }
+        .ov-recent li { display: flex; align-items: center; gap: 12px; padding: 10px 0; border-top: 1px solid rgba(255,255,255,0.05); }
+        .ov-recent li:first-child { border-top: none; }
+        .ov-recent-icon { width: 32px; height: 32px; border-radius: 9px; display: flex; align-items: center; justify-content: center; background: rgba(255,255,255,0.06); color: #a1a1aa; flex-shrink: 0; }
+        .ov-recent-text { display: flex; flex-direction: column; min-width: 0; flex: 1; font-size: 12.5px; color: #8b8b94; }
+        .ov-recent-text strong { color: #fff; font-size: 14px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+        .ov-recent-text span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+        .ov-recent time { font-size: 12px; color: #71717a; flex-shrink: 0; }
         @media (max-width: 640px) {
-          .dashboard-section { padding: 14px; border-radius: 16px; }
-          .section-header { margin-bottom: 16px; flex-direction: column; gap: 6px; }
-          .section-header h2 { font-size: 18px; }
-          .section-sub { font-size: 11.5px; }
-          .dashboard-status-bar {
-            position: static !important;
-            transform: none !important;
-            width: 100% !important;
-            height: auto !important;
-            padding: 12px !important;
-            margin-top: 16px;
-            border-radius: 16px;
-            box-shadow: none;
-          }
-          .stats-horizontal-scroll {
-            display: grid;
-            grid-template-columns: repeat(2, 1fr);
-            gap: 8px;
-            width: 100%;
-          }
-          .status-stat-pill {
-            min-width: 0;
-            padding: 8px 10px;
-            gap: 8px;
-          }
-          .stat-pill-value {
-            font-size: 13.5px;
-          }
-          .stat-pill-label {
-            font-size: 7.5px;
-          }
+          .ov-kpis { grid-template-columns: repeat(2, 1fr); gap: 10px; }
+          .ov-kpi { padding: 12px; }
+          .ov-kpi-value { font-size: 22px; }
         }
       `}</style>
     </div>

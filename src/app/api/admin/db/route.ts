@@ -21,7 +21,7 @@ const RPC_FUNCTIONS = new Set([
 const IDENT = /^[a-z_][a-z0-9_]*$/i;
 const SELECT_COLS = /^[a-z0-9_,*\s()!:.-]*$/i;
 
-type Filter = ['eq' | 'neq' | 'in' | 'gt' | 'gte' | 'lt' | 'lte', string, unknown];
+type Filter = ['eq' | 'neq' | 'in' | 'gt' | 'gte' | 'lt' | 'lte' | 'is', string, unknown];
 
 interface AdminDbRequest {
   fn?: string;
@@ -70,8 +70,11 @@ export async function POST(request: NextRequest) {
   }
   const filters = Array.isArray(body.filters) ? body.filters : [];
   if (filters.some(f => !Array.isArray(f) || f.length !== 3)) return NextResponse.json({ error: 'Invalid filters' }, { status: 400 });
-  for (const [kind, column] of filters) {
-    if (!['eq', 'neq', 'in', 'gt', 'gte', 'lt', 'lte'].includes(kind) || !IDENT.test(column)) {
+  for (const [kind, column, value] of filters) {
+    if (!['eq', 'neq', 'in', 'gt', 'gte', 'lt', 'lte', 'is'].includes(kind) || !IDENT.test(column)) {
+      return NextResponse.json({ data: null, error: { message: 'Invalid filter' } }, { status: 400 });
+    }
+    if (kind === 'is' && value !== null && typeof value !== 'boolean') {
       return NextResponse.json({ data: null, error: { message: 'Invalid filter' } }, { status: 400 });
     }
   }

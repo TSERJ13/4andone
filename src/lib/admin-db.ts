@@ -6,7 +6,7 @@
 // the service-role key. Usage stays the same:
 //   const { data, error } = await adminDb.from('tracks').update(v).eq('id', id);
 
-type Filter = ['eq' | 'neq' | 'in' | 'gt' | 'gte' | 'lt' | 'lte', string, unknown];
+type Filter = ['eq' | 'neq' | 'in' | 'gt' | 'gte' | 'lt' | 'lte' | 'is', string, unknown];
 export interface AdminDbResult<T = any> {
   data: T | null;
   error: { message: string; code?: string } | null;
@@ -37,6 +37,8 @@ export class AdminQuery<T = any> implements PromiseLike<AdminDbResult<T>> {
   delete() { this.body.op = 'delete'; return this; }
   eq(column: string, value: unknown) { this.body.filters.push(['eq', column, value]); return this; }
   neq(column: string, value: unknown) { this.body.filters.push(['neq', column, value]); return this; }
+  /** column IS null / true / false */
+  is(column: string, value: null | boolean) { this.body.filters.push(['is', column, value]); return this; }
   in(column: string, values: unknown[]) { this.body.filters.push(['in', column, values]); return this; }
   gt(column: string, value: unknown) { this.body.filters.push(['gt', column, value]); return this; }
   gte(column: string, value: unknown) { this.body.filters.push(['gte', column, value]); return this; }

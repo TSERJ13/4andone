@@ -1,5 +1,6 @@
 "use client";
 
+import { useFlash } from '@/hooks/useFlash';
 import React, { useEffect, useState } from 'react';
 import { Gift, Plus, Check, X, Sparkles, RefreshCw, Trash2, Calendar, Tag, ShieldCheck, Power } from 'lucide-react';
 
@@ -26,12 +27,10 @@ export default function PromoCodesManager() {
   const [newDays, setNewDays] = useState('30');
   const [newMaxUses, setNewMaxUses] = useState('');
   const [formError, setFormError] = useState<string | null>(null);
-  const [toast, setToast] = useState<{ ok: boolean; text: string } | null>(null);
+  const [flash, say] = useFlash();
+  const toast = flash && { ok: flash.kind === 'ok', text: flash.text };
 
-  const showToast = (ok: boolean, text: string) => {
-    setToast({ ok, text });
-    setTimeout(() => setToast(null), 4000);
-  };
+  const showToast = (ok: boolean, text: string) => say(ok ? 'ok' : 'error', text);
 
   const fetchPromos = async (silent = false) => {
     if (!silent) setLoading(true);
@@ -40,9 +39,12 @@ export default function PromoCodesManager() {
       const data = await res.json();
       if (res.ok && data?.promos) {
         setPromos(data.promos);
+      } else {
+        showToast(false, data?.error || 'პრომო კოდების ჩატვირთვა ვერ მოხერხდა');
       }
     } catch (e) {
       console.error('[PROMO_FETCH_ERROR]', e);
+      showToast(false, 'პრომო კოდების ჩატვირთვა ვერ მოხერხდა (კავშირის შეცდომა)');
     } finally {
       setLoading(false);
     }

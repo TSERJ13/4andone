@@ -1,5 +1,6 @@
 "use client";
 
+import { useFlash } from '@/hooks/useFlash';
 import React, { useState, useEffect } from 'react';
 import { Crown, Sparkles, DollarSign, Users, Calendar, Check, X, ShieldAlert, Search, RefreshCw, UserCheck } from 'lucide-react';
 import { supabase } from '@/utils/supabase';
@@ -57,11 +58,9 @@ export default function SubscriptionManager() {
   ];
   const [durationFor, setDurationFor] = useState<Record<number, string>>({});
 
-  const [toast, setToast] = useState<{ ok: boolean; text: string } | null>(null);
-  const showToast = (ok: boolean, text: string) => {
-    setToast({ ok, text });
-    setTimeout(() => setToast(null), 4000);
-  };
+  const [flash, say] = useFlash();
+  const toast = flash && { ok: flash.kind === 'ok', text: flash.text };
+  const showToast = (ok: boolean, text: string) => say(ok ? 'ok' : 'error', text);
 
   // Gifted with no end date = Forever (the owner's LIFETIME row too)
   const isForever = (u: Subscriber) =>

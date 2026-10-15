@@ -101,16 +101,17 @@ export async function DELETE(req: NextRequest) {
     }
 
     // Delete custom definition if exists
-    await db
+    const { error: delErr } = await db
       .from('track_plays')
       .delete()
       .eq('event_type', 'promo_def')
       .eq('bpm', code);
+    if (delErr) throw delErr;
 
     // If it's a default code, mark it deactivated by inserting an inactive override
     const isDefault = DEFAULT_PROMOS.some(p => p.code === code);
     if (isDefault) {
-      await db
+      const { error: offErr } = await db
         .from('track_plays')
         .insert({
           event_type: 'promo_def',
@@ -121,6 +122,7 @@ export async function DELETE(req: NextRequest) {
           session_id: JSON.stringify({ active: false }),
           user_ref: 'admin',
         });
+      if (offErr) throw offErr;
     }
 
     return NextResponse.json({ success: true, code });

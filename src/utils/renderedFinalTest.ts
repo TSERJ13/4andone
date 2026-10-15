@@ -39,7 +39,7 @@ function isAppleTouchDevice(): boolean {
  * (?finalsRender=1) played clean — so rendered Finals is the default on
  * iPhone/iPad again. A stuck preparation times out and falls back to the old route.
  */
-export const rolloutState = { defaultOnApple: true, liveListeningOnApple: false }; // live listening: off until verified on a real iPhone
+export const rolloutState = { defaultOnApple: true, liveListeningOnApple: false, slowRenderOnApple: true }; // live listening: off until verified on a real iPhone
 
 /** Behaviour switch for rendered Finals.
  * Opt-in (?finalsRender=1) unless rolloutState.defaultOnApple is set, in which
@@ -98,4 +98,22 @@ export function isRenderedFinalEnabled(): boolean {
 /** iPhone/iPad Finals (prepared audio): the speed is chosen before the session starts and cannot change during it. */
 export function isFinalSpeedLockedRoute(): boolean {
   return isRenderedFinalEnabled() && !isLiveFinalEnabled();
+}
+
+export const SLOW_RENDER_OPTOUT_KEY = '4andone-slow-render-optout-v1';
+/** Ordinary listening on iPhone/iPad at a speed other than 100%: the track is prepared at that speed (clean) instead of
+ * letting the phone stretch it live (croaky). ?slowRender=0 turns it off on this device, ?slowRender=1 turns it on anywhere. */
+export function isSlowRenderEnabled(): boolean {
+  if (typeof window === 'undefined') return false;
+  const requested = new URLSearchParams(window.location.search).get('slowRender');
+  let optedOut = false;
+  try {
+    if (requested === '0') localStorage.setItem(SLOW_RENDER_OPTOUT_KEY, '1');
+    if (requested === '1') localStorage.removeItem(SLOW_RENDER_OPTOUT_KEY);
+    optedOut = localStorage.getItem(SLOW_RENDER_OPTOUT_KEY) === '1';
+  } catch { optedOut = requested === '0'; }
+  if (optedOut) return false;
+  if (requested === '1') return true;
+  if (isNativeFinalTestEnabled()) return false;
+  return rolloutState.slowRenderOnApple && isAppleTouchDevice();
 }

@@ -7,6 +7,8 @@ export type FinalRenderRequest = {
   percent: number;
   sourceStart?: number;
   elapsedStart?: number;
+  /** Ordinary listening: the whole recording at the chosen tempo, no fade, no 1:45 limit. */
+  full?: boolean;
   signal: AbortSignal;
 };
 export type RenderedFinalAudio = {
@@ -124,8 +126,8 @@ async function renderOnce(request: FinalRenderRequest): Promise<RenderedFinalAud
   if (typeof OfflineAudioContext === 'undefined') throw new Error('This browser cannot prepare Finals audio');
   const rate = playbackRateFor(request.percent);
   const elapsedStart = Math.min(FINAL_DANCE_SECONDS, Math.max(0, request.elapsedStart ?? 0));
-  const seconds = FINAL_DANCE_SECONDS - elapsedStart;
-  if (!(seconds > 0) || !Number.isFinite(seconds)) throw new Error('This dance has already finished');
+  let seconds = FINAL_DANCE_SECONDS - elapsedStart;
+  if (!request.full && (!(seconds > 0) || !Number.isFinite(seconds))) throw new Error('This dance has already finished');
   if (!decodedCache || decodedCache.key !== request.cacheKey) {
     const bytes = await readAudio(request.url, request.signal);
     checkAbort(request.signal);
@@ -140,6 +142,7 @@ async function renderOnce(request: FinalRenderRequest): Promise<RenderedFinalAud
   const input = decodedCache.audio;
   const sourceStart = Math.max(0, request.sourceStart ?? 0) % input.duration;
   if (!Number.isFinite(sourceStart)) throw new Error('Invalid audio position');
+  if (request.full) seconds = input.duration / rate;
   const frames = Math.ceil(seconds * SAMPLE_RATE);
   let channels: Float32Array[];
   if (rate === 1) {
@@ -165,7 +168,7 @@ async function renderOnce(request: FinalRenderRequest): Promise<RenderedFinalAud
       numberOfInputs: 0, numberOfOutputs: 1, outputChannelCount: [input.numberOfChannels],
     });
     try {
-      await stretch.configure({ blockMs: 120, intervalMs: 15 }); // denser overlap: closer to the ideal slowed sound in a synthetic spectral test (about 1.5x the render time)
+      await stretch.configure({ blockMs: 120, intervalMs: request.full ? 20 : 15 }); // denser overlap: closer to the ideal slowed sound in a synthetic spectral test (about 1.5x the render time)
       await stretch.addBuffers(Array.from({ length: input.numberOfChannels }, (_, channel) => input.getChannelData(channel).slice()));
       // Tempo and pitch are INDEPENDENT here. A half-second lead lets the
       // processor compensate its latency before the first retained sample.
@@ -182,7 +185,7 @@ async function renderOnce(request: FinalRenderRequest): Promise<RenderedFinalAud
     }
   }
   checkAbort(request.signal);
-  return { blob: encodeFinalWav(channels, SAMPLE_RATE), percent: rate * 100, sourceStart,
+  return { blob: encodeFinalWav(channels, SAMPLE_RATE, request.full ? 0 : FINAL_FADE_SECONDS), percent: rate * 100, sourceStart,
     sourceDuration: input.duration, elapsedStart, duration: frames / SAMPLE_RATE };
 }
 

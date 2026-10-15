@@ -1,5 +1,6 @@
 "use client";
 
+import { smallImage } from '@/utils/trackCover';
 import React, { useRef } from 'react';
 import Link from 'next/link';
 import { Play, Pause, ChevronLeft, ChevronRight } from 'lucide-react';
@@ -67,7 +68,7 @@ export default function YtShelf({
 
       <div className="yt-shelf-scroll-container" ref={scrollRef}>
         <div className="yt-shelf-row">
-          {items.map((item) => {
+          {items.map((item, index) => {
             const content = (
               <div
                 className={`yt-shelf-card ${aspectRatio === 'wide' ? 'wide' : 'square'}`}
@@ -75,9 +76,11 @@ export default function YtShelf({
               >
                 <div className="yt-shelf-img-box">
                   <img
-                    src={item.imageUrl || '/logo-square.jpg'}
+                    src={smallImage(item.imageUrl)}
                     alt={item.title}
                     className="yt-shelf-img"
+                    loading={index < 3 ? 'eager' : 'lazy'}
+                    decoding="async"
                   />
                   <div className="yt-shelf-play-overlay">
                     <button type="button" className="yt-shelf-play-btn">

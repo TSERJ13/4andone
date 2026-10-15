@@ -6,7 +6,7 @@ import { Play, Pause, ChevronLeft, ChevronRight, ThumbsUp, ChevronRight as Arrow
 import { Track, useStudio } from '@/components/admin/StudioProvider';
 import { useAudioControls } from '@/components/audio/AudioProvider';
 import { useAuth } from '@/context/AuthContext';
-import { getTrackCover } from '@/utils/trackCover';
+import { getTrackCover, getTrackThumb, smallImage } from '@/utils/trackCover';
 
 interface YtQuickPicksProps {
   tracks: Track[];
@@ -156,10 +156,11 @@ export default function YtQuickPicks({ tracks, onPlayAll, loading = false }: YtQ
                   onClick={() => handleTrackClick(track)}
                 >
                   <img
-                    src={coverImg}
+                    src={smallImage(coverImg)}
                     alt={track.title}
                     className="yt-card-img"
-                    loading={pageNo === 0 ? undefined : 'lazy'}
+                    loading="lazy"
+                    decoding="async"
                   />
                   <div className="yt-card-gradient-overlay" />
                   <div className="yt-card-play-overlay">
@@ -193,9 +194,11 @@ export default function YtQuickPicks({ tracks, onPlayAll, loading = false }: YtQ
                 >
                   <div className="yt-track-thumb-box">
                     <img
-                      src={coverImg}
+                      src={getTrackThumb(track, albums)}
                       alt={track.title}
                       className="yt-track-thumb"
+                      loading="lazy"
+                      decoding="async"
                     />
                     <div className="yt-track-play-hover">
                       {isThisPlaying ? (

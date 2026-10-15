@@ -6,7 +6,7 @@ import { getTrackSlug } from '@/utils/seo';
 import { formatDuration } from '@/utils/format';
 import { getMPMFromBPM } from '@/utils/audio';
 import { displayStyleName } from '@/utils/styleNames';
-import { getTrackCover } from '@/utils/trackCover';
+import { getTrackThumb } from '@/utils/trackCover';
 import { useStudio } from '@/components/admin/StudioProvider';
 
 export interface TrackRowTrack {
@@ -58,7 +58,7 @@ export const TrackRow = React.memo(function TrackRow({
   const mpm = !isFitness && track.bpm ? `${getMPMFromBPM(Number(track.bpm), track.style || '')} MPM` : '';
   const showStyleBadge = badge === 'style' && !!track.style;
 
-  const coverImage = getTrackCover(track as any, albums, styles);
+  const coverImage = getTrackThumb(track as any, albums, styles); // small picture → the 128 px thumbnail
   const styleTitle = track.style ? displayStyleName(track.style) : '';
 
   return (
@@ -75,6 +75,8 @@ export const TrackRow = React.memo(function TrackRow({
             src={coverImage} 
             alt={track.title}
             className="track-row-cover"
+            loading="lazy"
+            decoding="async"
             onError={(e) => {
               (e.target as HTMLElement).style.display = 'none';
             }}

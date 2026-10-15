@@ -161,3 +161,19 @@ export function getTrackThumb(track: Track | any | null, albums: Album[] = [], s
   const cover = getTrackCover(track, albums, styles);
   return THUMBNAILED.has(cover) ? `/thumbs${cover}` : cover;
 }
+
+/** Covers that also exist as 480 px cards in /public/cards (about 20-60 KB instead of 100-420 KB). */
+const CARDED = new Set<string>(['/4andone-mix', '/boris-myagkov-big-band', '/dancestar', '/dj-maksy', '/empress-orchestra', '/georgie-musheev', '/goc2026', '/la-grande-orchestra-italiana', '/len-phillips-big-band', '/logo-3d', '/logo-4andone-3d', '/logo-square', '/midland-big-band', '/rosesband']);
+
+/**
+ * A smaller copy of a picture for cards and shelves: the 480 px card of a known
+ * cover, or the 640 px copy of a dance-style photo. Anything else (uploaded
+ * covers) is returned unchanged.
+ */
+export function smallImage(url?: string | null): string {
+  if (!url) return '/cards/logo-square.jpg';
+  const style = /^\/styles\/([a-z0-9-]+)\.jpg$/.exec(url);
+  if (style) return `/styles/sm/${style[1]}.jpg`;
+  const base = url.replace(/\.(jpg|jpeg|png)$/i, '');
+  return CARDED.has(base) ? `/cards${base}.jpg` : url;
+}

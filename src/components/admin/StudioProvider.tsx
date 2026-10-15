@@ -228,9 +228,8 @@ export const StudioProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       setIsLoading(true);
     }
     try {
-      // 1. Fetch Global Tracks — in parallel with the shared lists that don't
-      // depend on them (styles, tags, albums). These used to run one after
-      // another, so the first screen waited for every request in sequence.
+      // 1. Global tracks — in parallel with the shared lists that don't depend on them
+      // (styles, tags, albums), so the first screen doesn't wait for them one after another.
       const sharedPromise = Promise.all([
         supabase.from('styles').select('*').order('order'),
         supabase.from('tags').select('*').order('name'),
@@ -239,109 +238,21 @@ export const StudioProvider: React.FC<{ children: React.ReactNode }> = ({ childr
           .catch((e) => { console.warn('Failed to load albums:', e); return null; }),
       ]);
       const tracksData = await fetchAllTracks();
+      const signedIn = !!(isAuthenticated && user?.id && sessionVersion > 0);
 
-      // 2. Fetch User Specific Collections
-      let foldersData: Folder[] = [];
-      let finalFoldersData: FinalFolder[] = [];
-      const newFolderTracksMap: Record<string, string[]> = {};
-
-      if (isAuthenticated && user?.id && sessionVersion > 0) {
-        // Fetch user folders by telegram_id or user_id
-        const { data: fData } = await userDb
-          .from('folders')
-          .select('*')
-          .eq('telegram_id', user.id)
-          .order('created_at', { ascending: true });
-
-        if (fData && fData.length > 0) {
-          foldersData = fData.map(f => ({
-            id: f.id,
-            name: f.name,
-            color: f.color
-          }));
-
-          const folderIds = fData.map(f => f.id);
-          const { data: ftData } = await userDb
-            .from('folder_tracks')
-            .select('folder_id, track_id')
-            .in('folder_id', folderIds);
-
-          if (ftData) {
-            ftData.forEach(item => {
-              if (!newFolderTracksMap[item.folder_id]) {
-                newFolderTracksMap[item.folder_id] = [];
-              }
-              newFolderTracksMap[item.folder_id].push(item.track_id);
-            });
-          }
-        }
-
-        const { data: ffData } = await userDb.from<FinalFolder[]>('final_folders').select('*').eq('telegram_id', user.id);
-        if (ffData) {
-          finalFoldersData = ffData;
-          const { data: children } = await userDb.from('final_folder_tracks')
-            .select('final_folder_id, track_id').in('final_folder_id', ffData.map((f: any) => f.id)).order('order');
-          const map: Record<string, string[]> = {};
-          for (const child of children || []) (map[child.final_folder_id] ||= []).push(child.track_id);
-          setFinalFolderTracksMap(map);
-        }
-
-        // Final Tracks Queue
-        const { data: ftData } = await userDb.from('final_tracks').select('track_id').eq('telegram_id', user.id).order('order');
-        if (ftData) {
-           const ftIds = ftData.map(f => f.track_id);
-           const ftTracks = ftIds.map((id: string) => tracksData?.find(t => t.id === id)).filter(Boolean).map((t: any) => ({ ...t, audioUrl: t.audio_url, artworkUrl: t.artwork_url }));
-           setFinalTracks(ftTracks);
-        }
-      }
-
-      setFolderTracksMap(newFolderTracksMap);
-
-      // 3. User Favorites Cloud & Local Sync
+      // Likes known on this device. The library is drawn with them AT ONCE; the account's cloud list
+      // (loaded below, in parallel) only refines them. Personal data used to be fetched one request
+      // after another BEFORE any track was shown, so signed-in listeners waited several round trips.
+      const userKey = signedIn ? `4andone_liked_tracks_${user!.id}` : '';
       let userLikes: string[] = [];
-      if (isAuthenticated && user?.id && sessionVersion > 0) {
-        const userKey = `4andone_liked_tracks_${user.id}`;
+      if (signedIn) {
         try {
           const saved = localStorage.getItem(userKey) || localStorage.getItem('4andone_liked_tracks');
           if (saved) userLikes = JSON.parse(saved);
         } catch (e) {}
-
-        try {
-          const { data: favData } = await userDb
-            .from('user_favorites')
-            .select('track_id')
-            .eq('telegram_id', user.id);
-
-          if (favData && favData.length > 0) {
-            const cloudTrackIds = favData.map(f => f.track_id);
-            const combined = Array.from(new Set([...cloudTrackIds, ...userLikes]));
-            // Sync any local likes not yet in cloud
-            const unsynced = userLikes.filter(id => !cloudTrackIds.includes(id));
-            if (unsynced.length > 0) {
-              userDb.from('user_favorites').insert(
-                unsynced.map(track_id => ({ telegram_id: user.id, track_id }))
-              ).then(() => {});
-            }
-            userLikes = combined;
-            try {
-              localStorage.setItem(userKey, JSON.stringify(userLikes));
-              localStorage.removeItem('4andone_liked_tracks');
-            } catch (e) {}
-          } else if (userLikes.length > 0) {
-            // First time cloud sync for existing local likes
-            userDb.from('user_favorites').insert(
-              userLikes.map(track_id => ({ telegram_id: user.id, track_id }))
-            ).then(() => {});
-          }
-        } catch (favErr) {
-          console.error('[STUDIO-ERROR] sync user_favorites failed:', favErr);
-        }
       } else {
         // Unauthenticated / Logged Out: 0 liked songs!
-        userLikes = [];
-        try {
-          localStorage.removeItem('4andone_liked_tracks');
-        } catch (e) {}
+        try { localStorage.removeItem('4andone_liked_tracks'); } catch (e) {}
       }
 
       // No internet (or Supabase unreachable): show the downloaded tracks so
@@ -356,10 +267,6 @@ export const StudioProvider: React.FC<{ children: React.ReactNode }> = ({ childr
         writeTracksCache(tracksData);
       }
 
-      // Fetch Folders, Styles, Tags
-      setFolders(foldersData);
-      setFinalFolders(finalFoldersData);
-
       const [{ data: stylesData }, { data: tagsData }, aData] = await sharedPromise;
       if (stylesData) setStyles(stylesData);
       if (tagsData) setTags(tagsData);
@@ -370,6 +277,74 @@ export const StudioProvider: React.FC<{ children: React.ReactNode }> = ({ childr
         const merged = [...aData.albums];
         merged.sort((a, b) => (a.orderIndex ?? 0) - (b.orderIndex ?? 0));
         setAlbums(merged);
+      }
+      // Library, dance styles and albums are on screen — pages may render now; personal data follows.
+      setIsLoading(false);
+
+      if (!signedIn) {
+        setFolders([]);
+        setFolderTracksMap({});
+        setFinalFolders([]);
+        setFinalFolderTracksMap({});
+        setFinalTracks([]);
+        return;
+      }
+
+      // 2. Personal data: four independent groups, requested at the same time
+      const uid = user!.id;
+      const [foldersBundle, finalBundle, finalQueue, favRows] = await Promise.all([
+        (async () => {
+          const { data: fData } = await userDb.from('folders').select('*').eq('telegram_id', uid).order('created_at', { ascending: true });
+          const map: Record<string, string[]> = {};
+          if (!fData || fData.length === 0) return { list: [] as Folder[], map };
+          const { data: ftData } = await userDb.from('folder_tracks').select('folder_id, track_id').in('folder_id', fData.map((f: any) => f.id));
+          (ftData || []).forEach((item: any) => { (map[item.folder_id] ||= []).push(item.track_id); });
+          return { list: fData.map((f: any) => ({ id: f.id, name: f.name, color: f.color })) as Folder[], map };
+        })().catch(() => null),
+        (async () => {
+          const { data: ffData } = await userDb.from<FinalFolder[]>('final_folders').select('*').eq('telegram_id', uid);
+          if (!ffData) return null;
+          const { data: children } = await userDb.from('final_folder_tracks')
+            .select('final_folder_id, track_id').in('final_folder_id', ffData.map((f: any) => f.id)).order('order');
+          const map: Record<string, string[]> = {};
+          for (const child of children || []) (map[child.final_folder_id] ||= []).push(child.track_id);
+          return { list: ffData, map };
+        })().catch(() => null),
+        Promise.resolve(userDb.from('final_tracks').select('track_id').eq('telegram_id', uid).order('order').then(r => r.data)).catch(() => null),
+        Promise.resolve(userDb.from('user_favorites').select('track_id').eq('telegram_id', uid).then(r => r.data)).catch(() => null),
+      ]);
+
+      if (foldersBundle) { setFolders(foldersBundle.list); setFolderTracksMap(foldersBundle.map); }
+      if (finalBundle) { setFinalFolders(finalBundle.list); setFinalFolderTracksMap(finalBundle.map); }
+      if (finalQueue) {
+        const ftTracks = finalQueue.map((f: any) => tracksData?.find(t => t.id === f.track_id)).filter(Boolean)
+          .map((t: any) => ({ ...t, audioUrl: t.audio_url, artworkUrl: t.artwork_url }));
+        setFinalTracks(ftTracks);
+      }
+
+      // 3. Likes: cloud list merged with this device's list
+      try {
+        if (favRows && favRows.length > 0) {
+          const cloudTrackIds = favRows.map((f: any) => f.track_id);
+          const combined = Array.from(new Set([...cloudTrackIds, ...userLikes]));
+          // Sync any local likes not yet in cloud
+          const unsynced = userLikes.filter(id => !cloudTrackIds.includes(id));
+          if (unsynced.length > 0) {
+            userDb.from('user_favorites').insert(unsynced.map(track_id => ({ telegram_id: uid, track_id }))).then(() => {});
+          }
+          try {
+            localStorage.setItem(userKey, JSON.stringify(combined));
+            localStorage.removeItem('4andone_liked_tracks');
+          } catch (e) {}
+          if (combined.length !== userLikes.length && tracksData && tracksData.length > 0) {
+            setTracks(mapTrackRows(tracksData, combined) as any);
+          }
+        } else if (favRows && userLikes.length > 0) {
+          // First time cloud sync for existing local likes
+          userDb.from('user_favorites').insert(userLikes.map(track_id => ({ telegram_id: uid, track_id }))).then(() => {});
+        }
+      } catch (favErr) {
+        console.error('[STUDIO-ERROR] sync user_favorites failed:', favErr);
       }
     } finally {
       setIsLoading(false);

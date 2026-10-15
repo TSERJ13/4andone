@@ -8,7 +8,7 @@ import { useAuth } from '@/context/AuthContext';
 import { UserBadge } from '@/components/auth/UserBadge';
 import { useStudio } from '@/components/admin/StudioProvider';
 import { useAudioControls } from '@/components/audio/AudioProvider';
-import { getTrackCover } from '@/utils/trackCover';
+import { getTrackThumb, smallImage } from '@/utils/trackCover';
 import { getTrackRelevanceScore } from '@/utils/search';
 
 export const HEADER_SEARCH_EVENT = 'yt-header-search';
@@ -223,7 +223,6 @@ export default function YtHeader({ onToggleSidebar, onSearch, searchQuery = '' }
               <>
                 <div className="yt-dropdown-header">Songs</div>
                 {matchingTracks.map(track => {
-                  const cover = getTrackCover(track, albums, styles);
                   return (
                     <button
                       key={track.id}
@@ -235,9 +234,11 @@ export default function YtHeader({ onToggleSidebar, onSearch, searchQuery = '' }
                       }}
                     >
                       <img
-                        src={cover}
+                        src={getTrackThumb(track, albums, styles)}
                         alt={track.title}
                         className="yt-dropdown-thumb"
+                        loading="lazy"
+                        decoding="async"
                       />
                       <div className="yt-dropdown-info">
                         <div className="yt-dropdown-title">{track.title}</div>
@@ -293,7 +294,7 @@ export default function YtHeader({ onToggleSidebar, onSearch, searchQuery = '' }
                       onClick={() => setShowDropdown(false)}
                     >
                       {alb.coverUrl ? (
-                        <img src={alb.coverUrl} alt={alb.title} className="yt-dropdown-thumb" />
+                        <img src={smallImage(alb.coverUrl)} alt={alb.title} className="yt-dropdown-thumb" loading="lazy" decoding="async" />
                       ) : (
                         <div className="yt-dropdown-icon-thumb">
                           <Disc size={18} />

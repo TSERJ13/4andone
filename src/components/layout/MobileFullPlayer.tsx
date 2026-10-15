@@ -290,6 +290,8 @@ export default function MobileFullPlayer({ isOpen, onClose }: MobileFullPlayerPr
         </div>
       </div>
 
+      {/* Everything above the progress bar is one area, so the bar and the player buttons stay in the same place in both views */}
+      <div className="yt-mobile-top-area">
       {mode === 'queue' ? (
         <div className="yt-mobile-queue-view">
           <RecentQueue />
@@ -447,6 +449,7 @@ export default function MobileFullPlayer({ isOpen, onClose }: MobileFullPlayerPr
 
       </>
       )}
+      </div>
 
       {/* Progress Slider */}
       <div className="yt-mobile-progress-wrap">
@@ -516,7 +519,6 @@ export default function MobileFullPlayer({ isOpen, onClose }: MobileFullPlayerPr
           <Repeat size={20} />
         </button>
       </div>
-      {mode === 'now' && <div className="yt-mobile-space-bottom" aria-hidden="true" />}
     </div>
   );
 }

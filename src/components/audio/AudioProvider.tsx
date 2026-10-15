@@ -289,14 +289,17 @@ export const AudioProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         .catch(error => finalsDiag(`live start FAILED: ${String((error as any)?.message || error).slice(0, 60)}`));
       const t0 = liveCtx?.currentTime ?? 0;
       setTimeout(() => finalsDiag(`live check · audio ${liveCtx?.state} · clock moved ${((liveCtx?.currentTime ?? 0) - t0).toFixed(2)}s in 1.5s · session ${(navigator as any).audioSession?.type ?? 'n/a'}`), 1500);
-      // Safety net: if the engine stays silent while the music should be playing, never leave the listener in silence.
+      // Safety net (runs for as long as the live engine plays): if it goes silent or its audio context stops while the
+      // music should be playing, never leave the listener in silence - continue on the normal/prepared route.
       let silentChecks = 0;
       const watch = setInterval(() => {
         if (liveEngineRef.current !== engine || !liveActiveRef.current) { clearInterval(watch); return; }
         const timeline = nativePlayerRef.current;
-        if (!timeline || timeline.paused) return;
-        if (engine.peak() > 0.002) { clearInterval(watch); finalsDiag('live check · sound is flowing'); return; }
-        if (++silentChecks < 16) return; // ~4 s of expected music without any sound
+        if (!timeline || timeline.paused) { silentChecks = 0; return; }
+        const ctxNow = liveCtxRef.current;
+        if (ctxNow && (ctxNow.state as string) !== 'running') { try { void ctxNow.resume().catch(() => {}); } catch { /* ignore */ } }
+        if (engine.peak() > 0.002) { if (silentChecks > 0) silentChecks = 0; return; }
+        if (++silentChecks < 24) return; // ~6 s of expected music without any sound
         clearInterval(watch);
         finalsDiag('live engine silent · switching to the normal player');
         const track = playingTrackRef.current;

@@ -4,58 +4,67 @@
 <style>
 *{box-sizing:border-box}body{margin:0;padding:16px;background:#0b0b0d;color:#eee;font:15px/1.4 -apple-system,system-ui,sans-serif}
 h1{font-size:18px;margin:0 0 12px}button{font:inherit;padding:12px 14px;margin:4px 4px 4px 0;border-radius:10px;border:1px solid #444;background:#1c1c22;color:#fff}
-button.on{background:#0f6b3f;border-color:#1fa35f}.row{margin:10px 0}label{display:block;margin:8px 0}
+.row{margin:12px 0}label{display:block;margin:8px 0}small{color:#9a9aa5;display:block}
 pre{background:#000;border:1px solid #333;border-radius:8px;padding:10px;font-size:12px;white-space:pre-wrap;min-height:140px}
 </style></head><body>
-<h1>Live audio test (4and.one)</h1>
-<p>ერთი და იგივე მუსიკალური ნიმუში სამი გზით. ყოველი ღილაკი ახალ ხმას იწყებს.</p>
-<label><input type="checkbox" id="silent" checked> ჩუმი &lt;audio&gt; ელემენტიც ერთად (როგორც აპში)</label>
-<div class="row"><b>A. ცოცხალი გაწელვა (ჩვენი ძრავი)</b><br>
-<button id="a">▶ Start A</button><span id="rates"></span></div>
-<div class="row"><b>B. ტელეფონის ჩაშენებული გაწელვა</b><br>
-<button id="b">▶ Start B</button><button data-n="0.8">80%</button><button data-n="0.9">90%</button><button data-n="1">100%</button></div>
+<h1>Live audio test v2 (4and.one)</h1>
+<small>ეკრანის ჩაკეტვის ტესტი: Start A → 20 წამით ჩაკეტე → გახსენი: ისევ უკრავდა? ლოგში ჩანს.</small><small>ყოველი ღილაკი ახალ ხმას იწყებს. ლოგში "peak" არის რეალური ხმის დონე (0 = სიჩუმე).</small>
+<label><input type="checkbox" id="silent" checked> ჩუმი &lt;audio&gt; ელემენტიც ერთად (C და A-სთვის)</label>
+<div class="row"><b>C. უბრალო სიგნალი (ტელეფონი ისმის?)</b><br><button id="c">▶ Start C</button></div>
+<div class="row"><b>A. ცოცხალი გაწელვა → პირდაპირ</b><br><button id="a">▶ Start A</button></div>
+<div class="row"><b>D. ცოცხალი გაწელვა → audio ელემენტით</b><br><button id="d">▶ Start D</button></div>
+<div class="row">სიჩქარე (A და D): <span id="rates"></span></div>
+<div class="row"><b>B. ტელეფონის ჩაშენებული გაწელვა</b><br><button id="b">▶ Start B</button><button data-n="0.8">80%</button><button data-n="0.9">90%</button><button data-n="1">100%</button></div>
 <div class="row"><button id="stop">■ Stop</button></div>
 <pre id="log"></pre>
 <script type="module">
 const log=(m)=>{const el=document.getElementById('log');el.textContent+=`${(performance.now()/1000).toFixed(1)}s ${m}\n`;el.scrollTop=el.scrollHeight};
 window.addEventListener('error',e=>log('ERROR '+e.message));window.addEventListener('unhandledrejection',e=>log('REJECT '+(e.reason&&e.reason.message||e.reason)));
-const SR=44100,DUR=16;
-function tone(){const n=SR*DUR,L=new Float32Array(n),R=new Float32Array(n);
+const DUR=16;
+function tone(SR){const n=SR*DUR,L=new Float32Array(n),R=new Float32Array(n);
  const notes=[220,277.2,329.6,246.9,311.1,370,196,247];
  for(let b=0;b<DUR*2;b++){const f=notes[b%notes.length],s=Math.floor(b*0.5*SR);
   for(let j=0;j<SR*0.9&&s+j<n;j++){const t=j/SR,env=Math.min(1,t/0.02)*Math.exp(-t*2.2),vib=1+0.004*Math.sin(2*Math.PI*5.5*t);
    let v=0;for(let h=1;h<=8;h++)v+=Math.sin(2*Math.PI*f*h*vib*t)/(h*1.3);L[s+j]+=0.18*env*v;R[s+j]+=0.16*env*v;}
-  // drum-like noise burst on the beat
   let lp=0;for(let j=0;j<SR*0.04&&s+j<n;j++){lp+=0.5*(Math.random()-.5-lp);const e=0.5*lp*Math.exp(-j/SR/0.01)*2;L[s+j]+=e;R[s+j]+=e;}}
  return [L,R]}
-function wav(L,R){const n=L.length,b=new ArrayBuffer(44+n*4),v=new DataView(b),t=(o,s)=>{for(let i=0;i<s.length;i++)v.setUint8(o+i,s.charCodeAt(i))};
+function wav(L,R,SR){const n=L.length,b=new ArrayBuffer(44+n*4),v=new DataView(b),t=(o,s)=>{for(let i=0;i<s.length;i++)v.setUint8(o+i,s.charCodeAt(i))};
  t(0,'RIFF');v.setUint32(4,b.byteLength-8,true);t(8,'WAVE');t(12,'fmt ');v.setUint32(16,16,true);v.setUint16(20,1,true);v.setUint16(22,2,true);v.setUint32(24,SR,true);v.setUint32(28,SR*4,true);v.setUint16(32,4,true);v.setUint16(34,16,true);t(36,'data');v.setUint32(40,n*4,true);
  let o=44;for(let i=0;i<n;i++){v.setInt16(o,Math.max(-1,Math.min(1,L[i]))*32767,true);v.setInt16(o+2,Math.max(-1,Math.min(1,R[i]))*32767,true);o+=4}return new Blob([b],{type:'audio/wav'})}
 function silentWav(sec){const n=8000*sec,b=new ArrayBuffer(44+n),v=new DataView(b),t=(o,s)=>{for(let i=0;i<s.length;i++)v.setUint8(o+i,s.charCodeAt(i))};
  t(0,'RIFF');v.setUint32(4,b.byteLength-8,true);t(8,'WAVE');t(12,'fmt ');v.setUint32(16,16,true);v.setUint16(20,1,true);v.setUint16(22,1,true);v.setUint32(24,8000,true);v.setUint32(28,8000,true);v.setUint16(32,1,true);v.setUint16(34,8,true);t(36,'data');v.setUint32(40,n,true);new Uint8Array(b,44).fill(128);return new Blob([b],{type:'audio/wav'})}
-const [L,R]=tone();let ctx=null,node=null,el=null,song=null,session='n/a';
+let ctx=null,node=null,el=null,song=null,outEl=null,meterTimer=0;
 const rates=[0.7,0.8,0.9,1,1.1];const rs=document.getElementById('rates');
-for(const r of rates){const b=document.createElement('button');b.textContent=Math.round(r*100)+'%';b.onclick=()=>{if(!node)return log('A: first press Start A');node.schedule({output:ctx.currentTime+0.03,active:true,rate:r});log(`A: rate ${r}`)};rs.appendChild(b)}
-function stopAll(){try{node&&node.schedule({output:ctx.currentTime,active:false})}catch{}try{node&&node.disconnect()}catch{}node=null;if(el){el.pause();el=null}if(song){song.pause();song=null}}
+for(const r of rates){const b=document.createElement('button');b.textContent=Math.round(r*100)+'%';b.onclick=()=>{if(!node)return log('first press Start A or D');node.schedule({output:ctx.currentTime+0.03,active:true,rate:r});log(`rate ${r}`)};rs.appendChild(b)}
+function stopAll(){clearInterval(meterTimer);try{node&&node.schedule({output:ctx.currentTime,active:false})}catch{}try{node&&node.disconnect()}catch{}node=null;
+ if(el){el.pause();el=null}if(song){song.pause();song=null}if(outEl){outEl.pause();outEl.srcObject=null;outEl=null}
+ if(ctx){try{ctx.close()}catch{}ctx=null}}
 document.getElementById('stop').onclick=()=>{stopAll();log('stopped')};
 function startSilent(){if(!document.getElementById('silent').checked)return;el=new Audio();el.loop=true;el.src=URL.createObjectURL(silentWav(5));el.play().then(()=>log('silent element: playing')).catch(e=>log('silent element REFUSED '+(e&&e.name)))}
-document.getElementById('a').onclick=async()=>{stopAll();log('--- A start');
- try{const s=navigator.audioSession;if(s){s.type='playback';session=s.type}log('audioSession: '+session)}catch(e){log('audioSession error '+e.message)}
- startSilent();
+async function boot(label){stopAll();log('--- '+label);
+ try{const s=navigator.audioSession;if(s){s.type='playback';log('audioSession: '+s.type)}else log('audioSession: n/a')}catch(e){log('audioSession error '+e.message)}
+ if(label[0]!=='D')startSilent();
  ctx=new (window.AudioContext||window.webkitAudioContext)({latencyHint:'playback'});
  const b=ctx.createBuffer(1,1,ctx.sampleRate),sb=ctx.createBufferSource();sb.buffer=b;sb.connect(ctx.destination);sb.start(0);
  try{await ctx.resume()}catch(e){log('resume error '+e.message)}
- log(`context: ${ctx.state} · ${ctx.sampleRate} Hz`);
- try{const lib=await import('/vendor/signalsmith-stretch-1.3.2/SignalsmithStretch.mjs');
-  node=await (lib.default??lib.SignalsmithStretch)(ctx,{numberOfInputs:0,numberOfOutputs:1,outputChannelCount:[2]});log('worklet loaded');
-  await node.configure({blockMs:120,intervalMs:30,splitComputation:true});
-  const rsmp=async(ch)=>{const ab=ctx.createBuffer(1,ch.length,SR);ab.copyToChannel(ch,0);return ab};
-  await node.addBuffers([L.slice(),R.slice()]);log('audio loaded');
-  node.connect(ctx.destination);
-  const at=ctx.currentTime+0.35;await node.schedule({output:at,input:0,active:true,rate:0.9,semitones:0,loopStart:0,loopEnd:DUR});log(`playing at 90% (clock ${ctx.currentTime.toFixed(2)})`);
-  setTimeout(()=>log(`check: ${ctx.state} · clock ${ctx.currentTime.toFixed(2)} · latency ${(ctx.outputLatency||0).toFixed(3)}`),1500);
- }catch(e){log('A FAILED: '+(e&&e.message||e))}};
-document.getElementById('b').onclick=()=>{stopAll();log('--- B start (native, 90%)');song=new Audio();song.loop=true;song.src=URL.createObjectURL(wav(L,R));song.preservesPitch=true;song.playbackRate=0.9;song.play().then(()=>log('B playing')).catch(e=>log('B REFUSED '+(e&&e.name)))};
+ log(`context: ${ctx.state} · ${ctx.sampleRate} Hz`)}
+function meter(src,seconds=7){const an=ctx.createAnalyser();an.fftSize=2048;src.connect(an);const d=new Float32Array(an.fftSize);let k=0;
+ meterTimer=setInterval(()=>{an.getFloatTimeDomainData(d);let p=0;for(const v of d)p=Math.max(p,Math.abs(v));log(`peak ${p.toFixed(3)} · ${ctx.state} · clock ${ctx.currentTime.toFixed(1)}`);if(++k>=seconds*2)clearInterval(meterTimer)},500)}
+async function stretchNode(){const lib=await import('/vendor/signalsmith-stretch-1.3.2/SignalsmithStretch.mjs');
+ const n=await (lib.default??lib.SignalsmithStretch)(ctx,{numberOfInputs:1,numberOfOutputs:1,outputChannelCount:[2]});log('worklet loaded');
+ await n.configure({blockMs:120,intervalMs:30,splitComputation:true});
+ const [L,R]=tone(ctx.sampleRate);await n.addBuffers([L,R]);log('audio loaded');return n}
+document.getElementById('c').onclick=async()=>{await boot('C beep (plain Web Audio)');
+ const o=ctx.createOscillator(),g=ctx.createGain();o.type='triangle';o.frequency.value=440;g.gain.value=0.25;o.connect(g);g.connect(ctx.destination);meter(g,4);o.start();o.stop(ctx.currentTime+3);log('beep 440 Hz for 3 s')};
+document.getElementById('a').onclick=async()=>{await boot('A live → destination');
+ try{node=await stretchNode();node.connect(ctx.destination);meter(node);
+  await node.schedule({output:ctx.currentTime+0.35,input:0,active:true,rate:0.9,semitones:0,loopStart:0,loopEnd:DUR});log('playing at 90%')}catch(e){log('A FAILED: '+(e&&e.message||e))}};
+document.getElementById('d').onclick=async()=>{await boot('D live → audio element');
+ try{node=await stretchNode();const dest=ctx.createMediaStreamDestination();node.connect(dest);meter(node);
+  outEl=new Audio();outEl.srcObject=dest.stream;outEl.play().then(()=>log('stream element: playing')).catch(e=>log('stream element REFUSED '+(e&&e.name)));
+  await node.schedule({output:ctx.currentTime+0.35,input:0,active:true,rate:0.9,semitones:0,loopStart:0,loopEnd:DUR});log('playing at 90%')}catch(e){log('D FAILED: '+(e&&e.message||e))}};
+document.getElementById('b').onclick=()=>{stopAll();log('--- B start (native, 90%)');song=new Audio();song.loop=true;const [L,R]=tone(44100);song.src=URL.createObjectURL(wav(L,R,44100));song.preservesPitch=true;song.playbackRate=0.9;song.play().then(()=>log('B playing')).catch(e=>log('B REFUSED '+(e&&e.name)))};
 document.querySelectorAll('button[data-n]').forEach(b=>b.onclick=()=>{if(!song)return log('B: first press Start B');song.playbackRate=Number(b.dataset.n);log('B: rate '+b.dataset.n)});
+document.addEventListener('visibilitychange',()=>log(`page ${document.visibilityState} · ctx ${ctx?ctx.state:'none'}`));
 log('ready · '+navigator.userAgent.slice(0,80));
 </script></body></html>

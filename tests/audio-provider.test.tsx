@@ -436,6 +436,29 @@ describe('live listening is the default on iPhone/iPad', () => {
     } finally { ua.mockRestore(); localStorage.clear(); rolloutState.liveListeningOnApple = false; }
   });
 });
+describe('live engine only when the tempo is changed (normal speed starts at once)', () => {
+  const fakeCtx = () => vi.stubGlobal('AudioContext', class { state = 'running'; sampleRate = 48000; currentTime = 0; destination = {};
+    resume = async () => {}; createBuffer() { return {}; } createBufferSource() { return { connect() {}, start() {}, buffer: null }; } close = async () => {}; });
+  it('plays at 100% on the phone player without loading the engine, then takes over in the background after a speed change', async () => {
+    rolloutState.liveListeningOnApple = true;
+    const ua = vi.spyOn(navigator, 'userAgent', 'get').mockReturnValue('Mozilla/5.0 (iPhone; CPU iPhone OS 18_0 like Mac OS X)');
+    try {
+      fakeCtx();
+      await act(async () => { root.render(<AudioProvider key="apple-instant"><Probe /></AudioProvider>); });
+      await act(async () => { api.setBpm(100); api.loadTrack(track('instant')); }); await flush();
+      expect(liveState.calls.some(c => c.startsWith('load'))).toBe(false); // nothing to download and decode first
+      expect(api.isPlaying).toBe(true);
+      await tick(3);
+      const body = active();
+      await act(async () => { api.setBpm(90); }); await tick(1); // the phone player changes speed at once
+      expect(body.playbackRate).toBeCloseTo(0.9, 3); expect(api.isPlaying).toBe(true);
+      expect(liveState.calls.some(c => c.startsWith('load instant'))).toBe(true); // prepared in the background
+      await tick(1); await flush();
+      expect(liveState.calls.some(c => c.startsWith('start 90'))).toBe(true); // then the engine takes over
+      expect(api.isPlaying).toBe(true);
+    } finally { ua.mockRestore(); localStorage.clear(); rolloutState.liveListeningOnApple = false; }
+  });
+});
 describe('prepared slow-down in ordinary listening on iPhone/iPad', () => {
   const enableSlow = async () => {
     window.history.replaceState(null, '', '/?slowRender=1');

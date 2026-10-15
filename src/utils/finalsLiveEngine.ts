@@ -24,6 +24,8 @@ export class FinalsLiveEngine {
   private readonly gate: GainNode; // muted while paused (the processor holds its position by running at rate 0)
   private readonly fade: GainNode;
   private readonly master: GainNode;
+  private readonly meter: AnalyserNode; // measures what actually comes out, so a silent engine can be detected
+  private meterData: Float32Array<ArrayBuffer>;
   private loadedKey = '';
   private duration = 0;
   private lastInput = 0;
@@ -39,6 +41,18 @@ export class FinalsLiveEngine {
     this.gate.connect(this.fade);
     this.fade.connect(this.master);
     this.master.connect(ctx.destination);
+    this.meter = ctx.createAnalyser();
+    this.meter.fftSize = 1024;
+    this.meterData = new Float32Array(this.meter.fftSize);
+    this.master.connect(this.meter);
+  }
+
+  /** Loudest recent sample leaving the engine (0 = silence). */
+  peak(): number {
+    this.meter.getFloatTimeDomainData(this.meterData);
+    let loudest = 0;
+    for (const value of this.meterData) loudest = Math.max(loudest, Math.abs(value));
+    return loudest;
   }
 
   // The processor keeps one pending change at a time: a new request discards every change scheduled at or
@@ -58,7 +72,9 @@ export class FinalsLiveEngine {
     const library = await import(/* webpackIgnore: true */ MODULE_URL);
     const create = library.default ?? library.SignalsmithStretch;
     if (typeof create !== 'function') throw new Error('Audio processor could not be loaded');
-    const node: StretchNode = await create(this.ctx, { numberOfInputs: 0, numberOfOutputs: 1, outputChannelCount: [2] });
+    // One (unconnected) input is required: the processor reads its length on every block and crashes without it,
+    // which leaves the engine silent while the clock keeps running.
+    const node: StretchNode = await create(this.ctx, { numberOfInputs: 1, numberOfOutputs: 1, outputChannelCount: [2] });
     await node.configure({ blockMs: 120, intervalMs: 30, splitComputation: true });
     node.setUpdateInterval?.(0.1, (t: number) => { this.lastInput = t; });
     node.connect(this.gate);

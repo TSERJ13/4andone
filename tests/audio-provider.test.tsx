@@ -15,7 +15,7 @@ vi.mock('@/utils/renderFinalAudio', async (original) => {
       elapsedStart: request.elapsedStart ?? 0, duration: renderState.duration };
   }) };
 });
-const liveState = vi.hoisted(() => ({ calls: [] as string[], engines: 0 }));
+const liveState = vi.hoisted(() => ({ calls: [] as string[], engines: 0, peak: 0.1 }));
 vi.mock('@/utils/finalsLiveEngine', async (original) => {
   const actual = await original<typeof import('../src/utils/finalsLiveEngine')>();
   class FakeEngine {
@@ -26,6 +26,7 @@ vi.mock('@/utils/finalsLiveEngine', async (original) => {
     setRate(p: number) { if (this.running) liveState.calls.push('rate ' + p); return Promise.resolve(); }
     async pause() { if (this.running) { this.running = false; liveState.calls.push('pause'); } }
     async resume(slot: number) { if (!this.running) { this.running = true; liveState.calls.push('resume ' + Math.round(slot)); } }
+    peak() { return liveState.peak; }
     setVolume() {} stop() { this.running = false; liveState.calls.push('stop'); } dispose() {}
   }
   return { ...actual, FinalsLiveEngine: FakeEngine };
@@ -36,7 +37,7 @@ vi.mock('@/utils/trackCover', () => ({ getTrackCover: () => '/cover.png' }));
 vi.mock('@/components/admin/StudioProvider', () => ({ useStudio: () => ({ tracks: [], finalTracks: [], albums: [] }) }));
 vi.mock('@/context/AuthContext', () => ({ useAuth: () => ({ user: null, isPremium: true, setIsSubscriptionModalOpen: vi.fn() }) }));
 vi.mock('@/utils/supabase', () => ({ supabase: { from: () => ({ insert: async () => ({ error: null }) }) } }));
-import { rolloutState } from '../src/utils/renderedFinalTest';
+import { rolloutState, liveRuntime } from '../src/utils/renderedFinalTest';
 import { AudioProvider, useAudio } from '../src/components/audio/AudioProvider';
 let api: ReturnType<typeof useAudio>;
 let root: Root;
@@ -60,7 +61,7 @@ async function tick(seconds: number) {
 beforeEach(async () => {
   vi.useFakeTimers(); elements = []; states = new Map(); localStorage.clear();
   window.history.replaceState(null, '', '/');
-  renderState.duration = 105; renderState.fail = false; renderState.requests = []; renderState.gate = null; liveState.calls = []; liveState.engines = 0;
+  renderState.duration = 105; renderState.fail = false; renderState.requests = []; renderState.gate = null; liveState.calls = []; liveState.engines = 0; liveState.peak = 0.1; liveRuntime.failed = false;
   (globalThis as any).IS_REACT_ACT_ENVIRONMENT = true;
   URL.createObjectURL = vi.fn((blob: Blob) => blob.type === 'audio/wav' ? 'blob:rendered-final' : 'blob:test'); URL.revokeObjectURL = vi.fn();
   vi.stubGlobal('Worker', class { postMessage() {} terminate() {} onmessage = null; });
@@ -377,6 +378,30 @@ describe('live engine in ordinary listening (?finalsLive=1)', () => {
     expect(liveState.calls.filter(c => c.startsWith('start')).length).toBe(before + 1);
     await act(async () => { await api.togglePlay(); }); await flush();
     expect(liveState.calls).toContain('pause');
+  });
+});
+describe('live engine safety net', () => {
+  const stubCtx = () => vi.stubGlobal('AudioContext', class { state = 'running'; sampleRate = 48000; currentTime = 0; destination = {};
+    resume = async () => {}; createBuffer() { return {}; } createBufferSource() { return { connect() {}, start() {}, buffer: null }; } close = async () => {}; });
+  it('keeps the live engine when sound is flowing', async () => {
+    stubCtx(); liveState.peak = 0.2;
+    window.history.replaceState(null, '', '/?finalsLive=1');
+    await act(async () => { root.render(<AudioProvider key="live-ok"><Probe /></AudioProvider>); });
+    await act(async () => { api.setBpm(90); api.loadTrack(track('flowing')); }); await flush();
+    await tick(6); await flush();
+    expect(liveRuntime.failed).toBe(false);
+    expect(liveState.calls.filter(c => c.startsWith('load'))).toHaveLength(1);
+  });
+  it('falls back to the normal player when the engine stays silent', async () => {
+    stubCtx(); liveState.peak = 0;
+    window.history.replaceState(null, '', '/?finalsLive=1');
+    await act(async () => { root.render(<AudioProvider key="live-silent"><Probe /></AudioProvider>); });
+    await act(async () => { api.setBpm(90); api.loadTrack(track('silent')); }); await flush();
+    await tick(6); await flush();
+    expect(liveRuntime.failed).toBe(true);
+    expect(liveState.calls).toContain('stop');
+    expect(api.isPlaying).toBe(true); // still playing, on the normal route
+    liveRuntime.failed = false;
   });
 });
 describe('live listening is the default on iPhone/iPad', () => {

@@ -63,11 +63,14 @@ export function isLiveFinalEnabled(): boolean {
   return expiry > Date.now();
 }
 
+/** Set when the live engine proved silent at runtime: ordinary listening then uses the prepared/native route until reload. */
+export const liveRuntime = { failed: false };
+
 export const LIVE_LISTENING_OPTOUT_KEY = '4andone-live-listening-optout-v1';
 /** Ordinary listening on iPhone/iPad uses the live stretch engine (the phone's own stretch croaks).
  * ?finalsLive=0 turns it off on this device, ?finalsLive=1 turns it on anywhere (and back on after an opt-out). */
 export function isLiveListeningEnabled(): boolean {
-  if (typeof window === 'undefined') return false;
+  if (typeof window === 'undefined' || liveRuntime.failed) return false;
   if (isLiveFinalEnabled()) return true;
   const requested = new URLSearchParams(window.location.search).get('finalsLive');
   let optedOut = false;

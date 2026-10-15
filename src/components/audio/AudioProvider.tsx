@@ -239,6 +239,8 @@ export const AudioProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   // parameter change and never stops or reloads anything. The element only carries the silent 1:45 timeline.
   const liveCtxRef = useRef<AudioContext | null>(null);
   const liveEngineRef = useRef<FinalsLiveEngine | null>(null);
+  const liveUpgradeAbortRef = useRef<AbortController | null>(null);
+  const liveUpgradingRef = useRef(false);
   const liveActiveRef = useRef(false);   // the live engine makes the sound of the current dance
   const liveStartedRef = useRef(false);
   const liveNormalRef = useRef(false);    // live engine in ordinary (non-Finals) listening
@@ -1166,6 +1168,7 @@ export const AudioProvider: React.FC<{ children: React.ReactNode }> = ({ childre
 
     cancelLoadRef.current?.();
     renderAbortRef.current?.abort();
+    liveUpgradeAbortRef.current?.abort();
     retempoAbortRef.current?.abort();
     retempoSeqRef.current++;
     const currentToken = ++loadingTokenRef.current;
@@ -1524,7 +1527,9 @@ export const AudioProvider: React.FC<{ children: React.ReactNode }> = ({ childre
 
       // Live engine for ordinary listening (opt-in): the element only carries a silent timeline in SOURCE seconds
       // (playing at the chosen speed), and the stretch engine makes the sound, so the speed changes without croak or gap.
-      if (!renderPlan && !isFinalModeRef.current && isLiveListeningEnabled()) {
+      // At normal speed the phone's own player is already clean and starts at once; the live engine (which must
+      // download and decode the whole track first) is only used when the tempo is changed.
+      if (!renderPlan && !isFinalModeRef.current && isLiveListeningEnabled() && Math.abs(bpmRef.current - 100) > 0.5) {
         try {
           const ctx = ensureLiveContext();
           if (!ctx) throw new Error('Live audio is unavailable');
@@ -2498,9 +2503,53 @@ export const AudioProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     loadTrackRef.current(track, true, true, { startAt: position, finalElapsed: elapsed, paused, renderFinal: true });
   };
 
+  // Normal-speed playback runs on the phone's own player (instant start). When the tempo is then changed, the live
+  // engine prepares the track in the background (the phone's player keeps playing at the new rate meanwhile) and
+  // takes over from the same position as soon as it is ready.
+  const upgradeToLiveRef = useRef<() => void>(() => {});
+  upgradeToLiveRef.current = async () => {
+    const track = playingTrackRef.current;
+    const audio = nativePlayerRef.current;
+    if (!track?.audioUrl || !audio || liveUpgradingRef.current) return;
+    liveUpgradingRef.current = true;
+    const controller = new AbortController();
+    liveUpgradeAbortRef.current = controller;
+    let local: string | null = null;
+    try {
+      const ctx = ensureLiveContext();
+      if (!ctx) return;
+      if ((ctx.state as string) !== 'running') {
+        await Promise.race([ctx.resume().catch(() => {}), new Promise(resolve => setTimeout(resolve, 400))]);
+        if ((ctx.state as string) !== 'running') return; // stay on the phone's player rather than risk silence
+      }
+      let engine = liveEngineRef.current;
+      if (!engine || engine.ctx !== ctx) { engine = new FinalsLiveEngine(ctx); liveEngineRef.current = engine; }
+      let url: string = track.audioUrl;
+      try {
+        const cached = track.id ? await getAudioFile(track.id) : null;
+        if (cached && cached.size > 0) { local = URL.createObjectURL(cached); url = local; }
+      } catch { /* signed URL */ }
+      if (!local) url = await resolvePlaybackUrl(url);
+      if (!url || controller.signal.aborted) return;
+      await engine.decodeAndLoad(url, String(track.id) + '|' + String(track.audioUrl), controller.signal);
+      if (controller.signal.aborted || playingTrackRef.current?.id !== track.id) return;
+      if (liveActiveRef.current || Math.abs(bpmRef.current - 100) <= 0.5 || !isLiveListeningEnabled()) return;
+      const a = nativePlayerRef.current;
+      if (!a) return;
+      loadTrackRef.current(track, true, false, { startAt: a.currentTime, paused: a.paused });
+    } catch (error: any) {
+      if (error?.name !== 'AbortError') console.warn('[AUDIO-ENGINE] Live engine unavailable; keeping the normal player:', error);
+    } finally {
+      liveUpgradingRef.current = false;
+      if (local) URL.revokeObjectURL(local);
+    }
+  };
+
   // Ordinary listening on iPhone/iPad: after the speed settles, the clean prepared version replaces the phone's croaky stretch.
   const applySlowTempoRef = useRef<() => void>(() => {});
   applySlowTempoRef.current = async () => {
+    if (isLiveListeningEnabled() && !isFinalModeRef.current && !isFitnessRef.current && !isPauseCountdownRef.current
+        && !liveActiveRef.current && Math.abs(bpmRef.current - 100) > 0.5) { upgradeToLiveRef.current(); return; }
     if (!isSlowRenderEnabled() || isLiveListeningEnabled() || isFinalModeRef.current || isFitnessRef.current || isPauseCountdownRef.current) return;
     const track = playingTrackRef.current;
     const audio = nativePlayerRef.current;

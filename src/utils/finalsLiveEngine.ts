@@ -88,7 +88,7 @@ export class FinalsLiveEngine {
     if (this.loadedKey === key && this.duration === duration) return;
     const stereo = channels.length === 1 ? [channels[0], channels[0]] : channels;
     await this.stretch!.dropBuffers();
-    await this.stretch!.addBuffers(stereo.map(channel => channel.slice()));
+    await this.stretch!.addBuffers(stereo); // posted by copy: no extra duplicate of the whole track on this side
     this.loadedKey = key;
     this.duration = duration;
   }

@@ -317,7 +317,12 @@ function registerWorkletProcessor(Module, audioNodeKey) {
 					if (count > 0) {
 						buffers.forEach((buffer, c) => {
 							let channelBuffer = audioBuffer[c%audioBuffer.length];
-							buffer.subarray(blockSamples).set(channelBuffer.subarray(startIndex, startIndex + count));
+							if (channelBuffer instanceof Int16Array) {
+								// 4AND.ONE patch: tracks may be stored as 16-bit (half the memory) and are widened to float here
+								for (let i = 0; i < count; ++i) buffer[blockSamples + i] = channelBuffer[startIndex + i]*(1/32768);
+							} else {
+								buffer.subarray(blockSamples).set(channelBuffer.subarray(startIndex, startIndex + count));
+							}
 						});
 						audioSamples += count;
 						blockSamples += count;

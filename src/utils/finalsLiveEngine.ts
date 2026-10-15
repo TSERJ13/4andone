@@ -8,7 +8,7 @@ import { readAudio } from './renderFinalAudio';
  * ramp, which also works on iPhone where an <audio> element's volume cannot be set.
  */
 type StretchNode = AudioWorkletNode & {
-  addBuffers(channels: Float32Array[]): Promise<number>;
+  addBuffers(channels: (Float32Array | Int16Array)[], transfer?: ArrayBuffer[]): Promise<number>;
   dropBuffers(toSeconds?: number): Promise<unknown>;
   configure(options: Record<string, unknown>): Promise<unknown>;
   schedule(options: Record<string, unknown>): Promise<unknown>;
@@ -82,13 +82,38 @@ export class FinalsLiveEngine {
     this.stretch = node;
   }
 
-  /** Replace the audio the processor plays (no-op when the same recording is already loaded). */
-  async load(key: string, channels: Float32Array[], duration: number): Promise<void> {
+  /**
+   * Replace the audio the processor plays (no-op when the same recording is already loaded). The track is stored as
+   * 16-bit audio (half the memory of floats) and handed over in ~10 s pieces with a pause between them, so the page
+   * never needs a second full copy of the track and stays responsive while it loads.
+   */
+  async load(key: string, channels: Float32Array[], duration: number, signal?: AbortSignal): Promise<void> {
     await this.init();
     if (this.loadedKey === key && this.duration === duration) return;
-    const stereo = channels.length === 1 ? [channels[0], channels[0]] : channels;
     await this.stretch!.dropBuffers();
-    await this.stretch!.addBuffers(stereo); // posted by copy: no extra duplicate of the whole track on this side
+    this.loadedKey = ''; // usable only once every piece has arrived
+    this.duration = 0;
+    const total = channels[0]?.length ?? 0;
+    const piece = Math.max(1, Math.round(((this.ctx as AudioContext).sampleRate || 44100) * 10));
+    try {
+      for (let from = 0; from < total; from += piece) {
+        if (signal?.aborted) throw new DOMException('Audio preparation cancelled', 'AbortError');
+        const to = Math.min(total, from + piece);
+        const part = channels.map(channel => {
+          const out = new Int16Array(to - from);
+          for (let i = from; i < to; i++) {
+            const v = channel[i];
+            out[i - from] = v >= 1 ? 32767 : v <= -1 ? -32768 : Math.round(v * 32767);
+          }
+          return out;
+        });
+        await this.stretch!.addBuffers(part, part.map(channel => channel.buffer) as any); // moved, not copied
+        await new Promise<void>(resolve => setTimeout(resolve, 0)); // let the page breathe between pieces
+      }
+    } catch (error) {
+      try { await this.stretch!.dropBuffers(); } catch { /* ignore */ }
+      throw error;
+    }
     this.loadedKey = key;
     this.duration = duration;
   }
@@ -104,7 +129,7 @@ export class FinalsLiveEngine {
       throw new Error('Live Finals currently supports mono/stereo recordings up to five minutes');
     }
     const channels = Array.from({ length: decoded.numberOfChannels }, (_, c) => decoded.getChannelData(c));
-    await this.load(key, channels, decoded.duration);
+    await this.load(key, channels, decoded.duration, signal);
   }
 
   private armFade(at: number, slotSeconds: number): void {

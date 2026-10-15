@@ -461,6 +461,14 @@ describe('live engine only when the tempo is changed (normal speed starts at onc
       expect(liveState.calls.filter(c => c.startsWith('start'))).toHaveLength(1); // no restart after the hand-over
       expect(liveState.calls).not.toContain('stop');
       expect(api.isPlaying).toBe(true);
+      // Back to normal speed: the phone player takes over; the engine is only stopped afterwards (no gap), and music goes on
+      await act(async () => { api.setBpm(100); }); await tick(1); await flush();
+      expect(api.isPlaying).toBe(true);
+      expect(liveState.calls.filter(c => c.startsWith('start'))).toHaveLength(1); // the engine is not restarted
+      await tick(11); await flush();
+      expect(liveState.calls).toContain('stop'); // ...and ends once the phone player sounds (at the latest after 10 s)
+      expect(api.isPlaying).toBe(true);
+      expect(localStorage.getItem('4andone-bpm')).toBeNull(); // the speed is not remembered for the next visit
     } finally { ua.mockRestore(); localStorage.clear(); rolloutState.liveListeningOnApple = false; }
   });
 });

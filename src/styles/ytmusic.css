@@ -2666,8 +2666,8 @@
 .yt-mobile-queue-view { margin-bottom: 8px; }
 
 /* The area above the progress bar fills the free height; the bar and the buttons always sit at the bottom, in both views */
-.yt-mobile-top-area { flex: 1 1 0; min-height: 0; display: flex; flex-direction: column; }
-.yt-mobile-top-area > .yt-mobile-queue-view { flex: 1 1 0; }
+.yt-mobile-top-area { flex: 0 0 auto; display: flex; flex-direction: column; } /* natural height, as before */
+.yt-mobile-top-area > .yt-mobile-queue-view { flex: 1 1 0; min-height: 0; }
 @media (orientation: landscape) and (max-height: 600px) {
   .yt-mobile-top-area { display: contents; }
 }

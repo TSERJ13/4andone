@@ -1,7 +1,7 @@
 "use client";
 
 import { isFinalSpeedLockedRoute } from '@/utils/renderedFinalTest';
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect, useLayoutEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import {
   ChevronDown,
@@ -115,6 +115,12 @@ export default function MobileFullPlayer({ isOpen, onClose }: MobileFullPlayerPr
   const [draftBpm, setDraftBpm] = useState<number | null>(null);
   const [showCopiedToast, setShowCopiedToast] = useState(false);
 
+  // The list takes exactly the height the cover view has, so the progress bar and buttons never move.
+  const topRef = useRef<HTMLDivElement>(null);
+  const [topHeight, setTopHeight] = useState<number | null>(null);
+  useLayoutEffect(() => {
+    if (isOpen && mode === 'now' && topRef.current) setTopHeight(topRef.current.offsetHeight);
+  });
   const menuRef = useRef<HTMLDivElement>(null);
   const speedRef = useRef<HTMLDivElement>(null);
 
@@ -291,7 +297,7 @@ export default function MobileFullPlayer({ isOpen, onClose }: MobileFullPlayerPr
       </div>
 
       {/* Everything above the progress bar is one area, so the bar and the player buttons stay in the same place in both views */}
-      <div className="yt-mobile-top-area">
+      <div className="yt-mobile-top-area" ref={topRef} style={mode === 'queue' && topHeight ? { height: topHeight } : undefined}>
       {mode === 'queue' ? (
         <div className="yt-mobile-queue-view">
           <RecentQueue />
@@ -519,6 +525,7 @@ export default function MobileFullPlayer({ isOpen, onClose }: MobileFullPlayerPr
           <Repeat size={20} />
         </button>
       </div>
+      <div className="yt-mobile-space-bottom" aria-hidden="true" />
     </div>
   );
 }

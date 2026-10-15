@@ -383,6 +383,7 @@ describe('live listening is the default on iPhone/iPad', () => {
   const fakeCtx = () => vi.stubGlobal('AudioContext', class { state = 'running'; sampleRate = 48000; currentTime = 0; destination = {};
     resume = async () => {}; createBuffer() { return {}; } createBufferSource() { return { connect() {}, start() {}, buffer: null }; } close = async () => {}; });
   it('uses the stretch engine for ordinary listening without any URL flag, and ?finalsLive=0 switches it off', async () => {
+    rolloutState.liveListeningOnApple = true;
     const ua = vi.spyOn(navigator, 'userAgent', 'get').mockReturnValue('Mozilla/5.0 (iPhone; CPU iPhone OS 18_0 like Mac OS X)');
     try {
       fakeCtx();
@@ -395,9 +396,10 @@ describe('live listening is the default on iPhone/iPad', () => {
       await act(async () => { api.setBpm(85); api.loadTrack(track('apple2')); }); await flush();
       expect(liveState.calls.some(c => c.startsWith('start'))).toBe(false);
       expect(active().playbackRate).toBeCloseTo(0.85, 3); // the normal player
-    } finally { ua.mockRestore(); localStorage.clear(); }
+    } finally { ua.mockRestore(); localStorage.clear(); rolloutState.liveListeningOnApple = false; }
   });
   it('falls back to the normal player when the audio context cannot run', async () => {
+    rolloutState.liveListeningOnApple = true;
     const ua = vi.spyOn(navigator, 'userAgent', 'get').mockReturnValue('Mozilla/5.0 (iPhone; CPU iPhone OS 18_0 like Mac OS X)');
     try {
       vi.stubGlobal('AudioContext', class { state = 'suspended'; sampleRate = 48000; currentTime = 0; destination = {};
@@ -406,7 +408,7 @@ describe('live listening is the default on iPhone/iPad', () => {
       await act(async () => { api.setBpm(90); api.loadTrack(track('fallback')); }); await tick(1); await flush();
       expect(liveState.calls.some(c => c.startsWith('start'))).toBe(false);
       expect(api.isPlaying).toBe(true); expect(active().playbackRate).toBeCloseTo(0.9, 3);
-    } finally { ua.mockRestore(); localStorage.clear(); }
+    } finally { ua.mockRestore(); localStorage.clear(); rolloutState.liveListeningOnApple = false; }
   });
 });
 describe('rendered Finals is the default on iPhone', () => {

@@ -61,7 +61,7 @@ async function tick(seconds: number) {
 beforeEach(async () => {
   vi.useFakeTimers(); elements = []; states = new Map(); localStorage.clear();
   window.history.replaceState(null, '', '/');
-  renderState.duration = 105; renderState.fail = false; renderState.requests = []; renderState.gate = null; liveState.calls = []; liveState.engines = 0; liveState.peak = 0.1; liveRuntime.failed = false;
+  renderState.duration = 105; renderState.fail = false; renderState.requests = []; renderState.gate = null; liveState.calls = []; liveState.engines = 0; liveState.peak = 0.1; liveRuntime.failed = false; rolloutState.liveListeningOnApple = false;
   (globalThis as any).IS_REACT_ACT_ENVIRONMENT = true;
   URL.createObjectURL = vi.fn((blob: Blob) => blob.type === 'audio/wav' ? 'blob:rendered-final' : 'blob:test'); URL.revokeObjectURL = vi.fn();
   vi.stubGlobal('Worker', class { postMessage() {} terminate() {} onmessage = null; });

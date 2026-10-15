@@ -75,7 +75,8 @@ export class FinalsLiveEngine {
     // One (unconnected) input is required: the processor reads its length on every block and crashes without it,
     // which leaves the engine silent while the clock keeps running.
     const node: StretchNode = await create(this.ctx, { numberOfInputs: 1, numberOfOutputs: 1, outputChannelCount: [2] });
-    await node.configure({ blockMs: 120, intervalMs: 30, splitComputation: true });
+    // 80/16: sharper drum attacks than 120/30 in an offline transient test, about the same real-time load.
+    await node.configure({ blockMs: 80, intervalMs: 16, splitComputation: true });
     node.setUpdateInterval?.(0.1, (t: number) => { this.lastInput = t; });
     node.connect(this.gate);
     this.stretch = node;

@@ -110,12 +110,8 @@ export default function MobileFullPlayer({ isOpen, onClose }: MobileFullPlayerPr
 
   if (!isOpen) return null;
 
-  // "Up next" starts at the song that is playing and follows the order Next will use.
-  const upList = (() => {
-    const list = isFinalMode && sessionTracks.length > 0 ? sessionTracks : queueTracks;
-    const i = list.findIndex(t => t.id === currentTrack?.id);
-    return i > 0 ? [...list.slice(i), ...list.slice(0, i)] : list;
-  })();
+  // The whole list Next follows (Last Played from its top to its end, an album in its order …); the playing song is highlighted.
+  const upList = isFinalMode && sessionTracks.length > 0 ? sessionTracks : queueTracks;
 
   const liveTrack = tracks.find((t) => t.id === currentTrack?.id) || currentTrack;
   const isFavorite = liveTrack?.isFavorite || false;
@@ -505,7 +501,7 @@ export default function MobileFullPlayer({ isOpen, onClose }: MobileFullPlayerPr
           <Repeat size={20} />
         </button>
       </div>
-      <div className="yt-mobile-space-bottom" aria-hidden="true" />
+      {mode === 'now' && <div className="yt-mobile-space-bottom" aria-hidden="true" />}
     </div>
   );
 }

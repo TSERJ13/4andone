@@ -32,7 +32,12 @@ interface QueuePanelListProps {
  * panel scrolls all the way to the last song.
  */
 export function QueuePanelList({ tracks, albums, currentTrackId, isPlaying, onSelect, kicker, heading, emptyText }: QueuePanelListProps) {
-  const [shown, setShown] = useState(PAGE);
+  // Open far enough down to include the playing song, then scroll it into view
+  const [shown, setShown] = useState(() => Math.max(PAGE, tracks.findIndex(t => t.id === currentTrackId) + PAGE));
+  const listRef = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    listRef.current?.querySelector('.yt-queue-item.active')?.scrollIntoView({ block: 'center' });
+  }, []); // once, when the list opens
   const sentinelRef = useRef<HTMLDivElement>(null);
   const hasMore = shown < tracks.length;
 
@@ -47,7 +52,7 @@ export function QueuePanelList({ tracks, albums, currentTrackId, isPlaying, onSe
   }, [hasMore, shown]);
 
   return (
-    <div className="yt-panel-queue-list">
+    <div className="yt-panel-queue-list" ref={listRef}>
       {heading && (
         <div className="yt-panel-list-head">
           {kicker && <div className="yt-panel-list-kicker">{kicker}</div>}

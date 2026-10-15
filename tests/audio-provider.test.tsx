@@ -9,7 +9,7 @@ vi.mock('@/utils/renderFinalAudio', async (original) => {
     renderState.requests.push(request);
     if (renderState.gate) await renderState.gate;
     if (renderState.fail) throw new Error('Test rendering failure');
-    renderState.duration = 105 - (request.elapsedStart ?? 0);
+    renderState.duration = request.full ? 180 / (request.percent / 100) : 105 - (request.elapsedStart ?? 0);
     return { blob: new Blob(['test'], { type: 'audio/wav' }), percent: request.percent,
       sourceStart: request.sourceStart ?? 0, sourceDuration: 180,
       elapsedStart: request.elapsedStart ?? 0, duration: renderState.duration };
@@ -395,7 +395,7 @@ describe('live listening is the default on iPhone/iPad', () => {
       await act(async () => { root.render(<AudioProvider key="apple-live-off"><Probe /></AudioProvider>); });
       await act(async () => { api.setBpm(85); api.loadTrack(track('apple2')); }); await flush();
       expect(liveState.calls.some(c => c.startsWith('start'))).toBe(false);
-      expect(active().playbackRate).toBeCloseTo(0.85, 3); // the normal player
+      expect(renderState.requests.at(-1)).toMatchObject({ full: true, percent: 85 }); // the prepared slowed track instead
     } finally { ua.mockRestore(); localStorage.clear(); rolloutState.liveListeningOnApple = false; }
   });
   it('falls back to the normal player when the audio context cannot run', async () => {
@@ -409,6 +409,41 @@ describe('live listening is the default on iPhone/iPad', () => {
       expect(liveState.calls.some(c => c.startsWith('start'))).toBe(false);
       expect(api.isPlaying).toBe(true); expect(active().playbackRate).toBeCloseTo(0.9, 3);
     } finally { ua.mockRestore(); localStorage.clear(); rolloutState.liveListeningOnApple = false; }
+  });
+});
+describe('prepared slow-down in ordinary listening on iPhone/iPad', () => {
+  const enableSlow = async () => {
+    window.history.replaceState(null, '', '/?slowRender=1');
+    await act(async () => { root.render(<AudioProvider key="slow-mode"><Probe /></AudioProvider>); });
+  };
+  it('prepares the whole track at the chosen speed and plays it at 1x', async () => {
+    await enableSlow();
+    await act(async () => { api.setBpm(80); api.loadTrack(track('slow-a')); }); await flush();
+    expect(renderState.requests.at(-1)).toMatchObject({ full: true, percent: 80, sourceStart: 0 });
+    expect(active().src).toBe('blob:rendered-final'); expect(active().playbackRate).toBe(1);
+    expect(api.isPlaying).toBe(true); expect(api.isFinalMode).toBe(false);
+  });
+  it('a speed change plays at once with the native rate, then the clean file takes over at the same spot', async () => {
+    await enableSlow();
+    await act(async () => { api.loadTrack(track('slow-b')); }); await flush();
+    expect(renderState.requests).toHaveLength(0); // 100%: the original file, nothing prepared
+    await tick(20);
+    const body = active();
+    await act(async () => { api.setBpm(90); }); expect(body.playbackRate).toBeCloseTo(0.9, 3);
+    await tick(1); await flush();
+    expect(renderState.requests.at(-1)).toMatchObject({ full: true, percent: 90 });
+    const now = elements.find(e => !states.get(e)!.paused && e.src === 'blob:rendered-final')!;
+    expect(now).toBeTruthy(); expect(now.playbackRate).toBe(1);
+    expect(Math.abs(states.get(now)!.time * 0.9 - 20.9)).toBeLessThan(3); // ~ the same place in the song
+    expect(api.isPlaying).toBe(true);
+    await act(async () => { api.setBpm(100); }); await tick(1); await flush();
+    const back = elements.find(e => !states.get(e)!.paused)!;
+    expect(back.src).not.toBe('blob:rendered-final'); expect(back.playbackRate).toBe(1);
+  });
+  it('keeps playing on the normal player if preparing fails', async () => {
+    await enableSlow(); renderState.fail = true;
+    await act(async () => { api.setBpm(85); api.loadTrack(track('slow-c')); }); await flush();
+    expect(api.isPlaying).toBe(true); expect(active().playbackRate).toBeCloseTo(0.85, 3);
   });
 });
 describe('rendered Finals is the default on iPhone', () => {

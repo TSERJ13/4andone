@@ -5,7 +5,7 @@ import { requestPitchPreservation } from '@/utils/mediaPitch';
 import { getAudioFile } from '@/utils/storage';
 import { setElementVolume } from '@/utils/mediaControls';
 import { isNativeFinalTestEnabled } from '@/utils/iosFinalDiagnostic';
-import { isRenderedFinalTestEnabled, isRenderedFinalEnabled, isLiveFinalEnabled, isLiveListeningEnabled } from '@/utils/renderedFinalTest';
+import { isRenderedFinalTestEnabled, isRenderedFinalEnabled, isLiveFinalEnabled, isLiveListeningEnabled, isSlowRenderEnabled } from '@/utils/renderedFinalTest';
 import { FinalsLiveEngine, silentWav, LIVE_START_LEAD } from '@/utils/finalsLiveEngine';
 import { renderFinalAudio, renderedSourcePosition, clearFinalRenderCache, type RenderedFinalAudio, type FinalRenderPlan } from '@/utils/renderFinalAudio';
 import RenderedFinalAudioBadge from './RenderedFinalAudioBadge';
@@ -216,6 +216,11 @@ export const AudioProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   // Next dance rendered during the 15 s rest, so it starts on time.
   const prefetchAbortRef = useRef<AbortController | null>(null);
   const prefetchRef = useRef<{ key: string; promise: Promise<RenderedFinalAudio> } | null>(null);
+  // Ordinary listening at a speed other than 100% on iPhone/iPad: the whole track prepared at that speed.
+  const normalRenderedRef = useRef<RenderedFinalAudio | null>(null);
+  const slowReadyRef = useRef<{ key: string; prepared: RenderedFinalAudio } | null>(null);
+  const slowRetempoTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const slowAbortRef = useRef<AbortController | null>(null);
   const prefetchRenderedRef = useRef<(track: any) => void>(() => {});
   // Set after a render failure: the rest of this session uses the previous audio route.
   const renderDisabledRef = useRef(false);
@@ -677,7 +682,7 @@ export const AudioProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   //  3. Short tracks: this is reached via onended for tracks shorter than 1:45 too.
   // NOTE: loadTrack and stop are defined later in this component, so we call them
   // through refs to avoid the temporal-dead-zone / stale-closure problem.
-  type LoadOptions = { startAt?: number; paused?: boolean; fromRest?: boolean; finalElapsed?: number; renderFinal?: boolean; legacyFinal?: boolean; prepared?: RenderedFinalAudio; preparedOffset?: number };
+  type LoadOptions = { startAt?: number; paused?: boolean; fromRest?: boolean; finalElapsed?: number; renderFinal?: boolean; legacyFinal?: boolean; prepared?: RenderedFinalAudio; preparedOffset?: number; native?: boolean };
   const loadTrackRef = useRef<(track: any, isRetry?: boolean, forceFinalMode?: boolean, opts?: LoadOptions) => void>(() => {});
   const stopRef = useRef<() => void>(() => {});
 
@@ -1456,6 +1461,43 @@ export const AudioProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         else if (!swapFrom) finalsClockRef.current.reset(into, 1, prepared.elapsedStart + into);
       }
 
+      // Ordinary listening on iPhone/iPad at another speed: prepare the whole track at that speed (the phone's own
+      // stretch croaks) and play it at 1x. If preparing fails, the normal player keeps going.
+      let slowPrepared: RenderedFinalAudio | null = null;
+      if (!renderPlan && !isFinalModeRef.current && !isFitnessRef.current && !isLiveListeningEnabled()
+          && isSlowRenderEnabled() && Math.abs(bpmRef.current - 100) > 0.5 && opts?.native !== true) {
+        const controller = new AbortController();
+        renderAbortRef.current = controller;
+        const key = [track.id, track.audioUrl, Math.round(bpmRef.current * 10)].join('|');
+        let watchdog: ReturnType<typeof setTimeout> | undefined;
+        try {
+          const ready = slowReadyRef.current;
+          slowReadyRef.current = null;
+          if (ready && ready.key === key) slowPrepared = ready.prepared;
+          else {
+            const startedAt = Date.now();
+            const deadline = new Promise<never>((_, reject) => { watchdog = setTimeout(() => { controller.abort(); reject(new Error('Audio preparation timed out')); }, 45000); });
+            deadline.catch(() => { /* reported below */ });
+            slowPrepared = await Promise.race([renderFinalAudio({ url: finalUrl, cacheKey: String(track.id) + '|' + String(track.audioUrl),
+              percent: bpmRef.current, sourceStart: 0, full: true, signal: controller.signal }), deadline]);
+            finalsDiag(`slowed track prepared in ${((Date.now() - startedAt) / 1000).toFixed(1)}s · ${Math.round(bpmRef.current)}%`);
+          }
+        } catch (slowError: any) {
+          if (currentToken !== loadingTokenRef.current) return;
+          console.warn('[AUDIO-ENGINE] Prepared slow-down unavailable; using the normal player:', slowError);
+          slowPrepared = null;
+        } finally { clearTimeout(watchdog); }
+        if (currentToken !== loadingTokenRef.current) return;
+        if (slowPrepared) {
+          if (activeBlobUrlRef.current) URL.revokeObjectURL(activeBlobUrlRef.current);
+          finalUrl = URL.createObjectURL(slowPrepared.blob);
+          activeBlobUrlRef.current = finalUrl;
+          startAt = startAt / playbackRateFor(slowPrepared.percent); // source seconds -> seconds in the prepared file
+        }
+      }
+      normalRenderedRef.current = slowPrepared;
+      const playsAtOne = !!renderPlan || !!slowPrepared;
+
       // Live engine for ordinary listening (opt-in): the element only carries a silent timeline in SOURCE seconds
       // (playing at the chosen speed), and the stretch engine makes the sound, so the speed changes without croak or gap.
       if (!renderPlan && !isFinalModeRef.current && isLiveListeningEnabled()) {
@@ -1533,7 +1575,7 @@ export const AudioProvider: React.FC<{ children: React.ReactNode }> = ({ childre
             // back to 1.0, so setting it before load() was always wiped. We re-apply
             // the user's chosen speed here, AFTER the resource has finished loading.
             requestPitchPreservation(audio);
-            const desiredRate = renderPlan ? 1 : playbackRateFor(bpmRef.current);
+            const desiredRate = playsAtOne ? 1 : playbackRateFor(bpmRef.current);
             if (desiredRate > 0 && Math.abs(audio.playbackRate - desiredRate) > 0.001) {
               audio.playbackRate = desiredRate;
             }
@@ -1558,7 +1600,7 @@ export const AudioProvider: React.FC<{ children: React.ReactNode }> = ({ childre
                   audio.removeEventListener('loadedmetadata', onMeta);
                   if (currentToken !== loadingTokenRef.current) return;
                   try { audio.currentTime = resumeAt; } catch { /* ignore */ }
-                  setMusicTempo(audio, renderPlan ? 100 : bpmRef.current);
+                  setMusicTempo(audio, playsAtOne ? 100 : bpmRef.current);
                   if (wasPlaying) audio.play().catch(() => {});
                 };
                 audio.addEventListener('loadedmetadata', onMeta);
@@ -1789,7 +1831,7 @@ export const AudioProvider: React.FC<{ children: React.ReactNode }> = ({ childre
                 if (sessionTracksRef.current.length > 0) advanceFinalSession();
                 else {
                   audio.currentTime = 0;
-                  finalsClockRef.current.reset(0, renderPlan ? 1 : playbackRateFor(bpmRef.current));
+                  finalsClockRef.current.reset(0, playsAtOne ? 1 : playbackRateFor(bpmRef.current));
                   setCurrentTime(0);
                   setTrackCurrentTime(0);
                   currentTimeRef.current = trackCurrentTimeRef.current = 0;
@@ -1824,7 +1866,7 @@ export const AudioProvider: React.FC<{ children: React.ReactNode }> = ({ childre
           // SPEED PERSISTENCE FIX: use the live bpmRef (user-selected speed), NOT the
           // stale `bpm` closure value. Previously a new track could reset the rate,
           // so the speed the user picked was lost on every track change.
-          setMusicTempo(audio, renderPlan ? 100 : bpmRef.current);
+          setMusicTempo(audio, playsAtOne ? 100 : bpmRef.current);
           // Loop short recordings to fill 105 real seconds at the selected speed.
           // The slot clock, not the recording's natural end, advances Finals.
           audio.loop = !renderPlan && ((isFinalModeRef.current && !isFitnessRef.current) || (!isFinalModeRef.current && isRepeatRef.current));
@@ -2431,6 +2473,49 @@ export const AudioProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     loadTrackRef.current(track, true, true, { startAt: position, finalElapsed: elapsed, paused, renderFinal: true });
   };
 
+  // Ordinary listening on iPhone/iPad: after the speed settles, the clean prepared version replaces the phone's croaky stretch.
+  const applySlowTempoRef = useRef<() => void>(() => {});
+  applySlowTempoRef.current = async () => {
+    if (!isSlowRenderEnabled() || isLiveListeningEnabled() || isFinalModeRef.current || isFitnessRef.current || isPauseCountdownRef.current) return;
+    const track = playingTrackRef.current;
+    const audio = nativePlayerRef.current;
+    if (!track || !audio) return;
+    const target = bpmRef.current;
+    const shipped = normalRenderedRef.current;
+    const sourcePosition = () => {
+      const a = nativePlayerRef.current;
+      if (!a) return 0;
+      return shipped ? a.currentTime * playbackRateFor(shipped.percent) : a.currentTime;
+    };
+    if (shipped && Math.abs(shipped.percent - target) < 0.5) { audio.playbackRate = 1; return; }
+    const swap = () => {
+      if (playingTrackRef.current?.id !== track.id) return;
+      const a = nativePlayerRef.current;
+      loadTrackRef.current(track, true, false, { startAt: sourcePosition(), paused: a ? a.paused : false });
+    };
+    if (Math.abs(target - 100) <= 0.5) { swap(); return; } // back to normal speed: the original file
+    slowAbortRef.current?.abort();
+    const controller = new AbortController();
+    slowAbortRef.current = controller;
+    let url: string = track.audioUrl; let local: string | null = null;
+    try {
+      try {
+        const cached = track.id ? await getAudioFile(track.id) : null;
+        if (cached && cached.size > 0) { local = URL.createObjectURL(cached); url = local; }
+      } catch { /* signed URL */ }
+      if (!local) url = await resolvePlaybackUrl(url);
+      if (!url || controller.signal.aborted) return;
+      const prepared = await renderFinalAudio({ url, cacheKey: String(track.id) + '|' + String(track.audioUrl),
+        percent: target, sourceStart: 0, full: true, signal: controller.signal });
+      if (controller.signal.aborted || playingTrackRef.current?.id !== track.id) return;
+      if (Math.abs(bpmRef.current - target) > 0.5) return; // changed again meanwhile: the newer request wins
+      slowReadyRef.current = { key: [track.id, track.audioUrl, Math.round(target * 10)].join('|'), prepared };
+      swap();
+    } catch (error: any) {
+      if (error?.name !== 'AbortError') console.warn('[AUDIO-ENGINE] Prepared slow-down unavailable; keeping the normal player:', error);
+    } finally { if (local) URL.revokeObjectURL(local); }
+  };
+
   const setBpm = React.useCallback((newBpm: number, persistent = true) => {
     const rate = playbackRateFor(newBpm);
     const audio = nativePlayerRef.current;
@@ -2456,14 +2541,25 @@ export const AudioProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       return;
     }
     if (audio && !isPauseCountdownRef.current) {
-      finalsClockRef.current.changeRate(audio.currentTime, audio.duration, rate);
-      setMusicTempo(audio, rate * 100);
+      const shipped = normalRenderedRef.current;
+      if (shipped && !isFinalModeRef.current) {
+        // A prepared (clean) file is playing: change speed at once with the phone's own rate, until the new one is ready.
+        requestPitchPreservation(audio);
+        audio.playbackRate = Math.min(2, Math.max(0.5, rate * 100 / shipped.percent));
+      } else {
+        finalsClockRef.current.changeRate(audio.currentTime, audio.duration, rate);
+        setMusicTempo(audio, rate * 100);
+      }
       if (liveNormalRef.current && liveStartedRef.current) void liveEngineRef.current?.setRate(rate * 100);
     }
     bpmRef.current = rate * 100;
     if (persistent) {
       setBpmState(rate * 100);
       try { localStorage.setItem('4andone-bpm', String(rate * 100)); } catch {}
+      if (audio && !isFinalModeRef.current && !isFitnessRef.current && !isPauseCountdownRef.current) {
+        if (slowRetempoTimerRef.current) clearTimeout(slowRetempoTimerRef.current);
+        slowRetempoTimerRef.current = setTimeout(() => applySlowTempoRef.current(), 700); // taps/drags settle first
+      }
     }
   }, []);
 
@@ -2556,7 +2652,9 @@ export const AudioProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     if (audio && track && audio.src && !isPauseCountdownRef.current) {
       const prepared = renderedFinalRef.current;
       const plan = renderPlanRef.current;
+      const slowShipped = normalRenderedRef.current; // ordinary listening on a prepared slowed file
       const sourcePosition = prepared && plan?.ready ? renderedSourcePosition(prepared, audio.currentTime)
+        : slowShipped ? audio.currentTime * playbackRateFor(slowShipped.percent)
         : (plan?.sourceStart ?? audio.currentTime) || 0;
       const wantRender = nextVal && !isFitnessRef.current && !renderDisabledRef.current && isRenderedFinalEnabled();
       const wantGain = nextVal && !isVolumeWritable() && !useNativeFinalDiagnostic() && !wantRender;
@@ -2616,6 +2714,8 @@ export const AudioProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     renderedFinalRef.current = null;
     renderPlanRef.current = null;
     stopLive();
+    normalRenderedRef.current = null; slowReadyRef.current = null; slowAbortRef.current?.abort();
+    if (slowRetempoTimerRef.current) clearTimeout(slowRetempoTimerRef.current);
     clearFinalRenderCache();
     loadingTokenRef.current += 1; // Invalidate any pending async callbacks like onerror
     if (nativePlayerRef.current) {

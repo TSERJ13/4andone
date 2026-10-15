@@ -8,6 +8,7 @@ import { useAuth } from '@/context/AuthContext';
 import { useDownloadedTracks } from '@/hooks/useDownloadedTracks';
 import ConfirmModal from '@/components/admin/ConfirmModal';
 import { TrackRow } from '@/components/tracks/TrackRow';
+import { orderByStyles } from '@/utils/playQueue';
 
 const LATIN_STYLES = ['Samba', 'Cha-Cha-Cha', 'Rumba', 'Paso Doble', 'Jive'];
 const STANDARD_STYLES = ['Slow Waltz', 'Tango', 'Viennese Waltz', 'Slow Foxtrot', 'Quickstep'];
@@ -84,7 +85,7 @@ export default function DanceStarBandPage() {
       setShowAlbumStopConfirm(true);
       return;
     }
-    loadTrack(track);
+    loadTrack(track, false, undefined, { queue: orderByStyles(currentProgramTracks, [...LATIN_STYLES, ...STANDARD_STYLES]) }); // Next follows the album's order
   };
 
   const startFinalMode = (discipline: 'Latin' | 'Standard') => {
@@ -329,7 +330,7 @@ export default function DanceStarBandPage() {
           onConfirm={() => {
             stop();
             if (pendingTrack) {
-              loadTrack(pendingTrack);
+              loadTrack(pendingTrack, false, undefined, { queue: orderByStyles(currentProgramTracks, [...LATIN_STYLES, ...STANDARD_STYLES]) });
             }
             setShowAlbumStopConfirm(false);
             setPendingTrack(null);

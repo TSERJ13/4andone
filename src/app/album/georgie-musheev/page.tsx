@@ -9,6 +9,7 @@ import { useDownloadedTracks } from '@/hooks/useDownloadedTracks';
 import { canonicalStyle } from '@/utils/audio';
 import ConfirmModal from '@/components/admin/ConfirmModal';
 import { TrackRow } from '@/components/tracks/TrackRow';
+import { orderByStyles } from '@/utils/playQueue';
 
 const LATIN_STYLES = ['Samba', 'Cha-Cha-Cha', 'Rumba', 'Paso Doble', 'Jive'];
 
@@ -87,7 +88,7 @@ export default function GeorgieMusheevPage() {
       setShowAlbumStopConfirm(true);
       return;
     }
-    loadTrack(track);
+    loadTrack(track, false, undefined, { queue: orderByStyles(latinTracks, LATIN_STYLES) }); // Next follows the album's order
   };
 
   const startFinalMode = () => {
@@ -306,7 +307,7 @@ export default function GeorgieMusheevPage() {
           onConfirm={() => {
             stop();
             if (pendingTrack) {
-              loadTrack(pendingTrack);
+              loadTrack(pendingTrack, false, undefined, { queue: orderByStyles(latinTracks, LATIN_STYLES) });
             }
             setShowAlbumStopConfirm(false);
             setPendingTrack(null);

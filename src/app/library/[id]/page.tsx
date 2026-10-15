@@ -147,7 +147,7 @@ const PlaylistPage = () => {
               key={track.id}
               track={track}
               isActive={isTrackActive}
-              onPlay={() => loadTrack(track)}
+              onPlay={() => loadTrack(track, false, undefined, { queue: playlist.tracks })}
               onToggleFavorite={() => checkAuthAndExecute(() => toggleFavorite?.(track.id), 'favorite tracks')}
               badge="style"
               styleColor={styles.find(s => s.title.toLowerCase() === track.style?.toLowerCase())?.color}

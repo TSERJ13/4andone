@@ -18,6 +18,7 @@ const CATEGORIES = [
   { id: 'slow-waltz', name: 'Slow Waltz' },
   { id: 'tango', name: 'Tango' },
   { id: 'viennese-waltz', name: 'Viennese Waltz' },
+  { id: 'slow-foxtrot', name: 'Slow Foxtrot' },
   { id: 'quickstep', name: 'Quickstep' },
   { id: 'finals', name: 'Finals' },
 ];
@@ -101,7 +102,7 @@ export default function YtHomePageContent() {
 
   const handlePlayAll = () => {
     if (filteredTracks.length > 0) {
-      loadTrack(filteredTracks[0]);
+      loadTrack(filteredTracks[0], false, undefined, { queue: filteredTracks });
     }
   };
 

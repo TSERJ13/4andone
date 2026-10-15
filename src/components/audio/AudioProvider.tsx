@@ -241,6 +241,7 @@ export const AudioProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   const liveEngineRef = useRef<FinalsLiveEngine | null>(null);
   const liveUpgradeAbortRef = useRef<AbortController | null>(null);
   const liveUpgradingRef = useRef(false);
+  const liveHandoffRef = useRef(false);   // the live engine already plays this track; the timeline element is only being handed over
   const liveActiveRef = useRef(false);   // the live engine makes the sound of the current dance
   const liveStartedRef = useRef(false);
   const liveNormalRef = useRef(false);    // live engine in ordinary (non-Finals) listening
@@ -286,9 +287,18 @@ export const AudioProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     if (normal && !liveStartedRef.current && el) liveSourceStartRef.current = el.currentTime + LIVE_START_LEAD * playbackRateFor(bpmRef.current);
     if (!liveStartedRef.current) {
       liveStartedRef.current = true;
-      finalsDiag(`live music starts · source ${liveSourceStartRef.current.toFixed(1)}s · ${Math.round(bpmRef.current)}% · ${normal ? 'normal listening' : 'fade in ' + Math.max(0, slot - FINAL_FADE_SECONDS).toFixed(0) + 's'}`);
-      engine.start({ sourceStart: liveSourceStartRef.current, percent: bpmRef.current, slotSeconds: slot, volume: volumeRef.current })
-        .catch(error => finalsDiag(`live start FAILED: ${String((error as any)?.message || error).slice(0, 60)}`));
+      const handoff = liveHandoffRef.current;
+      liveHandoffRef.current = false;
+      if (handoff) {
+        // The engine already plays this track (started while the phone player was still sounding): only follow the element.
+        finalsDiag(`live engine took over from the phone player · ${Math.round(bpmRef.current)}%`);
+        void engine.resume(slot); // no-op while running; continues it if the listener paused meanwhile
+        void engine.setRate(bpmRef.current);
+      } else {
+        finalsDiag(`live music starts · source ${liveSourceStartRef.current.toFixed(1)}s · ${Math.round(bpmRef.current)}% · ${normal ? 'normal listening' : 'fade in ' + Math.max(0, slot - FINAL_FADE_SECONDS).toFixed(0) + 's'}`);
+        engine.start({ sourceStart: liveSourceStartRef.current, percent: bpmRef.current, slotSeconds: slot, volume: volumeRef.current })
+          .catch(error => finalsDiag(`live start FAILED: ${String((error as any)?.message || error).slice(0, 60)}`));
+      }
       const t0 = liveCtx?.currentTime ?? 0;
       setTimeout(() => finalsDiag(`live check · audio ${liveCtx?.state} · clock moved ${((liveCtx?.currentTime ?? 0) - t0).toFixed(2)}s in 1.5s · session ${(navigator as any).audioSession?.type ?? 'n/a'}`), 1500);
       // Safety net (runs for as long as the live engine plays): if it goes silent or its audio context stops while the
@@ -705,7 +715,7 @@ export const AudioProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   //  3. Short tracks: this is reached via onended for tracks shorter than 1:45 too.
   // NOTE: loadTrack and stop are defined later in this component, so we call them
   // through refs to avoid the temporal-dead-zone / stale-closure problem.
-  type LoadOptions = { startAt?: number; paused?: boolean; fromRest?: boolean; finalElapsed?: number; renderFinal?: boolean; legacyFinal?: boolean; prepared?: RenderedFinalAudio; preparedOffset?: number; native?: boolean };
+  type LoadOptions = { startAt?: number; paused?: boolean; fromRest?: boolean; finalElapsed?: number; renderFinal?: boolean; legacyFinal?: boolean; prepared?: RenderedFinalAudio; preparedOffset?: number; native?: boolean; liveHandoff?: boolean };
   const loadTrackRef = useRef<(track: any, isRetry?: boolean, forceFinalMode?: boolean, opts?: LoadOptions) => void>(() => {});
   const stopRef = useRef<() => void>(() => {});
 
@@ -1164,7 +1174,7 @@ export const AudioProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     }
 
     // This device's history, with the play time (orders it with the account's plays)
-    if (track?.id && opts?.finalElapsed === undefined) recordTrackPlayed(track.id);
+    if (track?.id && opts?.finalElapsed === undefined && !opts?.liveHandoff) recordTrackPlayed(track.id);
 
     cancelLoadRef.current?.();
     renderAbortRef.current?.abort();
@@ -1319,7 +1329,7 @@ export const AudioProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         setPauseTime(15);
         pauseTimeRef.current = 15;
         finalEndHandledRef.current = false; // Allow end-handling for the new track
-        if (!seamless) { finalsClockRef.current.reset(startAt, playbackRateFor(bpmRef.current), initialElapsed); stopLive(); }
+        if (!seamless) { finalsClockRef.current.reset(startAt, playbackRateFor(bpmRef.current), initialElapsed); if (!opts?.liveHandoff) stopLive(); }
         currentTrackQualifiedRef.current = false;
       };
 
@@ -1549,6 +1559,7 @@ export const AudioProvider: React.FC<{ children: React.ReactNode }> = ({ childre
           liveActiveRef.current = true;
           liveNormalRef.current = true;
           liveStartedRef.current = false;
+          liveHandoffRef.current = !!opts?.liveHandoff;
           liveSourceStartRef.current = startAt;
           finalsDiag(`live listening ready · ${Math.round(bpmRef.current)}%`);
         } catch (liveError: any) {
@@ -2536,7 +2547,21 @@ export const AudioProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       if (liveActiveRef.current || Math.abs(bpmRef.current - 100) <= 0.5 || !isLiveListeningEnabled()) return;
       const a = nativePlayerRef.current;
       if (!a) return;
-      loadTrackRef.current(track, true, false, { startAt: a.currentTime, paused: a.paused });
+      if (a.paused) { loadTrackRef.current(track, true, false, { startAt: a.currentTime, paused: true }); return; }
+      // Gapless takeover: the engine starts a moment ahead, at the position the phone player will have reached, and the
+      // phone player is only stopped when the engine's sound begins.
+      const token = loadingTokenRef.current;
+      const rate = playbackRateFor(bpmRef.current);
+      liveActiveRef.current = true; liveNormalRef.current = true; liveStartedRef.current = false; liveHandoffRef.current = false;
+      const at = await engine.start({ sourceStart: a.currentTime + LIVE_START_LEAD * rate, percent: bpmRef.current, slotSeconds: Infinity, volume: volumeRef.current });
+      const waitMs = Math.max(0, (at - ctx.currentTime) * 1000) + 25;
+      setTimeout(() => {
+        if (loadingTokenRef.current !== token || liveEngineRef.current !== engine || !liveActiveRef.current) return; // another track/start took over
+        const now = nativePlayerRef.current;
+        const wasPaused = !now || now.paused;
+        if (wasPaused) void engine.pause();
+        loadTrackRef.current(track, true, false, { startAt: engine.position() + 0.45 * playbackRateFor(bpmRef.current), paused: wasPaused, liveHandoff: true });
+      }, waitMs);
     } catch (error: any) {
       if (error?.name !== 'AbortError') console.warn('[AUDIO-ENGINE] Live engine unavailable; keeping the normal player:', error);
     } finally {

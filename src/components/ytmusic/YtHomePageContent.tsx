@@ -23,7 +23,7 @@ const CATEGORIES = [
 ];
 
 export default function YtHomePageContent() {
-  const { tracks, albums, styles } = useStudio();
+  const { tracks, albums, styles, isLoading: studioLoading } = useStudio();
   const { loadTrack } = useAudioControls();
 
   const [activeCategory, setActiveCategory] = useState('all');
@@ -115,7 +115,7 @@ export default function YtHomePageContent() {
       />
 
       {/* Quick Picks Section (Mobile 3x3 Grid / Desktop 3-column rows) */}
-      <YtQuickPicks tracks={filteredTracks} onPlayAll={handlePlayAll} loading={!recentReady} />
+      <YtQuickPicks tracks={filteredTracks} onPlayAll={handlePlayAll} loading={!recentReady || (tracks.length === 0 && studioLoading)} />
 
       {/* Albums Shelf */}
       {albumShelfItems.length > 0 && (

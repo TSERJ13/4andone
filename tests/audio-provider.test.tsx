@@ -27,6 +27,7 @@ vi.mock('@/utils/finalsLiveEngine', async (original) => {
     async pause() { if (this.running) { this.running = false; liveState.calls.push('pause'); } }
     async resume(slot: number) { if (!this.running) { this.running = true; liveState.calls.push('resume ' + Math.round(slot)); } }
     peak() { return liveState.peak; }
+    position() { return 12; }
     setVolume() {} stop() { this.running = false; liveState.calls.push('stop'); } dispose() {}
   }
   return { ...actual, FinalsLiveEngine: FakeEngine };
@@ -453,8 +454,12 @@ describe('live engine only when the tempo is changed (normal speed starts at onc
       await act(async () => { api.setBpm(90); }); await tick(1); // the phone player changes speed at once
       expect(body.playbackRate).toBeCloseTo(0.9, 3); expect(api.isPlaying).toBe(true);
       expect(liveState.calls.some(c => c.startsWith('load instant'))).toBe(true); // prepared in the background
-      await tick(1); await flush();
-      expect(liveState.calls.some(c => c.startsWith('start 90'))).toBe(true); // then the engine takes over
+      await tick(0.1); await flush();
+      expect(liveState.calls.filter(c => c.startsWith('start 90'))).toHaveLength(1); // the engine starts first...
+      expect(states.get(body)!.paused).toBe(false); // ...while the phone player is still sounding (no gap)
+      await tick(2); await flush();
+      expect(liveState.calls.filter(c => c.startsWith('start'))).toHaveLength(1); // no restart after the hand-over
+      expect(liveState.calls).not.toContain('stop');
       expect(api.isPlaying).toBe(true);
     } finally { ua.mockRestore(); localStorage.clear(); rolloutState.liveListeningOnApple = false; }
   });

@@ -374,7 +374,7 @@ export const StudioProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     const cachedRows = readTracksCache();
     if (cachedRows) {
       setTracks(prev => (prev.length > 0 ? prev : (mapTrackRows(cachedRows, []) as any)));
-      setIsLoading(false); // the library is already on screen; the fresh list arrives silently
+      // isLoading stays true until the fresh data (albums, styles) arrives, so pages never judge an album "missing" too early
     }
     fetchData(!!cachedRows);
 

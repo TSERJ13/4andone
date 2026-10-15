@@ -13,7 +13,7 @@ import RenderedFinalAudioBadge from './RenderedFinalAudioBadge';
 import { finalsDiag } from '@/utils/finalsDiag';
 import IosFinalAudioTestBadge from './IosFinalAudioTestBadge';
 import { getTrackCover } from '@/utils/trackCover';
-import { playOrder } from '@/utils/playQueue';
+import { playOrder, queueFromContext } from '@/utils/playQueue';
 import { recordTrackPlayed } from '@/utils/history';
 import { FinalsClock, FINAL_DANCE_SECONDS, FINAL_REST_SECONDS, FINAL_FADE_SECONDS, FINAL_REST_URL, playbackRateFor, setMusicTempo } from '@/utils/finals';
 
@@ -41,7 +41,10 @@ interface AudioContextType {
   pauseTime: number;
   setIsFitness: (val: boolean) => void;
   togglePlay: () => void;
-  loadTrack: (track: any, isRetry?: boolean, forceFinalMode?: boolean) => void;
+  /** `opts.queue`: the list the song was tapped in (Last Played, an album …) — Next/Previous follow it. */
+  loadTrack: (track: any, isRetry?: boolean, forceFinalMode?: boolean, opts?: { queue?: any[] | null }) => void;
+  /** What plays after the current song, in order (starting with the current one). */
+  queueTracks: Track[];
   setBpm: (bpm: number, persistent?: boolean) => void;
   setVolume: (volume: number) => void;
   toggleRepeat: () => void;
@@ -472,6 +475,9 @@ export const AudioProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   const isFitnessRef = useRef(isFitness);
   const isRepeatRef = useRef(isRepeat);
   const shuffleSeedRef = useRef(shuffleSeed);
+  // The list the current song was started from (Last Played, an album …). null = the song's dance, as before.
+  const [playContext, setPlayContext] = useState<Track[] | null>(null);
+  const playContextRef = useRef<Track[] | null>(null);
   const playNextRef = useRef<() => void>(() => {});
   const playPreviousRef = useRef<() => void>(() => {});
   const bpmRef = useRef(bpm);
@@ -2767,7 +2773,7 @@ export const AudioProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   // the same list the full player shows under UP NEXT.
   // Shuffle on → the same queue in Shuffle's fixed order (what STYLE shows).
   const playNext = React.useCallback(() => {
-    const list = isFinalModeRef.current ? sessionTracksRef.current : playOrder(tracks, playingTrackRef.current, shuffleSeedRef.current);
+    const list = isFinalModeRef.current ? sessionTracksRef.current : queueFromContext(playContextRef.current, tracks, playingTrackRef.current, shuffleSeedRef.current);
     if (list.length === 0) return;
 
     let nextIndex = 0;
@@ -2791,7 +2797,7 @@ export const AudioProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   }, [tracks]);
 
   const playPrevious = React.useCallback(() => {
-    const list = isFinalModeRef.current ? sessionTracksRef.current : playOrder(tracks, playingTrackRef.current, shuffleSeedRef.current);
+    const list = isFinalModeRef.current ? sessionTracksRef.current : queueFromContext(playContextRef.current, tracks, playingTrackRef.current, shuffleSeedRef.current);
     if (list.length === 0) return;
 
     const currentIndex = isFinalModeRef.current ? sessionIndexRef.current : list.findIndex(t => t.id === trackIdRef.current || t.title === playingTrackRef.current?.title);
@@ -2965,8 +2971,19 @@ export const AudioProvider: React.FC<{ children: React.ReactNode }> = ({ childre
 
   // Stable entry point: loadTrack itself is re-created every render.
   const loadTrackStable = useCallback(
-    (track: any, isRetry?: boolean, forceFinalMode?: boolean) => loadTrackRef.current(track, isRetry, forceFinalMode),
+    (track: any, isRetry?: boolean, forceFinalMode?: boolean, opts?: { queue?: any[] | null }) => {
+      // A song picked by the user: remember the list it was picked from (none → its dance, as before).
+      const queue = opts?.queue && opts.queue.length > 1 ? (opts.queue as Track[]) : null;
+      playContextRef.current = queue;
+      setPlayContext(queue);
+      loadTrackRef.current(track, isRetry, forceFinalMode);
+    },
     []
+  );
+
+  const queueTracks = useMemo(
+    () => queueFromContext(playContext, tracks, currentTrack, shuffleSeed),
+    [playContext, tracks, currentTrack, shuffleSeed]
   );
 
   const controlsValue = useMemo<AudioControlsType>(() => ({
@@ -2989,6 +3006,7 @@ export const AudioProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     isFitness,
     togglePlay,
     loadTrack: loadTrackStable,
+    queueTracks,
     setIsFitness,
     setBpm,
     setVolume,
@@ -3015,7 +3033,7 @@ export const AudioProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     error, volume, isRepeat, isShuffle, shuffleSeed, isLoading, isPauseCountdown, isFitness, togglePlay,
     loadTrackStable, setBpm, setVolume, toggleRepeat, toggleShuffle, toggleFinalMode, seek,
     seekRelative, playNext, playPrevious, stop, activeMode, sessionTracks, fitnessTargetTime,
-    isAdModalOpen, setAdModalOpen, pauseForBreak, songsPlayedCount
+    isAdModalOpen, setAdModalOpen, pauseForBreak, songsPlayedCount, queueTracks
   ]);
 
   const timeValue = useMemo<AudioTimeType>(() => ({

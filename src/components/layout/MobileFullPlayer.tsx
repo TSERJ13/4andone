@@ -15,8 +15,8 @@ import {
   Heart,
   Share2,
   Bookmark,
-  Headphones,
-  Video,
+  Music2,
+  ListMusic,
   Gauge,
   Minus,
   Plus,
@@ -32,6 +32,7 @@ import { FINAL_USER_STOP_EVENT } from '@/components/audio/FinalStopButton';
 import { useStudio } from '@/components/admin/StudioProvider';
 import { getTrackCover } from '@/utils/trackCover';
 import { SeekBar } from '@/components/audio/SeekBar';
+import { QueuePanelList } from './QueuePanelList';
 import FullPlayerAd from '@/components/ads/FullPlayerAd';
 
 const formatTime = (seconds: number): string => {
@@ -73,10 +74,13 @@ export default function MobileFullPlayer({ isOpen, onClose }: MobileFullPlayerPr
     pauseTime,
     sessionDuration,
     stop,
-    activeMode
+    activeMode,
+    queueTracks,
+    sessionTracks,
+    loadTrack
   } = useAudio();
 
-  const [mode, setMode] = useState<'audio' | 'video'>('audio');
+  const [mode, setMode] = useState<'now' | 'queue'>('now');
   const [scrubTime, setScrubTime] = useState<number | null>(null);
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [isSpeedPopoverOpen, setIsSpeedPopoverOpen] = useState(false);
@@ -105,6 +109,13 @@ export default function MobileFullPlayer({ isOpen, onClose }: MobileFullPlayerPr
   }, [isMenuOpen, isSpeedPopoverOpen]);
 
   if (!isOpen) return null;
+
+  // "Up next" starts at the song that is playing and follows the order Next will use.
+  const upList = (() => {
+    const list = isFinalMode && sessionTracks.length > 0 ? sessionTracks : queueTracks;
+    const i = list.findIndex(t => t.id === currentTrack?.id);
+    return i > 0 ? [...list.slice(i), ...list.slice(0, i)] : list;
+  })();
 
   const liveTrack = tracks.find((t) => t.id === currentTrack?.id) || currentTrack;
   const isFavorite = liveTrack?.isFavorite || false;
@@ -158,6 +169,18 @@ export default function MobileFullPlayer({ isOpen, onClose }: MobileFullPlayerPr
         <button type="button" className="yt-mobile-icon-btn" onClick={onClose}>
           <ChevronDown size={24} />
         </button>
+
+        {/* Now playing / Up next */}
+        <div className="yt-mode-switcher-pill" role="tablist">
+          <button type="button" role="tab" aria-selected={mode === 'now'} aria-label="Now playing" title="Now playing"
+            className={`yt-mode-btn ${mode === 'now' ? 'active' : ''}`} onClick={() => setMode('now')}>
+            <Music2 size={18} />
+          </button>
+          <button type="button" role="tab" aria-selected={mode === 'queue'} aria-label="Up next" title="Up next"
+            className={`yt-mode-btn ${mode === 'queue' ? 'active' : ''}`} onClick={() => setMode('queue')}>
+            <ListMusic size={18} />
+          </button>
+        </div>
 
         {/* Top Right 3-Dots Context Menu Button */}
         <div style={{ position: 'relative' }} ref={menuRef}>
@@ -247,6 +270,21 @@ export default function MobileFullPlayer({ isOpen, onClose }: MobileFullPlayerPr
         </div>
       </div>
 
+      {mode === 'queue' ? (
+        <div className="yt-mobile-queue-view">
+          <QueuePanelList
+            tracks={upList}
+            albums={albums}
+            currentTrackId={currentTrack?.id}
+            isPlaying={isPlaying}
+            onSelect={(t) => { if (!isFinalMode) loadTrack(t, false, undefined, { queue: queueTracks }); }}
+            kicker="Up next"
+            heading={isFinalMode ? 'Final program' : undefined}
+            emptyText="Play a song to see what comes next."
+          />
+        </div>
+      ) : (
+      <>
       <div className="yt-mobile-space-top" aria-hidden="true" />
       {/* Ad at the top, away from the controls and the seek bar (free plan) */}
       <FullPlayerAd className="yt-mobile-full-ad" onClose={onClose} />
@@ -395,6 +433,9 @@ export default function MobileFullPlayer({ isOpen, onClose }: MobileFullPlayerPr
           </div>
         )}
       </div>
+
+      </>
+      )}
 
       {/* Progress Slider */}
       <div className="yt-mobile-progress-wrap">

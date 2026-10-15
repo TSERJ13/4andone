@@ -51,7 +51,7 @@ export default function YtQuickPicks({ tracks, onPlayAll, loading = false }: YtQ
     if (playingTrackId === track.id) {
       togglePlay();
     } else {
-      loadTrack(track);
+      loadTrack(track, false, undefined, { queue: tracks }); // Next follows this list
     }
   };
 

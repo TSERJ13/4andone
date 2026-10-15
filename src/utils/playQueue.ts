@@ -80,3 +80,19 @@ export function playOrder<T extends QueueTrack>(tracks: T[], current: T | null |
   const queue = getStyleQueue(tracks, current);
   return shuffleSeed === null ? queue : shuffleWithSeed(queue, shuffleSeed);
 }
+
+/**
+ * Next/Previous order. A song started from a list (Last Played, an album, favorites …) follows THAT list;
+ * otherwise (or when the current song is not in it) the song's dance queue. Shuffle reorders either.
+ */
+export function queueFromContext<T extends QueueTrack>(context: T[] | null | undefined, tracks: T[], current: T | null | undefined, shuffleSeed: number | null): T[] {
+  if (context && context.length > 1 && current && context.some(t => t.id === current.id)) {
+    return shuffleSeed === null ? context : shuffleWithSeed(context, shuffleSeed);
+  }
+  return playOrder(tracks, current, shuffleSeed);
+}
+
+/** `list` in the order of `styles` (the order an album page shows its dances), each dance keeping its own order. */
+export function orderByStyles<T extends QueueTrack>(list: T[], styles: string[]): T[] {
+  return styles.flatMap(name => list.filter(t => canonicalStyle(t.style) === canonicalStyle(name)));
+}

@@ -33,6 +33,8 @@ import { useStudio } from '@/components/admin/StudioProvider';
 import { getTrackCover } from '@/utils/trackCover';
 import { SeekBar } from '@/components/audio/SeekBar';
 import { QueuePanelList } from './QueuePanelList';
+import { useRecentlyPlayed } from '@/hooks/useRecentlyPlayed';
+import type { Track } from '@/components/admin/StudioProvider';
 import FullPlayerAd from '@/components/ads/FullPlayerAd';
 
 const formatTime = (seconds: number): string => {
@@ -45,6 +47,34 @@ const formatTime = (seconds: number): string => {
 interface MobileFullPlayerProps {
   isOpen: boolean;
   onClose: () => void;
+}
+
+
+/**
+ * The player's list = what was listened to lately, newest first, with the song playing right now on top
+ * (the order is read when the list opens, so tapping a song doesn't shuffle it under the finger).
+ */
+function RecentQueue() {
+  const { albums, tracks } = useStudio();
+  const { isPlaying, currentTrack, loadTrack, sessionTracks, isFinalMode } = useAudio();
+  const recentIds = useRecentlyPlayed(100);
+  const list = React.useMemo(() => {
+    if (isFinalMode && sessionTracks.length > 0) return sessionTracks;
+    const recent = recentIds.map(id => tracks.find(t => t.id === id)).filter(Boolean) as Track[];
+    const current = currentTrack ? (tracks.find(t => t.id === currentTrack.id) || currentTrack) as Track : null;
+    return current ? [current, ...recent.filter(t => t.id !== current.id)] : recent;
+  }, [recentIds, tracks, currentTrack?.id, isFinalMode, sessionTracks]); // eslint-disable-line react-hooks/exhaustive-deps
+  return (
+    <QueuePanelList
+      tracks={list}
+      albums={albums}
+      currentTrackId={currentTrack?.id}
+      isPlaying={isPlaying}
+      onSelect={(t) => { if (!isFinalMode) loadTrack(t, false, undefined, { queue: list }); }}
+      kicker="Recently played"
+      emptyText="No recently played tracks yet."
+    />
+  );
 }
 
 export default function MobileFullPlayer({ isOpen, onClose }: MobileFullPlayerProps) {
@@ -75,9 +105,6 @@ export default function MobileFullPlayer({ isOpen, onClose }: MobileFullPlayerPr
     sessionDuration,
     stop,
     activeMode,
-    queueTracks,
-    sessionTracks,
-    loadTrack
   } = useAudio();
 
   const [mode, setMode] = useState<'now' | 'queue'>('now');
@@ -109,9 +136,6 @@ export default function MobileFullPlayer({ isOpen, onClose }: MobileFullPlayerPr
   }, [isMenuOpen, isSpeedPopoverOpen]);
 
   if (!isOpen) return null;
-
-  // The whole list Next follows (Last Played from its top to its end, an album in its order …); the playing song is highlighted.
-  const upList = isFinalMode && sessionTracks.length > 0 ? sessionTracks : queueTracks;
 
   const liveTrack = tracks.find((t) => t.id === currentTrack?.id) || currentTrack;
   const isFavorite = liveTrack?.isFavorite || false;
@@ -268,16 +292,7 @@ export default function MobileFullPlayer({ isOpen, onClose }: MobileFullPlayerPr
 
       {mode === 'queue' ? (
         <div className="yt-mobile-queue-view">
-          <QueuePanelList
-            tracks={upList}
-            albums={albums}
-            currentTrackId={currentTrack?.id}
-            isPlaying={isPlaying}
-            onSelect={(t) => { if (!isFinalMode) loadTrack(t, false, undefined, { queue: queueTracks }); }}
-            kicker="Up next"
-            heading={isFinalMode ? 'Final program' : undefined}
-            emptyText="Play a song to see what comes next."
-          />
+          <RecentQueue />
         </div>
       ) : (
       <>

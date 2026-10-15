@@ -177,11 +177,18 @@ const readTracksCache = (): any[] | null => {
   } catch { return null; }
 };
 const writeTracksCache = (rows: any[]) => {
-  try {
-    const text = JSON.stringify(rows);
-    if (text.length <= TRACKS_CACHE_MAX_CHARS) localStorage.setItem(TRACKS_CACHE_KEY, text);
-    else localStorage.removeItem(TRACKS_CACHE_KEY);
-  } catch { /* full or blocked: the app just loads from the network as before */ }
+  // Saved a moment later, when the phone is idle: converting and writing a few MB would otherwise block the
+  // very frame in which the fresh list is drawn.
+  const save = () => {
+    try {
+      const text = JSON.stringify(rows);
+      if (text.length <= TRACKS_CACHE_MAX_CHARS) localStorage.setItem(TRACKS_CACHE_KEY, text);
+      else localStorage.removeItem(TRACKS_CACHE_KEY);
+    } catch { /* full or blocked: the app just loads from the network as before */ }
+  };
+  if (typeof window === 'undefined') return;
+  const idle = (window as any).requestIdleCallback as ((cb: () => void, o?: { timeout: number }) => void) | undefined;
+  if (idle) idle(save, { timeout: 4000 }); else setTimeout(save, 2000);
 };
 const mapTrackRows = (rows: any[], userLikes: string[]) => {
   const mapped = rows.map(t => ({

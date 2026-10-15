@@ -2556,14 +2556,19 @@ export const AudioProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       const token = loadingTokenRef.current;
       const rate = playbackRateFor(bpmRef.current);
       liveActiveRef.current = true; liveNormalRef.current = true; liveStartedRef.current = false; liveHandoffRef.current = false;
-      const at = await engine.start({ sourceStart: a.currentTime + LIVE_START_LEAD * rate, percent: bpmRef.current, slotSeconds: Infinity, volume: volumeRef.current });
+      const sourceStart = a.currentTime + LIVE_START_LEAD * rate;
+      const at = await engine.start({ sourceStart, percent: bpmRef.current, slotSeconds: Infinity, volume: volumeRef.current });
       const waitMs = Math.max(0, (at - ctx.currentTime) * 1000) + 25;
       setTimeout(() => {
         if (loadingTokenRef.current !== token || liveEngineRef.current !== engine || !liveActiveRef.current) return; // another track/start took over
         const now = nativePlayerRef.current;
         const wasPaused = !now || now.paused;
         if (wasPaused) void engine.pause();
-        loadTrackRef.current(track, true, false, { startAt: engine.position() + 0.45 * playbackRateFor(bpmRef.current), paused: wasPaused, liveHandoff: true });
+        // Where the engine is now = where it started + the time it has played since. (The engine's own position report
+        // can still be the old idle value (0) at this instant, which sent the music back to the start.)
+        const nowRate = playbackRateFor(bpmRef.current);
+        const where = sourceStart + Math.max(0, ctx.currentTime - at) * rate;
+        loadTrackRef.current(track, true, false, { startAt: where + 0.45 * nowRate, paused: wasPaused, liveHandoff: true });
       }, waitMs);
     } catch (error: any) {
       if (error?.name !== 'AbortError') console.warn('[AUDIO-ENGINE] Live engine unavailable; keeping the normal player:', error);

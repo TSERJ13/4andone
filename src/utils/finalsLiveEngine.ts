@@ -110,7 +110,11 @@ export class FinalsLiveEngine {
   private armFade(at: number, slotSeconds: number): void {
     const gain = this.fade.gain;
     gain.cancelScheduledValues(0);
-    if (slotSeconds === Infinity) { gain.setValueAtTime(1, at); return; } // ordinary listening: no fade
+    if (slotSeconds === Infinity) { // ordinary listening: no fade-out, only a 20 ms fade-in so a start/seek never clicks
+      gain.setValueAtTime(0, at);
+      gain.linearRampToValueAtTime(1, at + 0.02);
+      return;
+    }
     if (!(slotSeconds > 0)) { gain.setValueAtTime(0, at); return; }
     const fadeStart = at + slotSeconds - FINAL_FADE_SECONDS;
     if (fadeStart > at) {
@@ -188,9 +192,12 @@ export class FinalsLiveEngine {
     if (!this.stretch) return;
     this.running = false;
     try {
+      // Fade out over ~60 ms instead of cutting the level to zero in one sample (that was an audible click when
+      // skipping to the next track); the processor stops once the level is gone. A following start() replaces this.
+      const now = this.ctx.currentTime;
       this.fade.gain.cancelScheduledValues(0);
-      this.fade.gain.setValueAtTime(0, this.ctx.currentTime);
-      void this.schedule({ output: this.ctx.currentTime, rate: 0 });
+      this.fade.gain.setTargetAtTime(0, now, 0.012);
+      void this.schedule({ output: now + 0.08, rate: 0 });
     } catch { /* context already closed */ }
   }
 

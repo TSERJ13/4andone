@@ -44,12 +44,6 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
     setIsMobileDrawerOpen(false);
   }, [pathname]);
 
-  // Phones stay upright. Android (installed app) honours the lock; iPhone ignores
-  // it, so a small hint covers the screen when the phone is turned sideways.
-  useEffect(() => {
-    try { (screen.orientation as any)?.lock?.('portrait')?.catch?.(() => {}); } catch { /* not supported */ }
-  }, []);
-
   // "Save to playlist" from any player menu
   useEffect(() => {
     const open = (e: Event) => setPlaylistTrack((e as CustomEvent<Track>).detail || null);
@@ -247,11 +241,6 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
       {/* PWA Home Screen Install Banner */}
       <PwaInstallPrompt />
       <ReferralHandler />
-
-      <div className="yt-rotate-hint" aria-hidden="true">
-        <span>↻</span>
-        <p>Turn your phone upright</p>
-      </div>
 
       {/* Mobile Full Screen Player */}
       <MobileFullPlayer

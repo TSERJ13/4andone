@@ -2630,21 +2630,33 @@
 @keyframes yt-spin { to { transform: rotate(360deg); } }
 @media (prefers-reduced-motion: reduce) { .yt-spin-ring { animation-duration: 2s; } }
 
-/* Phone turned sideways: the app is portrait-only (iPhone ignores the orientation lock) */
-.yt-rotate-hint { display: none; }
-@media (orientation: landscape) and (max-height: 500px) and (pointer: coarse) {
-  .yt-rotate-hint {
-    position: fixed; inset: 0; z-index: 9999; background: #030303; color: #fff;
-    display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 8px;
-    font-weight: 700;
-  }
-  .yt-rotate-hint span { font-size: 40px; }
-  .yt-rotate-hint p { margin: 0; font-size: 15px; color: #bbb; }
-}
-
 /* Full player: Now playing / Up next switch (top centre) */
 .yt-mobile-queue-view {
   flex: 1 1 0; min-height: 0; display: flex; flex-direction: column;
   margin: 0 -20px; overflow: hidden;
 }
 .yt-mobile-queue-view .yt-panel-queue-list { padding-top: 4px; }
+
+/* Phone turned sideways: cover on the left; title, buttons, progress line and player controls on the right */
+@media (orientation: landscape) and (max-height: 600px) {
+  .yt-mobile-full-player-overlay {
+    display: grid;
+    grid-template-columns: minmax(0, 40%) minmax(0, 1fr);
+    grid-template-rows: auto 1fr auto auto auto 1fr;
+    column-gap: 28px;
+    align-content: start;
+    padding-left: calc(20px + env(safe-area-inset-left, 0px));
+    padding-right: calc(20px + env(safe-area-inset-right, 0px));
+    --pgap: 8px;
+  }
+  .yt-mobile-player-header { grid-column: 1 / -1; grid-row: 1; margin-bottom: 4px; }
+  .yt-mobile-space-top, .yt-mobile-space-bottom, .yt-mobile-full-ad { display: none; }
+  .yt-mobile-stage { grid-column: 1; grid-row: 2 / span 5; margin: 0; align-self: center; }
+  .yt-mobile-art-box,
+  .yt-mobile-full-ad ~ .yt-mobile-stage .yt-mobile-art-box { max-width: min(100%, calc(100dvh - 120px)); }
+  .yt-mobile-meta-section { grid-column: 2; grid-row: 2; align-self: end; margin: 0 0 8px; }
+  .yt-mobile-actions-wrapper { grid-column: 2; grid-row: 3; margin: 0 0 8px; }
+  .yt-mobile-progress-wrap { grid-column: 2; grid-row: 4; margin: 0 0 4px; }
+  .yt-mobile-controls-row { grid-column: 2; grid-row: 5; align-self: start; padding-bottom: 0; }
+  .yt-mobile-queue-view { grid-column: 1; grid-row: 2 / span 5; margin: 0; }
+}

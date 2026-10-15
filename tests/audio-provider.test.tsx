@@ -379,6 +379,36 @@ describe('live engine in ordinary listening (?finalsLive=1)', () => {
     expect(liveState.calls).toContain('pause');
   });
 });
+describe('live listening is the default on iPhone/iPad', () => {
+  const fakeCtx = () => vi.stubGlobal('AudioContext', class { state = 'running'; sampleRate = 48000; currentTime = 0; destination = {};
+    resume = async () => {}; createBuffer() { return {}; } createBufferSource() { return { connect() {}, start() {}, buffer: null }; } close = async () => {}; });
+  it('uses the stretch engine for ordinary listening without any URL flag, and ?finalsLive=0 switches it off', async () => {
+    const ua = vi.spyOn(navigator, 'userAgent', 'get').mockReturnValue('Mozilla/5.0 (iPhone; CPU iPhone OS 18_0 like Mac OS X)');
+    try {
+      fakeCtx();
+      await act(async () => { root.render(<AudioProvider key="apple-live"><Probe /></AudioProvider>); });
+      await act(async () => { api.setBpm(85); api.loadTrack(track('apple')); }); await flush();
+      expect(liveState.calls.some(c => c.startsWith('start 85'))).toBe(true);
+      liveState.calls = [];
+      window.history.replaceState(null, '', '/?finalsLive=0');
+      await act(async () => { root.render(<AudioProvider key="apple-live-off"><Probe /></AudioProvider>); });
+      await act(async () => { api.setBpm(85); api.loadTrack(track('apple2')); }); await flush();
+      expect(liveState.calls.some(c => c.startsWith('start'))).toBe(false);
+      expect(active().playbackRate).toBeCloseTo(0.85, 3); // the normal player
+    } finally { ua.mockRestore(); localStorage.clear(); }
+  });
+  it('falls back to the normal player when the audio context cannot run', async () => {
+    const ua = vi.spyOn(navigator, 'userAgent', 'get').mockReturnValue('Mozilla/5.0 (iPhone; CPU iPhone OS 18_0 like Mac OS X)');
+    try {
+      vi.stubGlobal('AudioContext', class { state = 'suspended'; sampleRate = 48000; currentTime = 0; destination = {};
+        resume = async () => {}; createBuffer() { return {}; } createBufferSource() { return { connect() {}, start() {}, buffer: null }; } close = async () => {}; });
+      await act(async () => { root.render(<AudioProvider key="apple-suspended"><Probe /></AudioProvider>); });
+      await act(async () => { api.setBpm(90); api.loadTrack(track('fallback')); }); await tick(1); await flush();
+      expect(liveState.calls.some(c => c.startsWith('start'))).toBe(false);
+      expect(api.isPlaying).toBe(true); expect(active().playbackRate).toBeCloseTo(0.9, 3);
+    } finally { ua.mockRestore(); localStorage.clear(); }
+  });
+});
 describe('rendered Finals is the default on iPhone', () => {
   beforeEach(() => { rolloutState.defaultOnApple = true; });
   afterEach(() => { rolloutState.defaultOnApple = true; });

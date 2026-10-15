@@ -5,7 +5,7 @@ import { requestPitchPreservation } from '@/utils/mediaPitch';
 import { getAudioFile } from '@/utils/storage';
 import { setElementVolume } from '@/utils/mediaControls';
 import { isNativeFinalTestEnabled } from '@/utils/iosFinalDiagnostic';
-import { isRenderedFinalTestEnabled, isRenderedFinalEnabled, isLiveFinalEnabled } from '@/utils/renderedFinalTest';
+import { isRenderedFinalTestEnabled, isRenderedFinalEnabled, isLiveFinalEnabled, isLiveListeningEnabled } from '@/utils/renderedFinalTest';
 import { FinalsLiveEngine, silentWav, LIVE_START_LEAD } from '@/utils/finalsLiveEngine';
 import { renderFinalAudio, renderedSourcePosition, clearFinalRenderCache, type RenderedFinalAudio, type FinalRenderPlan } from '@/utils/renderFinalAudio';
 import RenderedFinalAudioBadge from './RenderedFinalAudioBadge';
@@ -268,6 +268,8 @@ export const AudioProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   const startOrResumeLive = () => {
     const engine = liveEngineRef.current;
     if (!liveActiveRef.current || !engine) return;
+    const liveCtx = liveCtxRef.current;
+    if (liveCtx && (liveCtx.state as string) !== 'running') { try { void liveCtx.resume().catch(() => {}); } catch { /* ignore */ } }
     const normal = liveNormalRef.current;
     const el = nativePlayerRef.current;
     const slot = normal ? Infinity : FINAL_DANCE_SECONDS - finalsClockRef.current.elapsed;
@@ -1193,7 +1195,7 @@ export const AudioProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         }
         unlockSpareElementRef.current(); // also inside this tap
       }
-      if (!seamless && isLiveFinalEnabled() && isFinalModeRef.current && !isFitnessRef.current) ensureLiveContext(); // inside the tap
+      if (!seamless && (isLiveListeningEnabled() || (isLiveFinalEnabled() && isFinalModeRef.current)) && !isFitnessRef.current) ensureLiveContext(); // inside the tap
 
       // AD BREAK ON TAP: after 5 tracks the next track the user picks does
       // not start yet — the sponsored strip shows (site stays visible), then
@@ -1452,10 +1454,14 @@ export const AudioProvider: React.FC<{ children: React.ReactNode }> = ({ childre
 
       // Live engine for ordinary listening (opt-in): the element only carries a silent timeline in SOURCE seconds
       // (playing at the chosen speed), and the stretch engine makes the sound, so the speed changes without croak or gap.
-      if (!renderPlan && !isFinalModeRef.current && isLiveFinalEnabled()) {
+      if (!renderPlan && !isFinalModeRef.current && isLiveListeningEnabled()) {
         try {
           const ctx = ensureLiveContext();
           if (!ctx) throw new Error('Live audio is unavailable');
+          if (ctx.state !== 'running') { // never play silence: without a running audio context use the normal player
+            await Promise.race([ctx.resume().catch(() => {}), new Promise(resolve => setTimeout(resolve, 400))]);
+            if ((ctx.state as string) !== 'running') throw new Error('Audio context is not running');
+          }
           let engine = liveEngineRef.current;
           if (!engine || engine.ctx !== ctx) { engine = new FinalsLiveEngine(ctx); liveEngineRef.current = engine; }
           const controller = new AbortController();

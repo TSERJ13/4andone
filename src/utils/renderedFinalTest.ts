@@ -8,6 +8,7 @@ export function isRenderedFinalTestEnabled(): boolean {
   const requested = new URLSearchParams(window.location.search).get('finalsRender');
   let expiry = memoryExpiry;
   try { expiry = Number(localStorage.getItem(RENDERED_FINAL_TEST_KEY)) || 0; } catch { /* blocked storage */ }
+  if (requested === '1') { try { localStorage.removeItem('4andone-live-listening-optout-v1'); } catch { /* ignore */ } }
   if (requested === '0') expiry = 0;
   else if (requested === '1' && expiry <= Date.now()) expiry = Date.now() + 2 * 60 * 60 * 1000;
   if (!Number.isFinite(expiry) || expiry > Date.now() + 2 * 60 * 60 * 1000) expiry = 0;
@@ -60,6 +61,22 @@ export function isLiveFinalEnabled(): boolean {
     else localStorage.removeItem(LIVE_FINAL_KEY);
   } catch { /* unavailable */ }
   return expiry > Date.now();
+}
+
+export const LIVE_LISTENING_OPTOUT_KEY = '4andone-live-listening-optout-v1';
+/** Ordinary listening on iPhone/iPad uses the live stretch engine (the phone's own stretch croaks).
+ * ?finalsLive=0 turns it off on this device, ?finalsLive=1 turns it on anywhere (and back on after an opt-out). */
+export function isLiveListeningEnabled(): boolean {
+  if (typeof window === 'undefined') return false;
+  if (isLiveFinalEnabled()) return true;
+  const requested = new URLSearchParams(window.location.search).get('finalsLive');
+  let optedOut = false;
+  try {
+    if (requested === '0') localStorage.setItem(LIVE_LISTENING_OPTOUT_KEY, '1');
+    optedOut = localStorage.getItem(LIVE_LISTENING_OPTOUT_KEY) === '1';
+  } catch { optedOut = requested === '0'; }
+  if (optedOut || isNativeFinalTestEnabled()) return false; // the explicit native-audio diagnostic wins
+  return rolloutState.defaultOnApple && isAppleTouchDevice();
 }
 
 export function isRenderedFinalEnabled(): boolean {

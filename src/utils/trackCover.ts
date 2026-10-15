@@ -151,3 +151,13 @@ export function getTrackCover(
 
   return '/logo-3d.png';
 }
+
+
+/** Covers that also exist as 128 px thumbnails in /public/thumbs (a few KB instead of ~300 KB / 4 MB decoded). */
+const THUMBNAILED = new Set<string>(['/4andone-mix.jpg', '/boris-myagkov-big-band.jpg', '/dancestar.jpg', '/dj-maksy.jpg', '/empress-orchestra.jpg', '/georgie-musheev.jpg', '/goc2026.png', '/la-grande-orchestra-italiana.jpg', '/len-phillips-big-band.jpg', '/logo-3d.png', '/logo-4andone-3d.jpg', '/logo-4andone-3d.png', '/logo-square.jpg', '/logo-square.png', '/midland-big-band.jpg', '/rosesband.jpg']);
+
+/** The cover for a small picture (list rows): the thumbnail when there is one, else the cover itself. */
+export function getTrackThumb(track: Track | any | null, albums: Album[] = [], styles: Style[] = []): string {
+  const cover = getTrackCover(track, albums, styles);
+  return THUMBNAILED.has(cover) ? `/thumbs${cover}` : cover;
+}

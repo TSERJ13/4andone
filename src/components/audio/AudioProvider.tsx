@@ -248,6 +248,8 @@ export const AudioProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       liveCtxRef.current = ctx;
       liveEngineRef.current = null;
     }
+    // iPhone: Web Audio is silenced by the ring/silent switch unless the page declares itself a media player.
+    try { const session = (navigator as any).audioSession; if (session && session.type !== 'playback') session.type = 'playback'; } catch { /* older iOS */ }
     if (ctx.state !== 'running') { try { void ctx.resume().catch(() => {}); } catch { /* ignore */ } }
     try { // iPhone only starts audio from inside a tap: a silent buffer unlocks the context
       const buffer = ctx.createBuffer(1, 1, ctx.sampleRate || 44100);
@@ -279,6 +281,8 @@ export const AudioProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       finalsDiag(`live music starts · source ${liveSourceStartRef.current.toFixed(1)}s · ${Math.round(bpmRef.current)}% · ${normal ? 'normal listening' : 'fade in ' + Math.max(0, slot - FINAL_FADE_SECONDS).toFixed(0) + 's'}`);
       engine.start({ sourceStart: liveSourceStartRef.current, percent: bpmRef.current, slotSeconds: slot, volume: volumeRef.current })
         .catch(error => finalsDiag(`live start FAILED: ${String((error as any)?.message || error).slice(0, 60)}`));
+      const t0 = liveCtx?.currentTime ?? 0;
+      setTimeout(() => finalsDiag(`live check · audio ${liveCtx?.state} · clock moved ${((liveCtx?.currentTime ?? 0) - t0).toFixed(2)}s in 1.5s · session ${(navigator as any).audioSession?.type ?? 'n/a'}`), 1500);
     } else {
       void engine.resume(slot);
     }

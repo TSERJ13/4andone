@@ -93,6 +93,7 @@ export class FinalsLiveEngine {
   private armFade(at: number, slotSeconds: number): void {
     const gain = this.fade.gain;
     gain.cancelScheduledValues(0);
+    if (slotSeconds === Infinity) { gain.setValueAtTime(1, at); return; } // ordinary listening: no fade
     if (!(slotSeconds > 0)) { gain.setValueAtTime(0, at); return; }
     const fadeStart = at + slotSeconds - FINAL_FADE_SECONDS;
     if (fadeStart > at) {

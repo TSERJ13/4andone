@@ -356,6 +356,29 @@ describe('live Finals engine (?finalsLive=1)', () => {
     expect(liveState.calls.filter(c => c.startsWith('start')).length).toBe(startsBefore + 1);
   });
 });
+describe('live engine in ordinary listening (?finalsLive=1)', () => {
+  it('plays through the engine, changes speed and follows seeks without reloading the element', async () => {
+    vi.stubGlobal('AudioContext', class { state = 'running'; sampleRate = 48000; currentTime = 0; destination = {};
+      resume = async () => {}; createBuffer() { return {}; } createBufferSource() { return { connect() {}, start() {}, buffer: null }; } close = async () => {}; });
+    window.history.replaceState(null, '', '/?finalsLive=1');
+    await act(async () => { root.render(<AudioProvider key="live-normal"><Probe /></AudioProvider>); });
+    const song = track('normal-live');
+    await act(async () => { api.setBpm(90); api.loadTrack(song); }); await flush();
+    expect(api.isFinalMode).toBe(false);
+    expect(liveState.calls.some(c => c.startsWith('load normal-live'))).toBe(true);
+    expect(liveState.calls.some(c => c.startsWith('start 90') && c.includes('slot Infinity'))).toBe(true);
+    const el = active() ?? elements.find(e => e.src === 'blob:rendered-final' || e.src === 'blob:test')!;
+    expect(el.playbackRate).toBeCloseTo(0.9, 3);
+    await tick(5);
+    await act(async () => { api.setBpm(80); }); await flush();
+    expect(liveState.calls).toContain('rate 80'); expect(el.playbackRate).toBeCloseTo(0.8, 3); expect(api.isPlaying).toBe(true);
+    const before = liveState.calls.filter(c => c.startsWith('start')).length;
+    await act(async () => { api.seek(60); el.dispatchEvent(new Event('seeked')); }); await flush();
+    expect(liveState.calls.filter(c => c.startsWith('start')).length).toBe(before + 1);
+    await act(async () => { await api.togglePlay(); }); await flush();
+    expect(liveState.calls).toContain('pause');
+  });
+});
 describe('rendered Finals is the default on iPhone', () => {
   beforeEach(() => { rolloutState.defaultOnApple = true; });
   afterEach(() => { rolloutState.defaultOnApple = true; });

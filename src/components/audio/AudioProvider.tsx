@@ -6,7 +6,7 @@ import { getAudioFile } from '@/utils/storage';
 import { setElementVolume } from '@/utils/mediaControls';
 import { isNativeFinalTestEnabled } from '@/utils/iosFinalDiagnostic';
 import { isRenderedFinalTestEnabled, isRenderedFinalEnabled, isLiveFinalEnabled } from '@/utils/renderedFinalTest';
-import { FinalsLiveEngine, silentWav } from '@/utils/finalsLiveEngine';
+import { FinalsLiveEngine, silentWav, LIVE_START_LEAD } from '@/utils/finalsLiveEngine';
 import { renderFinalAudio, renderedSourcePosition, clearFinalRenderCache, type RenderedFinalAudio, type FinalRenderPlan } from '@/utils/renderFinalAudio';
 import RenderedFinalAudioBadge from './RenderedFinalAudioBadge';
 import { finalsDiag } from '@/utils/finalsDiag';
@@ -235,8 +235,9 @@ export const AudioProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   const liveEngineRef = useRef<FinalsLiveEngine | null>(null);
   const liveActiveRef = useRef(false);   // the live engine makes the sound of the current dance
   const liveStartedRef = useRef(false);
+  const liveNormalRef = useRef(false);    // live engine in ordinary (non-Finals) listening
   const liveSourceStartRef = useRef(0);
-  const liveListenersRef = useRef<{ el: HTMLAudioElement; pause: () => void; play: () => void } | null>(null);
+  const liveListenersRef = useRef<{ el: HTMLAudioElement; pause: () => void; play: () => void; seeked: () => void } | null>(null);
   const ensureLiveContext = (): AudioContext | null => {
     if (typeof window === 'undefined') return null;
     let ctx = liveCtxRef.current;
@@ -257,19 +258,23 @@ export const AudioProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   };
   const stopLive = () => {
     const l = liveListenersRef.current;
-    if (l) { l.el.removeEventListener('pause', l.pause); l.el.removeEventListener('play', l.play); liveListenersRef.current = null; }
+    if (l) { l.el.removeEventListener('pause', l.pause); l.el.removeEventListener('play', l.play); l.el.removeEventListener('seeked', l.seeked); liveListenersRef.current = null; }
     if (liveActiveRef.current) { try { liveEngineRef.current?.stop(); } catch { /* ignore */ } }
     liveActiveRef.current = false;
+    liveNormalRef.current = false;
     liveStartedRef.current = false;
   };
   // Starts the music (first time) or continues it (after a pause), in step with the timeline element.
   const startOrResumeLive = () => {
     const engine = liveEngineRef.current;
     if (!liveActiveRef.current || !engine) return;
-    const slot = FINAL_DANCE_SECONDS - finalsClockRef.current.elapsed;
+    const normal = liveNormalRef.current;
+    const el = nativePlayerRef.current;
+    const slot = normal ? Infinity : FINAL_DANCE_SECONDS - finalsClockRef.current.elapsed;
+    if (normal && !liveStartedRef.current && el) liveSourceStartRef.current = el.currentTime + LIVE_START_LEAD * playbackRateFor(bpmRef.current);
     if (!liveStartedRef.current) {
       liveStartedRef.current = true;
-      finalsDiag(`live music starts · source ${liveSourceStartRef.current.toFixed(1)}s · ${Math.round(bpmRef.current)}% · fade in ${Math.max(0, slot - FINAL_FADE_SECONDS).toFixed(0)}s`);
+      finalsDiag(`live music starts · source ${liveSourceStartRef.current.toFixed(1)}s · ${Math.round(bpmRef.current)}% · ${normal ? 'normal listening' : 'fade in ' + Math.max(0, slot - FINAL_FADE_SECONDS).toFixed(0) + 's'}`);
       engine.start({ sourceStart: liveSourceStartRef.current, percent: bpmRef.current, slotSeconds: slot, volume: volumeRef.current })
         .catch(error => finalsDiag(`live start FAILED: ${String((error as any)?.message || error).slice(0, 60)}`));
     } else {
@@ -278,14 +283,22 @@ export const AudioProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   };
   const attachLive = (el: HTMLAudioElement) => {
     const old = liveListenersRef.current;
-    if (old) { old.el.removeEventListener('pause', old.pause); old.el.removeEventListener('play', old.play); }
+    if (old) { old.el.removeEventListener('pause', old.pause); old.el.removeEventListener('play', old.play); old.el.removeEventListener('seeked', old.seeked); }
     const handlers = {
       el,
       pause: () => { if (liveActiveRef.current) void liveEngineRef.current?.pause(); },
       play: () => startOrResumeLive(),
+      seeked: () => {
+        // A jump in the timeline (scrub, lock-screen seek, repeat) moves the sound to the same spot.
+        if (!liveNormalRef.current || !liveStartedRef.current || el.paused) return;
+        const eng = liveEngineRef.current; if (!eng) return;
+        const rate = playbackRateFor(bpmRef.current);
+        void eng.start({ sourceStart: el.currentTime + LIVE_START_LEAD * rate, percent: bpmRef.current, slotSeconds: Infinity });
+      },
     };
     el.addEventListener('pause', handlers.pause);
     el.addEventListener('play', handlers.play);
+    el.addEventListener('seeked', handlers.seeked);
     liveListenersRef.current = handlers;
   };
   prefetchRenderedRef.current = (track: any) => {
@@ -1437,6 +1450,33 @@ export const AudioProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         else if (!swapFrom) finalsClockRef.current.reset(into, 1, prepared.elapsedStart + into);
       }
 
+      // Live engine for ordinary listening (opt-in): the element only carries a silent timeline in SOURCE seconds
+      // (playing at the chosen speed), and the stretch engine makes the sound, so the speed changes without croak or gap.
+      if (!renderPlan && !isFinalModeRef.current && isLiveFinalEnabled()) {
+        try {
+          const ctx = ensureLiveContext();
+          if (!ctx) throw new Error('Live audio is unavailable');
+          let engine = liveEngineRef.current;
+          if (!engine || engine.ctx !== ctx) { engine = new FinalsLiveEngine(ctx); liveEngineRef.current = engine; }
+          const controller = new AbortController();
+          renderAbortRef.current = controller;
+          await engine.decodeAndLoad(finalUrl, String(track.id) + '|' + String(track.audioUrl), controller.signal);
+          if (currentToken !== loadingTokenRef.current) return;
+          if (activeBlobUrlRef.current) URL.revokeObjectURL(activeBlobUrlRef.current);
+          finalUrl = URL.createObjectURL(silentWav(engine.sourceDuration));
+          activeBlobUrlRef.current = finalUrl;
+          liveActiveRef.current = true;
+          liveNormalRef.current = true;
+          liveStartedRef.current = false;
+          liveSourceStartRef.current = startAt;
+          finalsDiag(`live listening ready · ${Math.round(bpmRef.current)}%`);
+        } catch (liveError: any) {
+          if (currentToken !== loadingTokenRef.current) return;
+          console.warn('[AUDIO-ENGINE] Live listening unavailable; using the normal player:', liveError);
+          liveActiveRef.current = false; liveNormalRef.current = false;
+        }
+      }
+
       const setupPlayer = (url: string) => {
         return new Promise<HTMLAudioElement>((resolve, reject) => {
           let timeout: ReturnType<typeof setTimeout>;
@@ -1853,7 +1893,7 @@ export const AudioProvider: React.FC<{ children: React.ReactNode }> = ({ childre
           });
           setIsPlaying(true);
         }
-        if (liveActiveRef.current && renderPlan) {
+        if (liveActiveRef.current && (renderPlan || liveNormalRef.current)) {
           attachLive(audio);
           if (!audio.paused && !opts?.paused) startOrResumeLive();
         }
@@ -2408,6 +2448,7 @@ export const AudioProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     if (audio && !isPauseCountdownRef.current) {
       finalsClockRef.current.changeRate(audio.currentTime, audio.duration, rate);
       setMusicTempo(audio, rate * 100);
+      if (liveNormalRef.current && liveStartedRef.current) void liveEngineRef.current?.setRate(rate * 100);
     }
     bpmRef.current = rate * 100;
     if (persistent) {

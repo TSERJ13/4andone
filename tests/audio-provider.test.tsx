@@ -440,6 +440,16 @@ describe('prepared slow-down in ordinary listening on iPhone/iPad', () => {
     const back = elements.find(e => !states.get(e)!.paused)!;
     expect(back.src).not.toBe('blob:rendered-final'); expect(back.playbackRate).toBe(1);
   });
+  it('plays a track again at the same speed without preparing it a second time', async () => {
+    await enableSlow();
+    await act(async () => { api.setBpm(75); api.loadTrack(track('slow-cache')); }); await flush();
+    const count = renderState.requests.length;
+    await act(async () => { api.loadTrack(track('other')); }); await flush();
+    await act(async () => { api.loadTrack(track('slow-cache')); }); await flush();
+    expect(renderState.requests.filter(r => r.full && r.percent === 75 && r.cacheKey.startsWith('slow-cache'))).toHaveLength(1);
+    expect(renderState.requests.length).toBe(count + 1); // only 'other' was prepared
+    expect(api.isPlaying).toBe(true); expect(active().playbackRate).toBe(1);
+  });
   it('keeps playing on the normal player if preparing fails', async () => {
     await enableSlow(); renderState.fail = true;
     await act(async () => { api.setBpm(85); api.loadTrack(track('slow-c')); }); await flush();

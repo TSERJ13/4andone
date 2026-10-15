@@ -6,6 +6,7 @@ import { getAudioFile } from '@/utils/storage';
 import { setElementVolume } from '@/utils/mediaControls';
 import { isNativeFinalTestEnabled } from '@/utils/iosFinalDiagnostic';
 import { isRenderedFinalTestEnabled, isRenderedFinalEnabled, isLiveFinalEnabled, isLiveListeningEnabled, isSlowRenderEnabled } from '@/utils/renderedFinalTest';
+import { getSlow, putSlow, slowKey } from '@/utils/slowCache';
 import { FinalsLiveEngine, silentWav, LIVE_START_LEAD } from '@/utils/finalsLiveEngine';
 import { renderFinalAudio, renderedSourcePosition, clearFinalRenderCache, type RenderedFinalAudio, type FinalRenderPlan } from '@/utils/renderFinalAudio';
 import RenderedFinalAudioBadge from './RenderedFinalAudioBadge';
@@ -1473,7 +1474,9 @@ export const AudioProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         try {
           const ready = slowReadyRef.current;
           slowReadyRef.current = null;
+          const cacheKey = slowKey(track.id, track.audioUrl, bpmRef.current);
           if (ready && ready.key === key) slowPrepared = ready.prepared;
+          else if ((slowPrepared = await getSlow(cacheKey))) finalsDiag(`slowed track from the saved copy · ${Math.round(bpmRef.current)}%`);
           else {
             const startedAt = Date.now();
             const deadline = new Promise<never>((_, reject) => { watchdog = setTimeout(() => { controller.abort(); reject(new Error('Audio preparation timed out')); }, 45000); });
@@ -1481,6 +1484,7 @@ export const AudioProvider: React.FC<{ children: React.ReactNode }> = ({ childre
             slowPrepared = await Promise.race([renderFinalAudio({ url: finalUrl, cacheKey: String(track.id) + '|' + String(track.audioUrl),
               percent: bpmRef.current, sourceStart: 0, full: true, signal: controller.signal }), deadline]);
             finalsDiag(`slowed track prepared in ${((Date.now() - startedAt) / 1000).toFixed(1)}s · ${Math.round(bpmRef.current)}%`);
+            void putSlow(cacheKey, slowPrepared);
           }
         } catch (slowError: any) {
           if (currentToken !== loadingTokenRef.current) return;
@@ -1958,6 +1962,7 @@ export const AudioProvider: React.FC<{ children: React.ReactNode }> = ({ childre
 
       if (currentToken !== loadingTokenRef.current) return;
 
+      if (slowPrepared && !renderPlan) { slowPrefetchAbortRef.current?.abort(); setTimeout(() => { if (currentToken === loadingTokenRef.current) prefetchSlowNextRef.current(); }, 5000); }
       if (renderPlan) finalsDiag(`${swapFrom ? 'hand-over done' : 'dance starts'} · file ${Math.round(renderedFinalRef.current?.percent ?? 0)}% · speed ${Math.round(bpmRef.current)}% · player rate ${(nativePlayerRef.current?.playbackRate ?? 0).toFixed(3)} · at ${finalsClockRef.current.elapsed.toFixed(1)}s`);
       // The speed may have been changed while this file was being handed over; apply it now
       // (an instant rate change on the new file, so the music keeps playing).
@@ -2497,16 +2502,22 @@ export const AudioProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     slowAbortRef.current?.abort();
     const controller = new AbortController();
     slowAbortRef.current = controller;
-    let url: string = track.audioUrl; let local: string | null = null;
+    let local: string | null = null;
     try {
-      try {
-        const cached = track.id ? await getAudioFile(track.id) : null;
-        if (cached && cached.size > 0) { local = URL.createObjectURL(cached); url = local; }
-      } catch { /* signed URL */ }
-      if (!local) url = await resolvePlaybackUrl(url);
-      if (!url || controller.signal.aborted) return;
-      const prepared = await renderFinalAudio({ url, cacheKey: String(track.id) + '|' + String(track.audioUrl),
-        percent: target, sourceStart: 0, full: true, signal: controller.signal });
+      const cacheKey = slowKey(track.id, track.audioUrl, target);
+      let prepared = await getSlow(cacheKey); // prepared before (or prefetched): no waiting
+      if (!prepared) {
+        let url: string = track.audioUrl;
+        try {
+          const cached = track.id ? await getAudioFile(track.id) : null;
+          if (cached && cached.size > 0) { local = URL.createObjectURL(cached); url = local; }
+        } catch { /* signed URL */ }
+        if (!local) url = await resolvePlaybackUrl(url);
+        if (!url || controller.signal.aborted) return;
+        prepared = await renderFinalAudio({ url, cacheKey: String(track.id) + '|' + String(track.audioUrl),
+          percent: target, sourceStart: 0, full: true, signal: controller.signal });
+        void putSlow(cacheKey, prepared);
+      }
       if (controller.signal.aborted || playingTrackRef.current?.id !== track.id) return;
       if (Math.abs(bpmRef.current - target) > 0.5) return; // changed again meanwhile: the newer request wins
       slowReadyRef.current = { key: [track.id, track.audioUrl, Math.round(target * 10)].join('|'), prepared };
@@ -2514,6 +2525,39 @@ export const AudioProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     } catch (error: any) {
       if (error?.name !== 'AbortError') console.warn('[AUDIO-ENGINE] Prepared slow-down unavailable; keeping the normal player:', error);
     } finally { if (local) URL.revokeObjectURL(local); }
+  };
+
+  // While a slowed track plays, the next one is prepared in the background so it starts without waiting.
+  const slowPrefetchAbortRef = useRef<AbortController | null>(null);
+  const prefetchSlowNextRef = useRef<() => void>(() => {});
+  prefetchSlowNextRef.current = async () => {
+    if (!isSlowRenderEnabled() || isLiveListeningEnabled() || isFinalModeRef.current || isFitnessRef.current) return;
+    if (Math.abs(bpmRef.current - 100) <= 0.5 || !normalRenderedRef.current) return;
+    const list = playOrder(tracks, playingTrackRef.current, shuffleSeedRef.current);
+    const index = list.findIndex(t => t.id === trackIdRef.current);
+    if (index < 0 || list.length < 2) return;
+    const next = list[(index + 1) % list.length];
+    if (!next?.audioUrl) return;
+    const target = bpmRef.current;
+    const cacheKey = slowKey(next.id, next.audioUrl, target);
+    if (await getSlow(cacheKey)) return;
+    slowPrefetchAbortRef.current?.abort();
+    const controller = new AbortController();
+    slowPrefetchAbortRef.current = controller;
+    let local: string | null = null;
+    try {
+      let url: string = next.audioUrl;
+      try {
+        const cached = next.id ? await getAudioFile(next.id) : null;
+        if (cached && cached.size > 0) { local = URL.createObjectURL(cached); url = local; }
+      } catch { /* signed URL */ }
+      if (!local) url = await resolvePlaybackUrl(url);
+      if (!url || controller.signal.aborted) return;
+      const prepared = await renderFinalAudio({ url, cacheKey: String(next.id) + '|' + String(next.audioUrl),
+        percent: target, sourceStart: 0, full: true, signal: controller.signal });
+      await putSlow(cacheKey, prepared);
+      finalsDiag(`next track prepared in the background · ${Math.round(target)}%`);
+    } catch { /* the real load prepares it when needed */ } finally { if (local) URL.revokeObjectURL(local); }
   };
 
   const setBpm = React.useCallback((newBpm: number, persistent = true) => {

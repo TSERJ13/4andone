@@ -2671,3 +2671,6 @@
 @media (orientation: landscape) and (max-height: 600px) {
   .yt-mobile-top-area { display: contents; }
 }
+
+/* Long lists: rows far off screen are not laid out or painted until they come near */
+.yt-queue-item { content-visibility: auto; contain-intrinsic-size: auto 56px; }

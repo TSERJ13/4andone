@@ -4,7 +4,7 @@ import React, { useEffect, useRef, useState } from 'react';
 import { Play, Pause } from 'lucide-react';
 import type { Track } from '@/components/admin/StudioProvider';
 import type { Album } from '@/types/album';
-import { getTrackCover } from '@/utils/trackCover';
+import { getTrackThumb } from '@/utils/trackCover';
 
 const PAGE = 40; // rows added each time the list is scrolled near its end
 
@@ -76,7 +76,7 @@ export function QueuePanelList({ tracks, albums, currentTrackId, isPlaying, onSe
             onClick={() => onSelect(track)}
           >
             <div className="yt-queue-thumb-box">
-              <img src={getTrackCover(track, albums)} alt={track.title} className="yt-queue-thumb" loading="lazy" />
+              <img src={getTrackThumb(track, albums)} alt={track.title} className="yt-queue-thumb" loading="lazy" decoding="async" width={40} height={40} />
               {isThisPlaying && (
                 <div className="yt-queue-playing-icon">
                   {isPlaying ? <Pause size={14} fill="#ffffff" /> : <Play size={14} fill="#ffffff" />}

@@ -4,7 +4,7 @@ import { sortUsers, USER_SORT_OPTIONS, UserSortKey } from '@/utils/sortUsers';
 import React, { useState, useEffect, useCallback } from 'react';
 import {
   BarChart3, TrendingUp, Users, Music, Folder, Flag, Calendar,
-  RefreshCw, Globe, Clock, Radio, Share2, Eye, ExternalLink, Wifi, Coffee, MessageSquare, Mail
+  RefreshCw, Globe, Clock, Radio, Share2, Eye, ExternalLink, Wifi, Coffee, MessageSquare, Mail, Crown, DollarSign
 } from 'lucide-react';
 import { useStudio } from '@/components/admin/StudioProvider';
 import { supabase as realtime } from '@/utils/supabase';
@@ -38,6 +38,7 @@ interface TelegramUser {
   country_name?: string;
   is_premium?: boolean;
   premium_until?: string | null;
+  subscription_id?: string | null;
 }
 interface RecentActivity {
   id: string;
@@ -618,6 +619,10 @@ export default function AdminAnalytics() {
     isPremiumUser(tgUsers.find(tu => (sessionId && tu.telegram_id.toString() === sessionId) || (!!name && tu.first_name === name)));
   const PremiumBadge = () => <span className="premium-badge" title="Active Premium member">💎 Premium</span>;
   const premiumCount = tgUsers.filter(isPremiumUser).length;
+  // Paying = an active PayPal subscription (id starts with I-). The rest of Premium is free: admin gifts, promo codes, invite rewards, the owner.
+  const payingCount = tgUsers.filter(u => isPremiumUser(u) && !!u.subscription_id?.startsWith('I-')).length;
+  const freePremiumCount = premiumCount - payingCount;
+  const monthlyRevenue = payingCount * 1.99;
   const sections: { key: typeof section; label: string }[] = [
     { key: 'overview', label: 'Overview' },
     { key: 'visitors', label: 'Visitors' },
@@ -719,7 +724,9 @@ export default function AdminAnalytics() {
           { label: 'This Month', value: totals.month, sub: `${uniqueTotals.month} unique`, icon: <Users size={16}/> },
           { label: 'This Year', value: totals.year, sub: `${uniqueTotals.year} unique`, icon: <BarChart3 size={16}/> },
           { label: 'Avg Session', value: fmtDuration(avgDuration), icon: <Clock size={16}/>, isStr: true },
-          { label: 'TG Users', value: tgUsers.length, sub: `${premiumCount} Premium`, icon: <Users size={16}/> },
+          { label: 'TG Users', value: tgUsers.length, sub: `${Math.max(tgUsers.length - premiumCount, 0)} free`, icon: <Users size={16}/> },
+          { label: 'Premium', value: premiumCount, sub: `${payingCount} paying · ${freePremiumCount} free`, icon: <Crown size={16}/> },
+          { label: 'Paying', value: payingCount, sub: `$${monthlyRevenue.toFixed(2)} / month`, icon: <DollarSign size={16}/> },
         ] as { label: string; value: string | number; sub?: string; icon: React.ReactNode; isStr?: boolean }[]).map(item => (
           <div key={item.label} className="sum-card glass">
             <div className="sum-icon">{item.icon}</div>
@@ -1389,7 +1396,7 @@ export default function AdminAnalytics() {
         .live-empty { font-size:12px; color:#71717a; font-style:italic; }
 
         /* Summary */
-        .summary-strip { display:grid; grid-template-columns:repeat(7,1fr); gap:12px; }
+        .summary-strip { display:grid; grid-template-columns:repeat(4,1fr); gap:12px; }
         .sum-card { padding:16px; border-radius:16px; display:flex; flex-direction:column; gap:6px; border:1px solid rgba(255,255,255,0.05); }
         .sum-icon { width:28px; height:28px; display:flex; align-items:center; justify-content:center; color:#1db954; }
         .sum-val { font-size:24px; font-weight:900; letter-spacing:-1px; line-height:1; }

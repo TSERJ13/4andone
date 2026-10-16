@@ -75,11 +75,21 @@ export default function EarnPremiumPage() {
         await refreshPremium();
         setReloadKey(k => k + 1);
       } else {
-        const msg = resData?.message || (resData?.reason === 'already_has_promo'
-          ? 'თქვენ უკვე გაქვთ აქტიური პრომო კოდი! ერთდროულად 2 პრომო აქციით სარგებლობა არ შეიძლება.'
-          : resData?.reason === 'already_used'
-          ? 'ეს პრომო კოდი უკვე გამოყენებულია ამ ანგარიშზე.'
-          : 'პრომო კოდი არასწორია ან ვადაგასულია.');
+        const reason = resData?.reason;
+        const msg = resData?.message
+          || (res.status === 401 || res.status === 403
+            ? 'სესია ამოიწურა. შედით Telegram-ით ხელახლა და სცადეთ თავიდან.'
+            : res.status >= 500 || reason === 'failed' || reason === 'not_setup'
+            ? 'სერვერზე დროებითი შეცდომაა, კოდი არ დაიხარჯა. სცადეთ ცოტა ხანში.'
+            : reason === 'already_has_promo'
+            ? 'თქვენ უკვე გაქვთ აქტიური პრომო კოდი! ერთდროულად 2 პრომო აქციით სარგებლობა არ შეიძლება.'
+            : reason === 'already_used'
+            ? 'ეს პრომო კოდი უკვე გამოყენებულია ამ ანგარიშზე.'
+            : reason === 'existing_subscription'
+            ? 'თქვენ უკვე გაქვთ Premium გამოწერა, პრომო კოდი საჭირო არ არის.'
+            : reason === 'promo_limit_reached'
+            ? 'ამ პრომო კოდის გამოყენების მაქსიმალური რაოდენობა ამოიწურა.'
+            : 'პრომო კოდი არასწორია ან ვადაგასულია.');
         setPromoError(msg);
       }
     } catch {

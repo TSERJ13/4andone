@@ -73,3 +73,38 @@ export const cancelPayPalSubscription = async (subscriptionId: string): Promise<
   const details = await fetch(url, { headers, cache: 'no-store', signal: AbortSignal.timeout(10000) });
   return details.ok && (await details.json()).status === 'CANCELLED';
 };
+
+export interface PayPalPlanCheck {
+  ok: boolean;
+  message: string;
+  plan?: { id: string; name: string; status: string; price: string | null; trialDays: number | null; interval: string | null };
+}
+
+/** Admin status page: can the server sign in to PayPal, and is the subscription plan the one the site sells? */
+export const checkPayPalPlan = async (): Promise<PayPalPlanCheck> => {
+  if (!CLIENT_SECRET) return { ok: false, message: 'PAYPAL_CLIENT_SECRET is not set on the server' };
+  let token: string | null = null;
+  try { token = await getToken(); } catch { return { ok: false, message: 'Could not reach PayPal' }; }
+  if (!token) return { ok: false, message: 'PayPal rejected the Client ID / Secret (wrong secret, or Sandbox vs Live mismatch)' };
+  try {
+    const res = await fetch(`${PAYPAL_API}/v1/billing/plans/${encodeURIComponent(PLAN_ID)}`, {
+      headers: { authorization: `Bearer ${token}` }, cache: 'no-store', signal: AbortSignal.timeout(10000),
+    });
+    if (!res.ok) return { ok: false, message: `Signed in, but plan ${PLAN_ID} was not found (${res.status})` };
+    const plan = await res.json();
+    const cycles: any[] = Array.isArray(plan.billing_cycles) ? plan.billing_cycles : [];
+    const regular = cycles.find(c => c.tenure_type === 'REGULAR');
+    const trial = cycles.find(c => c.tenure_type === 'TRIAL');
+    const fixed = regular?.pricing_scheme?.fixed_price;
+    const price = fixed ? `${fixed.value} ${fixed.currency_code}` : null;
+    const interval = regular?.frequency ? `${regular.frequency.interval_count} ${String(regular.frequency.interval_unit).toLowerCase()}` : null;
+    const status = String(plan.status || '');
+    return {
+      ok: status === 'ACTIVE',
+      message: status === 'ACTIVE' ? 'Connected' : `Plan status is ${status || 'unknown'} (must be ACTIVE)`,
+      plan: { id: PLAN_ID, name: String(plan.name || ''), status, price, trialDays: trial?.frequency?.interval_unit === 'DAY' ? Number(trial.frequency.interval_count) : (trial ? 1 : null), interval },
+    };
+  } catch {
+    return { ok: false, message: 'Signed in, but the plan could not be read' };
+  }
+};

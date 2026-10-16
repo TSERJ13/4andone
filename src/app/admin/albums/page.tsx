@@ -1,5 +1,7 @@
 "use client";
 
+import AdminPageHeader from '@/components/admin/AdminPageHeader';
+import { useFlash } from '@/hooks/useFlash';
 import React, { useState, useRef } from 'react';
 import Link from 'next/link';
 import { useStudio } from '@/components/admin/StudioProvider';
@@ -41,6 +43,11 @@ export default function AdminAlbumsPage() {
   const [allowedStyles, setAllowedStyles] = useState<string[]>(ALL_LATIN_STYLES);
   const [tagsInput, setTagsInput] = useState('');
 
+  // Save state: errors stay inside the editor, results show as a short notice
+  const [formError, setFormError] = useState<string | null>(null);
+  const [isSaving, setIsSaving] = useState(false);
+  const [notice, showNotice] = useFlash();
+
   // Upload state
   const [isUploading, setIsUploading] = useState(false);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
@@ -64,6 +71,7 @@ export default function AdminAlbumsPage() {
     setAllowedStyles(ALL_LATIN_STYLES);
     setTagsInput('');
     setEditingAlbum(null);
+    setFormError(null);
   };
 
   const openCreateModal = () => {
@@ -140,7 +148,7 @@ export default function AdminAlbumsPage() {
 
       setCoverUrl(publicUrl);
     } catch (err: any) {
-      alert(`Cover upload failed: ${err.message}`);
+      setFormError(`Cover upload failed: ${err.message}`);
     } finally {
       setIsUploading(false);
     }
@@ -148,26 +156,29 @@ export default function AdminAlbumsPage() {
 
   const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!title.trim()) return alert('Album Title is required');
-    if (!slug.trim()) return alert('URL Slug is required');
+    setFormError(null);
+    if (!title.trim()) return setFormError('Album Title is required');
+    const cleanSlug = slug.trim().toLowerCase().replace(/[^a-z0-9-]+/g, '-').replace(/^-+|-+$/g, '');
+    if (!cleanSlug) return setFormError('URL Slug is required (letters, numbers and dashes)');
+    if (albums.some(a => a.slug === cleanSlug && a.id !== editingAlbum?.id)) return setFormError(`Another album already uses the address "${cleanSlug}". Choose a different slug.`);
 
     const parsedTags = tagsInput
       .split(',')
       .map(t => t.trim().toLowerCase())
       .filter(Boolean);
 
-    if (!parsedTags.includes(slug.toLowerCase())) {
-      parsedTags.push(slug.toLowerCase());
+    if (!parsedTags.includes(cleanSlug)) {
+      parsedTags.push(cleanSlug);
     }
 
     const payload: Partial<Album> = {
       title: title.trim(),
       artist: (artist || title).trim(),
-      slug: slug.trim(),
+      slug: cleanSlug,
       subtitle: subtitle.trim(),
       description: subtitle.trim(),
       badge: (badge || 'LIVE SOUNDS COLLECTION').trim(),
-      coverUrl: coverUrl.trim() || '/georgie-musheev.jpg',
+      coverUrl: coverUrl.trim() || '/logo-square.jpg',
       themeColor,
       secondaryColor,
       gradient: `linear-gradient(90deg, ${themeColor}, ${secondaryColor})`,
@@ -176,14 +187,23 @@ export default function AdminAlbumsPage() {
       tags: parsedTags,
     };
 
-    if (editingAlbum) {
-      await updateAlbum(editingAlbum.id, payload);
-    } else {
-      await addAlbum({ ...payload, orderIndex: 0 });
+    setIsSaving(true);
+    try {
+      if (editingAlbum) {
+        await updateAlbum(editingAlbum.id, payload);
+      } else {
+        await addAlbum({ ...payload, orderIndex: 0 });
+      }
+    } catch (err) {
+      // Keep the editor open with everything typed, and say why
+      setFormError((err as Error).message);
+      setIsSaving(false);
+      return;
     }
-
+    setIsSaving(false);
     setIsModalOpen(false);
     resetForm();
+    showNotice('ok', editingAlbum ? 'Album saved' : 'Album created');
   };
 
   const handleMove = async (index: number, direction: 'up' | 'down') => {
@@ -194,13 +214,23 @@ export default function AdminAlbumsPage() {
     const [moved] = newOrder.splice(index, 1);
     newOrder.splice(targetIdx, 0, moved);
 
-    await reorderAlbums(newOrder.map(a => a.id));
+    try {
+      await reorderAlbums(newOrder.map(a => a.id));
+    } catch (err) {
+      showNotice('error', `Could not save the new order: ${(err as Error).message}`);
+    }
   };
 
   const handleDeleteConfirm = async () => {
     if (!deleteModal.album) return;
-    await deleteAlbum(deleteModal.album.id);
+    const album = deleteModal.album;
     setDeleteModal({ isOpen: false, album: null });
+    try {
+      await deleteAlbum(album.id);
+      showNotice('ok', `Deleted "${album.title}"`);
+    } catch (err) {
+      showNotice('error', `Could not delete "${album.title}": ${(err as Error).message}`);
+    }
   };
 
   // Helper to count tracks belonging to an album
@@ -222,25 +252,15 @@ export default function AdminAlbumsPage() {
 
   return (
     <div className="admin-albums-page animate-in">
-      {/* Top Header */}
-      <div className="page-header">
-        <div className="title-group">
-          <h1>Album Builder &amp; Collections</h1>
-          <p className="subtitle">
-            Create, customize, and reorder dynamic albums without touching any code. Albums update automatically on the homepage carousel and dedicate pages.
-          </p>
+      {notice && (
+        <div role={notice.kind === 'error' ? 'alert' : 'status'} style={{ position: 'fixed', top: 20, right: 20, zIndex: 3000, maxWidth: 'min(520px, calc(100vw - 32px))', padding: '12px 18px', borderRadius: 12, fontWeight: 700, fontSize: 14, background: notice.kind === 'error' ? '#ef4444' : '#1db954', color: notice.kind === 'error' ? '#fff' : '#000', boxShadow: '0 8px 24px rgba(0,0,0,0.4)' }}>
+          {notice.text}
         </div>
-        <div className="album-header-actions">
-          <Link href="/admin/dashboard" className="btn-bulk-link">
-            <Upload size={16} />
-            <span>Bulk Upload Tracks</span>
-          </Link>
-          <button className="btn-primary-create" onClick={openCreateModal}>
-            <Plus size={18} />
-            <span>Create New Album</span>
-          </button>
-        </div>
-      </div>
+      )}
+      <AdminPageHeader icon={<Disc size={22} />} title="Album Builder" subtitle="Create and order the albums shown on the homepage carousel and their own pages">
+        <Link href="/admin/upload" className="ap-btn"><Upload size={16} /> Bulk upload</Link>
+        <button type="button" className="ap-btn primary" onClick={openCreateModal}><Plus size={16} /> New album</button>
+      </AdminPageHeader>
 
       {/* Overview Stats Bar */}
       <div className="stats-row glass">
@@ -345,7 +365,7 @@ export default function AdminAlbumsPage() {
               {/* Action Buttons */}
               <div className="album-actions">
                 <Link
-                  href={`/admin/dashboard?album=${album.slug}`}
+                  href={`/admin/upload?album=${album.slug}`}
                   className="action-icon-btn upload-tracks-btn"
                   title="Bulk Upload Tracks to this Album"
                 >
@@ -644,19 +664,23 @@ export default function AdminAlbumsPage() {
                     </div>
                   </div>
                   <div className="preview-img-box">
-                    <img src={coverUrl || '/georgie-musheev.jpg'} alt="Preview" onError={(e) => { (e.target as HTMLImageElement).src = '/georgie-musheev.jpg'; }} />
+                    <img src={coverUrl || '/logo-square.jpg'} alt="Preview" onError={(e) => { (e.target as HTMLImageElement).src = '/logo-square.jpg'; }} />
                   </div>
                 </div>
               </div>
+
+              {formError && (
+                <p role="alert" style={{ margin: '0 0 12px', padding: '10px 14px', borderRadius: 10, background: 'rgba(239,68,68,0.12)', border: '1px solid rgba(239,68,68,0.35)', color: '#fca5a5', fontSize: 13.5, fontWeight: 600 }}>{formError}</p>
+              )}
 
               {/* Action Buttons */}
               <div className="modal-actions">
                 <button type="button" className="btn-cancel" onClick={() => setIsModalOpen(false)}>
                   Cancel
                 </button>
-                <button type="submit" className="btn-submit" style={{ background: `linear-gradient(90deg, ${themeColor}, ${secondaryColor})` }}>
+                <button type="submit" disabled={isSaving || isUploading} className="btn-submit" style={{ background: `linear-gradient(90deg, ${themeColor}, ${secondaryColor})`, opacity: isSaving ? 0.7 : 1 }}>
                   <Check size={18} />
-                  <span>{editingAlbum ? 'Save Album Changes' : 'Create Album'}</span>
+                  <span>{isSaving ? 'Saving…' : editingAlbum ? 'Save Album Changes' : 'Create Album'}</span>
                 </button>
               </div>
             </form>

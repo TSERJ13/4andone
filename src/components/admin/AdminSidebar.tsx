@@ -1,8 +1,8 @@
 "use client";
 
-import React, { useState, useEffect, useCallback } from 'react';
+import React from 'react';
 import Link from 'next/link';
-import { usePathname } from 'next/navigation';
+import { usePathname, useRouter } from 'next/navigation';
 import {
   LayoutDashboard,
   Music,
@@ -14,63 +14,20 @@ import {
   ChevronLeft,
   ChevronRight,
   Users,
-  Mail,
   Coins,
   Gift,
-  Send
+  Send,
+  Upload
 } from 'lucide-react';
-import { useStudio } from './StudioProvider';
-import { useRouter } from 'next/navigation';
-import { supabase } from '@/utils/supabase';
-import { adminDb } from '@/lib/admin-db';
+import { useNewInquiries } from '@/hooks/useNewInquiries';
+
+type NavItem = { icon: React.ReactNode; label: string; href: string; badge?: string };
+type NavSection = { title?: string; items: NavItem[] };
 
 const AdminSidebar = ({ isCollapsed, onToggle }: { isCollapsed: boolean, onToggle: () => void }) => {
   const pathname = usePathname();
   const router = useRouter();
-  const { tracks, stats } = useStudio();
-  const [unreadCount, setUnreadCount] = useState<number>(0);
-
-  const fetchUnreadMessagesCount = useCallback(async () => {
-    try {
-      const [{ data: rawMessages }, { data: delRows }] = await Promise.all([
-        adminDb
-          .from('track_plays')
-          .select('id')
-          .eq('event_type', 'contact_message'),
-        adminDb
-          .from('folders')
-          .select('color')
-          .eq('name', '__deleted_msg__')
-      ]);
-
-      const deletedIds = new Set((delRows || []).map((r: { color: string }) => r.color));
-      const activeCount = (rawMessages || []).filter((m: { id: string }) => !deletedIds.has(m.id)).length;
-      setUnreadCount(activeCount);
-    } catch (err) {
-      console.error('Failed to fetch unread messages count:', err);
-    }
-  }, []);
-
-  useEffect(() => {
-    fetchUnreadMessagesCount();
-    const interval = setInterval(fetchUnreadMessagesCount, 20000);
-
-    // Subscribe to realtime changes on track_plays and folders
-    const channel = supabase
-      .channel('admin_sidebar_messages')
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'track_plays' }, () => {
-        fetchUnreadMessagesCount();
-      })
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'folders' }, () => {
-        fetchUnreadMessagesCount();
-      })
-      .subscribe();
-
-    return () => {
-      clearInterval(interval);
-      supabase.removeChannel(channel);
-    };
-  }, [fetchUnreadMessagesCount]);
+  const unreadCount = useNewInquiries();
 
   const handleLogout = async () => {
     localStorage.removeItem('studio_auth'); // legacy flag
@@ -78,65 +35,86 @@ const AdminSidebar = ({ isCollapsed, onToggle }: { isCollapsed: boolean, onToggl
     router.push('/sa-login');
   };
 
-  const menuItems = [
-    { icon: <LayoutDashboard size={24} />, label: 'Overview', href: '/admin/dashboard' },
-    { icon: <Coins size={24} />, label: 'EARN', href: '/admin/earn' },
-    { icon: <Music size={24} />, label: 'Music Library', href: '/admin/library' },
-    { icon: <Disc size={24} />, label: 'Album Builder', href: '/admin/albums' },
-    { icon: <Folders size={24} />, label: 'Dance Styles', href: '/admin/taxonomy' },
-    { icon: <Users size={24} />, label: 'Users', href: '/admin/users' },
-    { icon: <Gift size={24} />, label: 'Affiliates', href: '/admin/affiliates' },
-    { 
-      icon: <Send size={24} />, 
-      label: 'Telegram Bot', 
-      href: '/admin/messages',
-      badge: unreadCount > 0 ? `+${unreadCount}` : undefined
+  const sections: NavSection[] = [
+    { items: [{ icon: <LayoutDashboard size={20} />, label: 'Overview', href: '/admin/dashboard' }] },
+    {
+      title: 'Music',
+      items: [
+        { icon: <Music size={20} />, label: 'Music Library', href: '/admin/library' },
+        { icon: <Upload size={20} />, label: 'Upload Music', href: '/admin/upload' },
+        { icon: <Disc size={20} />, label: 'Album Builder', href: '/admin/albums' },
+        { icon: <Folders size={20} />, label: 'Dance Styles', href: '/admin/taxonomy' },
+      ],
     },
-    { icon: <BarChart3 size={24} />, label: 'Statistics', href: '/admin/analytics' },
-    { icon: <Settings size={24} />, label: 'Studio Settings', href: '/admin/settings' },
+    {
+      title: 'Audience',
+      items: [
+        { icon: <Users size={20} />, label: 'Users', href: '/admin/users' },
+        {
+          icon: <Send size={20} />,
+          label: 'Telegram Bot',
+          href: '/admin/messages',
+          badge: unreadCount > 0 ? String(unreadCount) : undefined,
+        },
+        { icon: <BarChart3 size={20} />, label: 'Statistics', href: '/admin/analytics' },
+      ],
+    },
+    {
+      title: 'Money',
+      items: [
+        { icon: <Coins size={20} />, label: 'Earn & Premium', href: '/admin/earn' },
+        { icon: <Gift size={20} />, label: 'Affiliates', href: '/admin/affiliates' },
+      ],
+    },
+    { title: 'System', items: [{ icon: <Settings size={20} />, label: 'System & Settings', href: '/admin/settings' }] },
   ];
 
   return (
     <aside className={`admin-sidebar ${isCollapsed ? 'collapsed' : ''}`}>
       <div className="sidebar-header">
-        <button className="toggle-btn" onClick={onToggle}>
+        <button className="toggle-btn" onClick={onToggle} aria-label={isCollapsed ? 'Expand menu' : 'Collapse menu'}>
           {isCollapsed ? <ChevronRight size={22} /> : <ChevronLeft size={22} />}
         </button>
       </div>
 
       <nav className="nav-list">
-        {menuItems.map((item) => (
-          <Link
-            key={item.href}
-            href={item.href}
-            className={`nav-button ${pathname === item.href ? 'active' : ''}`}
-            title={isCollapsed ? item.label : undefined}
-          >
-            <div className="icon-container" style={{ position: 'relative' }}>
-              {item.icon}
-              {isCollapsed && item.badge && (
-                <span className="sidebar-badge-dot" />
-              )}
-            </div>
-            {!isCollapsed && (
-              <>
-                <span className="nav-label">{item.label}</span>
-                {item.badge && (
-                  <span className="nav-badge-pill">{item.badge}</span>
-                )}
-              </>
-            )}
-          </Link>
+        {sections.map((section, i) => (
+          <div key={section.title || `s${i}`} className="nav-section">
+            {section.title && (isCollapsed ? <div className="nav-section-rule" /> : <div className="nav-section-title">{section.title}</div>)}
+            {section.items.map((item) => {
+              const active = pathname === item.href || (item.href !== '/admin/dashboard' && pathname.startsWith(item.href + '/'));
+              return (
+                <Link
+                  key={item.href}
+                  href={item.href}
+                  prefetch={false}
+                  className={`nav-button ${active ? 'active' : ''}`}
+                  title={isCollapsed ? item.label : undefined}
+                  aria-current={active ? 'page' : undefined}
+                >
+                  <div className="icon-container" style={{ position: 'relative' }}>
+                    {item.icon}
+                    {isCollapsed && item.badge && <span className="sidebar-badge-dot" />}
+                  </div>
+                  {!isCollapsed && (
+                    <>
+                      <span className="nav-label">{item.label}</span>
+                      {item.badge && <span className="nav-badge-pill" title="New inquiries">{item.badge}</span>}
+                    </>
+                  )}
+                </Link>
+              );
+            })}
+          </div>
         ))}
       </nav>
 
       <div className="sidebar-footer">
         <button onClick={handleLogout} className="logout-button" title={isCollapsed ? "Logout" : undefined}>
-          <div className="icon-container"><LogOut size={24} /></div>
+          <div className="icon-container"><LogOut size={20} /></div>
           {!isCollapsed && <span className="nav-label">Logout</span>}
         </button>
       </div>
-
     </aside>
   );
 };

@@ -149,21 +149,27 @@ const BulkUpload = () => {
     }
   };
   
+  const preselectedRef = useRef(false);
   useEffect(() => {
     const saved = localStorage.getItem('recentArtists');
     if (saved) setRecentArtists(JSON.parse(saved));
 
-    if (typeof window !== 'undefined' && albums.length > 0) {
+    // ?album=<slug> preselects the destination ONCE. This effect re-runs whenever the album list
+    // refreshes, and used to put the destination (and artist) back after the admin had changed it.
+    if (typeof window !== 'undefined' && albums.length > 0 && !preselectedRef.current) {
       const params = new URLSearchParams(window.location.search);
       const preselectedSlug = params.get('album');
-      if (preselectedSlug) {
+      if (!preselectedSlug) {
+        preselectedRef.current = true;
+      } else {
         const target = albums.find(a => a.slug === preselectedSlug);
         if (target) {
+          preselectedRef.current = true;
           setBatchDestKey(target.slug);
           setBatchDestinations({ standard: true, [target.slug]: true });
           setBatchAlbum(target.title);
           if (target.artist) setBatchArtist(target.artist);
-        }
+        } // else: the album list is still the built-in one — try again when the real list arrives
       }
     }
   }, [albums]);

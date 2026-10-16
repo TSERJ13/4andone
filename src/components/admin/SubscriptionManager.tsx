@@ -1,5 +1,6 @@
 "use client";
 
+import { useFlash } from '@/hooks/useFlash';
 import React, { useState, useEffect } from 'react';
 import { Crown, Sparkles, DollarSign, Users, Calendar, Check, X, ShieldAlert, Search, RefreshCw, UserCheck } from 'lucide-react';
 import { supabase } from '@/utils/supabase';
@@ -15,14 +16,39 @@ interface Subscriber {
   subscription_id?: string;
   premium_until?: string; // expiry date
   created_at?: string;
+  first_seen?: string;
   last_seen?: string;
+  visit_count?: number;
+  country_name?: string;
+  country_code?: string;
+  referral_code?: string;
 }
+
+type StatusFilter = 'all' | 'premium' | 'free' | 'expired';
+type SortKey = 'joined_new' | 'joined_old' | 'active' | 'visits' | 'ending' | 'name';
+
+const fmtDate = (v?: string) => v ? new Date(v).toLocaleDateString(undefined, { day: 'numeric', month: 'short', year: 'numeric' }) : '—';
+const fmtDateTime = (v?: string) => v ? new Date(v).toLocaleString(undefined, { day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' }) : '—';
+const ago = (v?: string) => {
+  if (!v) return '—';
+  const m = Math.max(0, Math.round((Date.now() - new Date(v).getTime()) / 60000));
+  if (m < 2) return 'just now';
+  if (m < 60) return `${m} min ago`;
+  if (m < 1440) return `${Math.round(m / 60)} h ago`;
+  const d = Math.round(m / 1440);
+  return d < 60 ? `${d} d ago` : `${Math.round(d / 30)} mo ago`;
+};
+const joinedOf = (u: Subscriber) => u.first_seen || u.created_at;
+const ts = (v?: string) => (v ? new Date(v).getTime() : 0);
 
 export default function SubscriptionManager() {
   const [subscribers, setSubscribers] = useState<Subscriber[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
   const [actionLoading, setActionLoading] = useState<number | null>(null);
+  const [statusFilter, setStatusFilter] = useState<StatusFilter>('all');
+  const [sortKey, setSortKey] = useState<SortKey>('joined_new');
+  const [detail, setDetail] = useState<Subscriber | null>(null);
 
   const fetchSubscribers = async (silent = false) => {
     if (!silent) setLoading(true);
@@ -32,11 +58,11 @@ export default function SubscriptionManager() {
         .select('*')
         .order('is_premium', { ascending: false });
 
-      if (data) {
-        setSubscribers(data as Subscriber[]);
-      }
+      if (error) throw error;
+      setSubscribers((data || []) as Subscriber[]);
     } catch (err) {
       console.error('[SUB-MANAGER-FETCH-ERROR]', err);
+      say('error', `Could not load members: ${(err as Error).message}`);
     } finally {
       setLoading(false);
     }
@@ -57,11 +83,9 @@ export default function SubscriptionManager() {
   ];
   const [durationFor, setDurationFor] = useState<Record<number, string>>({});
 
-  const [toast, setToast] = useState<{ ok: boolean; text: string } | null>(null);
-  const showToast = (ok: boolean, text: string) => {
-    setToast({ ok, text });
-    setTimeout(() => setToast(null), 4000);
-  };
+  const [flash, say] = useFlash();
+  const toast = flash && { ok: flash.kind === 'ok', text: flash.text };
+  const showToast = (ok: boolean, text: string) => say(ok ? 'ok' : 'error', text);
 
   // Gifted with no end date = Forever (the owner's LIFETIME row too)
   const isForever = (u: Subscriber) =>
@@ -146,15 +170,37 @@ export default function SubscriptionManager() {
 
   const monthlyRevenue = paidSubs.length * 1.99;
 
-  const filtered = subscribers.filter(s => {
-    const q = search.toLowerCase();
-    return (
-      (s.first_name || '').toLowerCase().includes(q) ||
-      (s.last_name || '').toLowerCase().includes(q) ||
-      (s.username || '').toLowerCase().includes(q) ||
-      s.telegram_id.toString().includes(q)
-    );
-  });
+  const counts = {
+    all: subscribers.length,
+    premium: subscribers.filter(isActivePremium).length,
+    free: subscribers.filter(u => !u.is_premium).length,
+    expired: subscribers.filter(u => u.is_premium && !isActivePremium(u)).length,
+  };
+
+  const filtered = subscribers
+    .filter(s => {
+      if (statusFilter === 'premium' && !isActivePremium(s)) return false;
+      if (statusFilter === 'free' && s.is_premium) return false;
+      if (statusFilter === 'expired' && !(s.is_premium && !isActivePremium(s))) return false;
+      const q = search.toLowerCase();
+      return (
+        (s.first_name || '').toLowerCase().includes(q) ||
+        (s.last_name || '').toLowerCase().includes(q) ||
+        (s.username || '').toLowerCase().includes(q) ||
+        s.telegram_id.toString().includes(q)
+      );
+    })
+    .sort((a, b) => {
+      switch (sortKey) {
+        case 'joined_old': return ts(joinedOf(a)) - ts(joinedOf(b));
+        case 'active': return ts(b.last_seen) - ts(a.last_seen);
+        case 'visits': return (b.visit_count || 0) - (a.visit_count || 0);
+        // soonest end date first; members with no end date go last
+        case 'ending': return (a.premium_until ? ts(a.premium_until) : Infinity) - (b.premium_until ? ts(b.premium_until) : Infinity);
+        case 'name': return `${a.first_name || ''} ${a.last_name || ''}`.localeCompare(`${b.first_name || ''} ${b.last_name || ''}`);
+        default: return ts(joinedOf(b)) - ts(joinedOf(a));
+      }
+    });
 
   return (
     <div className="sub-manager-card glass">
@@ -224,6 +270,21 @@ export default function SubscriptionManager() {
             className="search-input"
           />
         </div>
+        <div className="filter-chips" role="tablist" aria-label="Member type">
+          {([['all', 'All'], ['premium', 'Premium'], ['free', 'Free'], ['expired', 'Expired']] as [StatusFilter, string][]).map(([k, label]) => (
+            <button key={k} type="button" role="tab" aria-selected={statusFilter === k} className={`chip ${statusFilter === k ? 'on' : ''}`} onClick={() => setStatusFilter(k)}>
+              {label} <b>{counts[k]}</b>
+            </button>
+          ))}
+        </div>
+        <select className="sort-select" value={sortKey} onChange={e => setSortKey(e.target.value as SortKey)} aria-label="Sort members">
+          <option value="joined_new">Newest first (joined)</option>
+          <option value="joined_old">Oldest first (joined)</option>
+          <option value="active">Last active</option>
+          <option value="visits">Most visits</option>
+          <option value="ending">Premium ending soon</option>
+          <option value="name">Name A–Z</option>
+        </select>
       </div>
 
       <div className="sub-table-wrap desktop-only-table">
@@ -252,7 +313,7 @@ export default function SubscriptionManager() {
                 return (
                   <tr key={user.telegram_id} className={isActivePremium(user) ? 'is-premium-row' : ''}>
                     <td>
-                      <div className="user-cell">
+                      <div className="user-cell clickable" role="button" tabIndex={0} title="Open member details" onClick={() => setDetail(user)} onKeyDown={e => { if (e.key === 'Enter') setDetail(user); }}>
                         {user.photo_url ? (
                           <img src={user.photo_url} alt="" className="avatar-img" />
                         ) : (
@@ -261,6 +322,7 @@ export default function SubscriptionManager() {
                         <div className="user-names">
                           <span className="real-name">{user.first_name} {user.last_name || ''}</span>
                           <span className="tg-handle">@{user.username || user.telegram_id}</span>
+                          <span className="seen-line">Joined {fmtDate(joinedOf(user))} · active {ago(user.last_seen)}</span>
                         </div>
                       </div>
                     </td>
@@ -366,7 +428,7 @@ export default function SubscriptionManager() {
             return (
               <div key={user.telegram_id} className={`sub-mobile-card glass ${isActivePremium(user) ? 'is-premium-card' : ''}`}>
                 <div className="sub-card-header">
-                  <div className="user-cell">
+                  <div className="user-cell clickable" role="button" tabIndex={0} title="Open member details" onClick={() => setDetail(user)} onKeyDown={e => { if (e.key === 'Enter') setDetail(user); }}>
                     {user.photo_url ? (
                       <img src={user.photo_url} alt="" className="avatar-img" />
                     ) : (
@@ -375,6 +437,7 @@ export default function SubscriptionManager() {
                     <div className="user-names">
                       <span className="real-name">{user.first_name} {user.last_name || ''}</span>
                       <span className="tg-handle">@{user.username || user.telegram_id}</span>
+                          <span className="seen-line">Joined {fmtDate(joinedOf(user))} · active {ago(user.last_seen)}</span>
                     </div>
                   </div>
                   {isActivePremium(user) ? (
@@ -465,6 +528,32 @@ export default function SubscriptionManager() {
           })
         )}
       </div>
+
+      {detail && (
+        <div className="detail-overlay" onClick={() => setDetail(null)}>
+          <div className="detail-card glass" role="dialog" aria-label="Member details" onClick={e => e.stopPropagation()}>
+            <button type="button" className="detail-close" onClick={() => setDetail(null)} aria-label="Close"><X size={16} /></button>
+            <div className="detail-head">
+              {detail.photo_url ? <img src={detail.photo_url} alt="" className="avatar-img" /> : <div className="avatar-placeholder">{detail.first_name?.charAt(0) || 'U'}</div>}
+              <div>
+                <strong>{detail.first_name} {detail.last_name || ''}</strong>
+                <span>{detail.username ? <a href={`https://t.me/${detail.username}`} target="_blank" rel="noopener noreferrer">@{detail.username}</a> : 'no username'}</span>
+              </div>
+            </div>
+            <dl className="detail-grid">
+              <dt>Status</dt><dd>{isActivePremium(detail) ? 'Active Premium' : detail.is_premium ? 'Premium expired' : 'Free user'}</dd>
+              <dt>Premium until</dt><dd>{detail.subscription_id === 'LIFETIME_OWNER' ? 'Never expires' : detail.premium_until ? fmtDateTime(detail.premium_until) : detail.is_premium ? 'No end date' : '—'}</dd>
+              <dt>Plan</dt><dd>{detail.subscription_id?.startsWith('I-') ? 'PayPal' : detail.subscription_id?.startsWith('MANUAL_') ? 'Admin gifted' : detail.subscription_id?.startsWith('REFERRAL_') ? 'Invite reward' : detail.subscription_id?.startsWith('PROMO_') ? `Promo code (${detail.subscription_id.split('_')[1] || ''})` : detail.subscription_id?.startsWith('LIFETIME_') ? 'Owner' : 'None'}</dd>
+              <dt>Joined</dt><dd>{fmtDateTime(joinedOf(detail))}</dd>
+              <dt>Last active</dt><dd>{fmtDateTime(detail.last_seen)} ({ago(detail.last_seen)})</dd>
+              <dt>Visits</dt><dd>{detail.visit_count ?? '—'}</dd>
+              <dt>Country</dt><dd>{detail.country_name || detail.country_code || '—'}</dd>
+              <dt>Telegram ID</dt><dd>{detail.telegram_id}</dd>
+              {detail.referral_code && (<><dt>Invite code</dt><dd>{detail.referral_code}</dd></>)}
+            </dl>
+          </div>
+        </div>
+      )}
 
       {toast && (
         <div className={`admin-toast ${toast.ok ? 'ok' : 'err'}`} role="status">
@@ -597,10 +686,31 @@ export default function SubscriptionManager() {
           font-weight: 600;
         }
 
+        .filter-chips { display: flex; gap: 6px; flex-wrap: wrap; }
+        .chip { border: 1px solid rgba(255,255,255,0.12); background: rgba(255,255,255,0.04); color: #d4d4d8; border-radius: 999px; padding: 6px 12px; font-size: 12.5px; font-weight: 700; cursor: pointer; }
+        .chip b { color: #a1a1aa; margin-left: 4px; font-weight: 700; }
+        .chip.on { background: rgba(29,185,84,0.16); border-color: rgba(29,185,84,0.5); color: #4ade80; }
+        .chip.on b { color: #4ade80; }
+        .sort-select { background: rgba(255,255,255,0.05); color: #e4e4e7; border: 1px solid rgba(255,255,255,0.12); border-radius: 10px; padding: 8px 10px; font-size: 13px; }
+        .user-cell.clickable { cursor: pointer; }
+        .user-cell.clickable:hover .real-name { text-decoration: underline; }
+        .seen-line { font-size: 11.5px; color: #8b8b94; }
+        .detail-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.6); display: flex; align-items: center; justify-content: center; z-index: 200; padding: 16px; }
+        .detail-card { position: relative; width: 100%; max-width: 440px; max-height: 90vh; overflow: auto; border-radius: 18px; padding: 22px; background: #14141a; border: 1px solid rgba(255,255,255,0.1); }
+        .detail-close { position: absolute; top: 12px; right: 12px; background: transparent; border: none; color: #a1a1aa; cursor: pointer; padding: 6px; }
+        .detail-head { display: flex; gap: 12px; align-items: center; margin-bottom: 16px; }
+        .detail-head div { display: flex; flex-direction: column; gap: 2px; }
+        .detail-head strong { color: #fff; font-size: 16px; }
+        .detail-head span, .detail-head a { color: #8b8b94; font-size: 13px; }
+        .detail-grid { display: grid; grid-template-columns: 120px 1fr; gap: 9px 12px; margin: 0; font-size: 13px; }
+        .detail-grid dt { color: #8b8b94; }
+        .detail-grid dd { margin: 0; color: #fff; word-break: break-word; }
         .table-controls {
           display: flex;
           justify-content: space-between;
           align-items: center;
+          flex-wrap: wrap;
+          gap: 10px;
           margin-top: 4px;
         }
 
@@ -610,7 +720,7 @@ export default function SubscriptionManager() {
           max-width: 340px;
         }
 
-        .search-icon {
+        .search-wrap :global(.search-icon) {
           position: absolute;
           left: 12px;
           top: 50%;

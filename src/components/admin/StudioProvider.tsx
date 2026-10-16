@@ -76,19 +76,19 @@ interface StudioContextType {
 
   // Folders
   addFolder: (name: string, color: string) => Promise<Folder | undefined>;
-  updateFolder: (id: string, updates: Partial<Folder>) => void;
-  removeFolder: (id: string) => void;
-  assignToFolder: (trackId: string, folderId: string | undefined) => void;
+  updateFolder: (id: string, updates: Partial<Folder>) => Promise<void>;
+  removeFolder: (id: string) => Promise<void>;
+  assignToFolder: (trackId: string, folderId: string | undefined) => Promise<void>;
   addTrackToFolder: (folderId: string, trackId: string) => Promise<void>;
   removeTrackFromFolder: (folderId: string, trackId: string) => Promise<void>;
 
   // Taxonomy (Styles & Tags)
-  addStyle: (style: Partial<Style>) => void;
-  updateStyle: (id: string, updates: Partial<Style>) => void;
-  removeStyle: (id: string) => void;
-  addTag: (tag: Partial<Tag>) => void;
-  updateTag: (id: string, updates: Partial<Tag>) => void;
-  removeTag: (id: string) => void;
+  addStyle: (style: Partial<Style>) => Promise<void>;
+  updateStyle: (id: string, updates: Partial<Style>) => Promise<void>;
+  removeStyle: (id: string) => Promise<void>;
+  addTag: (tag: Partial<Tag>) => Promise<void>;
+  updateTag: (id: string, updates: Partial<Tag>) => Promise<void>;
+  removeTag: (id: string) => Promise<void>;
 
   // Finals
   finalTracks: Track[];
@@ -228,9 +228,8 @@ export const StudioProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       setIsLoading(true);
     }
     try {
-      // 1. Fetch Global Tracks — in parallel with the shared lists that don't
-      // depend on them (styles, tags, albums). These used to run one after
-      // another, so the first screen waited for every request in sequence.
+      // 1. Global tracks — in parallel with the shared lists that don't depend on them
+      // (styles, tags, albums), so the first screen doesn't wait for them one after another.
       const sharedPromise = Promise.all([
         supabase.from('styles').select('*').order('order'),
         supabase.from('tags').select('*').order('name'),
@@ -239,109 +238,21 @@ export const StudioProvider: React.FC<{ children: React.ReactNode }> = ({ childr
           .catch((e) => { console.warn('Failed to load albums:', e); return null; }),
       ]);
       const tracksData = await fetchAllTracks();
+      const signedIn = !!(isAuthenticated && user?.id && sessionVersion > 0);
 
-      // 2. Fetch User Specific Collections
-      let foldersData: Folder[] = [];
-      let finalFoldersData: FinalFolder[] = [];
-      const newFolderTracksMap: Record<string, string[]> = {};
-
-      if (isAuthenticated && user?.id && sessionVersion > 0) {
-        // Fetch user folders by telegram_id or user_id
-        const { data: fData } = await userDb
-          .from('folders')
-          .select('*')
-          .eq('telegram_id', user.id)
-          .order('created_at', { ascending: true });
-
-        if (fData && fData.length > 0) {
-          foldersData = fData.map(f => ({
-            id: f.id,
-            name: f.name,
-            color: f.color
-          }));
-
-          const folderIds = fData.map(f => f.id);
-          const { data: ftData } = await userDb
-            .from('folder_tracks')
-            .select('folder_id, track_id')
-            .in('folder_id', folderIds);
-
-          if (ftData) {
-            ftData.forEach(item => {
-              if (!newFolderTracksMap[item.folder_id]) {
-                newFolderTracksMap[item.folder_id] = [];
-              }
-              newFolderTracksMap[item.folder_id].push(item.track_id);
-            });
-          }
-        }
-
-        const { data: ffData } = await userDb.from<FinalFolder[]>('final_folders').select('*').eq('telegram_id', user.id);
-        if (ffData) {
-          finalFoldersData = ffData;
-          const { data: children } = await userDb.from('final_folder_tracks')
-            .select('final_folder_id, track_id').in('final_folder_id', ffData.map((f: any) => f.id)).order('order');
-          const map: Record<string, string[]> = {};
-          for (const child of children || []) (map[child.final_folder_id] ||= []).push(child.track_id);
-          setFinalFolderTracksMap(map);
-        }
-
-        // Final Tracks Queue
-        const { data: ftData } = await userDb.from('final_tracks').select('track_id').eq('telegram_id', user.id).order('order');
-        if (ftData) {
-           const ftIds = ftData.map(f => f.track_id);
-           const ftTracks = ftIds.map((id: string) => tracksData?.find(t => t.id === id)).filter(Boolean).map((t: any) => ({ ...t, audioUrl: t.audio_url, artworkUrl: t.artwork_url }));
-           setFinalTracks(ftTracks);
-        }
-      }
-
-      setFolderTracksMap(newFolderTracksMap);
-
-      // 3. User Favorites Cloud & Local Sync
+      // Likes known on this device. The library is drawn with them AT ONCE; the account's cloud list
+      // (loaded below, in parallel) only refines them. Personal data used to be fetched one request
+      // after another BEFORE any track was shown, so signed-in listeners waited several round trips.
+      const userKey = signedIn ? `4andone_liked_tracks_${user!.id}` : '';
       let userLikes: string[] = [];
-      if (isAuthenticated && user?.id && sessionVersion > 0) {
-        const userKey = `4andone_liked_tracks_${user.id}`;
+      if (signedIn) {
         try {
           const saved = localStorage.getItem(userKey) || localStorage.getItem('4andone_liked_tracks');
           if (saved) userLikes = JSON.parse(saved);
         } catch (e) {}
-
-        try {
-          const { data: favData } = await userDb
-            .from('user_favorites')
-            .select('track_id')
-            .eq('telegram_id', user.id);
-
-          if (favData && favData.length > 0) {
-            const cloudTrackIds = favData.map(f => f.track_id);
-            const combined = Array.from(new Set([...cloudTrackIds, ...userLikes]));
-            // Sync any local likes not yet in cloud
-            const unsynced = userLikes.filter(id => !cloudTrackIds.includes(id));
-            if (unsynced.length > 0) {
-              userDb.from('user_favorites').insert(
-                unsynced.map(track_id => ({ telegram_id: user.id, track_id }))
-              ).then(() => {});
-            }
-            userLikes = combined;
-            try {
-              localStorage.setItem(userKey, JSON.stringify(userLikes));
-              localStorage.removeItem('4andone_liked_tracks');
-            } catch (e) {}
-          } else if (userLikes.length > 0) {
-            // First time cloud sync for existing local likes
-            userDb.from('user_favorites').insert(
-              userLikes.map(track_id => ({ telegram_id: user.id, track_id }))
-            ).then(() => {});
-          }
-        } catch (favErr) {
-          console.error('[STUDIO-ERROR] sync user_favorites failed:', favErr);
-        }
       } else {
         // Unauthenticated / Logged Out: 0 liked songs!
-        userLikes = [];
-        try {
-          localStorage.removeItem('4andone_liked_tracks');
-        } catch (e) {}
+        try { localStorage.removeItem('4andone_liked_tracks'); } catch (e) {}
       }
 
       // No internet (or Supabase unreachable): show the downloaded tracks so
@@ -356,10 +267,6 @@ export const StudioProvider: React.FC<{ children: React.ReactNode }> = ({ childr
         writeTracksCache(tracksData);
       }
 
-      // Fetch Folders, Styles, Tags
-      setFolders(foldersData);
-      setFinalFolders(finalFoldersData);
-
       const [{ data: stylesData }, { data: tagsData }, aData] = await sharedPromise;
       if (stylesData) setStyles(stylesData);
       if (tagsData) setTags(tagsData);
@@ -370,6 +277,74 @@ export const StudioProvider: React.FC<{ children: React.ReactNode }> = ({ childr
         const merged = [...aData.albums];
         merged.sort((a, b) => (a.orderIndex ?? 0) - (b.orderIndex ?? 0));
         setAlbums(merged);
+      }
+      // Library, dance styles and albums are on screen — pages may render now; personal data follows.
+      setIsLoading(false);
+
+      if (!signedIn) {
+        setFolders([]);
+        setFolderTracksMap({});
+        setFinalFolders([]);
+        setFinalFolderTracksMap({});
+        setFinalTracks([]);
+        return;
+      }
+
+      // 2. Personal data: four independent groups, requested at the same time
+      const uid = user!.id;
+      const [foldersBundle, finalBundle, finalQueue, favRows] = await Promise.all([
+        (async () => {
+          const { data: fData } = await userDb.from('folders').select('*').eq('telegram_id', uid).order('created_at', { ascending: true });
+          const map: Record<string, string[]> = {};
+          if (!fData || fData.length === 0) return { list: [] as Folder[], map };
+          const { data: ftData } = await userDb.from('folder_tracks').select('folder_id, track_id').in('folder_id', fData.map((f: any) => f.id));
+          (ftData || []).forEach((item: any) => { (map[item.folder_id] ||= []).push(item.track_id); });
+          return { list: fData.map((f: any) => ({ id: f.id, name: f.name, color: f.color })) as Folder[], map };
+        })().catch(() => null),
+        (async () => {
+          const { data: ffData } = await userDb.from<FinalFolder[]>('final_folders').select('*').eq('telegram_id', uid);
+          if (!ffData) return null;
+          const { data: children } = await userDb.from('final_folder_tracks')
+            .select('final_folder_id, track_id').in('final_folder_id', ffData.map((f: any) => f.id)).order('order');
+          const map: Record<string, string[]> = {};
+          for (const child of children || []) (map[child.final_folder_id] ||= []).push(child.track_id);
+          return { list: ffData, map };
+        })().catch(() => null),
+        Promise.resolve(userDb.from('final_tracks').select('track_id').eq('telegram_id', uid).order('order').then(r => r.data)).catch(() => null),
+        Promise.resolve(userDb.from('user_favorites').select('track_id').eq('telegram_id', uid).then(r => r.data)).catch(() => null),
+      ]);
+
+      if (foldersBundle) { setFolders(foldersBundle.list); setFolderTracksMap(foldersBundle.map); }
+      if (finalBundle) { setFinalFolders(finalBundle.list); setFinalFolderTracksMap(finalBundle.map); }
+      if (finalQueue) {
+        const ftTracks = finalQueue.map((f: any) => tracksData?.find(t => t.id === f.track_id)).filter(Boolean)
+          .map((t: any) => ({ ...t, audioUrl: t.audio_url, artworkUrl: t.artwork_url }));
+        setFinalTracks(ftTracks);
+      }
+
+      // 3. Likes: cloud list merged with this device's list
+      try {
+        if (favRows && favRows.length > 0) {
+          const cloudTrackIds = favRows.map((f: any) => f.track_id);
+          const combined = Array.from(new Set([...cloudTrackIds, ...userLikes]));
+          // Sync any local likes not yet in cloud
+          const unsynced = userLikes.filter(id => !cloudTrackIds.includes(id));
+          if (unsynced.length > 0) {
+            userDb.from('user_favorites').insert(unsynced.map(track_id => ({ telegram_id: uid, track_id }))).then(() => {});
+          }
+          try {
+            localStorage.setItem(userKey, JSON.stringify(combined));
+            localStorage.removeItem('4andone_liked_tracks');
+          } catch (e) {}
+          if (combined.length !== userLikes.length && tracksData && tracksData.length > 0) {
+            setTracks(mapTrackRows(tracksData, combined) as any);
+          }
+        } else if (favRows && userLikes.length > 0) {
+          // First time cloud sync for existing local likes
+          userDb.from('user_favorites').insert(userLikes.map(track_id => ({ telegram_id: uid, track_id }))).then(() => {});
+        }
+      } catch (favErr) {
+        console.error('[STUDIO-ERROR] sync user_favorites failed:', favErr);
       }
     } finally {
       setIsLoading(false);
@@ -732,18 +707,23 @@ export const StudioProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     return undefined;
   };
 
+  // Failed saves THROW and leave the screen untouched: these used to ignore the server's answer and show the change
+  // as done, so it was gone after a reload. Callers show the message.
+  const must = (error: { message?: string } | null | undefined, what: string) => {
+    if (error) throw new Error(`${what}: ${error.message || 'the server refused'}`);
+  };
+
   const updateFolder = async (id: string, updates: Partial<Folder>) => {
-    await userDb.from('folders').update(updates).eq('id', id);
+    const { error } = await userDb.from('folders').update(updates).eq('id', id);
+    must(error, 'Could not save the playlist');
     setFolders(prev => prev.map(f => f.id === id ? { ...f, ...updates } : f));
   };
 
   const removeFolder = async (id: string) => {
-    try {
-      await userDb.from('folder_tracks').delete().eq('folder_id', id);
-      await userDb.from('folders').delete().eq('id', id);
-    } catch (err) {
-      console.error('[STUDIO] removeFolder error:', err);
-    }
+    const { error: tracksError } = await userDb.from('folder_tracks').delete().eq('folder_id', id);
+    must(tracksError, 'Could not delete the playlist');
+    const { error } = await userDb.from('folders').delete().eq('id', id);
+    must(error, 'Could not delete the playlist');
     setFolders(prev => prev.filter(f => f.id !== id));
     setFolderTracksMap(prev => {
       const next = { ...prev };
@@ -754,18 +734,16 @@ export const StudioProvider: React.FC<{ children: React.ReactNode }> = ({ childr
   };
 
   const assignToFolder = async (trackId: string, folderId: string | undefined) => {
-    await adminDb.from('tracks').update({ folder_id: folderId }).eq('id', trackId);
+    const { error } = await adminDb.from('tracks').update({ folder_id: folderId }).eq('id', trackId);
+    must(error, 'Could not move the track');
     setTracks(prev => prev.map(t => t.id === trackId ? { ...t, folderId } : t));
   };
 
   const addTrackToFolder = async (folderId: string, trackId: string) => {
-    try {
-      await userDb
-        .from('folder_tracks')
-        .upsert({ folder_id: folderId, track_id: trackId }, { onConflict: 'folder_id,track_id' });
-    } catch (e) {
-      console.error('[STUDIO] addTrackToFolder error:', e);
-    }
+    const { error } = await userDb
+      .from('folder_tracks')
+      .upsert({ folder_id: folderId, track_id: trackId }, { onConflict: 'folder_id,track_id' });
+    must(error, 'Could not add the track to the playlist');
     setFolderTracksMap(prev => ({
       ...prev,
       [folderId]: prev[folderId] ? (prev[folderId].includes(trackId) ? prev[folderId] : [...prev[folderId], trackId]) : [trackId]
@@ -773,15 +751,12 @@ export const StudioProvider: React.FC<{ children: React.ReactNode }> = ({ childr
   };
 
   const removeTrackFromFolder = async (folderId: string, trackId: string) => {
-    try {
-      await userDb
-        .from('folder_tracks')
-        .delete()
-        .eq('folder_id', folderId)
-        .eq('track_id', trackId);
-    } catch (e) {
-      console.error('[STUDIO] removeTrackFromFolder error:', e);
-    }
+    const { error } = await userDb
+      .from('folder_tracks')
+      .delete()
+      .eq('folder_id', folderId)
+      .eq('track_id', trackId);
+    must(error, 'Could not remove the track from the playlist');
     setFolderTracksMap(prev => ({
       ...prev,
       [folderId]: (prev[folderId] || []).filter(tid => tid !== trackId)
@@ -790,37 +765,37 @@ export const StudioProvider: React.FC<{ children: React.ReactNode }> = ({ childr
 
   const addStyle = async (styleData: Partial<Style>) => {
     const { data, error } = await adminDb.from('styles').insert([styleData]).select();
-    if (error) alert("Error adding style: " + error.message);
-    if (data) setStyles(prev => [...prev, data[0]]);
+    must(error, 'Could not add the dance style');
+    if (data?.[0]) setStyles(prev => [...prev, data[0]]);
   };
 
   const updateStyle = async (id: string, updates: Partial<Style>) => {
     const { error } = await adminDb.from('styles').update(updates).eq('id', id);
-    if (error) alert("Error updating style: " + error.message);
+    must(error, 'Could not save the dance style');
     setStyles(prev => prev.map(s => s.id === id ? { ...s, ...updates } : s));
   };
 
   const removeStyle = async (id: string) => {
     const { error } = await adminDb.from('styles').delete().eq('id', id);
-    if (error) alert("Error deleting style: " + error.message);
+    must(error, 'Could not delete the dance style');
     setStyles(prev => prev.filter(s => s.id !== id));
   };
 
   const addTag = async (tagData: Partial<Tag>) => {
     const { data, error } = await adminDb.from('tags').insert([tagData]).select();
-    if (error) alert("Error adding tag: " + error.message);
-    if (data) setTags(prev => [...prev, data[0]]);
+    must(error, 'Could not add the tag');
+    if (data?.[0]) setTags(prev => [...prev, data[0]]);
   };
 
   const updateTag = async (id: string, updates: Partial<Tag>) => {
     const { error } = await adminDb.from('tags').update(updates).eq('id', id);
-    if (error) alert("Error updating tag: " + error.message);
+    must(error, 'Could not save the tag');
     setTags(prev => prev.map(t => t.id === id ? { ...t, ...updates } : t));
   };
 
   const removeTag = async (id: string) => {
     const { error } = await adminDb.from('tags').delete().eq('id', id);
-    if (error) alert("Error deleting tag: " + error.message);
+    must(error, 'Could not delete the tag');
     setTags(prev => prev.filter(t => t.id !== id));
   };
 
@@ -979,7 +954,8 @@ export const StudioProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       newOrder = movedTrack.globalOrder ?? 10;
     }
 
-    // 1. Optimistic update in React state
+    // 1. Optimistic update in React state (undone below if the server refuses)
+    const previousOrder = movedTrack.globalOrder;
     setTracks(prev => {
       const updated = prev.map(t => {
         if (t.id === movedTrack.id) {
@@ -995,17 +971,25 @@ export const StudioProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       });
     });
 
-    // 2. Persist to Supabase
+    // 2. Persist to Supabase. The screen used to keep the new order (and the page said "Saved") even when the
+    //    save failed, so the order jumped back after a reload.
+    let failure: string | null = null;
     try {
       const { error } = await adminDb
         .from('tracks')
         .update({ global_order: newOrder })
         .eq('id', movedTrack.id);
-      if (error) {
-        console.error('[STUDIO-ERROR] Failed to save track global_order:', error);
-      }
+      if (error) failure = error.message || 'the server refused';
     } catch (err) {
-      console.error('[STUDIO-ERROR] Error persisting track order:', err);
+      failure = (err as Error)?.message || 'network error';
+    }
+    if (failure) {
+      console.error('[STUDIO-ERROR] Failed to save track global_order:', failure);
+      setTracks(prev => prev.map(t => (t.id === movedTrack.id ? { ...t, globalOrder: previousOrder } : t)).sort((a, b) => {
+        if ((a.globalOrder ?? 0) !== (b.globalOrder ?? 0)) return (a.globalOrder ?? 0) - (b.globalOrder ?? 0);
+        return new Date(b.createdAt || b.date || 0).getTime() - new Date(a.createdAt || a.date || 0).getTime();
+      }));
+      throw new Error(`Could not save the new position: ${failure}`);
     }
   };
 
@@ -1038,107 +1022,85 @@ export const StudioProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     }
   };
 
-  const addAlbum = async (albumData: Partial<Album>) => {
+  // Album saves report what the server said instead of silently doing nothing (the admin page used to close
+  // the editor and drop what was typed even when the save had failed).
+  const albumRequest = async (url: string, init: RequestInit): Promise<any> => {
+    let res: Response;
     try {
-      const res = await fetch('/api/albums', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(albumData),
-      });
-      if (res.ok) {
-        const json = await res.json();
-        if (json.album) {
-          setAlbums(prev => {
-            const next = [json.album, ...prev.filter(a => a.id !== json.album.id)];
-            next.sort((a, b) => (a.orderIndex ?? 0) - (b.orderIndex ?? 0));
-            return next;
-          });
-          try {
-            const bc = new BroadcastChannel('4andone_sync');
-            bc.postMessage({ type: 'SYNC_ALBUMS' });
-            bc.close();
-          } catch (e) {}
-          return json.album;
-        }
-      }
-    } catch (e) {
-      console.error('addAlbum failed:', e);
+      res = await fetch(url, init);
+    } catch {
+      throw new Error('No connection to the server. Check the internet and try again.');
     }
+    const json = await res.json().catch(() => null);
+    if (!res.ok) throw new Error(json?.error || `The server refused the request (${res.status}).`);
+    return json;
+  };
+  const syncAlbumsToOtherTabs = () => {
+    try {
+      const bc = new BroadcastChannel('4andone_sync');
+      bc.postMessage({ type: 'SYNC_ALBUMS' });
+      bc.close();
+    } catch (e) {}
+  };
+
+  const addAlbum = async (albumData: Partial<Album>) => {
+    const json = await albumRequest('/api/albums', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(albumData),
+    });
+    if (!json?.album) throw new Error('The album was not saved.');
+    setAlbums(prev => {
+      const next = [json.album, ...prev.filter(a => a.id !== json.album.id)];
+      next.sort((a, b) => (a.orderIndex ?? 0) - (b.orderIndex ?? 0));
+      return next;
+    });
+    syncAlbumsToOtherTabs();
+    return json.album as Album;
   };
 
   const updateAlbum = async (id: string, updates: Partial<Album>) => {
-    try {
-      const res = await fetch('/api/albums', {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ id, ...updates }),
-      });
-      if (res.ok) {
-        const json = await res.json();
-        if (json.album) {
-          setAlbums(prev => prev.map(a => a.id === id ? json.album : a));
-          try {
-            const bc = new BroadcastChannel('4andone_sync');
-            bc.postMessage({ type: 'SYNC_ALBUMS' });
-            bc.close();
-          } catch (e) {}
-        }
-      }
-    } catch (e) {
-      console.error('updateAlbum failed:', e);
-    }
+    const json = await albumRequest('/api/albums', {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ id, ...updates }),
+    });
+    if (json?.album) setAlbums(prev => prev.map(a => a.id === id ? json.album : a));
+    syncAlbumsToOtherTabs();
   };
 
   const deleteAlbum = async (id: string) => {
-    try {
-      const res = await fetch(`/api/albums?id=${encodeURIComponent(id)}`, {
-        method: 'DELETE',
-      });
-      if (res.ok) {
-        setAlbums(prev => prev.filter(a => a.id !== id));
-        try {
-          const bc = new BroadcastChannel('4andone_sync');
-          bc.postMessage({ type: 'SYNC_ALBUMS' });
-          bc.close();
-        } catch (e) {}
-      }
-    } catch (e) {
-      console.error('deleteAlbum failed:', e);
-    }
+    await albumRequest(`/api/albums?id=${encodeURIComponent(id)}`, { method: 'DELETE' });
+    setAlbums(prev => prev.filter(a => a.id !== id));
+    syncAlbumsToOtherTabs();
   };
 
   const reorderAlbums = async (albumIds: string[]) => {
-    try {
-      setAlbums(prev => {
-        const map = new Map(prev.map(a => [a.id, a]));
-        const next: Album[] = [];
-        albumIds.forEach((id, idx) => {
-          const album = map.get(id);
-          if (album) {
-            next.push({ ...album, orderIndex: idx });
-            map.delete(id);
-          }
-        });
-        map.forEach(a => next.push({ ...a, orderIndex: next.length }));
-        return next;
+    const before = albums;
+    setAlbums(prev => {
+      const map = new Map(prev.map(a => [a.id, a]));
+      const next: Album[] = [];
+      albumIds.forEach((id, idx) => {
+        const album = map.get(id);
+        if (album) {
+          next.push({ ...album, orderIndex: idx });
+          map.delete(id);
+        }
       });
-
-      const res = await fetch('/api/albums/reorder', {
+      map.forEach(a => next.push({ ...a, orderIndex: next.length }));
+      return next;
+    });
+    try {
+      const json = await albumRequest('/api/albums/reorder', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ albumIds }),
       });
-      if (res.ok) {
-        const json = await res.json();
-        if (json.albums) setAlbums(json.albums);
-        try {
-          const bc = new BroadcastChannel('4andone_sync');
-          bc.postMessage({ type: 'SYNC_ALBUMS' });
-          bc.close();
-        } catch (e) {}
-      }
+      if (json?.albums) setAlbums(json.albums);
+      syncAlbumsToOtherTabs();
     } catch (e) {
-      console.error('reorderAlbums failed:', e);
+      setAlbums(before); // the new order was not saved: put the old one back
+      throw e;
     }
   };
 

@@ -28,6 +28,11 @@ const botTokens = () =>
 
 export const isUserSessionConfigured = () => botTokens().length > 0;
 
+/** Which environment variable each configured bot token comes from (for the admin status page; values never leave the server). */
+export const botTokenEntries = (): { env: string; token: string }[] =>
+  (['TELEGRAM_BOT_TOKEN', 'TELEGRAM_LOGIN_BOT_TOKEN', 'TELEGRAM_WEBAPP_BOT_TOKEN'] as const).flatMap(env =>
+    (process.env[env] || '').split(',').map(t => t.trim()).filter(Boolean).map(token => ({ env, token })));
+
 const sessionKey = () =>
   crypto.createHash('sha256').update(`4andone-user-session:${process.env.USER_SESSION_SECRET || botTokens()[0] || ''}`).digest();
 

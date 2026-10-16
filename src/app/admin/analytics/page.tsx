@@ -9,6 +9,7 @@ import { useStudio } from '@/components/admin/StudioProvider';
 import { supabase as realtime } from '@/utils/supabase';
 import { adminDb as supabase } from '@/lib/admin-db';
 import { adminDb } from '@/lib/admin-db';
+import AdminPageHeader from '@/components/admin/AdminPageHeader';
 import AdStatsPanel from '@/components/admin/AdStatsPanel';
 
 type Period = 'day' | 'week' | 'month' | 'year';
@@ -608,30 +609,17 @@ export default function AdminAnalytics() {
     <div className="admin-analytics animate-in">
 
       {/* Header */}
-      <div className="a-header">
-        <div>
-          <h2>Platform Insights</h2>
-          <p className="text-muted">Live visitor stats, audience & library data.</p>
-          {reportFeedback && (
-            <div style={{ fontSize: '12.5px', color: '#1db954', marginTop: '4px', fontWeight: 700 }}>
-              ✓ {reportFeedback}
-            </div>
-          )}
-        </div>
-        <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
-          <button 
-            className="btn-refresh glass" 
-            onClick={handleSendReport} 
-            disabled={isSendingReport}
-            title="Dispatch daily/monthly analytics report to 4andonestudio@gmail.com now"
-          >
-            <Mail size={15} /> {isSendingReport ? 'Sending...' : 'Email Report'}
-          </button>
-          <button className="btn-refresh glass" onClick={fetch_}>
-            <RefreshCw size={15} className={loading ? 'spin' : ''} /> Refresh
-          </button>
-        </div>
-      </div>
+      <AdminPageHeader icon={<BarChart3 size={22} />} title="Statistics" subtitle="Visitors, listeners, ads and library activity">
+        <button type="button" className="ap-btn" onClick={handleSendReport} disabled={isSendingReport} title="Send the analytics report to 4andonestudio@gmail.com now">
+          <Mail size={15} /> {isSendingReport ? 'Sending...' : 'Email report'}
+        </button>
+        <button type="button" className="ap-btn" onClick={fetch_}>
+          <RefreshCw size={15} className={loading ? 'spin' : ''} /> Refresh
+        </button>
+      </AdminPageHeader>
+      {reportFeedback && (
+        <div style={{ fontSize: '13px', color: '#1db954', margin: '-12px 0 16px', fontWeight: 700 }}>✓ {reportFeedback}</div>
+      )}
 
       {/* Ads & real visitors (page visits vs listeners vs ads shown) */}
       <AdStatsPanel />

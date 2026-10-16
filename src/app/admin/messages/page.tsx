@@ -1,6 +1,8 @@
 "use client";
 
 import { telegramPreviewHtml } from '@/utils/telegram-html';
+import { useFlash } from '@/hooks/useFlash';
+import { markInquiriesSeen } from '@/utils/adminInquiries';
 import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { adminDb as supabase } from '@/lib/admin-db';
 import { adminDb } from '@/lib/admin-db';
@@ -74,7 +76,8 @@ export default function AdminMessagesPage() {
   const [search, setSearch] = useState('');
   const [selectedTopic, setSelectedTopic] = useState<string>('all');
   const [isDeleting, setIsDeleting] = useState(false);
-  const [feedback, setFeedback] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
+  const [flash, say] = useFlash();
+  const feedback = flash && { type: (flash.kind === 'ok' ? 'success' : 'error') as 'success' | 'error', text: flash.text };
 
   const [deleteModal, setDeleteModal] = useState<{
     isOpen: boolean;
@@ -217,11 +220,11 @@ export default function AdminMessagesPage() {
       setMessages(formatted);
     } catch (err: any) {
       console.error('Failed to load contact messages:', err);
-      setFeedback({ type: 'error', text: `Failed to load messages: ${err.message}` });
+      say('error', `Failed to load messages: ${err.message}`);
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [say]);
 
   const fetchTgUsers = useCallback(async () => {
     setLoadingTgUsers(true);
@@ -231,15 +234,15 @@ export default function AdminMessagesPage() {
         .select('telegram_id, first_name, last_name, username, is_premium, premium_until')
         .order('visit_count', { ascending: false })
         .limit(1000);
-      if (!error && data) {
-        setTgUsers(data as TelegramUser[]);
-      }
+      if (error) throw error;
+      setTgUsers((data || []) as TelegramUser[]);
     } catch (err) {
       console.error('Failed to load telegram users', err);
+      say('error', `Could not load the Telegram user list: ${(err as Error).message}`);
     } finally {
       setLoadingTgUsers(false);
     }
-  }, []);
+  }, [say]);
 
   const [isCheckingBotStatus, setIsCheckingBotStatus] = useState<boolean>(false);
 
@@ -273,6 +276,16 @@ export default function AdminMessagesPage() {
       setIsCheckingBotStatus(false);
     }
   }, [tgUsers, botToken]);
+
+  // Overview links here with ?tab=incoming
+  useEffect(() => {
+    try { if (new URLSearchParams(window.location.search).get('tab') === 'incoming') setActiveTab('incoming'); } catch { /* ignore */ }
+  }, []);
+
+  // Looking at the inquiries clears the "new" badge in the sidebar
+  useEffect(() => {
+    if (activeTab === 'incoming' && !loading) markInquiriesSeen();
+  }, [activeTab, loading, messages.length]);
 
   useEffect(() => {
     fetchMessages();
@@ -394,11 +407,10 @@ export default function AdminMessagesPage() {
       }
 
       setMessages(prev => prev.filter(m => m.id !== targetId));
-      setFeedback({ type: 'success', text: 'Message deleted successfully.' });
-      setTimeout(() => setFeedback(null), 4000);
+      say('ok', 'Message deleted successfully.');
       setDeleteModal({ isOpen: false, message: null });
     } catch (err: any) {
-      alert(`Delete error: ${err.message}`);
+      say('error', `Delete error: ${err.message}`);
     } finally {
       setIsDeleting(false);
     }
@@ -407,7 +419,7 @@ export default function AdminMessagesPage() {
   const handleSendTelegram = async () => {
     if (!tgMessageText.trim()) return;
     if (sendTarget === 'selected' && selectedUserIds.length === 0) {
-      alert('გთხოვთ მონიშნოთ მინიმუმ 1 მომხმარებელი სიიდან (Please select at least 1 user).');
+      say('error', 'გთხოვთ მონიშნოთ მინიმუმ 1 მომხმარებელი სიიდან (Please select at least 1 user).');
       return;
     }
 
@@ -463,13 +475,9 @@ export default function AdminMessagesPage() {
         setKnownInactiveBotIds(prev => Array.from(new Set([...prev, ...data.failedIds.map(Number)])));
       }
 
-      setFeedback({ 
-        type: 'success', 
-        text: `Sent to ${data.sentCount} user(s). Failed: ${data.failedCount}.` 
-      });
-      setTimeout(() => setFeedback(null), 5000);
+      say(data.failedCount > 0 ? 'error' : 'ok', `Sent to ${data.sentCount} user(s). Failed: ${data.failedCount}.`);
     } catch (err: any) {
-      alert(`Send Error: ${err.message}`);
+      say('error', `Send Error: ${err.message}`);
     } finally {
       setIsSendingTg(false);
     }

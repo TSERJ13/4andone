@@ -326,13 +326,16 @@ export default function RootLayout({
   return (
     <html lang="en" suppressHydrationWarning>
       <head>
-        <link rel="preconnect" href="https://telegram.org" />
-        <link rel="dns-prefetch" href="https://telegram.org" />
-        <link rel="preconnect" href="https://oauth.telegram.org" />
         <meta name="google-site-verification" content="hmYQzKJ5eZK-N6rFBBDmqMyRCh3UtPeC8kjDeZyg-l4" />
         {/* AdSense script is loaded by <AdSenseLoader> (free users, public pages only) */}
         <meta name="google-adsense-account" content="ca-pub-2697205988789699" />
-        <script src="https://telegram.org/js/telegram-web-app.js" />
+        {/* Telegram's script is needed ONLY inside the Telegram Mini App. It used to load (and block
+            rendering) for every visitor; now it is added only when the page is opened from Telegram. */}
+        <script
+          dangerouslySetInnerHTML={{
+            __html: `(function(){try{var h=location.hash||'',w=window;if(h.indexOf('tgWebApp')>-1||w.TelegramWebviewProxy||w.TelegramWebview||/Telegram/i.test(navigator.userAgent)||sessionStorage.getItem('__telegram__initParams')){document.write('<script src="https://telegram.org/js/telegram-web-app.js"><\\/script>')}}catch(e){}})();`,
+          }}
+        />
         <script
           type="application/ld+json"
           dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLdSchema) }}
@@ -362,10 +365,6 @@ export default function RootLayout({
             gtag('config', 'G-YP8Z77FGX1');
           `}
         </Script>
-        <Script
-          src="https://telegram.org/js/telegram-web-app.js"
-          strategy="beforeInteractive"
-        />
       </body>
     </html>
 );

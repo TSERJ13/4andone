@@ -2,108 +2,25 @@ import { NextRequest, NextResponse } from 'next/server';
 import { supabase as publicClient } from '@/utils/supabase';
 import { requireAdmin } from '@/lib/admin-auth';
 import { getSupabaseAdmin } from '@/lib/supabase-admin';
+import { Album } from '@/types/album';
+import { albumToDbRow, builtInAlbums, isBuiltIn, loadAlbumState, mapDbToAlbum, slugify } from '@/lib/albums-store';
 
 // Album writes need the service role (the albums table is read-only for the public key).
-const supabase = getSupabaseAdmin() ?? publicClient;
-import { Album } from '@/types/album';
-import fs from 'fs';
-import path from 'path';
+const db = () => getSupabaseAdmin() ?? publicClient;
 
-const ALBUMS_FILE_PATH = path.join(process.cwd(), 'src', 'data', 'albums.json');
-
-function readLocalAlbums(): Album[] {
-  try {
-    if (fs.existsSync(ALBUMS_FILE_PATH)) {
-      const content = fs.readFileSync(ALBUMS_FILE_PATH, 'utf-8');
-      return JSON.parse(content);
-    }
-  } catch (e) {
-    console.error('Failed to read local albums.json:', e);
-  }
-  return [];
-}
-
-function writeLocalAlbums(albums: Album[]) {
-  try {
-    const dir = path.dirname(ALBUMS_FILE_PATH);
-    if (!fs.existsSync(dir)) {
-      fs.mkdirSync(dir, { recursive: true });
-    }
-    fs.writeFileSync(ALBUMS_FILE_PATH, JSON.stringify(albums, null, 2), 'utf-8');
-  } catch (e) {
-    console.error('Failed to write local albums.json:', e);
-  }
-}
-
-function mapDbToAlbum(row: any): Album {
-  return {
-    id: row.id,
-    slug: row.slug,
-    title: row.title,
-    artist: row.artist || '',
-    subtitle: row.subtitle || '',
-    description: row.description || '',
-    badge: row.badge || 'LIVE SOUNDS COLLECTION',
-    coverUrl: row.cover_url || '',
-    themeColor: row.theme_color || '#e11d48',
-    secondaryColor: row.secondary_color || '#be123c',
-    gradient: row.gradient || `linear-gradient(90deg, ${row.theme_color || '#e11d48'}, ${row.secondary_color || '#be123c'})`,
-    program: row.program || 'Both',
-    allowedStyles: row.allowed_styles || [],
-    tags: row.tags || [],
-    orderIndex: typeof row.order_index === 'number' ? row.order_index : 0,
-    isPublished: row.is_published !== false,
-    createdAt: row.created_at,
-    updatedAt: row.updated_at,
-  };
-}
-
-import { DEFAULT_ALBUMS } from '@/types/album';
-
-// Built-in albums (DEFAULT_ALBUMS + albums.json) shipped with the code.
-function builtInAlbums(): Album[] {
-  const albums = readLocalAlbums();
-  for (const defAlb of DEFAULT_ALBUMS) {
-    if (!albums.some(a => a.id === defAlb.id || a.slug === defAlb.slug)) {
-      albums.push(defAlb);
-    }
-  }
-  return albums;
-}
+const fail = (message: string, status = 500) => NextResponse.json({ error: message }, { status });
+const dbMessage = (e: { message?: string } | null | undefined, what: string) => `${what}: ${e?.message || 'the database refused it'}`;
 
 export async function GET() {
   try {
-    const localAlbums = builtInAlbums();
-
-    // 1. Supabase is the source of truth. A row with is_published = false is a
-    //    deleted album: it is hidden and also stops the built-in copy of the
-    //    same album from coming back ("deleted albums return" bug).
-    const { data: dbData, error } = await supabase
-      .from('albums')
-      .select('*')
-      .order('order_index', { ascending: true });
-
-    if (!error && dbData) {
-      const deletedSlugs = new Set(dbData.filter((r: any) => r.is_published === false).map((r: any) => r.slug));
-      const dbAlbums = dbData.filter((r: any) => r.is_published !== false).map(mapDbToAlbum);
-      // Built-in albums not saved in the DB yet (and not deleted) still show
-      for (const locAlb of localAlbums) {
-        if (deletedSlugs.has(locAlb.slug)) continue;
-        if (!dbAlbums.some(a => a.id === locAlb.id || a.slug === locAlb.slug)) {
-          dbAlbums.push(locAlb);
-        }
-      }
-      dbAlbums.sort((a, b) => (a.orderIndex ?? 0) - (b.orderIndex ?? 0));
-      return NextResponse.json({ albums: dbAlbums, source: 'supabase+builtin' });
-    }
-
-    // 2. Fallback to the built-in list
-    localAlbums.sort((a, b) => (a.orderIndex ?? 0) - (b.orderIndex ?? 0));
-    return NextResponse.json({ albums: localAlbums, source: 'local' });
+    // The database is the source of truth. A row with is_published = false is a deleted album: it is hidden and
+    // also stops the built-in copy of the same album from coming back.
+    const { albums } = await loadAlbumState(db());
+    return NextResponse.json({ albums, source: 'supabase+builtin' });
   } catch (err: any) {
-    const localAlbums = builtInAlbums();
-    localAlbums.sort((a, b) => (a.orderIndex ?? 0) - (b.orderIndex ?? 0));
-    return NextResponse.json({ albums: localAlbums, error: err.message, source: 'fallback' });
+    // The public site must keep working when the database is unreachable: show the built-in albums
+    const fallback = builtInAlbums().sort((a, b) => (a.orderIndex ?? 0) - (b.orderIndex ?? 0));
+    return NextResponse.json({ albums: fallback, error: err.message, source: 'fallback' });
   }
 }
 
@@ -112,100 +29,44 @@ export async function POST(req: NextRequest) {
   if (denied) return denied;
   try {
     const body = await req.json();
-    const {
+    const title = typeof body.title === 'string' ? body.title.trim() : '';
+    if (!title) return fail('Title is required', 400);
+    const slug = slugify(typeof body.slug === 'string' && body.slug.trim() ? body.slug : title);
+    if (!slug) return fail('The URL slug needs letters or numbers', 400);
+
+    const state = await loadAlbumState(db()).catch((e: Error) => { throw new Error(dbMessage(e, 'Could not read the albums')); });
+    if (state.albums.some(a => a.slug === slug) || state.dbSlugs.has(slug)) {
+      return fail(`Another album already uses the address "${slug}". Choose a different slug.`, 409);
+    }
+
+    // New albums go first in the carousel
+    const first = state.albums.length ? Math.min(...state.albums.map(a => a.orderIndex ?? 0)) : 0;
+    const themeColor = body.themeColor || '#e11d48';
+    const secondaryColor = body.secondaryColor || '#be123c';
+    const album: Album = {
+      id: '',
+      slug,
       title,
-      artist,
-      subtitle,
-      description,
-      badge,
-      coverUrl,
+      artist: (body.artist || title).trim(),
+      subtitle: (body.subtitle || '').trim(),
+      description: (body.description || body.subtitle || '').trim(),
+      badge: (body.badge || 'LIVE SOUNDS COLLECTION').trim(),
+      coverUrl: body.coverUrl || '/logo-square.jpg',
       themeColor,
       secondaryColor,
-      program,
-      allowedStyles,
-      tags,
-      orderIndex,
-    } = body;
-
-    if (!title) {
-      return NextResponse.json({ error: 'Title is required' }, { status: 400 });
-    }
-
-    // Generate slug from title if not explicitly provided
-    let slug = body.slug?.trim() || '';
-    if (!slug) {
-      slug = title
-        .toLowerCase()
-        .replace(/&/g, 'and')
-        .replace(/[^a-z0-9]+/g, '-')
-        .replace(/(^-|-$)+/g, '');
-    }
-
-    const localAlbums = readLocalAlbums();
-    const existingIndex = localAlbums.findIndex(a => a.slug === slug);
-    const newOrderIndex = typeof orderIndex === 'number' ? orderIndex : 0;
-
-    const newAlbum: Album = {
-      id: body.id || `album-${Date.now()}`,
-      slug,
-      title: title.trim(),
-      artist: (artist || title).trim(),
-      subtitle: (subtitle || '').trim(),
-      description: (description || subtitle || '').trim(),
-      badge: (badge || 'LIVE SOUNDS COLLECTION').trim(),
-      coverUrl: coverUrl || '/georgie-musheev.jpg',
-      themeColor: themeColor || '#e11d48',
-      secondaryColor: secondaryColor || '#be123c',
-      gradient: `linear-gradient(90deg, ${themeColor || '#e11d48'}, ${secondaryColor || '#be123c'})`,
-      program: program || 'Both',
-      allowedStyles: Array.isArray(allowedStyles) ? allowedStyles : [],
-      tags: Array.isArray(tags) ? tags : [title.toLowerCase()],
-      orderIndex: newOrderIndex,
+      gradient: `linear-gradient(90deg, ${themeColor}, ${secondaryColor})`,
+      program: body.program || 'Both',
+      allowedStyles: Array.isArray(body.allowedStyles) ? body.allowedStyles : [],
+      tags: Array.isArray(body.tags) ? body.tags : [title.toLowerCase()],
+      orderIndex: typeof body.orderIndex === 'number' && body.orderIndex !== 0 ? body.orderIndex : first - 1,
       isPublished: true,
-      createdAt: new Date().toISOString(),
     };
 
-    // Try Supabase insert
-    try {
-      await supabase.from('albums').upsert({
-        slug: newAlbum.slug,
-        title: newAlbum.title,
-        artist: newAlbum.artist,
-        subtitle: newAlbum.subtitle,
-        description: newAlbum.description,
-        badge: newAlbum.badge,
-        cover_url: newAlbum.coverUrl,
-        theme_color: newAlbum.themeColor,
-        secondary_color: newAlbum.secondaryColor,
-        gradient: newAlbum.gradient,
-        program: newAlbum.program,
-        allowed_styles: newAlbum.allowedStyles,
-        tags: newAlbum.tags,
-        order_index: newAlbum.orderIndex,
-        is_published: true,
-      }, { onConflict: 'slug' });
-    } catch (e) {
-      console.warn('Could not insert to supabase albums table (table might not exist yet):', e);
-    }
-
-    // Always update local JSON file
-    if (existingIndex >= 0) {
-      localAlbums[existingIndex] = newAlbum;
-    } else {
-      // Put at start if orderIndex is 0
-      if (newOrderIndex === 0) {
-        localAlbums.forEach(a => { a.orderIndex = (a.orderIndex ?? 0) + 1; });
-        localAlbums.unshift(newAlbum);
-      } else {
-        localAlbums.push(newAlbum);
-      }
-    }
-    localAlbums.sort((a, b) => (a.orderIndex ?? 0) - (b.orderIndex ?? 0));
-    writeLocalAlbums(localAlbums);
-
-    return NextResponse.json({ album: newAlbum, success: true });
+    const { data, error } = await db().from('albums').insert(albumToDbRow(album)).select('*').single();
+    if (error || !data) return fail(dbMessage(error, 'The album was not saved'));
+    return NextResponse.json({ album: mapDbToAlbum(data), success: true });
   } catch (err: any) {
-    return NextResponse.json({ error: err.message }, { status: 500 });
+    return fail(err.message);
   }
 }
 
@@ -214,59 +75,41 @@ export async function PUT(req: NextRequest) {
   if (denied) return denied;
   try {
     const body = await req.json();
-    const { id, slug, ...updates } = body;
+    const { id, slug: requestedSlug, ...updates } = body;
+    if (!id && !requestedSlug) return fail('id or slug is required', 400);
 
-    if (!id && !slug) {
-      return NextResponse.json({ error: 'id or slug is required' }, { status: 400 });
+    const state = await loadAlbumState(db()).catch((e: Error) => { throw new Error(dbMessage(e, 'Could not read the albums')); });
+    const existing = state.albums.find(a => (id && a.id === id) || (!id && a.slug === requestedSlug)) || state.albums.find(a => a.slug === requestedSlug);
+    if (!existing) return fail('Album not found. Reload the page and try again.', 404);
+
+    // The address can be changed for your own albums; built-in ones keep theirs (their link is in the code)
+    let slug = existing.slug;
+    if (typeof requestedSlug === 'string' && requestedSlug.trim() && slugify(requestedSlug) !== existing.slug) {
+      if (isBuiltIn(existing.slug)) return fail('The address of a built-in album cannot be changed.', 400);
+      slug = slugify(requestedSlug);
+      if (state.albums.some(a => a.slug === slug) || state.dbSlugs.has(slug)) return fail(`Another album already uses the address "${slug}".`, 409);
     }
 
-    const localAlbums = readLocalAlbums();
-    const targetIdx = localAlbums.findIndex(a => a.id === id || a.slug === slug);
-    if (targetIdx === -1) {
-      return NextResponse.json({ error: 'Album not found' }, { status: 404 });
-    }
-
-    const existing = localAlbums[targetIdx];
     const themeColor = updates.themeColor || existing.themeColor;
     const secondaryColor = updates.secondaryColor || existing.secondaryColor || '#be123c';
-
-    const updatedAlbum: Album = {
+    const merged: Album = {
       ...existing,
       ...updates,
+      slug,
       gradient: updates.gradient || `linear-gradient(90deg, ${themeColor}, ${secondaryColor})`,
-      updatedAt: new Date().toISOString(),
+      isPublished: true,
     };
+    const row = { ...albumToDbRow(merged), updated_at: new Date().toISOString() };
 
-    localAlbums[targetIdx] = updatedAlbum;
-    localAlbums.sort((a, b) => (a.orderIndex ?? 0) - (b.orderIndex ?? 0));
-    writeLocalAlbums(localAlbums);
-
-    // Try Supabase update
-    try {
-      await supabase.from('albums').update({
-        title: updatedAlbum.title,
-        artist: updatedAlbum.artist,
-        subtitle: updatedAlbum.subtitle,
-        description: updatedAlbum.description,
-        badge: updatedAlbum.badge,
-        cover_url: updatedAlbum.coverUrl,
-        theme_color: updatedAlbum.themeColor,
-        secondary_color: updatedAlbum.secondaryColor,
-        gradient: updatedAlbum.gradient,
-        program: updatedAlbum.program,
-        allowed_styles: updatedAlbum.allowedStyles,
-        tags: updatedAlbum.tags,
-        order_index: updatedAlbum.orderIndex,
-        is_published: updatedAlbum.isPublished,
-        updated_at: new Date().toISOString(),
-      }).eq('slug', existing.slug);
-    } catch (e) {
-      console.warn('Could not update supabase albums:', e);
-    }
-
-    return NextResponse.json({ album: updatedAlbum, success: true });
+    // Own albums already have a row; a built-in album gets its first row when it is first saved
+    const query = state.dbSlugs.has(existing.slug)
+      ? db().from('albums').update(row).eq('slug', existing.slug)
+      : db().from('albums').upsert(row, { onConflict: 'slug' });
+    const { data, error } = await query.select('*').single();
+    if (error || !data) return fail(dbMessage(error, 'The changes were not saved'));
+    return NextResponse.json({ album: mapDbToAlbum(data), success: true });
   } catch (err: any) {
-    return NextResponse.json({ error: err.message }, { status: 500 });
+    return fail(err.message);
   }
 }
 
@@ -277,48 +120,22 @@ export async function DELETE(req: NextRequest) {
     const { searchParams } = new URL(req.url);
     const id = searchParams.get('id');
     const slug = searchParams.get('slug');
+    if (!id && !slug) return fail('id or slug is required', 400);
 
-    if (!id && !slug) {
-      return NextResponse.json({ error: 'id or slug is required' }, { status: 400 });
+    const state = await loadAlbumState(db()).catch((e: Error) => { throw new Error(dbMessage(e, 'Could not read the albums')); });
+    const target = state.albums.find(a => (id && a.id === id) || (slug && a.slug === slug));
+    if (!target) return NextResponse.json({ success: true }); // already gone
+
+    if (isBuiltIn(target.slug)) {
+      // A built-in album lives in the code: keep a hidden marker row so it stays deleted
+      const { error } = await db().from('albums').upsert({ slug: target.slug, title: target.title, is_published: false }, { onConflict: 'slug' });
+      if (error) return fail(dbMessage(error, 'Could not delete the album'));
+    } else {
+      const { error } = await db().from('albums').delete().eq('slug', target.slug);
+      if (error) return fail(dbMessage(error, 'Could not delete the album'));
     }
-
-    const localAlbums = readLocalAlbums();
-    const filtered = localAlbums.filter(a => a.id !== id && a.slug !== slug);
-    writeLocalAlbums(filtered);
-
-    // Which album is it? (by slug, or by id in the built-in list / the DB)
-    let targetSlug = slug;
-    let targetTitle = '';
-    const builtIn = builtInAlbums().find(a => (slug && a.slug === slug) || (id && a.id === id));
-    if (builtIn) {
-      targetSlug = builtIn.slug;
-      targetTitle = builtIn.title;
-    } else if (!targetSlug && id) {
-      const { data: row } = await supabase.from('albums').select('slug, title').eq('id', id).maybeSingle();
-      targetSlug = row?.slug ?? null;
-    }
-
-    try {
-      if (builtIn && targetSlug) {
-        // A built-in album lives in the code, so deleting the DB row is not
-        // enough — keep a hidden marker row so it stays deleted.
-        const { error: markErr } = await supabase.from('albums').upsert(
-          { slug: targetSlug, title: targetTitle || targetSlug, is_published: false },
-          { onConflict: 'slug' }
-        );
-        if (markErr) throw markErr;
-      } else if (targetSlug) {
-        await supabase.from('albums').delete().eq('slug', targetSlug);
-      } else if (id) {
-        await supabase.from('albums').delete().eq('id', id);
-      }
-    } catch (e) {
-      console.warn('Could not delete from supabase albums:', e);
-      return NextResponse.json({ error: 'Could not delete the album' }, { status: 500 });
-    }
-
     return NextResponse.json({ success: true });
   } catch (err: any) {
-    return NextResponse.json({ error: err.message }, { status: 500 });
+    return fail(err.message);
   }
 }

@@ -1,147 +1,120 @@
 "use client";
 
-import React from 'react';
-import { 
-  Shield, 
-  Server, 
-  Globe, 
-  Lock, 
-  Cloud 
-} from 'lucide-react';
-import { useStudio } from '@/components/admin/StudioProvider';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import { Settings, CheckCircle2, XCircle, MinusCircle, RefreshCw, Activity, Loader2 } from 'lucide-react';
+import AdminPageHeader from '@/components/admin/AdminPageHeader';
 
-export default function AdminSettings() {
-  const { tracks } = useStudio();
-  
-  // Estimate: 5 MB per track (avg for 3-minute 192kbps MP3s)
-  const estimatedBytesPerTrack = 5 * 1024 * 1024;
-  const totalBytes = tracks.length * estimatedBytesPerTrack;
-  const usedGB = totalBytes / (1024 ** 3);
-  const maxGB = 10; // Cloudflare Free Tier
-  const percentUsed = Math.min(100, Math.max(0, (usedGB / maxGB) * 100));
+type Check = { group: string; id: string; label: string; ok: boolean; required: boolean; detail?: string; hint?: string };
+type Health = { live: boolean; checks: Check[]; issues: number; warnings: number };
 
-  const sections = [
-    { title: 'General Settings', icon: <Globe size={20} />, description: 'Platform language, timezone, and regional defaults.' },
-    { title: 'Admin Controls', icon: <Shield size={20} />, description: 'Manage permissions, access logs, and security protocols.' },
-    { title: 'Server & Storage', icon: <Server size={20} />, description: 'Supabase configuration, CDN settings, and bucket quotas.' },
-    { title: 'AI Configuration', icon: <Cloud size={20} />, description: 'Adjust vocal removal parameters and batch processing limits.' },
-  ];
+/**
+ * What the site needs to work, and whether it has it. The first list only reads which server settings are
+ * SET (values are never shown). "Run live tests" also talks to the database, Telegram and PayPal.
+ */
+export default function AdminSettingsPage() {
+  const [health, setHealth] = useState<Health | null>(null);
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const load = useCallback(async (live: boolean) => {
+    setBusy(true);
+    setError(null);
+    try {
+      const res = await fetch(`/api/admin/health${live ? '?live=1' : ''}`, { credentials: 'same-origin', cache: 'no-store' });
+      if (!res.ok) throw new Error(res.status === 401 ? 'Please log in again' : `Request failed (${res.status})`);
+      setHealth(await res.json());
+    } catch (e) {
+      setError((e as Error).message);
+    } finally {
+      setBusy(false);
+    }
+  }, []);
+
+  // eslint-disable-next-line react-hooks/set-state-in-effect -- initial load
+  useEffect(() => { load(false); }, [load]);
+
+  const groups = useMemo(() => {
+    const map = new Map<string, Check[]>();
+    (health?.checks || []).forEach(c => { (map.get(c.group) || map.set(c.group, []).get(c.group)!).push(c); });
+    return [...map.entries()];
+  }, [health]);
+
+  const issues = health?.issues ?? 0;
+  const warnings = health?.warnings ?? 0;
 
   return (
-    <div className="admin-settings animate-in">
-      <div className="settings-actions-row">
-        <div className="header-info">
-          <h2>Global Configuration</h2>
-          <p className="text-secondary">Configuration overview. Editing settings here is not available yet.</p>
-        </div>
-        <button className="btn-primary" disabled>
-          Read-only overview
+    <div className="st animate-in">
+      <AdminPageHeader icon={<Settings size={22} />} title="System & Settings" subtitle="Is everything the site needs set up?">
+        <button type="button" className="ap-btn" onClick={() => load(false)} disabled={busy}><RefreshCw size={16} className={busy ? 'st-spin' : ''} /> Refresh</button>
+        <button type="button" className="ap-btn primary" onClick={() => load(true)} disabled={busy}>
+          {busy ? <Loader2 size={16} className="st-spin" /> : <Activity size={16} />} Run live tests
         </button>
-      </div>
+      </AdminPageHeader>
 
-      <div className="storage-card glass">
-        <div className="section-header">
-          <Cloud size={20} className="text-primary" />
-          <h3>Estimated audio storage</h3>
-        </div>
-        <div className="storage-info">
-          <div className="storage-text">
-            <span className="font-bold text-white">{usedGB.toFixed(2)} GB estimated</span>
-            <span className="text-secondary">Based on 5 MB per track</span>
-          </div>
-          <div className="storage-bar-wrap">
-            <div className="storage-bar" style={{ width: `${percentUsed}%` }} />
+      {error && <p className="st-error">{error}</p>}
+
+      {health && (
+        <div className={`st-summary ${issues > 0 ? 'bad' : warnings > 0 ? 'warn' : 'good'}`}>
+          {issues > 0 ? <XCircle size={22} /> : <CheckCircle2 size={22} />}
+          <div>
+            <strong>{issues > 0 ? `${issues} required ${issues === 1 ? 'setting is' : 'settings are'} missing or failing` : 'Everything required is set up'}</strong>
+            <span>{warnings > 0 ? `${warnings} optional ${warnings === 1 ? 'item is' : 'items are'} not set.` : 'No optional items missing.'}{!health.live && ' Press "Run live tests" to also test the connections.'}</span>
           </div>
         </div>
-      </div>
+      )}
 
-      <div className="settings-grid">
-        {sections.map((section) => (
-          <div key={section.title} className="settings-card glass">
-            <div className="card-top">
-              <div className="icon-wrapper glass">
-                {section.icon}
-              </div>
-              <div className="title-info">
-                <h3>{section.title}</h3>
-                <p className="text-secondary">{section.description}</p>
-              </div>
-            </div>
-            <div className="card-actions">
-              <button className="btn-secondary glass" disabled>Not available yet</button>
-            </div>
-          </div>
-        ))}
-      </div>
+      {groups.map(([group, checks]) => (
+        <section key={group} className="st-group glass">
+          <h2>{group}</h2>
+          <ul>
+            {checks.map(c => (
+              <li key={c.id} className={c.ok ? 'ok' : c.required ? 'bad' : 'opt'}>
+                <span className="st-icon">{c.ok ? <CheckCircle2 size={18} /> : c.required ? <XCircle size={18} /> : <MinusCircle size={18} />}</span>
+                <span className="st-text">
+                  <strong>{c.label}</strong>
+                  <span>
+                    {c.detail || (c.ok ? 'Set' : c.required ? 'Missing' : 'Not set (optional)')}
+                    {!c.ok && c.hint && <em> — {c.hint}</em>}
+                    {c.ok && c.hint && <em> — {c.hint}</em>}
+                  </span>
+                </span>
+                {c.required && <span className="st-tag">required</span>}
+              </li>
+            ))}
+          </ul>
+        </section>
+      ))}
 
-      <div className="danger-zone glass">
-        <div className="section-header">
-          <Lock size={20} className="text-danger" />
-          <h3 className="text-danger">Danger Zone</h3>
-        </div>
-        <div className="danger-content">
-          <p className="text-secondary">Permanently delete all tracks, reset database, or wipe CDN caches. These actions cannot be undone.</p>
-          <button className="btn-danger" disabled>Reset unavailable</button>
-        </div>
-      </div>
+      <p className="st-note">
+        Server settings are changed in Vercel → Project → Settings → Environment Variables, then Redeploy. Secrets are never shown here, only whether they are set.
+      </p>
 
       <style jsx>{`
-        .admin-settings { display: flex; flex-direction: column; gap: 32px; padding-bottom: 120px; }
-        
-        .settings-actions-row {
-          display: flex; align-items: center; justify-content: space-between;
-        }
-
-        .header-info h2 { font-size: 22px; font-weight: 800; margin-bottom: 4px; }
-
-        .settings-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: 24px; }
-        .settings-card { padding: 32px; border-radius: 24px; display: flex; flex-direction: column; gap: 32px; height: 100%; transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1); }
-        .settings-card:hover { transform: translateY(-4px); background: rgba(255,255,255,0.05); }
-
-        .card-top { display: flex; gap: 20px; align-items: flex-start; }
-        .icon-wrapper { width: 48px; height: 48px; border-radius: 12px; display: flex; align-items: center; justify-content: center; color: #1db954; }
-        
-        .title-info h3 { font-size: 18px; font-weight: 800; margin-bottom: 8px; }
-        .title-info p { font-size: 14px; line-height: 1.5; }
-
-        .card-actions { margin-top: auto; }
-        .btn-secondary { padding: 8px 20px; border-radius: 10px; font-size: 12px; font-weight: 700; }
-
-        .storage-card { padding: 32px; border-radius: 24px; margin-bottom: 32px; }
-        .storage-info { margin-top: 16px; }
-        .storage-text { display: flex; justify-content: space-between; font-size: 14px; margin-bottom: 12px; }
-        .storage-bar-wrap { height: 8px; background: rgba(255,255,255,0.05); border-radius: 4px; overflow: hidden; }
-        .storage-bar { height: 100%; background: #1db954; border-radius: 4px; transition: width 0.5s ease; }
-        .font-bold { font-weight: 700; }
-        .text-white { color: #ffffff; }
-
-        .danger-zone { padding: 40px; border-radius: 28px; border: 1px solid rgba(239, 68, 68, 0.2); background: rgba(239, 68, 68, 0.05); }
-        .section-header { display: flex; align-items: center; gap: 12px; margin-bottom: 16px; }
-        .danger-content { display: flex; align-items: center; justify-content: space-between; gap: 40px; flex-wrap: wrap; }
-        .btn-danger { background: #ef4444; color: white; padding: 12px 24px; border-radius: 12px; font-weight: 800; font-size: 14px; transition: all 0.2s; }
-        .btn-danger:hover { background: #dc2626; transform: scale(1.05); }
-
-        .text-danger { color: #ef4444; }
-        .text-secondary { color: #a1a1aa; }
-
-        .animate-in { animation: animateIn 0.5s cubic-bezier(0.4, 0, 0.2, 1); }
-        @keyframes animateIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
-
-        @media (max-width: 640px) {
-          .admin-settings { gap: 20px; padding-bottom: 80px; }
-          .settings-actions-row { flex-direction: column; align-items: stretch; gap: 12px; }
-          .settings-actions-row .btn-primary { width: 100%; height: 42px; justify-content: center; }
-          .storage-card { padding: 16px; border-radius: 16px; margin-bottom: 0; }
-          .settings-grid { grid-template-columns: 1fr; gap: 12px; }
-          .settings-card { padding: 16px; border-radius: 16px; gap: 16px; }
-          .card-top { gap: 12px; }
-          .icon-wrapper { width: 40px; height: 40px; border-radius: 10px; }
-          .title-info h3 { font-size: 16px; }
-          .title-info p { font-size: 12.5px; }
-          .danger-zone { padding: 18px; border-radius: 18px; }
-          .danger-content { gap: 14px; }
-          .btn-danger { width: 100%; text-align: center; justify-content: center; }
-        }
+        .st { width: 100%; max-width: 900px; margin: 0 auto; }
+        .st-error { margin: 0 0 14px; padding: 10px 14px; border-radius: 12px; background: rgba(239,68,68,0.12); color: #fca5a5; font-size: 14px; }
+        .st-summary { display: flex; align-items: center; gap: 14px; padding: 16px 18px; border-radius: 16px; margin-bottom: 18px; border: 1px solid rgba(255,255,255,0.1); }
+        .st-summary div { display: flex; flex-direction: column; gap: 2px; font-size: 13px; color: #a1a1aa; }
+        .st-summary strong { color: #fff; font-size: 15.5px; }
+        .st-summary.good { border-color: rgba(34,197,94,0.4); background: rgba(34,197,94,0.07); color: #4ade80; }
+        .st-summary.warn { border-color: rgba(245,158,11,0.4); background: rgba(245,158,11,0.07); color: #fbbf24; }
+        .st-summary.bad { border-color: rgba(239,68,68,0.5); background: rgba(239,68,68,0.08); color: #f87171; }
+        .st-group { padding: 6px 18px 10px; border-radius: 18px; margin-bottom: 14px; border: 1px solid rgba(255,255,255,0.06); }
+        .st-group h2 { margin: 12px 0 4px; font-size: 12px; font-weight: 800; letter-spacing: 1.2px; text-transform: uppercase; color: #71717a; }
+        .st-group ul { list-style: none; margin: 0; padding: 0; }
+        .st-group li { display: flex; align-items: flex-start; gap: 12px; padding: 11px 0; border-top: 1px solid rgba(255,255,255,0.05); }
+        .st-group li:first-child { border-top: none; }
+        .st-icon { margin-top: 1px; flex-shrink: 0; }
+        li.ok .st-icon { color: #4ade80; }
+        li.bad .st-icon { color: #f87171; }
+        li.opt .st-icon { color: #71717a; }
+        .st-text { display: flex; flex-direction: column; gap: 2px; flex: 1; min-width: 0; font-size: 13px; color: #a1a1aa; line-height: 1.45; }
+        .st-text strong { color: #fff; font-size: 14.5px; }
+        .st-text em { font-style: normal; color: #8b8b94; }
+        li.bad .st-text span { color: #fca5a5; }
+        .st-tag { font-size: 10.5px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.6px; color: #71717a; border: 1px solid rgba(255,255,255,0.12); border-radius: 999px; padding: 2px 8px; flex-shrink: 0; }
+        .st-note { margin: 16px 2px 0; font-size: 12.5px; color: #71717a; line-height: 1.5; }
+        :global(.st-spin) { animation: stSpin 0.9s linear infinite; }
+        @keyframes stSpin { to { transform: rotate(360deg); } }
       `}</style>
     </div>
   );

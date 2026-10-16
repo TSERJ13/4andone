@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { 
   Plus, 
   Search, 
@@ -10,6 +10,7 @@ import {
   Activity,
   Filter,
   CheckCircle2,
+  AlertTriangle,
   FolderPlus,
   Play,
   Pause,
@@ -24,9 +25,12 @@ import {
   X as XIcon,
   CheckSquare,
   Square,
-  Upload
+  Upload,
+  Music
 } from 'lucide-react';
 import Link from 'next/link';
+import AdminPageHeader from '@/components/admin/AdminPageHeader';
+import { useFlash } from '@/hooks/useFlash';
 import AddTrackModal from '@/components/admin/AddTrackModal';
 import ConfirmModal from '@/components/admin/ConfirmModal';
 import { useAudioControls } from '@/components/audio/AudioProvider';
@@ -52,32 +56,39 @@ const AdminLibrary = () => {
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
   const [trackToDelete, setTrackToDelete] = useState<Track | null>(null);
-  const [toast, setToast] = useState<string | null>(null);
+  const [flash, say] = useFlash();
+  const toast = flash ? { text: flash.text, kind: flash.kind } : null;
   // BULK TAGGING: track which rows are selected so tags can be applied to many
   // tracks at once (instead of editing each track individually).
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [bulkBusy, setBulkBusy] = useState(false);
 
-  const showToast = (message: string) => {
-    setToast(message);
-    setTimeout(() => setToast(null), 3000);
-  };
+  const showToast = (message: string, kind: 'ok' | 'error' = 'ok') => say(kind, message);
 
-  const handleAddTrack = (newTrack: any) => {
-    addTrack(newTrack);
-    showToast(`Successfully added "${newTrack.title}"`);
-  };
+  // Overview → "Add track" opens the editor straight away (/admin/library?add=1)
+  useEffect(() => {
+    if (new URLSearchParams(window.location.search).get('add') === '1') {
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- open once from the link
+      setIsAddModalOpen(true);
+      window.history.replaceState(null, '', '/admin/library');
+    }
+  }, []);
 
   const handleDelete = (track: Track) => {
     setTrackToDelete(track);
     setIsDeleteModalOpen(true);
   };
 
-  const confirmDelete = () => {
-    if (trackToDelete) {
-      removeTrack(trackToDelete.id);
-      showToast(`Deleted: ${trackToDelete.title}`);
-      setTrackToDelete(null);
+  // The message said "Deleted" even when the server refused (the call was not awaited).
+  const confirmDelete = async () => {
+    if (!trackToDelete) return;
+    const track = trackToDelete;
+    setTrackToDelete(null);
+    try {
+      await removeTrack(track.id);
+      showToast(`Deleted: ${track.title}`);
+    } catch (e) {
+      showToast(`Could not delete "${track.title}": ${(e as Error)?.message || 'error'}`, 'error');
     }
   };
 
@@ -121,7 +132,7 @@ const AdminLibrary = () => {
       );
       clearSelection();
     } catch (e: any) {
-      showToast(`Bulk tag failed: ${e?.message || 'error'}`);
+      showToast(`Bulk tag failed: ${e?.message || 'error'}`, 'error');
     } finally {
       setBulkBusy(false);
     }
@@ -155,8 +166,12 @@ const AdminLibrary = () => {
     setDraggedTrackId(null);
     if (sourceId && sourceId !== targetTrackId) {
       const draggedTrack = tracks.find(t => t.id === sourceId);
-      await reorderTracks(sourceId, targetTrackId, filteredTracks);
-      showToast(`Saved position for "${draggedTrack?.title || 'track'}"`);
+      try {
+        await reorderTracks(sourceId, targetTrackId, filteredTracks);
+        showToast(`Saved position for "${draggedTrack?.title || 'track'}"`);
+      } catch (err) {
+        showToast((err as Error).message, 'error');
+      }
     }
   };
 
@@ -214,12 +229,22 @@ const AdminLibrary = () => {
   return (
     <div className="admin-library animate-in">
       {toast && (
-        <div className="toast-notification animate-in">
-          <CheckCircle2 size={18} />
-          <span>{toast}</span>
+        <div className={`toast-notification animate-in ${toast.kind === 'error' ? 'is-error' : ''}`} role={toast.kind === 'error' ? 'alert' : 'status'}>
+          {toast.kind === 'error' ? <AlertTriangle size={18} /> : <CheckCircle2 size={18} />}
+          <span>{toast.text}</span>
         </div>
       )}
 
+        <AdminPageHeader
+          icon={<Music size={22} />}
+          title="Music Library"
+          subtitle={`${tracks.length} tracks${filteredTracks.length !== tracks.length ? ` · ${filteredTracks.length} shown` : ''}`}
+        >
+          <Link href="/admin/upload" className="ap-btn"><Upload size={16} /> Bulk upload</Link>
+          <button type="button" className="ap-btn primary" onClick={() => { setSelectedTrack(null); setIsAddModalOpen(true); }}>
+            <Plus size={16} /> Add track
+          </button>
+        </AdminPageHeader>
         <div className="library-header-row">
           <div className="search-bar glass">
             <Search size={18} />
@@ -229,19 +254,6 @@ const AdminLibrary = () => {
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
             />
-          </div>
-          <div style={{ display: 'flex', gap: '10px' }}>
-            <Link href="/admin/dashboard" className="btn-secondary glass" style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '10px 18px', borderRadius: '12px', color: 'white', textDecoration: 'none', fontSize: '14px', fontWeight: 700, border: '1px solid rgba(255,255,255,0.1)' }}>
-              <Upload size={16} />
-              <span>Bulk Upload</span>
-            </Link>
-            <button className="btn-primary" onClick={() => {
-              setSelectedTrack(null);
-              setIsAddModalOpen(true);
-            }}>
-              <Plus size={18} />
-              Add Track
-            </button>
           </div>
         </div>
         <div className="breadcrumb-nav glass">
@@ -443,8 +455,10 @@ const AdminLibrary = () => {
                             onClick={async (e) => {
                               e.stopPropagation();
                               if (i > 0) {
-                                await moveTrack(track.id, 'up', filteredTracks);
-                                showToast(`Moved up: "${track.title}"`);
+                                try {
+                                  await moveTrack(track.id, 'up', filteredTracks);
+                                  showToast(`Moved up: "${track.title}"`);
+                                } catch (err) { showToast((err as Error).message, 'error'); }
                               }
                             }}
                           >
@@ -458,8 +472,10 @@ const AdminLibrary = () => {
                             onClick={async (e) => {
                               e.stopPropagation();
                               if (i < filteredTracks.length - 1) {
-                                await moveTrack(track.id, 'down', filteredTracks);
-                                showToast(`Moved down: "${track.title}"`);
+                                try {
+                                  await moveTrack(track.id, 'down', filteredTracks);
+                                  showToast(`Moved down: "${track.title}"`);
+                                } catch (err) { showToast((err as Error).message, 'error'); }
                               }
                             }}
                           >
@@ -573,7 +589,7 @@ const AdminLibrary = () => {
             // Adding new
             await addTrack(newTrack);
           }
-          showToast(selectedTrack ? `Repaired "${newTrack.title}"` : `Added "${newTrack.title}"`);
+          showToast(selectedTrack ? `Saved changes to "${newTrack.title}"` : `Added "${newTrack.title}"`);
         }}
         initialData={selectedTrack}
       />
@@ -609,6 +625,12 @@ const AdminLibrary = () => {
           font-weight: 700;
           z-index: 3000;
           box-shadow: 0 8px 24px rgba(29, 185, 84, 0.4);
+          max-width: min(560px, calc(100vw - 32px));
+        }
+        .toast-notification.is-error {
+          background: #ef4444;
+          color: #fff;
+          box-shadow: 0 8px 24px rgba(239, 68, 68, 0.45);
         }
 
         .library-header-row {

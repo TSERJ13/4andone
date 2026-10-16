@@ -1,5 +1,6 @@
 "use client";
 
+import AdminPageHeader from '@/components/admin/AdminPageHeader';
 import React, { useState, useEffect, useCallback } from 'react';
 import { Users, Globe, Clock, TrendingUp, RefreshCw, Calendar, MessageCircle } from 'lucide-react';
 import { adminDb as supabase } from '@/lib/admin-db';
@@ -166,15 +167,11 @@ export default function AdminUsersPage() {
     <div className="users-page animate-in">
 
       {/* Header */}
-      <div className="page-header">
-        <div>
-          <h1>Users</h1>
-          <p className="text-muted">Telegram authenticated visitors and their activity.</p>
-        </div>
-        <button className="btn-refresh glass" onClick={fetchData}>
+      <AdminPageHeader icon={<Users size={22} />} title="Users" subtitle="Telegram-authenticated listeners and anonymous visitors">
+        <button type="button" className="ap-btn" onClick={fetchData}>
           <RefreshCw size={15} className={loading ? 'spin' : ''} /> Refresh
         </button>
-      </div>
+      </AdminPageHeader>
 
       {/* Summary cards */}
       <div className="summary-row">

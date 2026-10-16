@@ -124,7 +124,12 @@ const PlaylistPage = () => {
                 message: `Are you sure you want to delete "${folder.name}"?`,
                 onConfirm: async () => {
                   setInfoModal(prev => ({ ...prev, isOpen: false }));
-                  await removeFolder(id as string);
+                  try {
+                    await removeFolder(id as string);
+                  } catch (err) {
+                    setInfoModal({ isOpen: true, title: 'Could not delete the playlist', message: (err as Error).message, onConfirm: () => setInfoModal(prev => ({ ...prev, isOpen: false })) });
+                    return;
+                  }
                   router.push('/library');
                 }
               });
@@ -155,7 +160,10 @@ const PlaylistPage = () => {
               extraAction={id !== 'favorites' ? (
                 <button
                   className="remove-track-action"
-                  onClick={(e) => { e.stopPropagation(); removeTrackFromFolder(id as string, track.id); }}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    removeTrackFromFolder(id as string, track.id).catch((err: Error) => setInfoModal({ isOpen: true, title: 'Could not remove the track', message: err.message, onConfirm: () => setInfoModal(prev => ({ ...prev, isOpen: false })) }));
+                  }}
                   title="Remove from playlist"
                 >
                   <X size={16} />

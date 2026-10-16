@@ -4,6 +4,9 @@ import { NextRequest, NextResponse } from 'next/server';
 import { requireAdmin } from '@/lib/admin-auth';
 import { getSupabaseAdmin, serviceRoleMissing } from '@/lib/supabase-admin';
 
+// A big broadcast sends one message at a time: give it the longest time the host allows
+export const maxDuration = 60;
+
 export async function POST(req: NextRequest) {
   const denied = await requireAdmin();
   if (denied) return denied;

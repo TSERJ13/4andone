@@ -1,5 +1,6 @@
 "use client";
 
+import { useFlash } from '@/hooks/useFlash';
 import React, { useEffect, useMemo, useState, useCallback } from 'react';
 import { 
   Gift, RefreshCw, Search, Users, Sparkles, Calendar, 
@@ -46,7 +47,8 @@ export default function AdminAffiliatesPage() {
   const [query, setQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState<'all' | 'rewarded' | 'unrewarded'>('all');
   const [viewMode, setViewMode] = useState<'all' | 'leaderboard'>('all');
-  const [toast, setToast] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
+  const [flash, say] = useFlash();
+  const toast = flash && { type: (flash.kind === 'ok' ? 'success' : 'error') as 'success' | 'error', text: flash.text };
 
   // Grant Modal state
   const [grantModal, setGrantModal] = useState<{
@@ -76,10 +78,7 @@ export default function AdminAffiliatesPage() {
     sending: false,
   });
 
-  const showToast = (type: 'success' | 'error', text: string) => {
-    setToast({ type, text });
-    setTimeout(() => setToast(null), 4000);
-  };
+  const showToast = useCallback((type: 'success' | 'error', text: string) => say(type === 'success' ? 'ok' : 'error', text), [say]);
 
   const loadData = useCallback(() => {
     setLoading(true);
@@ -98,7 +97,7 @@ export default function AdminAffiliatesPage() {
         setRows([]);
       })
       .finally(() => setLoading(false));
-  }, []);
+  }, [showToast]);
 
   useEffect(() => {
     loadData();

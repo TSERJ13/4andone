@@ -3,7 +3,7 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
 import {
-  LayoutDashboard, Users, UserCheck, PlayCircle, Crown, Music, Coffee, Plus, Upload, Send,
+  LayoutDashboard, Users, UserCheck, PlayCircle, Crown, Music, Plus, Upload, Send,
   Mail, AlertTriangle, ChevronRight, Clock, Disc
 } from 'lucide-react';
 import AdminPageHeader from '@/components/admin/AdminPageHeader';
@@ -14,7 +14,7 @@ import { useNewInquiries } from '@/hooks/useNewInquiries';
 type Stats = {
   people: number; newPeople: number; returning: number;
   plays: number; playsWeek: number; playsToday: number;
-  premium: number; premiumEnding: number; coffee: number;
+  premium: number; premiumEnding: number;
 };
 type RecentPlay = { id: string; track_id: string | null; style: string | null; created_at: string; event_type: string | null };
 
@@ -49,16 +49,15 @@ async function loadStats(): Promise<Stats> {
   ).then(([a, c]) => a + c);
   const base = () => adminDb.from('track_plays').select('id', head);
 
-  const [people, newPeople, returning, playsAll, playsWeek, playsToday, premium, premiumEnding, coffee] = await Promise.all([
+  const [people, newPeople, returning, playsAll, playsWeek, playsToday, premium, premiumEnding] = await Promise.all([
     count(users()),
     count(users().gte('first_seen', weekAgo)),
     count(users().gt('visit_count', 1)),
     plays(), plays(weekAgo), plays(dayStart),
     count(users().eq('is_premium', true)),
     count(users().eq('is_premium', true).gte('premium_until', nowIso).lte('premium_until', soon)),
-    count(base().eq('event_type', 'kofi_click')),
   ]);
-  return { people, newPeople, returning, plays: playsAll, playsWeek, playsToday, premium, premiumEnding, coffee };
+  return { people, newPeople, returning, plays: playsAll, playsWeek, playsToday, premium, premiumEnding };
 }
 
 export default function AdminOverview() {
@@ -111,7 +110,6 @@ export default function AdminOverview() {
     { label: 'Plays', value: stats ? fmt(stats.plays) : '—', sub: stats ? `${fmt(stats.playsToday)} today · ${fmt(stats.playsWeek)} this week` : '', icon: <PlayCircle size={18} />, color: '#f59e0b' },
     { label: 'Premium', value: stats ? fmt(stats.premium) : '—', sub: 'active members', icon: <Crown size={18} />, color: '#a855f7' },
     { label: 'Music library', value: fmt(tracks.length), sub: `${fmt(albums.length)} albums`, icon: <Music size={18} />, color: '#06b6d4' },
-    { label: 'Coffee clicks', value: stats ? fmt(stats.coffee) : '—', sub: 'support button', icon: <Coffee size={18} />, color: '#ec4899' },
   ];
 
   return (

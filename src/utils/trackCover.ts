@@ -35,7 +35,32 @@ export function getTrackCover(
     return normalizeMediaUrl(track.artworkUrl);
   }
 
-  // 2. Band name checks (for tracks with no cover or a generic logo).
+  // 2. Explicit album match (so a track in "Blackpool Live Sounds" by "Empress Orchestra"
+  //    gets the Blackpool Live Sounds cover instead of the Empress Orchestra cover)
+  const hasBlackpoolLiveTag = Array.isArray(track.tags) && track.tags.some((t: string) => {
+    const l = (t || '').toLowerCase().trim();
+    return l === 'blackpool-live-sounds' || l === 'blackpool live sounds';
+  });
+  if (
+    albumLower.includes('blackpool live') ||
+    albumLower === 'blackpool-live-sounds' ||
+    hasBlackpoolLiveTag
+  ) {
+    return '/blackpool-live-sounds.jpg';
+  }
+
+  const effectiveAlbums = (albums && albums.length > 0) ? albums : DEFAULT_ALBUMS;
+
+  if (albumLower) {
+    const matchedAlb = effectiveAlbums.find(
+      (a) => a.title.toLowerCase().trim() === albumLower ||
+             a.id.toLowerCase() === albumLower ||
+             a.slug.toLowerCase() === albumLower
+    );
+    if (matchedAlb?.coverUrl) return normalizeMediaUrl(matchedAlb.coverUrl);
+  }
+
+  // 3. Band name checks (for tracks with no cover or a generic logo).
   //    Artist/album only — a song title like "Empress" must not pick a band cover.
   if (
     artistLower.includes('empress') ||
@@ -120,22 +145,13 @@ export function getTrackCover(
     return '/la-grande-orchestra-italiana.jpg';
   }
 
-  // 3. Dynamic album matching against passed albums or DEFAULT_ALBUMS
-  const effectiveAlbums = (albums && albums.length > 0) ? albums : DEFAULT_ALBUMS;
-
-  if (albumLower) {
-    const matchedAlb = effectiveAlbums.find(
-      (a) => a.title.toLowerCase().trim() === albumLower ||
-             a.id.toLowerCase() === albumLower ||
-             a.slug.toLowerCase() === albumLower
-    );
-    if (matchedAlb?.coverUrl) return normalizeMediaUrl(matchedAlb.coverUrl);
-  }
-
   if (artistLower) {
     const matchedArtistAlb = effectiveAlbums.find((a) => {
       if (!a.artist) return false;
       const albArt = a.artist.toLowerCase().trim();
+      const albTitle = a.title.toLowerCase().trim();
+      // Only match by artist when the album is that artist's own band album
+      if (!albTitle.includes(albArt) && !albArt.includes(albTitle)) return false;
       if (albArt === artistLower || artistLower.includes(albArt) || albArt.includes(artistLower)) return true;
       if (a.tags && a.tags.some((t) => {
         const tag = t.toLowerCase().trim();
@@ -155,7 +171,7 @@ export function getTrackCover(
 
 
 /** Covers that also exist as 128 px thumbnails in /public/thumbs (a few KB instead of ~300 KB / 4 MB decoded). */
-const THUMBNAILED = new Set<string>(['/4andone-mix.jpg', '/boris-myagkov-big-band.jpg', '/dancestar.jpg', '/dj-maksy.jpg', '/empress-orchestra.jpg', '/georgie-musheev.jpg', '/goc2026.png', '/la-grande-orchestra-italiana.jpg', '/len-phillips-big-band.jpg', '/logo-3d.png', '/logo-4andone-3d.jpg', '/logo-4andone-3d.png', '/logo-square.jpg', '/logo-square.png', '/midland-big-band.jpg', '/rosesband.jpg']);
+const THUMBNAILED = new Set<string>(['/4andone-mix.jpg', '/blackpool-live-sounds.jpg', '/boris-myagkov-big-band.jpg', '/dancestar.jpg', '/dj-maksy.jpg', '/empress-orchestra.jpg', '/georgie-musheev.jpg', '/goc2026.png', '/la-grande-orchestra-italiana.jpg', '/len-phillips-big-band.jpg', '/logo-3d.png', '/logo-4andone-3d.jpg', '/logo-4andone-3d.png', '/logo-square.jpg', '/logo-square.png', '/midland-big-band.jpg', '/rosesband.jpg']);
 
 /** The cover for a small picture (list rows): the thumbnail when there is one, else the cover itself. */
 export function getTrackThumb(track: Track | any | null, albums: Album[] = [], styles: Style[] = []): string {
@@ -164,7 +180,7 @@ export function getTrackThumb(track: Track | any | null, albums: Album[] = [], s
 }
 
 /** Covers that also exist as 480 px cards in /public/cards (about 20-60 KB instead of 100-420 KB). */
-const CARDED = new Set<string>(['/4andone-mix', '/boris-myagkov-big-band', '/dancestar', '/dj-maksy', '/empress-orchestra', '/georgie-musheev', '/goc2026', '/la-grande-orchestra-italiana', '/len-phillips-big-band', '/logo-3d', '/logo-4andone-3d', '/logo-square', '/midland-big-band', '/rosesband']);
+const CARDED = new Set<string>(['/4andone-mix', '/blackpool-live-sounds', '/boris-myagkov-big-band', '/dancestar', '/dj-maksy', '/empress-orchestra', '/georgie-musheev', '/goc2026', '/la-grande-orchestra-italiana', '/len-phillips-big-band', '/logo-3d', '/logo-4andone-3d', '/logo-square', '/midland-big-band', '/rosesband']);
 
 /**
  * A smaller copy of a picture for cards and shelves: the 480 px card of a known

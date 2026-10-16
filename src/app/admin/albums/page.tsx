@@ -7,6 +7,7 @@ import Link from 'next/link';
 import { useStudio } from '@/components/admin/StudioProvider';
 import { Album } from '@/types/album';
 import { normalizeMediaUrl } from '@/lib/media-key';
+import { trackInAlbum } from '@/utils/albumMatch';
 import { 
   Disc, Plus, Edit3, Trash2, ArrowUp, ArrowDown, ExternalLink, 
   Upload, Check, X, Sparkles, Music2, Eye, Flame, Layers
@@ -237,19 +238,7 @@ export default function AdminAlbumsPage() {
 
   // Helper to count tracks belonging to an album
   const getAlbumTrackCount = (album: Album) => {
-    const albumSlug = album.slug.toLowerCase();
-    const albumTitle = album.title.toLowerCase();
-    const albumTags = (album.tags || []).map(t => t.toLowerCase());
-
-    return tracks.filter(t => {
-      const tAlbum = (t.album || '').toLowerCase();
-      const tArtist = (t.artist || '').toLowerCase();
-      const hasTag = t.tags?.some(tag => {
-        const l = tag.toLowerCase();
-        return albumTags.includes(l) || l.includes(albumSlug) || l === albumTitle;
-      });
-      return tAlbum.includes(albumSlug) || tAlbum.includes(albumTitle) || tArtist.includes(albumTitle) || hasTag;
-    }).length;
+    return tracks.filter(t => trackInAlbum(t, album)).length;
   };
 
   return (
@@ -320,7 +309,7 @@ export default function AdminAlbumsPage() {
               {/* Cover Image */}
               <div className="album-cover-thumbnail">
                 <img 
-                  src={album.coverUrl || '/georgie-musheev.jpg'} 
+                  src={normalizeMediaUrl(album.coverUrl) || '/georgie-musheev.jpg'} 
                   alt={album.title} 
                   onError={(e) => { (e.target as HTMLImageElement).src = '/georgie-musheev.jpg'; }}
                 />

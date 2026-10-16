@@ -14,6 +14,9 @@ export function isPublicMediaKey(key: unknown): key is string {
 export function normalizeMediaUrl(url?: string | null): string {
   if (!url) return '';
   const trimmed = url.trim();
+  if (trimmed.includes('Blackpool_Dance_Festival_Live_Sound')) {
+    return '/blackpool-live-sounds.jpg';
+  }
   const r2Match = /^https?:\/\/[^/]+\.r2\.dev\/(.+)$/i.exec(trimmed);
   if (r2Match && r2Match[1]) {
     const key = decodeURIComponent(r2Match[1].split('?')[0]);

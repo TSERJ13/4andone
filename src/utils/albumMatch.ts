@@ -3,24 +3,41 @@ type TrackLike = { album?: string; artist?: string; tags?: string[] };
 
 /** Does a track belong to an album page? (the rule the album pages use) */
 export function trackInAlbum(t: TrackLike, album: AlbumLike): boolean {
-  const albumSlug = album.slug.toLowerCase();
-  const albumTitle = album.title.toLowerCase();
-  const albumArtist = (album.artist || '').toLowerCase();
-  const albumTags = (album.tags || []).map(x => x.toLowerCase());
-  const tAlbum = (t.album || '').toLowerCase();
-  const tArtist = (t.artist || '').toLowerCase();
+  const albumSlug = album.slug.toLowerCase().trim();
+  const albumTitle = album.title.toLowerCase().trim();
+  const albumArtist = (album.artist || '').toLowerCase().trim();
+  const albumTags = (album.tags || []).map(x => x.toLowerCase().trim()).filter(Boolean);
+  const tAlbum = (t.album || '').toLowerCase().trim();
+  const tArtist = (t.artist || '').toLowerCase().trim();
   // Whole-tag matches only: "title contains the tag" let a generic tag like
   // "mix" (200+ tracks) pull every band into "4ANDONE Mix".
   const hasTag = t.tags?.some(tag => {
     const l = tag.toLowerCase().trim();
     return albumTags.includes(l) || l.includes(albumSlug) || l === albumTitle;
   });
-  return (
-    tAlbum.includes(albumSlug) ||
-    tAlbum.includes(albumTitle) ||
-    tArtist.includes(albumTitle) ||
-    (!!albumArtist && tArtist.includes(albumArtist)) ||
+
+  // 1. Explicit album name or album tag match on the track
+  if (
+    (!!tAlbum && (tAlbum.includes(albumSlug) || tAlbum.includes(albumTitle))) ||
     !!hasTag
+  ) {
+    return true;
+  }
+
+  // 2. If the track explicitly belongs to a different album, do not pull it in by artist
+  if (tAlbum && tAlbum !== 'standard library' && tAlbum !== 'unknown') {
+    return false;
+  }
+
+  // 3. Artist match applies only to self-titled band albums (where album title & artist match),
+  //    so a special collection like "Blackpool Live Sounds" (artist "Empress Orchestra")
+  //    does not pull in all existing "Empress Orchestra" tracks.
+  const isBandAlbum = !albumArtist || albumTitle.includes(albumArtist) || albumArtist.includes(albumTitle);
+  if (!isBandAlbum) return false;
+
+  return (
+    (!!albumTitle && tArtist.includes(albumTitle)) ||
+    (!!albumArtist && tArtist.includes(albumArtist))
   );
 }
 

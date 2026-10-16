@@ -22,6 +22,8 @@ import {
   Image as ImageIcon
 } from 'lucide-react';
 import { useStudio, Album } from './StudioProvider';
+import { albumOriginalSlot, slotForIndex } from '@/utils/albumSlot';
+import { smallImage } from '@/utils/trackCover';
 import { 
   detectBPM, 
   getStyleFromBPM, 
@@ -101,7 +103,7 @@ export const computeDestinationTagsAndAlbum = (
 };
 
 const BulkUpload = () => {
-  const { addTrack, styles, tags: availableTags, albums } = useStudio();
+  const { addTrack, styles, tags: availableTags, albums, tracks } = useStudio();
   const [files, setFiles] = useState<StagedFile[]>([]);
   const [isDragging, setIsDragging] = useState(false);
   
@@ -122,6 +124,8 @@ const BulkUpload = () => {
   const [isUploadingCover, setIsUploadingCover] = useState(false);
   
   const [showValidation, setShowValidation] = useState(false);
+  // Add to an album that already has music AS IF it had been uploaded back then (not shown as new music)
+  const [keepOriginalDate, setKeepOriginalDate] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const coverInputRef = useRef<HTMLInputElement>(null);
 
@@ -136,6 +140,14 @@ const BulkUpload = () => {
     });
     return Array.from(list);
   }, [albums, recentArtists]);
+
+  const selectedAlbum = albums.find(a => a.slug === batchDestKey) || null;
+  const selectedSlot = selectedAlbum ? albumOriginalSlot(tracks, selectedAlbum) : null;
+  const libraryKeys = React.useMemo(
+    () => new Set(tracks.map(t => `${(t.title || '').trim().toLowerCase()}|${(t.artist || '').trim().toLowerCase()}`)),
+    [tracks]
+  );
+  const isInLibrary = (f: StagedFile) => libraryKeys.has(`${f.title.trim().toLowerCase()}|${(f.artist || batchArtist || '').trim().toLowerCase()}`);
 
   const handleArtistSelectChange = (val: string) => {
     if (val === '__custom__') {
@@ -402,6 +414,7 @@ const BulkUpload = () => {
       }
     }
 
+    let slotIndex = 0; // position of this track within the batch (keeps the batch in order)
     for (const f of files) {
       if (f.status !== 'pending') continue;
 
@@ -455,8 +468,18 @@ const BulkUpload = () => {
           albums
         );
 
+        // Optional: take the album's earlier upload time and place, instead of appearing as new music
+        let slot: { createdAt: string; date: string; globalOrder: number } | null = null;
+        if (keepOriginalDate) {
+          const dests = f.destinations || batchDestinations;
+          const alb = albums.find(a => dests[a.slug]);
+          const base = alb ? albumOriginalSlot(tracks, alb) : null;
+          if (base) slot = slotForIndex(base, slotIndex++);
+        }
+
         // 3. Register in Supabase
         await addTrack({
+          ...(slot ? { createdAt: slot.createdAt, date: slot.date, globalOrder: slot.globalOrder } : {}),
           title: f.title,
           artist: f.artist || batchArtist || 'Unknown Artist',
           album: destMeta.album || undefined,
@@ -517,35 +540,37 @@ const BulkUpload = () => {
               {/* Destination Album (Dropdown) */}
               <div className="meta-block">
                 <label className="field-micro-label">Destination Album</label>
-                <div className="meta-field dest-field">
-                  <Disc 
-                    size={16} 
-                    className="meta-icon" 
-                    style={{ 
-                      color: batchDestKey !== "standard" && batchDestKey !== "__custom__" 
-                        ? (albums.find(a => a.slug === batchDestKey)?.themeColor || "#ff416c") 
-                        : "#38bdf8" 
-                    }} 
-                  />
-                  <select 
-                    className="meta-select dest-meta-select"
-                    value={batchDestKey}
-                    onChange={(e) => handleDestinationChange(e.target.value)}
-                  >
-                    <option value="standard">Standard Library (Main)</option>
-                    {albums.length > 0 && (
-                      <optgroup label="── Albums & Collections ──">
-                        {albums.map(alb => (
-                          <option key={alb.id || alb.slug} value={alb.slug}>
-                            {alb.title} {alb.badge ? `(${alb.badge})` : ""}
-                          </option>
-                        ))}
-                      </optgroup>
-                    )}
-                    <option value="__custom__">+ Custom Album Name...</option>
-                  </select>
-                  <ChevronDown size={14} className="meta-chevron" />
+                <div className="album-tiles" role="listbox" aria-label="Destination album">
+                  <button type="button" role="option" aria-selected={batchDestKey === 'standard'} className={`album-tile ${batchDestKey === 'standard' ? 'on' : ''}`} onClick={() => handleDestinationChange('standard')}>
+                    <span className="tile-img std"><Music size={20} /></span>
+                    <span className="tile-name">Standard Library</span>
+                  </button>
+                  {albums.map(alb => (
+                    <button key={alb.id || alb.slug} type="button" role="option" aria-selected={batchDestKey === alb.slug} title={alb.title}
+                      className={`album-tile ${batchDestKey === alb.slug ? 'on' : ''}`}
+                      style={{ '--tile-color': alb.themeColor || '#ff416c' } as React.CSSProperties}
+                      onClick={() => handleDestinationChange(alb.slug)}>
+                      <span className="tile-img">{alb.coverUrl ? <img src={smallImage(alb.coverUrl)} alt="" loading="lazy" /> : <Disc size={20} />}</span>
+                      <span className="tile-name">{alb.title}</span>
+                    </button>
+                  ))}
+                  <button type="button" role="option" aria-selected={batchDestKey === '__custom__'} className={`album-tile ${batchDestKey === '__custom__' ? 'on' : ''}`} onClick={() => handleDestinationChange('__custom__')}>
+                    <span className="tile-img std"><Plus size={20} /></span>
+                    <span className="tile-name">New album name…</span>
+                  </button>
                 </div>
+
+                {selectedAlbum && (
+                  <label className={`orig-date-toggle ${selectedSlot ? '' : 'disabled'}`} title="The new tracks take the time and place of this album's earlier upload, so they do not appear in the New music lists">
+                    <input type="checkbox" checked={keepOriginalDate && !!selectedSlot} disabled={!selectedSlot} onChange={e => setKeepOriginalDate(e.target.checked)} />
+                    <span>
+                      <b>Add as part of the earlier upload</b>
+                      <small>{selectedSlot
+                        ? `Dated ${new Date(selectedSlot.createdAt).toLocaleDateString(undefined, { day: 'numeric', month: 'short', year: 'numeric' })}, next to its ${selectedSlot.trackCount} tracks. Not shown as new music.`
+                        : 'This album has no tracks yet, so it will be a normal new upload.'}</small>
+                    </span>
+                  </label>
+                )}
 
                 {batchDestKey === "__custom__" && (
                   <div className="meta-field custom-album-subfield animate-in">
@@ -816,6 +841,7 @@ const BulkUpload = () => {
                       onChange={(e) => updateFileMeta(f.id, { title: e.target.value })}
                       placeholder="Title"
                     />
+                    {isInLibrary(f) && <div className="dup-badge" title="A track with this title and artist is already in the library">⚠ Already in library</div>}
                     <div className="row-artist-wrapper">
                       <span className="row-artist-label">by</span>
                       <input 
@@ -946,6 +972,36 @@ const BulkUpload = () => {
 
       <style jsx>{`
         .bulk-upload-wrapper { display: flex; flex-direction: column; gap: 20px; width: 100%; }
+
+        /* Album picker with covers */
+        .album-tiles { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
+        .album-tile { display: flex; flex-direction: column; align-items: center; gap: 5px; padding: 6px 4px 7px; border-radius: 12px; border: 1px solid rgba(255,255,255,0.08); background: rgba(255,255,255,0.03); color: #a1a1aa; cursor: pointer; min-width: 0; }
+        .album-tile:hover { background: rgba(255,255,255,0.07); color: #fff; }
+        .album-tile.on { border-color: var(--tile-color, #38bdf8); background: rgba(255,255,255,0.08); color: #fff; box-shadow: 0 0 14px -4px var(--tile-color, #38bdf8); }
+        .tile-img { width: 100%; aspect-ratio: 1; border-radius: 9px; overflow: hidden; display: flex; align-items: center; justify-content: center; background: #111; }
+        .tile-img.std { background: rgba(255,255,255,0.05); color: #71717a; }
+        .tile-img img { width: 100%; height: 100%; object-fit: cover; display: block; }
+        .tile-name { font-size: 10px; font-weight: 700; line-height: 1.2; text-align: center; max-width: 100%; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+        @media (max-width: 640px) { .album-tiles { grid-template-columns: repeat(4, 1fr); gap: 6px; } .tile-name { font-size: 9px; } }
+        .orig-date-toggle { display: flex; gap: 10px; align-items: flex-start; margin-top: 8px; padding: 10px 12px; border-radius: 12px; border: 1px solid rgba(255,255,255,0.1); background: rgba(255,255,255,0.03); cursor: pointer; }
+        .orig-date-toggle.disabled { opacity: 0.55; cursor: default; }
+        .orig-date-toggle input { margin-top: 3px; accent-color: #1db954; width: 16px; height: 16px; flex-shrink: 0; }
+        .orig-date-toggle span { display: flex; flex-direction: column; gap: 2px; }
+        .orig-date-toggle b { font-size: 13px; color: #fff; }
+        .orig-date-toggle small { font-size: 11.5px; color: #8b8b94; line-height: 1.4; }
+        .dup-badge { display: inline-block; margin: 2px 0 4px; font-size: 11px; font-weight: 800; color: #fbbf24; background: rgba(251,191,36,0.12); border: 1px solid rgba(251,191,36,0.3); border-radius: 8px; padding: 2px 8px; }
+
+        /* Wide screens: settings stay in a left column, the audio drop area and the queue use the rest. No page scrolling to reach them. */
+        @media (min-width: 1100px) {
+          .bulk-upload-wrapper { display: grid; grid-template-columns: 430px minmax(0, 1fr); column-gap: 24px; row-gap: 20px; align-items: start; }
+          .bulk-upload-wrapper > .batch-header-bar { grid-column: 1; grid-row: 1 / span 3; position: sticky; top: 12px; max-height: calc(100vh - 24px); overflow-y: auto; }
+          .bulk-upload-wrapper > .dropzone { grid-column: 2; grid-row: 1; }
+          .bulk-upload-wrapper > .staging-area { grid-column: 2; grid-row: 2; }
+          .bulk-upload-wrapper > .upload-success-hero { grid-column: 1 / -1; }
+          .album-tiles { grid-template-columns: repeat(5, 1fr); gap: 6px; }
+          .tile-name { font-size: 9.5px; }
+
+        }
         
         .batch-header-bar { 
           display: flex; flex-direction: column; gap: 16px; padding: 20px; border-radius: 20px;
@@ -1474,6 +1530,27 @@ const BulkUpload = () => {
           .text-group p {
             font-size: 12px;
           }
+        }
+      
+        @media (min-width: 1100px) {
+          /* The queue sits in the right-hand column: each track gets two tidy lines instead of 8 cramped columns */
+          .table-header { display: none; }
+          .table-body { max-height: max(380px, calc(100vh - 360px)); }
+          .table-row {
+            grid-template-columns: 36px minmax(0, 1.4fr) minmax(0, 1fr) 84px 84px 36px;
+            grid-template-areas: "st info info info info act" "st alb sty bpm mpm act" "st tags tags tags tags act";
+            column-gap: 10px; row-gap: 8px; padding: 12px 14px;
+          }
+          .col-status { grid-area: st; }
+          .col-info { grid-area: info; min-width: 0; }
+          .col-album { grid-area: alb; min-width: 0; }
+          .col-style { grid-area: sty; min-width: 0; }
+          .col-bpm { grid-area: bpm; display: flex; flex-direction: column; }
+          .col-mpm { grid-area: mpm; display: flex; flex-direction: column; }
+          .col-tags { grid-area: tags; }
+          .col-actions { grid-area: act; align-self: start; }
+          .row-tempo-mobile-label { display: block; font-size: 9.5px; font-weight: 800; color: #71717a; text-transform: uppercase; margin-bottom: 2px; }
+          .row-bpm-input { width: 100%; }
         }
       `}</style>
     </div>

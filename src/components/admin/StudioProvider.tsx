@@ -501,7 +501,9 @@ export const StudioProvider: React.FC<{ children: React.ReactNode }> = ({ childr
         tags: trackData.tags || [],
         duration: trackData.duration || 0,
         global_order: initialOrder,
-        date: trackData.date || new Date().toISOString().split('T')[0]
+        date: trackData.date || new Date().toISOString().split('T')[0],
+        // Only when the admin asked to add the track as part of an earlier upload (otherwise the database stamps "now")
+        ...(trackData.createdAt ? { created_at: trackData.createdAt } : {}),
       }])
       .select();
 

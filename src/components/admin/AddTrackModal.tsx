@@ -1,5 +1,7 @@
 "use client";
 
+import { albumOriginalSlot, slotForIndex } from '@/utils/albumSlot';
+import { smallImage } from '@/utils/trackCover';
 import React, { useState, useRef, useEffect } from 'react';
 import { Music, User, Globe, Activity, Upload, CheckCircle2, AlertTriangle } from 'lucide-react';
 import { detectBPM, getStyleFromBPM, getMPMFromBPM, getBPMFromMPM, getDefaultTempoForStyle, getStyleFromText } from '@/utils/audio';
@@ -13,7 +15,8 @@ interface AddTrackModalProps {
 }
 
 const AddTrackModal = ({ isOpen, onClose, onAdd, initialData }: AddTrackModalProps) => {
-  const { styles, tags, refreshData, albums } = useStudio();
+  const { styles, tags, refreshData, albums, tracks } = useStudio();
+  const [keepOriginalDate, setKeepOriginalDate] = useState(false);
   
   const [formData, setFormData] = useState({
     title: initialData?.title || '',
@@ -387,8 +390,17 @@ const AddTrackModal = ({ isOpen, onClose, onAdd, initialData }: AddTrackModalPro
         }
       }
 
+      // Optional: take the album's earlier upload time and place instead of appearing as new music (new tracks only)
+      let slot: { createdAt: string; date: string; globalOrder: number } | null = null;
+      if (keepOriginalDate && !initialData) {
+        const alb = albums.find(a => destinations[a.slug]);
+        const base = alb ? albumOriginalSlot(tracks, alb) : null;
+        if (base) slot = slotForIndex(base, 0);
+      }
+
       await onAdd({
         ...formData,
+        ...(slot ? { createdAt: slot.createdAt, date: slot.date, globalOrder: slot.globalOrder } : {}),
         tags: finalTags,
         album: finalAlbum,
         audioUrl,
@@ -518,11 +530,29 @@ const AddTrackModal = ({ isOpen, onClose, onAdd, initialData }: AddTrackModalPro
                         }}
                         onClick={() => toggleDestination(alb.slug)}
                       >
-                        <span>{alb.badge ? `${alb.badge} ` : ''}{alb.title}</span>
+                        {alb.coverUrl && <img src={smallImage(alb.coverUrl)} alt="" className="chip-cover" loading="lazy" />}
+                        <span className="chip-text">{alb.title}</span>
                       </button>
                     );
                   })}
                 </div>
+
+                {!initialData && (() => {
+                  const alb = albums.find(a => destinations[a.slug]);
+                  const slotInfo = alb ? albumOriginalSlot(tracks, alb) : null;
+                  if (!alb) return null;
+                  return (
+                    <label className={`orig-date-toggle ${slotInfo ? '' : 'disabled'}`} style={{ marginTop: 10 }} title="The new track takes the time and place of this album's earlier upload, so it does not appear in the New music lists">
+                      <input type="checkbox" checked={keepOriginalDate && !!slotInfo} disabled={!slotInfo} onChange={e => setKeepOriginalDate(e.target.checked)} />
+                      <span>
+                        <b>Add as part of the earlier upload</b>
+                        <small>{slotInfo
+                          ? `Dated ${new Date(slotInfo.createdAt).toLocaleDateString(undefined, { day: 'numeric', month: 'short', year: 'numeric' })}, next to its ${slotInfo.trackCount} tracks. Not shown as new music.`
+                          : 'This album has no tracks yet, so it will be a normal new upload.'}</small>
+                      </span>
+                    </label>
+                  );
+                })()}
 
                 {(destinations['goc-2026'] || destinations['goc']) && (
                   <div className="goc-sub-selector animate-in" style={{ marginTop: '10px' }}>
@@ -714,6 +744,15 @@ const AddTrackModal = ({ isOpen, onClose, onAdd, initialData }: AddTrackModalPro
           border: 1px solid rgba(255,255,255,0.08); color: #71717a; font-size: 13px; font-weight: 800; 
           cursor: pointer; transition: all 0.2s ease; text-align: center;
         }
+        .goc-mode-chip { display: inline-flex; align-items: center; justify-content: center; gap: 8px; }
+        .goc-mode-chip .chip-text { font-size: 11.5px; line-height: 1.2; text-align: left; }
+        .goc-mode-chip .chip-cover { width: 26px; height: 26px; border-radius: 7px; object-fit: cover; flex-shrink: 0; }
+        .orig-date-toggle { display: flex; gap: 10px; align-items: flex-start; padding: 10px 12px; border-radius: 12px; border: 1px solid rgba(255,255,255,0.1); background: rgba(255,255,255,0.03); cursor: pointer; }
+        .orig-date-toggle.disabled { opacity: 0.55; cursor: default; }
+        .orig-date-toggle input { margin-top: 3px; accent-color: #1db954; width: 16px; height: 16px; flex-shrink: 0; }
+        .orig-date-toggle span { display: flex; flex-direction: column; gap: 2px; }
+        .orig-date-toggle b { font-size: 13px; color: #fff; }
+        .orig-date-toggle small { font-size: 11.5px; color: #8b8b94; line-height: 1.4; }
         .goc-mode-chip:hover { background: rgba(255,255,255,0.08); color: white; }
         .goc-mode-chip.active { background: rgba(255,255,255,0.08); border-color: rgba(255,255,255,0.25); color: white; }
         .goc-mode-chip.goc-main.active { background: rgba(255, 65, 108, 0.15); border-color: #ff416c; color: #ff416c; box-shadow: 0 0 15px rgba(255, 65, 108, 0.25); }

@@ -1,6 +1,7 @@
 "use client";
 
 import AdminPageHeader from '@/components/admin/AdminPageHeader';
+import { sortUsers, USER_SORT_OPTIONS, UserSortKey } from '@/utils/sortUsers';
 import React, { useState, useEffect, useCallback } from 'react';
 import { Users, Globe, Clock, TrendingUp, RefreshCw, Calendar, MessageCircle } from 'lucide-react';
 import { adminDb as supabase } from '@/lib/admin-db';
@@ -17,6 +18,8 @@ interface TelegramUser {
   first_seen: string;
   last_seen: string;
   visit_count: number;
+  is_premium?: boolean;
+  premium_until?: string | null;
 }
 
 interface WebVisitor {
@@ -143,14 +146,15 @@ export default function AdminUsersPage() {
 
   useEffect(() => { fetchData(); }, [fetchData]);
 
-  const filteredTelegram = users.filter(u => {
+  const [userSort, setUserSort] = useState<UserSortKey>('visits');
+  const filteredTelegram = sortUsers(users.filter(u => {
     if (!search) return true;
     const q = search.toLowerCase();
     return u.first_name?.toLowerCase().includes(q)
       || u.last_name?.toLowerCase().includes(q)
       || u.username?.toLowerCase().includes(q)
       || u.country_name?.toLowerCase().includes(q);
-  });
+  }), userSort);
 
   const filteredWeb = webVisitors.filter(w => {
     if (!search) return true;
@@ -243,6 +247,11 @@ export default function AdminUsersPage() {
               <Users size={18} /> 
               {activeTab === 'telegram' ? `Telegram Users (${filteredTelegram.length})` : `Web Visitors & IPs (${filteredWeb.length})`}
             </h2>
+            {activeTab === 'telegram' && (
+              <select className="search-input glass" value={userSort} onChange={e => setUserSort(e.target.value as UserSortKey)} aria-label="Sort users">
+                {USER_SORT_OPTIONS.map(o => <option key={o.key} value={o.key}>{o.label}</option>)}
+              </select>
+            )}
             <input
               className="search-input glass"
               placeholder={activeTab === 'telegram' ? "Search by name, @username, country..." : "Search by IP, country..."}
@@ -273,6 +282,9 @@ export default function AdminUsersPage() {
                     <div className="user-info">
                       <div className="user-name">
                         {u.first_name}{u.last_name ? ` ${u.last_name}` : ''}
+                        {u.is_premium && (!u.premium_until || new Date(u.premium_until).getTime() > Date.now()) && (
+                          <span className="premium-badge" title="Active Premium member">💎 Premium</span>
+                        )}
                       </div>
                       <div className="user-meta">
                         {u.username && <span className="tg-handle">@{u.username}</span>}
@@ -415,6 +427,7 @@ export default function AdminUsersPage() {
           outline:none; width:240px; transition:border-color 0.2s;
         }
         .search-input:focus { border-color:#1db954; }
+        .premium-badge { margin-left:8px; font-size:10px; font-weight:800; padding:2px 8px; border-radius:20px; background:rgba(168,85,247,0.16); color:#c084fc; border:1px solid rgba(168,85,247,0.35); white-space:nowrap; vertical-align:middle; }
         .search-input::placeholder { color:#52525b; }
 
         .loading-state, .empty-state { 

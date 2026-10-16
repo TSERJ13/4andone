@@ -1,5 +1,6 @@
 "use client";
 
+import { sortUsers, USER_SORT_OPTIONS, UserSortKey } from '@/utils/sortUsers';
 import React, { useState, useEffect, useCallback } from 'react';
 import {
   BarChart3, TrendingUp, Users, Music, Folder, Flag, Calendar,
@@ -27,6 +28,7 @@ interface KofiClickRecord {
 }
 interface TelegramUser {
   telegram_id: number;
+  first_seen?: string;
   first_name: string;
   last_name?: string;
   username?: string;
@@ -34,6 +36,8 @@ interface TelegramUser {
   visit_count: number;
   country_code?: string;
   country_name?: string;
+  is_premium?: boolean;
+  premium_until?: string | null;
 }
 interface RecentActivity {
   id: string;
@@ -220,6 +224,8 @@ export default function AdminAnalytics() {
   const [activeVisitorTab, setActiveVisitorTab] = useState<'online' | 'today' | 'week' | 'supporters'>('online');
   const [kofiClicks, setKofiClicks] = useState<KofiClickRecord[]>([]);
   const [kofiPeriod, setKofiPeriod] = useState<'today' | '7d' | '30d' | 'all'>('all');
+  const [tgSort, setTgSort] = useState<UserSortKey>('visits');
+  const [section, setSection] = useState<'overview' | 'visitors' | 'audience' | 'music' | 'ads'>('overview');
   const [loading, setLoading] = useState(true);
   const [tracksLoading, setTracksLoading] = useState(false);
   const [isSendingReport, setIsSendingReport] = useState(false);
@@ -605,6 +611,21 @@ export default function AdminAnalytics() {
   });
   const filteredUniqueClickers = new Set(filteredKofi.map(c => c.user_ref || c.session_id).filter(Boolean)).size;
 
+  // Active Premium = flagged and not expired (no end date = gifted forever)
+  const isPremiumUser = (u?: TelegramUser | null) =>
+    !!u?.is_premium && (!u.premium_until || new Date(u.premium_until).getTime() > Date.now());
+  const premiumByName = (name?: string | null, sessionId?: string | null) =>
+    isPremiumUser(tgUsers.find(tu => (sessionId && tu.telegram_id.toString() === sessionId) || (!!name && tu.first_name === name)));
+  const PremiumBadge = () => <span className="premium-badge" title="Active Premium member">💎 Premium</span>;
+  const premiumCount = tgUsers.filter(isPremiumUser).length;
+  const sections: { key: typeof section; label: string }[] = [
+    { key: 'overview', label: 'Overview' },
+    { key: 'visitors', label: 'Visitors' },
+    { key: 'audience', label: 'Audience' },
+    { key: 'music', label: 'Music' },
+    { key: 'ads', label: 'Ads' },
+  ];
+
   return (
     <div className="admin-analytics animate-in">
 
@@ -621,9 +642,18 @@ export default function AdminAnalytics() {
         <div style={{ fontSize: '13px', color: '#1db954', margin: '-12px 0 16px', fontWeight: 700 }}>✓ {reportFeedback}</div>
       )}
 
-      {/* Ads & real visitors (page visits vs listeners vs ads shown) */}
-      <AdStatsPanel />
+      {/* Section tabs: one clear topic at a time */}
+      <nav className="stat-tabs" role="tablist" aria-label="Statistics sections">
+        {sections.map(t => (
+          <button key={t.key} type="button" role="tab" aria-selected={section === t.key} className={`stat-tab ${section === t.key ? 'on' : ''}`} onClick={() => setSection(t.key)}>
+            {t.label}
+          </button>
+        ))}
+      </nav>
 
+      {section === 'ads' && <AdStatsPanel />}
+
+      {section === 'overview' && (<>
       {/* Online Now Panel — collapsible */}
       <div className="online-now-panel glass">
         <button className="online-now-header" onClick={() => setOnlineExpanded(e => !e)}>
@@ -665,6 +695,7 @@ export default function AdminAnalytics() {
                     <div className="online-user-info">
                       <div style={{ display: 'flex', alignItems: 'center', gap: '5px' }}>
                         <span className="online-user-name">{u.name || 'Anonymous'}</span>
+                        {premiumByName(u.name, u.session_id) && <PremiumBadge />}
                         {geo.code !== 'Unknown' && (
                           <span className="online-country-badge">{getFlag(geo.code)} {geo.code}</span>
                         )}
@@ -688,7 +719,7 @@ export default function AdminAnalytics() {
           { label: 'This Month', value: totals.month, sub: `${uniqueTotals.month} unique`, icon: <Users size={16}/> },
           { label: 'This Year', value: totals.year, sub: `${uniqueTotals.year} unique`, icon: <BarChart3 size={16}/> },
           { label: 'Avg Session', value: fmtDuration(avgDuration), icon: <Clock size={16}/>, isStr: true },
-          { label: 'TG Users', value: tgUsers.length, icon: <Users size={16}/> },
+          { label: 'TG Users', value: tgUsers.length, sub: `${premiumCount} Premium`, icon: <Users size={16}/> },
         ] as { label: string; value: string | number; sub?: string; icon: React.ReactNode; isStr?: boolean }[]).map(item => (
           <div key={item.label} className="sum-card glass">
             <div className="sum-icon">{item.icon}</div>
@@ -731,7 +762,10 @@ export default function AdminAnalytics() {
         )}
       </div>
 
+      </>)}
+
       {/* Live visitors (Buy Me Coffee tracking removed) */}
+      {section === 'visitors' && (
       <div className="coffee-card glass" id="live-visitors">
         {/* Visitor & Supporter Activity Hub with Tabs */}
         <div className="coffee-log-section">
@@ -799,6 +833,7 @@ export default function AdminAnalytics() {
                                 {u.name || (u.ip ? `Visitor • ${u.ip}` : `Visitor #${u.session_id.slice(0, 6)}`)}
                               </span>
                               {tgUser?.username && <span className="act-handle">@{tgUser.username}</span>}
+                              {isPremiumUser(tgUser) && <PremiumBadge />}
                               <span className={`supporter-platform-badge ${u.is_telegram ? 'tg' : 'web'}`}>
                                 {u.is_telegram ? '✈️ Telegram' : '🌐 Web Visitor'}
                               </span>
@@ -882,6 +917,7 @@ export default function AdminAnalytics() {
                                     : `Visitor #${v.session_id ? v.session_id.slice(0, 8) : 'Web'}`}
                               </span>
                               {tgUser?.username && <span className="act-handle">@{tgUser.username}</span>}
+                              {isPremiumUser(tgUser) && <PremiumBadge />}
                               <span className={`supporter-platform-badge ${isTelegram ? 'tg' : 'web'}`}>
                                 {isTelegram ? '✈️ Telegram' : '🌐 Web Visitor'}
                               </span>
@@ -959,6 +995,7 @@ export default function AdminAnalytics() {
                                     : `Visitor #${v.session_id ? v.session_id.slice(0, 8) : 'Web'}`}
                               </span>
                               {tgUser?.username && <span className="act-handle">@{tgUser.username}</span>}
+                              {isPremiumUser(tgUser) && <PremiumBadge />}
                               <span className={`supporter-platform-badge ${isTelegram ? 'tg' : 'web'}`}>
                                 {isTelegram ? '✈️ Telegram' : '🌐 Web Visitor'}
                               </span>
@@ -1007,10 +1044,14 @@ export default function AdminAnalytics() {
 
 
 
+      )}
+
       {/* Recent Visitor Activity + Telegram Users */}
-      <div className="two-col">
+      {(section === 'visitors' || section === 'audience') && (
+      <div className="one-col">
 
         {/* Recent Visitor Activity — Rich Feed */}
+        {section === 'visitors' && (
         <div className="panel glass">
           <div className="panel-head">
             <Clock size={18} className="text-primary"/>
@@ -1041,6 +1082,7 @@ export default function AdminAnalytics() {
                           <>
                             <span>{tgUser!.first_name}{tgUser!.last_name ? ' ' + tgUser!.last_name : ''}</span>
                             {tgUser!.username && <span className="act-handle">@{tgUser!.username}</span>}
+                            {isPremiumUser(tgUser) && <PremiumBadge />}
                           </>
                         ) : (
                           <span className="act-anon">Anonymous Visitor</span>
@@ -1079,18 +1121,23 @@ export default function AdminAnalytics() {
             </div>
           )}
         </div>
+        )}
 
         {/* Telegram Users */}
+        {section === 'audience' && (
         <div className="panel glass">
           <div className="panel-head">
             <Users size={18} className="text-primary"/>
             <h3>Telegram Users</h3>
             <span className="panel-badge">{tgUsers.length}</span>
+            <select className="tg-sort" value={tgSort} onChange={e => setTgSort(e.target.value as UserSortKey)} aria-label="Sort Telegram users">
+              {USER_SORT_OPTIONS.map(o => <option key={o.key} value={o.key}>{o.label}</option>)}
+            </select>
           </div>
           {loading ? <div className="panel-empty">Loading...</div> :
            tgUsers.length === 0 ? <div className="panel-empty">No auth users yet</div> : (
             <div className="scroll-list">
-              {tgUsers.map((u, i) => {
+              {sortUsers(tgUsers, tgSort).map((u, i) => {
                 const isOnline = liveUsers.some(lu => lu.name === u.first_name || lu.session_id === u.telegram_id.toString());
                 return (
                   <div key={u.telegram_id} className="tg-row">
@@ -1101,6 +1148,7 @@ export default function AdminAnalytics() {
                     <div className="tg-info">
                       <div className="tg-name">
                         {u.first_name}{u.last_name ? ' ' + u.last_name : ''}
+                        {isPremiumUser(u) && <PremiumBadge />}
                         {isOnline && <span className="badge-online">● Online</span>}
                       </div>
                       <div className="tg-meta">
@@ -1115,9 +1163,12 @@ export default function AdminAnalytics() {
             </div>
           )}
         </div>
+        )}
       </div>
+      )}
 
       {/* Countries + Traffic Sources */}
+      {section === 'audience' && (
       <div className="two-col">
 
         {/* Top Countries */}
@@ -1173,8 +1224,10 @@ export default function AdminAnalytics() {
           )}
         </div>
       </div>
+      )}
 
       {/* Style Popularity + Top Tracks */}
+      {section === 'music' && (
       <div className="two-col">
 
         {/* Style Popularity (30D Top Charts) */}
@@ -1268,8 +1321,10 @@ export default function AdminAnalytics() {
           )}
         </div>
       </div>
+      )}
 
       {/* Library Stats */}
+      {section === 'music' && (
       <div className="lib-row">
         {[
           { label: 'Total Tracks', value: tracks.length, sub: `${tracks.filter(t => t.style?.toLowerCase() === 'fitness').length} in Fitness`, icon: <Music size={18}/> },
@@ -1286,6 +1341,7 @@ export default function AdminAnalytics() {
           </div>
         ))}
       </div>
+      )}
 
       <style jsx>{`
         .admin-analytics { display:flex; flex-direction:column; gap:24px; padding-bottom:100px; }
@@ -1426,6 +1482,14 @@ export default function AdminAnalytics() {
 
         /* Two column layout */
         .two-col { display:grid; grid-template-columns:1fr 1fr; gap:20px; }
+        .tg-sort { margin-left:auto; background:rgba(255,255,255,0.05); color:#e4e4e7; border:1px solid rgba(255,255,255,0.12); border-radius:10px; padding:6px 8px; font-size:12px; }
+        .one-col { display:grid; grid-template-columns:1fr; gap:20px; }
+        .stat-tabs { display:flex; gap:6px; overflow-x:auto; padding:5px; border-radius:16px; background:rgba(255,255,255,0.04); border:1px solid rgba(255,255,255,0.06); position:sticky; top:8px; z-index:20; backdrop-filter:blur(14px); -webkit-overflow-scrolling:touch; scrollbar-width:none; }
+        .stat-tabs::-webkit-scrollbar { display:none; }
+        .stat-tab { flex:1 0 auto; min-width:92px; padding:10px 16px; border-radius:12px; border:none; background:transparent; color:#a1a1aa; font-size:14px; font-weight:800; cursor:pointer; white-space:nowrap; }
+        .stat-tab:hover { color:#fff; }
+        .stat-tab.on { background:#1db954; color:#000; }
+        :global(.premium-badge) { font-size:10px; font-weight:800; padding:2px 8px; border-radius:20px; background:rgba(168,85,247,0.16); color:#c084fc; border:1px solid rgba(168,85,247,0.35); white-space:nowrap; }
         .panel { padding:24px; border-radius:20px; display:flex; flex-direction:column; gap:12px; }
         .panel-head { display:flex; align-items:center; gap:10px; margin-bottom:4px; }
         .panel-head h3 { font-size:15px; font-weight:800; flex:1; }
@@ -1525,6 +1589,8 @@ export default function AdminAnalytics() {
         @media (max-width:640px) {
           .summary-strip { grid-template-columns:repeat(2,1fr); gap:8px; }
           .sum-val { font-size:20px; }
+          .sum-card { padding:12px; gap:3px; }
+          .sum-icon { width:20px; height:20px; }
           .chart-card { padding:16px; }
           .coffee-card { padding:16px; }
           .coffee-metrics-strip { grid-template-columns:repeat(2,1fr); gap:8px; }

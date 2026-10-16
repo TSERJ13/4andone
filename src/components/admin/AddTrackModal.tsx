@@ -750,6 +750,18 @@ const AddTrackModal = ({ isOpen, onClose, onAdd, initialData }: AddTrackModalPro
         .btn-secondary { height: 52px; padding: 0 24px; border-radius: 16px; background: rgba(255,255,255,0.05); color: #71717a; font-weight: 700; border: none; cursor: pointer; }
         .btn-secondary:hover { color: white; background: rgba(255,255,255,0.1); }
 
+        /* Wide screens: the form sits in two columns (title and cover on the left, everything else on the right) so it fits without scrolling */
+        @media (min-width: 1100px) {
+          .modal-content { max-width: 1240px; padding: 26px 36px; max-height: 94vh; }
+          .modal-form { display: grid; grid-template-columns: minmax(340px, 0.8fr) 1.4fr; column-gap: 40px; align-items: start; }
+          .modal-form > .validation-error-banner, .modal-form > .modal-footer { grid-column: 1 / -1; }
+          .form-redistribution-row { flex-direction: column; margin-bottom: 0; }
+          .artwork-column { width: 100%; }
+          .artwork-compact-dropzone.large { width: 100%; height: 190px; }
+          .secondary-fields-box { border-top: none; padding-top: 0; margin-bottom: 0; }
+          .modal-footer { margin-top: 18px; }
+        }
+
         @media (max-width: 640px) {
           .modal-overlay { padding: 8px; }
           .modal-content { padding: 20px 16px; border-radius: 24px; max-height: 94vh; }

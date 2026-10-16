@@ -1,8 +1,9 @@
 "use client";
 
 import AdminPageHeader from '@/components/admin/AdminPageHeader';
+import { sortUsers, USER_SORT_OPTIONS, UserSortKey } from '@/utils/sortUsers';
 import React, { useState, useEffect, useCallback } from 'react';
-import { Users, Globe, Clock, TrendingUp, RefreshCw, Calendar, MessageCircle } from 'lucide-react';
+import { Users, Globe, Clock, TrendingUp, RefreshCw, MessageCircle, Search, Sparkles } from 'lucide-react';
 import { adminDb as supabase } from '@/lib/admin-db';
 import { adminDb } from '@/lib/admin-db';
 
@@ -17,6 +18,8 @@ interface TelegramUser {
   first_seen: string;
   last_seen: string;
   visit_count: number;
+  is_premium?: boolean;
+  premium_until?: string | null;
 }
 
 interface WebVisitor {
@@ -62,6 +65,9 @@ export default function AdminUsersPage() {
   const [avgSession, setAvgSession] = useState(0);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
+  const [loadError, setLoadError] = useState<string | null>(null);
+  const [statusFilter, setStatusFilter] = useState<'all' | 'premium' | 'free'>('all');
+  const [visible, setVisible] = useState(50);
   // Invites: who invited whom (empty until the referrals table exists)
   const [invites, setInvites] = useState<{ inviter_id: number; invitee_id: number }[]>([]);
 
@@ -75,6 +81,8 @@ export default function AdminUsersPage() {
         supabase.from('page_visits').select('id, created_at, session_id, user_ref, duration_seconds, country_code, country_name').order('created_at', { ascending: false }).limit(2000),
       ]);
 
+      if (usersRes.error) throw usersRes.error;
+      setLoadError(null);
       const allUsers = (usersRes.data || []) as TelegramUser[];
       adminDb.from('referrals').select('inviter_id, invitee_id').then(r => setInvites(r.data || []));
       setUsers(allUsers);
@@ -136,6 +144,7 @@ export default function AdminUsersPage() {
       setAvgSession(durations.length ? Math.round(durations.reduce((a: number, b: number) => a + b, 0) / durations.length) : 0);
     } catch (e) {
       console.error(e);
+      setLoadError(`Could not load users: ${(e as Error).message || 'please refresh'}`);
     } finally {
       setLoading(false);
     }
@@ -143,14 +152,19 @@ export default function AdminUsersPage() {
 
   useEffect(() => { fetchData(); }, [fetchData]);
 
-  const filteredTelegram = users.filter(u => {
+  const [userSort, setUserSort] = useState<UserSortKey>('visits');
+  const isActivePremium = (u: TelegramUser) => !!u.is_premium && (!u.premium_until || new Date(u.premium_until).getTime() > Date.now());
+  const premiumTotal = users.filter(isActivePremium).length;
+  const filteredTelegram = sortUsers(users.filter(u => {
+    if (statusFilter === 'premium' && !isActivePremium(u)) return false;
+    if (statusFilter === 'free' && isActivePremium(u)) return false;
     if (!search) return true;
     const q = search.toLowerCase();
     return u.first_name?.toLowerCase().includes(q)
       || u.last_name?.toLowerCase().includes(q)
       || u.username?.toLowerCase().includes(q)
       || u.country_name?.toLowerCase().includes(q);
-  });
+  }), userSort);
 
   const filteredWeb = webVisitors.filter(w => {
     if (!search) return true;
@@ -173,351 +187,283 @@ export default function AdminUsersPage() {
         </button>
       </AdminPageHeader>
 
+      {loadError && <div className="load-error" role="alert">{loadError}</div>}
+
       {/* Summary cards */}
       <div className="summary-row">
-        <div className="sum-card glass">
-          <MessageCircle size={20} className="sum-icon" />
-          <div className="sum-val">{loading ? '—' : users.length}</div>
-          <div className="sum-label">Telegram Users</div>
-        </div>
-        <div className="sum-card glass">
-          <TrendingUp size={20} className="sum-icon" />
-          <div className="sum-val">{loading ? '—' : totalVisits.toLocaleString()}</div>
-          <div className="sum-label">Total Sessions</div>
-        </div>
-        <div className="sum-card glass">
-          <Clock size={20} className="sum-icon" />
-          <div className="sum-val">{loading ? '—' : avgSession ? fmtDur(avgSession) : '—'}</div>
-          <div className="sum-label">Avg Session</div>
-        </div>
-        <div className="sum-card glass">
-          <Globe size={20} className="sum-icon" />
-          <div className="sum-val">{loading ? '—' : countries.length}</div>
-          <div className="sum-label">Countries</div>
-        </div>
+        {[
+          { icon: <MessageCircle size={18} />, val: users.length, label: 'Telegram users' },
+          { icon: <Sparkles size={18} />, val: premiumTotal, label: 'Premium members', accent: true },
+          { icon: <TrendingUp size={18} />, val: totalVisits.toLocaleString(), label: 'Total sessions' },
+          { icon: <Clock size={18} />, val: avgSession ? fmtDur(avgSession) : '—', label: 'Avg session' },
+          { icon: <Globe size={18} />, val: countries.length, label: 'Countries' },
+        ].map(c => (
+          <div key={c.label} className={`sum-card glass ${c.accent ? 'accent' : ''}`}>
+            <span className="sum-icon">{c.icon}</span>
+            <div>
+              <div className="sum-val">{loading ? '—' : c.val}</div>
+              <div className="sum-label">{c.label}</div>
+            </div>
+          </div>
+        ))}
       </div>
 
-      {/* Tabs: Telegram Users vs Web Visitors */}
-      <div style={{ display: 'flex', gap: '10px', borderBottom: '1px solid rgba(255,255,255,0.08)', paddingBottom: '14px' }}>
-        <button
-          onClick={() => setActiveTab('telegram')}
-          style={{
-            padding: '9px 18px',
-            borderRadius: '12px',
-            fontSize: '13px',
-            fontWeight: 700,
-            cursor: 'pointer',
-            border: activeTab === 'telegram' ? '1px solid #1db954' : '1px solid rgba(255,255,255,0.1)',
-            background: activeTab === 'telegram' ? 'rgba(29, 185, 84, 0.15)' : 'rgba(255,255,255,0.03)',
-            color: activeTab === 'telegram' ? '#1db954' : '#a1a1aa',
-            transition: 'all 0.2s',
-          }}
-        >
-          ✈️ Telegram Users ({users.length})
-        </button>
-        <button
-          onClick={() => setActiveTab('web')}
-          style={{
-            padding: '9px 18px',
-            borderRadius: '12px',
-            fontSize: '13px',
-            fontWeight: 700,
-            cursor: 'pointer',
-            border: activeTab === 'web' ? '1px solid #38bdf8' : '1px solid rgba(255,255,255,0.1)',
-            background: activeTab === 'web' ? 'rgba(56, 189, 248, 0.15)' : 'rgba(255,255,255,0.03)',
-            color: activeTab === 'web' ? '#38bdf8' : '#a1a1aa',
-            transition: 'all 0.2s',
-          }}
-        >
-          🌐 Web Visitors & IPs ({webVisitors.length})
-        </button>
-      </div>
-
-      {/* Main content: user list + country sidebar */}
       <div className="content-grid">
-
-        {/* Users table */}
-        <div className="users-panel">
-          <div className="panel-header">
-            <h2>
-              <Users size={18} /> 
-              {activeTab === 'telegram' ? `Telegram Users (${filteredTelegram.length})` : `Web Visitors & IPs (${filteredWeb.length})`}
-            </h2>
-            <input
-              className="search-input glass"
-              placeholder={activeTab === 'telegram' ? "Search by name, @username, country..." : "Search by IP, country..."}
-              value={search}
-              onChange={e => setSearch(e.target.value)}
-            />
+        <section className="users-panel glass">
+          {/* One toolbar: who, search, filter, sort */}
+          <div className="toolbar">
+            <div className="seg" role="tablist" aria-label="User type">
+              <button type="button" role="tab" aria-selected={activeTab === 'telegram'} className={`seg-btn ${activeTab === 'telegram' ? 'on' : ''}`} onClick={() => { setActiveTab('telegram'); setVisible(50); }}>
+                Telegram <b>{users.length}</b>
+              </button>
+              <button type="button" role="tab" aria-selected={activeTab === 'web'} className={`seg-btn ${activeTab === 'web' ? 'on web' : ''}`} onClick={() => { setActiveTab('web'); setVisible(50); }}>
+                Web visitors <b>{webVisitors.length}</b>
+              </button>
+            </div>
+            <div className="search-box">
+              <Search size={15} />
+              <input
+                placeholder={activeTab === 'telegram' ? 'Search name, @username, country…' : 'Search IP or country…'}
+                value={search}
+                onChange={e => { setSearch(e.target.value); setVisible(50); }}
+                aria-label="Search users"
+              />
+            </div>
+            {activeTab === 'telegram' && (
+              <>
+                <div className="chips" role="tablist" aria-label="Premium filter">
+                  {([['all', 'All', users.length], ['premium', 'Premium', premiumTotal], ['free', 'Free', users.length - premiumTotal]] as const).map(([k, label, n]) => (
+                    <button key={k} type="button" role="tab" aria-selected={statusFilter === k} className={`chip ${statusFilter === k ? 'on' : ''}`} onClick={() => { setStatusFilter(k); setVisible(50); }}>
+                      {label} <b>{n}</b>
+                    </button>
+                  ))}
+                </div>
+                <select className="sort" value={userSort} onChange={e => setUserSort(e.target.value as UserSortKey)} aria-label="Sort users">
+                  {USER_SORT_OPTIONS.map(o => <option key={o.key} value={o.key}>{o.label}</option>)}
+                </select>
+              </>
+            )}
           </div>
 
           {loading ? (
-            <div className="loading-state"><div className="spinner" /><span>Loading users...</span></div>
+            <div className="state"><div className="spinner" /><span>Loading users…</span></div>
           ) : activeTab === 'telegram' ? (
             filteredTelegram.length === 0 ? (
-              <div className="empty-state">
-                <Users size={40} opacity={0.2} />
-                <p>No Telegram users found.</p>
-              </div>
+              <div className="state"><Users size={36} opacity={0.25} /><p>No Telegram users match.</p></div>
             ) : (
-              <div className="users-list">
-                {filteredTelegram.map((u, i) => (
-                  <div key={u.telegram_id} className="user-row glass">
-                    <div className="user-rank">#{i + 1}</div>
-                    <div className="user-avatar">
-                      {u.photo_url
-                        ? <img src={u.photo_url} alt="" />
-                        : <span>{u.first_name?.charAt(0) || '?'}</span>
-                      }
-                    </div>
-                    <div className="user-info">
-                      <div className="user-name">
-                        {u.first_name}{u.last_name ? ` ${u.last_name}` : ''}
-                      </div>
-                      <div className="user-meta">
-                        {u.username && <span className="tg-handle">@{u.username}</span>}
-                        {(() => {
-                          const by = invites.find(x => Number(x.invitee_id) === Number(u.telegram_id));
-                          const inviter = by && users.find(x => Number(x.telegram_id) === Number(by.inviter_id));
-                          const count = invites.filter(x => Number(x.inviter_id) === Number(u.telegram_id)).length;
-                          return (
-                            <>
+              <>
+                <div className="list-head tg-cols" aria-hidden="true">
+                  <span>User</span><span>Country</span><span>Joined</span><span>Last active</span><span className="r">Logins</span>
+                </div>
+                <ul className="list">
+                  {filteredTelegram.slice(0, visible).map(u => {
+                    const by = invites.find(x => Number(x.invitee_id) === Number(u.telegram_id));
+                    const inviter = by && users.find(x => Number(x.telegram_id) === Number(by.inviter_id));
+                    const count = invites.filter(x => Number(x.inviter_id) === Number(u.telegram_id)).length;
+                    const premium = isActivePremium(u);
+                    return (
+                      <li key={u.telegram_id} className={`row tg-cols ${premium ? 'is-premium' : ''}`}>
+                        <div className="who">
+                          <div className="avatar">
+                            {u.photo_url ? <img src={u.photo_url} alt="" /> : <span>{(u.first_name || '?').charAt(0)}</span>}
+                          </div>
+                          <div className="who-text">
+                            <div className="name">
+                              <span className="name-text">{u.first_name}{u.last_name ? ` ${u.last_name}` : ''}</span>
+                              {premium && <span className="premium-badge" title="Active Premium member">💎 Premium</span>}
+                            </div>
+                            <div className="sub">
+                              {u.username ? <span className="handle">@{u.username}</span> : <span className="muted">no username</span>}
                               {by && (
                                 <span className="invite-tag" title="Joined with an invite (1 month free Premium)">
                                   invited by {inviter ? `${inviter.first_name || ''}${inviter.username ? ` @${inviter.username}` : ''}`.trim() : by.inviter_id}
                                 </span>
                               )}
                               {count > 0 && <span className="invite-tag inviter">invited {count}</span>}
-                            </>
-                          );
-                        })()}
-                        {u.country_name && (
-                          <span className="user-country">
-                            {FLAG[u.country_code || ''] || '🌍'} {u.country_name}
-                          </span>
-                        )}
-                      </div>
-                    </div>
-                    <div className="user-stats">
-                      <div className="stat-pill visits">{u.visit_count}x logins</div>
-                      <div className="stat-pill date">
-                        <Calendar size={10} /> {fmtDate(u.first_seen)}
-                      </div>
-                      <div className="stat-pill lastseen">last: {timeAgo(u.last_seen)}</div>
-                    </div>
-                  </div>
-                ))}
-              </div>
+                            </div>
+                          </div>
+                        </div>
+                        <div className="cell country" data-label="Country">{u.country_name ? `${FLAG[u.country_code || ''] || '🌍'} ${u.country_name}` : <span className="muted">—</span>}</div>
+                        <div className="cell" data-label="Joined">{fmtDate(u.first_seen)}</div>
+                        <div className="cell" data-label="Last active">{timeAgo(u.last_seen)}</div>
+                        <div className="cell r" data-label="Logins"><span className="count">{u.visit_count}×</span></div>
+                      </li>
+                    );
+                  })}
+                </ul>
+                {filteredTelegram.length > visible && (
+                  <button type="button" className="more" onClick={() => setVisible(v => v + 50)}>
+                    Show more ({filteredTelegram.length - visible} left)
+                  </button>
+                )}
+              </>
             )
           ) : (
             filteredWeb.length === 0 ? (
-              <div className="empty-state">
-                <Globe size={40} opacity={0.2} />
-                <p>No web visitors tracked yet.</p>
-              </div>
+              <div className="state"><Globe size={36} opacity={0.25} /><p>No web visitors tracked yet.</p></div>
             ) : (
-              <div className="users-list">
-                {filteredWeb.map((w, i) => (
-                  <div key={w.id || w.ip} className="user-row glass">
-                    <div className="user-rank">#{i + 1}</div>
-                    <div className="user-avatar" style={{ background: '#0284c7', color: 'white' }}>
-                      🌐
-                    </div>
-                    <div className="user-info">
-                      <div className="user-name" style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                        <span style={{ fontFamily: 'monospace', fontSize: '15px' }}>{w.ip}</span>
-                        {w.visit_count > 1 && (
-                          <span style={{ fontSize: '11px', background: 'rgba(56, 189, 248, 0.15)', color: '#38bdf8', border: '1px solid rgba(56, 189, 248, 0.3)', padding: '2px 8px', borderRadius: '6px', fontWeight: 800 }}>
-                            {w.visit_count} visits
-                          </span>
-                        )}
+              <>
+                <div className="list-head web-cols" aria-hidden="true">
+                  <span>Visitor</span><span>Country</span><span>First seen</span><span>Last active</span><span className="r">Visits</span>
+                </div>
+                <ul className="list">
+                  {filteredWeb.slice(0, visible).map(w => (
+                    <li key={w.id || w.ip} className="row web-cols">
+                      <div className="who">
+                        <div className="avatar web">🌐</div>
+                        <div className="who-text">
+                          <div className="name"><span className="name-text mono">{w.ip}</span></div>
+                          <div className="sub">{w.total_duration > 0 ? <span className="muted">⏱ {fmtDur(w.total_duration)} total</span> : <span className="muted">no time recorded</span>}</div>
+                        </div>
                       </div>
-                      <div className="user-meta">
-                        <span className="user-country">
-                          {FLAG[w.country_code] || '🌍'} {w.country_name} {w.country_code !== 'Unknown' ? `(${w.country_code})` : ''}
-                        </span>
-                        {w.total_duration > 0 && (
-                          <span style={{ fontSize: '12px', color: '#a1a1aa' }}>
-                            ⏱ {fmtDur(w.total_duration)} total time
-                          </span>
-                        )}
-                      </div>
-                    </div>
-                    <div className="user-stats">
-                      <div className="stat-pill visits" style={{ background: 'rgba(56, 189, 248, 0.15)', color: '#38bdf8' }}>
-                        {w.visit_count}x visits
-                      </div>
-                      <div className="stat-pill date">
-                        <Calendar size={10} /> first: {fmtDate(w.first_seen)}
-                      </div>
-                      <div className="stat-pill lastseen">last: {timeAgo(w.last_seen)}</div>
-                    </div>
-                  </div>
-                ))}
-              </div>
+                      <div className="cell country" data-label="Country">{FLAG[w.country_code] || '🌍'} {w.country_name}</div>
+                      <div className="cell" data-label="First seen">{fmtDate(w.first_seen)}</div>
+                      <div className="cell" data-label="Last active">{timeAgo(w.last_seen)}</div>
+                      <div className="cell r" data-label="Visits"><span className="count web">{w.visit_count}×</span></div>
+                    </li>
+                  ))}
+                </ul>
+                {filteredWeb.length > visible && (
+                  <button type="button" className="more" onClick={() => setVisible(v => v + 50)}>
+                    Show more ({filteredWeb.length - visible} left)
+                  </button>
+                )}
+              </>
             )
           )}
-        </div>
+        </section>
 
         {/* Country breakdown */}
-        <div className="country-panel glass">
-          <div className="panel-header-sm">
-            <Globe size={16} className="text-primary" />
-            <h3>By Country</h3>
-          </div>
+        <aside className="country-panel glass">
+          <div className="panel-header-sm"><Globe size={16} className="text-primary" /><h3>By country</h3></div>
           {countries.length === 0 ? (
             <div className="empty-sm">No data yet</div>
-          ) : countries.map(c => (
+          ) : countries.slice(0, 12).map(c => (
             <div key={c.country_code} className="country-row">
               <div className="country-flag-name">
                 <span className="cflag">{FLAG[c.country_code] || '🌍'}</span>
                 <span className="cname">{c.country_name}</span>
               </div>
-              <div className="cbar-wrap">
-                <div className="cbar" style={{ width: `${Math.round((c.count / maxCountry) * 100)}%` }} />
-              </div>
+              <div className="cbar-wrap"><div className="cbar" style={{ width: `${Math.round((c.count / maxCountry) * 100)}%` }} /></div>
               <span className="ccount">{c.count}</span>
             </div>
           ))}
-        </div>
+        </aside>
       </div>
 
       <style jsx>{`
-        .users-page { display:flex; flex-direction:column; gap:24px; padding-bottom:80px; }
-
-        .page-header { display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:12px; }
-        .page-header h1 { font-size:24px; font-weight:900; letter-spacing:-0.5px; }
-        .text-muted { font-size:13px; color:#71717a; margin-top:3px; }
-
-        .btn-refresh { display:flex; align-items:center; gap:8px; padding:9px 18px; border-radius:12px; font-size:13px; font-weight:700; color:white; border:1px solid rgba(255,255,255,0.1); cursor:pointer; transition:background 0.2s; background:transparent; }
-        .btn-refresh:hover { background:rgba(255,255,255,0.06); }
+        .users-page { display:flex; flex-direction:column; gap:20px; padding-bottom:80px; width:100%; max-width:1400px; margin:0 auto; }
+        .load-error { padding:10px 14px; border-radius:12px; background:rgba(239,68,68,0.12); color:#fca5a5; font-size:14px; }
         .spin { animation:sp 0.8s linear infinite; }
         @keyframes sp { to { transform:rotate(360deg); } }
 
         /* Summary */
-        .summary-row { display:grid; grid-template-columns:repeat(4,1fr); gap:14px; }
-        .sum-card { padding:20px; border-radius:18px; display:flex; flex-direction:column; gap:8px; border:1px solid rgba(255,255,255,0.05); }
-        .sum-icon { color:#1db954; }
-        .sum-val { font-size:28px; font-weight:900; letter-spacing:-1px; line-height:1; }
-        .sum-label { font-size:10px; font-weight:800; color:#52525b; text-transform:uppercase; letter-spacing:0.5px; }
+        .summary-row { display:grid; grid-template-columns:repeat(5,1fr); gap:12px; }
+        .sum-card { padding:14px 16px; border-radius:16px; display:flex; align-items:center; gap:12px; border:1px solid rgba(255,255,255,0.06); min-width:0; }
+        .sum-card.accent { border-color:rgba(168,85,247,0.35); background:rgba(168,85,247,0.07); }
+        .sum-icon { width:36px; height:36px; border-radius:10px; display:flex; align-items:center; justify-content:center; background:rgba(29,185,84,0.12); color:#1db954; flex-shrink:0; }
+        .sum-card.accent .sum-icon { background:rgba(168,85,247,0.18); color:#c084fc; }
+        .sum-val { font-size:22px; font-weight:900; letter-spacing:-0.5px; line-height:1.1; }
+        .sum-label { font-size:11px; font-weight:700; color:#8b8b94; margin-top:2px; }
 
-        /* Layout */
-        .content-grid { display:grid; grid-template-columns:1fr 260px; gap:20px; align-items:start; }
+        .content-grid { display:grid; grid-template-columns:minmax(0,1fr) 280px; gap:20px; align-items:start; }
 
-        /* Users panel */
-        .users-panel { display:flex; flex-direction:column; gap:16px; }
-        .panel-header { display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:12px; }
-        .panel-header h2 { display:flex; align-items:center; gap:8px; font-size:16px; font-weight:800; }
+        /* Panel + toolbar */
+        .users-panel { border-radius:20px; border:1px solid rgba(255,255,255,0.06); padding:16px; display:flex; flex-direction:column; gap:14px; min-width:0; }
+        .toolbar { display:flex; align-items:center; gap:10px; flex-wrap:wrap; }
+        .seg { display:flex; gap:4px; padding:4px; border-radius:12px; background:rgba(255,255,255,0.05); }
+        .seg-btn { border:none; background:transparent; color:#a1a1aa; padding:8px 14px; border-radius:9px; font-size:13px; font-weight:800; cursor:pointer; white-space:nowrap; }
+        .seg-btn b { margin-left:5px; font-weight:800; opacity:0.7; }
+        .seg-btn.on { background:#1db954; color:#000; }
+        .seg-btn.on.web { background:#38bdf8; }
+        .search-box { display:flex; align-items:center; gap:8px; flex:1 1 150px; min-width:150px; padding:0 12px; height:38px; border-radius:10px; background:rgba(255,255,255,0.05); border:1px solid rgba(255,255,255,0.08); color:#71717a; }
+        .search-box:focus-within { border-color:#1db954; }
+        .search-box input { flex:1; min-width:0; background:transparent; border:none; outline:none; color:#fff; font-size:14px; }
+        .chips { display:flex; gap:6px; }
+        .chip { border:1px solid rgba(255,255,255,0.12); background:rgba(255,255,255,0.04); color:#d4d4d8; border-radius:999px; padding:7px 12px; font-size:12.5px; font-weight:700; cursor:pointer; white-space:nowrap; }
+        .chip b { margin-left:4px; color:#a1a1aa; }
+        .chip.on { background:rgba(29,185,84,0.16); border-color:rgba(29,185,84,0.5); color:#4ade80; }
+        .chip.on b { color:#4ade80; }
+        .sort { height:38px; background:rgba(255,255,255,0.05); color:#e4e4e7; border:1px solid rgba(255,255,255,0.12); border-radius:10px; padding:0 10px; font-size:13px; }
 
-        .search-input { 
-          padding:9px 14px; border-radius:10px; font-size:13px; color:white;
-          background:rgba(255,255,255,0.05); border:1px solid rgba(255,255,255,0.08);
-          outline:none; width:240px; transition:border-color 0.2s;
-        }
-        .search-input:focus { border-color:#1db954; }
-        .search-input::placeholder { color:#52525b; }
+        .state { display:flex; flex-direction:column; align-items:center; justify-content:center; gap:12px; padding:48px 20px; color:#71717a; text-align:center; }
+        .spinner { width:30px; height:30px; border:3px solid rgba(255,255,255,0.07); border-top-color:#1db954; border-radius:50%; animation:sp 0.8s linear infinite; }
 
-        .loading-state, .empty-state { 
-          display:flex; flex-direction:column; align-items:center; justify-content:center;
-          gap:12px; padding:60px 20px; color:#52525b; text-align:center;
-          border:1px solid rgba(255,255,255,0.05); border-radius:16px;
-        }
-        .empty-state p { font-size:13px; max-width:280px; line-height:1.6; }
-        .spinner { width:32px; height:32px; border:3px solid rgba(255,255,255,0.07); border-top-color:#1db954; border-radius:50%; animation:sp 0.8s linear infinite; }
-
-        /* User rows */
-        .users-list { display:flex; flex-direction:column; gap:8px; }
-        .user-row { 
-          display:flex; align-items:center; gap:12px;
-          padding:14px 16px; border-radius:16px;
-          border:1px solid rgba(255,255,255,0.04);
-          transition:border-color 0.2s, background 0.2s;
-        }
-        .user-row:hover { background:rgba(255,255,255,0.03); border-color:rgba(255,255,255,0.08); }
-
-        .user-rank { font-size:12px; font-weight:800; color:#3f3f46; min-width:24px; text-align:center; }
-
-        .user-avatar { 
-          width:44px; height:44px; border-radius:50%; overflow:hidden; flex-shrink:0;
-          background:#1db954; display:flex; align-items:center; justify-content:center;
-          color:black; font-weight:900; font-size:18px;
-        }
-        .user-avatar img { width:100%; height:100%; object-fit:cover; }
-
-        .user-info { flex:1; min-width:0; }
-        .user-name { font-size:15px; font-weight:700; margin-bottom:3px; }
-        .user-meta { display:flex; align-items:center; gap:10px; flex-wrap:wrap; }
-        .tg-handle { font-size:12px; color:#1db954; font-weight:600; }
-        .user-country { font-size:12px; color:#71717a; }
-
-        .user-stats { display:flex; flex-direction:column; gap:4px; align-items:flex-end; flex-shrink:0; }
-        .stat-pill { 
-          display:flex; align-items:center; gap:4px;
-          font-size:11px; font-weight:700; padding:3px 8px;
-          border-radius:6px; white-space:nowrap;
-        }
-        .stat-pill.visits { background:rgba(29,185,84,0.12); color:#1db954; }
-        .stat-pill.date { color:#71717a; }
-        .stat-pill.lastseen { color:#52525b; }
+        /* List: header + rows share the same columns */
+        .tg-cols { display:grid; grid-template-columns:minmax(0,2.6fr) minmax(0,1.3fr) minmax(0,1fr) minmax(0,1fr) 72px; gap:14px; align-items:center; }
+        .web-cols { display:grid; grid-template-columns:minmax(0,2.6fr) minmax(0,1.3fr) minmax(0,1fr) minmax(0,1fr) 72px; gap:14px; align-items:center; }
+        .list-head { padding:0 12px 8px; font-size:11px; font-weight:800; letter-spacing:0.8px; text-transform:uppercase; color:#71717a; border-bottom:1px solid rgba(255,255,255,0.07); text-align:left; }
+        .list { list-style:none; margin:0; padding:0; display:flex; flex-direction:column; }
+        .row { padding:10px 12px; border-bottom:1px solid rgba(255,255,255,0.05); border-radius:12px; text-align:left; transition:background 0.15s; }
+        .row:hover { background:rgba(255,255,255,0.04); }
+        .row.is-premium { background:linear-gradient(90deg, rgba(168,85,247,0.08), transparent 55%); }
+        .r { text-align:right; justify-self:end; }
+        .who { display:flex; align-items:center; gap:12px; min-width:0; }
+        .avatar { width:40px; height:40px; border-radius:50%; overflow:hidden; flex-shrink:0; background:#1db954; display:flex; align-items:center; justify-content:center; color:#000; font-weight:900; font-size:16px; }
+        .avatar.web { background:#0c4a6e; color:#fff; font-size:18px; }
+        .avatar img { width:100%; height:100%; object-fit:cover; }
+        .who-text { min-width:0; display:flex; flex-direction:column; gap:3px; }
+        .name { display:flex; align-items:center; gap:8px; flex-wrap:wrap; min-width:0; }
+        .name-text { font-size:15px; font-weight:700; color:#fff; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; max-width:100%; }
+        .name-text.mono { font-family:ui-monospace,monospace; font-size:14px; }
+        .sub { display:flex; align-items:center; gap:8px; flex-wrap:wrap; font-size:12.5px; }
+        .handle { color:#1db954; font-weight:600; }
+        .muted { color:#71717a; }
+        .cell { font-size:13.5px; color:#d4d4d8; min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+        .count { display:inline-block; min-width:44px; text-align:center; font-size:12.5px; font-weight:800; padding:4px 9px; border-radius:8px; background:rgba(29,185,84,0.13); color:#4ade80; }
+        .count.web { background:rgba(56,189,248,0.14); color:#38bdf8; }
+        .premium-badge { font-size:10.5px; font-weight:800; padding:2px 8px; border-radius:999px; background:rgba(168,85,247,0.16); color:#c084fc; border:1px solid rgba(168,85,247,0.35); white-space:nowrap; }
+        .invite-tag { font-size:11px; font-weight:700; padding:1px 8px; border-radius:999px; background:rgba(16,185,129,0.15); color:#34d399; white-space:nowrap; }
+        .invite-tag.inviter { background:rgba(168,85,247,0.15); color:#c084fc; }
+        .more { margin:6px auto 0; padding:10px 22px; border-radius:12px; border:1px solid rgba(255,255,255,0.12); background:rgba(255,255,255,0.04); color:#e4e4e7; font-size:13px; font-weight:800; cursor:pointer; }
+        .more:hover { background:rgba(255,255,255,0.08); }
 
         /* Country panel */
-        .country-panel { padding:20px; border-radius:20px; display:flex; flex-direction:column; gap:12px; border:1px solid rgba(255,255,255,0.05); }
-        .panel-header-sm { display:flex; align-items:center; gap:8px; margin-bottom:4px; }
-        .panel-header-sm h3 { font-size:14px; font-weight:800; }
+        .country-panel { padding:18px; border-radius:20px; display:flex; flex-direction:column; gap:12px; border:1px solid rgba(255,255,255,0.06); position:sticky; top:12px; }
+        .panel-header-sm { display:flex; align-items:center; gap:8px; margin-bottom:2px; }
+        .panel-header-sm h3 { font-size:14px; font-weight:800; margin:0; }
         .text-primary { color:#1db954; }
-        .empty-sm { font-size:12px; color:#52525b; text-align:center; padding:20px; }
-
+        .empty-sm { font-size:12px; color:#71717a; text-align:center; padding:20px; }
         .country-row { display:flex; align-items:center; gap:8px; }
-        .country-flag-name { display:flex; align-items:center; gap:6px; min-width:110px; }
+        .country-flag-name { display:flex; align-items:center; gap:6px; min-width:112px; }
         .cflag { font-size:16px; }
-        .cname { font-size:12px; font-weight:600; color:#d4d4d8; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
-        .cbar-wrap { flex:1; height:5px; background:rgba(255,255,255,0.06); border-radius:3px; overflow:hidden; }
-        .cbar { height:100%; background:#1db954; border-radius:3px; transition:width 0.5s ease; }
-        .ccount { font-size:12px; font-weight:800; color:#71717a; min-width:20px; text-align:right; }
+        .cname { font-size:12.5px; font-weight:600; color:#d4d4d8; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+        .cbar-wrap { flex:1; height:5px; background:rgba(255,255,255,0.07); border-radius:3px; overflow:hidden; }
+        .cbar { height:100%; background:#1db954; border-radius:3px; }
+        .ccount { font-size:12px; font-weight:800; color:#a1a1aa; min-width:20px; text-align:right; }
 
         .animate-in { animation:aIn 0.4s cubic-bezier(0.4,0,0.2,1); }
         @keyframes aIn { from{opacity:0;transform:translateY(8px)} to{opacity:1;transform:translateY(0)} }
 
-        @media (max-width: 900px) {
-          .summary-row { grid-template-columns:repeat(2,1fr); }
+        @media (max-width: 1100px) {
+          .summary-row { grid-template-columns:repeat(3,1fr); }
           .content-grid { grid-template-columns:1fr; }
-          .country-panel { order:-1; }
-          .search-input { width:100%; }
+          .country-panel { position:static; }
         }
 
-        @media (max-width: 640px) {
-          .summary-row { grid-template-columns:repeat(2,1fr); gap:10px; }
-          .sum-card { padding:14px; }
-          .sum-val { font-size:22px; }
-          .user-row { flex-direction: column; align-items: flex-start; gap: 8px; }
-          .user-rank { display: none; }
-          .user-stats {
-            display: flex;
-            flex-direction: row;
-            flex-wrap: wrap;
-            gap: 6px;
-            align-items: center;
-            width: 100%;
-            padding-top: 6px;
-            border-top: 1px solid rgba(255, 255, 255, 0.04);
-          }
-          .panel-header { flex-direction:column; align-items:flex-start; gap: 10px; }
-          .search-input { width:100%; }
+        /* Tablets/phones: each person becomes a card */
+        @media (max-width: 760px) {
+          .summary-row { grid-template-columns:repeat(2,1fr); gap:8px; }
+          .sum-card { padding:12px; gap:10px; }
+          .sum-icon { width:32px; height:32px; }
+          .sum-val { font-size:19px; }
+          .sum-card:last-child { grid-column:1 / -1; }
+          .users-panel { padding:12px; border-radius:16px; }
+          .seg { width:100%; }
+          .seg-btn { flex:1; }
+          .search-box { flex-basis:100%; }
+          .sort { flex:1; }
+          .chips { overflow-x:auto; scrollbar-width:none; }
+          .list-head { display:none; }
+          .tg-cols, .web-cols { grid-template-columns:1fr 1fr; gap:6px 12px; }
+          .row { border:1px solid rgba(255,255,255,0.07); border-radius:14px; margin-bottom:8px; padding:12px; background:rgba(255,255,255,0.02); }
+          .who { grid-column:1 / -1; }
+          .cell { font-size:12.5px; white-space:normal; }
+          .cell::before { content:attr(data-label); display:block; font-size:10px; font-weight:800; letter-spacing:0.6px; text-transform:uppercase; color:#71717a; margin-bottom:1px; }
+          .cell.r { text-align:left; justify-self:start; }
+          .country-panel { padding:14px; }
         }
-              .invite-tag {
-          font-size: 11px;
-          font-weight: 700;
-          padding: 1px 8px;
-          border-radius: 999px;
-          background: rgba(16, 185, 129, 0.15);
-          color: #34d399;
-          white-space: nowrap;
-        }
-        .invite-tag.inviter {
-          background: rgba(168, 85, 247, 0.15);
-          color: #c084fc;
-        }
-`}</style>
+      `}</style>
     </div>
   );
 }

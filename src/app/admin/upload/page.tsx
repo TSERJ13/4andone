@@ -5,18 +5,19 @@ import { Upload } from 'lucide-react';
 import BulkUpload from '@/components/admin/BulkUpload';
 import AdminPageHeader from '@/components/admin/AdminPageHeader';
 
-/** Bulk music upload. Lives on its own page now (it used to fill the whole Overview). ?album=<slug> preselects an album. */
+/**
+ * Music upload on its own full-width page. On a wide screen the settings (album, artist, style, tags, cover) stay on the
+ * left while the drop area and the track queue use the rest, so nothing needs scrolling to reach. ?album=<slug> preselects an album.
+ */
 export default function AdminUploadPage() {
   return (
-    <div className="animate-in">
+    <div className="animate-in" style={{ width: '100%', maxWidth: 1600, margin: '0 auto' }}>
       <AdminPageHeader
         icon={<Upload size={22} />}
         title="Upload Music"
-        subtitle="Add many tracks at once: pick the album, artist and dance style, then drop the audio files."
+        subtitle="Pick the album, drop the audio files, check the queue, upload. Many tracks at once."
       />
-      <section className="glass" style={{ padding: 'clamp(14px, 3vw, 28px)', borderRadius: 20, border: '1px solid rgba(255,255,255,0.06)' }}>
-        <BulkUpload />
-      </section>
+      <BulkUpload />
     </div>
   );
 }

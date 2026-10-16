@@ -394,7 +394,7 @@ const AddTrackModal = ({ isOpen, onClose, onAdd, initialData }: AddTrackModalPro
       let slot: { createdAt: string; date: string; globalOrder: number } | null = null;
       if (keepOriginalDate && !initialData) {
         const alb = albums.find(a => destinations[a.slug]);
-        const base = alb ? albumOriginalSlot(tracks, alb) : null;
+        const base = alb ? albumOriginalSlot(tracks, alb, formData.style) : null;
         if (base) slot = slotForIndex(base, 0);
       }
 
@@ -539,7 +539,7 @@ const AddTrackModal = ({ isOpen, onClose, onAdd, initialData }: AddTrackModalPro
 
                 {!initialData && (() => {
                   const alb = albums.find(a => destinations[a.slug]);
-                  const slotInfo = alb ? albumOriginalSlot(tracks, alb) : null;
+                  const slotInfo = alb ? albumOriginalSlot(tracks, alb, formData.style) : null;
                   if (!alb) return null;
                   return (
                     <label className={`orig-date-toggle ${slotInfo ? '' : 'disabled'}`} style={{ marginTop: 10 }} title="The new track takes the time and place of this album's earlier upload, so it does not appear in the New music lists">
@@ -547,7 +547,7 @@ const AddTrackModal = ({ isOpen, onClose, onAdd, initialData }: AddTrackModalPro
                       <span>
                         <b>Add as part of the earlier upload</b>
                         <small>{slotInfo
-                          ? `Dated ${new Date(slotInfo.createdAt).toLocaleDateString(undefined, { day: 'numeric', month: 'short', year: 'numeric' })}, next to its ${slotInfo.trackCount} tracks. Not shown as new music.`
+                          ? `Dated ${new Date(slotInfo.createdAt).toLocaleDateString(undefined, { day: 'numeric', month: 'short', year: 'numeric' })}, next to its ${slotInfo.trackCount} ${slotInfo.sameStyle ? `${formData.style} ` : ''}tracks. Not shown as new music.`
                           : 'This album has no tracks yet, so it will be a normal new upload.'}</small>
                       </span>
                     </label>

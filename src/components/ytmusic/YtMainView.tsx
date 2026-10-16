@@ -27,7 +27,7 @@ const CATEGORIES = [
 ];
 
 export default function YtMainView() {
-  const { tracks, albums, styles } = useStudio();
+  const { tracks, albums, albumsReady, styles } = useStudio();
   const { togglePlay, isPlaying, trackId: playingTrackId, loadTrack } = useAudioControls();
 
   const [activeCategory, setActiveCategory] = useState('all');
@@ -49,7 +49,8 @@ export default function YtMainView() {
   });
 
   // Prepare Album Shelf Items
-  const albumShelfItems: YtShelfItem[] = albums.map((alb) => ({
+  // Not drawn until the real order is known, so the shelf never shows one order and then jumps to another
+  const albumShelfItems: YtShelfItem[] = (albumsReady ? albums : []).map((alb) => ({
     id: alb.id,
     title: alb.title,
     subtitle: `Album • ${alb.artist || '4ANDONE'}`,

@@ -1,7 +1,7 @@
 "use client";
 
 import { userDb } from '@/lib/user-db';
-import React, { createContext, useContext, useState, useEffect, useMemo } from 'react';
+import React, { createContext, useContext, useState, useEffect, useLayoutEffect, useMemo } from 'react';
 import { supabase } from '@/utils/supabase';
 import { adminDb } from '@/lib/admin-db';
 import { useAuth } from '@/context/AuthContext';
@@ -108,6 +108,8 @@ interface StudioContextType {
   getTracksForFinalFolder: (finalFolderId: string) => Track[];
   // Albums (Dynamic Album Builder)
   albums: Album[];
+  /** false until the real album order is known (from this device's saved copy or the server): don't draw album lists before it */
+  albumsReady: boolean;
   refreshAlbums: () => Promise<void>;
   addAlbum: (album: Partial<Album>) => Promise<Album | undefined>;
   updateAlbum: (id: string, updates: Partial<Album>) => Promise<void>;
@@ -167,6 +169,17 @@ const fetchAllTracks = async () => {
 
 // The last track list is kept on the device, so the app opens with the library already on screen
 // (stale-while-revalidate): the fresh list from the server replaces it a moment later.
+// Albums too: without this the page first showed the built-in order and re-ordered itself a moment later.
+const ALBUMS_CACHE_KEY = '4andone_albums_cache_v1';
+const readAlbumsCache = (): Album[] | null => {
+  if (typeof window === 'undefined') return null;
+  try {
+    const rows = JSON.parse(localStorage.getItem(ALBUMS_CACHE_KEY) || 'null');
+    return Array.isArray(rows) && rows.length > 0 && rows.every(a => a && typeof a.slug === 'string' && typeof a.title === 'string') ? rows : null;
+  } catch { return null; }
+};
+// Runs before the browser paints on the device, and is a no-op on the server
+const useIsoLayoutEffect = typeof window !== 'undefined' ? useLayoutEffect : useEffect;
 const TRACKS_CACHE_KEY = '4andone_tracks_cache_v1';
 const TRACKS_CACHE_MAX_CHARS = 3_000_000; // stay well inside the ~5M character storage quota
 const readTracksCache = (): any[] | null => {
@@ -221,6 +234,16 @@ export const StudioProvider: React.FC<{ children: React.ReactNode }> = ({ childr
   const [finalFolders, setFinalFolders] = useState<FinalFolder[]>([]);
   const [finalFolderTracksMap, setFinalFolderTracksMap] = useState<Record<string, string[]>>({}); // folderId -> [trackIds]
   const [albums, setAlbums] = useState<Album[]>(DEFAULT_ALBUMS);
+  const [albumsReady, setAlbumsReady] = useState(false);
+  useIsoLayoutEffect(() => {
+    const saved = readAlbumsCache();
+    if (saved) { setAlbums(saved); setAlbumsReady(true); }
+  }, []);
+  // Keep this device's copy equal to what the screen shows once it is the real list
+  useEffect(() => {
+    if (!albumsReady) return;
+    try { localStorage.setItem(ALBUMS_CACHE_KEY, JSON.stringify(albums)); } catch { /* storage full or blocked */ }
+  }, [albums, albumsReady]);
   const [isLoading, setIsLoading] = useState(true);
 
   const fetchData = async (silent = false) => {
@@ -277,6 +300,10 @@ export const StudioProvider: React.FC<{ children: React.ReactNode }> = ({ childr
         const merged = [...aData.albums];
         merged.sort((a, b) => (a.orderIndex ?? 0) - (b.orderIndex ?? 0));
         setAlbums(merged);
+        setAlbumsReady(true);
+      } else {
+        // The server could not be reached: show the saved list (or the built-in one) rather than nothing
+        setAlbumsReady(true);
       }
       // Library, dance styles and albums are on screen — pages may render now; personal data follows.
       setIsLoading(false);
@@ -1017,7 +1044,7 @@ export const StudioProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       const res = await fetch('/api/albums');
       if (res.ok) {
         const data = await res.json();
-        if (data.albums) setAlbums(data.albums);
+        if (data.albums) { setAlbums(data.albums); setAlbumsReady(true); }
       }
     } catch (e) {
       console.error('refreshAlbums failed:', e);
@@ -1124,7 +1151,7 @@ export const StudioProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       finalTracks, finalFolders, addFinalFolder, removeFinalFolder,
       addToFinal, removeFromFinal, reorderFinalTracks, setFinalTracks,
       reorderGlobalTracks, reorderTracks, moveTrack, addTrackToFinalFolder, getTracksForFinalFolder,
-      albums, refreshAlbums, addAlbum, updateAlbum, deleteAlbum, reorderAlbums,
+      albums, albumsReady, refreshAlbums, addAlbum, updateAlbum, deleteAlbum, reorderAlbums,
       stats,
       isLoading,
       refreshData: fetchData

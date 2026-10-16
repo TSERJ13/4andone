@@ -36,7 +36,7 @@ const FILTER_CHIPS = ['Playlists', 'Songs', 'Albums', 'Artists'];
 
 export default function LibraryPage() {
   const router = useRouter();
-  const { tracks, folders, folderTracksMap, styles, albums: dbAlbums, toggleFavorite } = useStudio();
+  const { tracks, folders, folderTracksMap, styles, albums: dbAlbums, albumsReady, toggleFavorite } = useStudio();
   const { loadTrack, isPlaying, trackId: playingTrackId, togglePlay } = useAudioControls();
   const { isAuthenticated, setIsAuthModalOpen } = useAuth();
   
@@ -113,7 +113,7 @@ export default function LibraryPage() {
   // Combine default static albums with DB albums
   // The live list (/api/albums) already includes the built-in albums — minus
   // the deleted ones — so DEFAULT_ALBUMS is only the offline fallback.
-  const allAlbums: Album[] = (dbAlbums && dbAlbums.length > 0 ? dbAlbums : DEFAULT_ALBUMS);
+  const allAlbums: Album[] = !albumsReady ? [] : (dbAlbums && dbAlbums.length > 0 ? dbAlbums : DEFAULT_ALBUMS);
 
   // Unique artists for Artists view
   const artistList = allAlbums.map(album => ({

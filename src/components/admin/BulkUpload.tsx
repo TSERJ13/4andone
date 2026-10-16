@@ -399,13 +399,13 @@ const BulkUpload = () => {
         });
         
         if (signRes.ok) {
-          const { uploadUrl, publicUrl } = await signRes.json();
+          const { uploadUrl, publicUrl, mediaUrl } = await signRes.json();
           await fetch(uploadUrl, { 
             method: 'PUT', 
             body: batchCoverFile, 
             headers: { 'Content-Type': batchCoverFile.type } 
           });
-          commonArtworkUrl = publicUrl;
+          commonArtworkUrl = mediaUrl || publicUrl;
         }
       } catch (err) {
         console.error("[BULK-COVER-ERROR] Failed to upload batch cover:", err);

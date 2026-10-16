@@ -3,6 +3,7 @@ import fs from 'fs';
 import path from 'path';
 import type { SupabaseClient } from '@supabase/supabase-js';
 import { Album, DEFAULT_ALBUMS } from '@/types/album';
+import { normalizeMediaUrl } from '@/lib/media-key';
 
 // Albums live in the database (table "albums"). Built-in albums (DEFAULT_ALBUMS + src/data/albums.json) ship with
 // the code and show until they are saved or deleted in the admin: a saved built-in gets a database row; a deleted
@@ -20,7 +21,7 @@ export function mapDbToAlbum(row: any): Album {
     subtitle: row.subtitle || '',
     description: row.description || '',
     badge: row.badge || 'LIVE SOUNDS COLLECTION',
-    coverUrl: row.cover_url || '',
+    coverUrl: normalizeMediaUrl(row.cover_url),
     themeColor: row.theme_color || '#e11d48',
     secondaryColor: row.secondary_color || '#be123c',
     gradient: row.gradient || `linear-gradient(90deg, ${row.theme_color || '#e11d48'}, ${row.secondary_color || '#be123c'})`,
@@ -42,7 +43,7 @@ export function albumToDbRow(a: Album): Record<string, unknown> {
     subtitle: a.subtitle,
     description: a.description,
     badge: a.badge,
-    cover_url: a.coverUrl,
+    cover_url: normalizeMediaUrl(a.coverUrl),
     theme_color: a.themeColor,
     secondary_color: a.secondaryColor,
     gradient: a.gradient,

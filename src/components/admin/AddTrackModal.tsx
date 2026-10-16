@@ -338,7 +338,7 @@ const AddTrackModal = ({ isOpen, onClose, onAdd, initialData }: AddTrackModalPro
           throw new Error(errData.error || "Cover image upload URL signing failed");
         }
 
-        const { uploadUrl, publicUrl } = await signRes.json();
+        const { uploadUrl, publicUrl, mediaUrl } = await signRes.json();
         const putRes = await fetch(uploadUrl, {
           method: 'PUT',
           body: coverFile,
@@ -349,7 +349,7 @@ const AddTrackModal = ({ isOpen, onClose, onAdd, initialData }: AddTrackModalPro
           throw new Error("Cover image upload to storage failed");
         }
 
-        artworkUrl = publicUrl;
+        artworkUrl = mediaUrl || publicUrl;
       }
 
       let finalTags = [...formData.tags].filter(t => {

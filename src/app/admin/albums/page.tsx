@@ -6,6 +6,7 @@ import React, { useState, useRef } from 'react';
 import Link from 'next/link';
 import { useStudio } from '@/components/admin/StudioProvider';
 import { Album } from '@/types/album';
+import { normalizeMediaUrl } from '@/lib/media-key';
 import { 
   Disc, Plus, Edit3, Trash2, ArrowUp, ArrowDown, ExternalLink, 
   Upload, Check, X, Sparkles, Music2, Eye, Flame, Layers
@@ -86,7 +87,7 @@ export default function AdminAlbumsPage() {
     setSlug(album.slug);
     setSubtitle(album.subtitle || album.description || '');
     setBadge(album.badge || 'LIVE SOUNDS COLLECTION');
-    setCoverUrl(album.coverUrl || '');
+    setCoverUrl(normalizeMediaUrl(album.coverUrl));
     setThemeColor(album.themeColor || '#e11d48');
     setSecondaryColor(album.secondaryColor || '#be123c');
     setProgram(album.program || 'Both');
@@ -130,6 +131,7 @@ export default function AdminAlbumsPage() {
     if (!e.target.files || !e.target.files[0]) return;
     const file = e.target.files[0];
     setIsUploading(true);
+    setFormError(null);
     try {
       const signRes = await fetch('/api/upload', {
         method: 'POST',
@@ -137,7 +139,7 @@ export default function AdminAlbumsPage() {
         body: JSON.stringify({ fileName: file.name, fileType: file.type || 'image/jpeg' }),
       });
       if (!signRes.ok) throw new Error('Failed to get signed upload URL');
-      const { uploadUrl, publicUrl } = await signRes.json();
+      const { uploadUrl, publicUrl, mediaUrl } = await signRes.json();
 
       const uploadRes = await fetch(uploadUrl, {
         method: 'PUT',
@@ -146,7 +148,7 @@ export default function AdminAlbumsPage() {
       });
       if (!uploadRes.ok) throw new Error('Direct R2 upload failed');
 
-      setCoverUrl(publicUrl);
+      setCoverUrl(mediaUrl || normalizeMediaUrl(publicUrl));
     } catch (err: any) {
       setFormError(`Cover upload failed: ${err.message}`);
     } finally {
@@ -178,7 +180,7 @@ export default function AdminAlbumsPage() {
       subtitle: subtitle.trim(),
       description: subtitle.trim(),
       badge: (badge || 'LIVE SOUNDS COLLECTION').trim(),
-      coverUrl: coverUrl.trim() || '/logo-square.jpg',
+      coverUrl: normalizeMediaUrl(coverUrl) || '/logo-square.jpg',
       themeColor,
       secondaryColor,
       gradient: `linear-gradient(90deg, ${themeColor}, ${secondaryColor})`,
@@ -426,7 +428,7 @@ export default function AdminAlbumsPage() {
                     style={{ borderColor: themeColor }}
                   >
                     {coverUrl ? (
-                      <img src={coverUrl} alt="Cover Preview" className="cover-img-preview" />
+                      <img src={normalizeMediaUrl(coverUrl)} alt="Cover Preview" className="cover-img-preview" />
                     ) : (
                       <div className="upload-placeholder">
                         <Upload size={32} />
@@ -448,7 +450,7 @@ export default function AdminAlbumsPage() {
                       type="text" 
                       placeholder="Or enter image URL (e.g. /georgie-musheev.jpg)" 
                       value={coverUrl} 
-                      onChange={e => setCoverUrl(e.target.value)} 
+                      onChange={e => setCoverUrl(normalizeMediaUrl(e.target.value))} 
                       className="input-field small"
                     />
                   </div>

@@ -1,5 +1,6 @@
 import { Track, Album, Style } from '@/components/admin/StudioProvider';
 import { DEFAULT_ALBUMS } from '@/types/album';
+import { normalizeMediaUrl } from '@/lib/media-key';
 
 const GENERIC_COVERS = [
   '/logo-3d.png',
@@ -28,10 +29,10 @@ export function getTrackCover(
 
   // 1. A track's own (non-generic) cover always wins
   if (track.coverUrl && !isGenericCover(track.coverUrl)) {
-    return track.coverUrl;
+    return normalizeMediaUrl(track.coverUrl);
   }
   if (track.artworkUrl && !isGenericCover(track.artworkUrl)) {
-    return track.artworkUrl;
+    return normalizeMediaUrl(track.artworkUrl);
   }
 
   // 2. Band name checks (for tracks with no cover or a generic logo).
@@ -128,7 +129,7 @@ export function getTrackCover(
              a.id.toLowerCase() === albumLower ||
              a.slug.toLowerCase() === albumLower
     );
-    if (matchedAlb?.coverUrl) return matchedAlb.coverUrl;
+    if (matchedAlb?.coverUrl) return normalizeMediaUrl(matchedAlb.coverUrl);
   }
 
   if (artistLower) {
@@ -142,12 +143,12 @@ export function getTrackCover(
       })) return true;
       return false;
     });
-    if (matchedArtistAlb?.coverUrl) return matchedArtistAlb.coverUrl;
+    if (matchedArtistAlb?.coverUrl) return normalizeMediaUrl(matchedArtistAlb.coverUrl);
   }
 
   // 4. Fallback explicit cover (even if generic) or default logo
-  if (track.coverUrl) return track.coverUrl;
-  if (track.artworkUrl) return track.artworkUrl;
+  if (track.coverUrl) return normalizeMediaUrl(track.coverUrl);
+  if (track.artworkUrl) return normalizeMediaUrl(track.artworkUrl);
 
   return '/logo-3d.png';
 }
@@ -172,8 +173,9 @@ const CARDED = new Set<string>(['/4andone-mix', '/boris-myagkov-big-band', '/dan
  */
 export function smallImage(url?: string | null): string {
   if (!url) return '/cards/logo-square.jpg';
-  const style = /^\/styles\/([a-z0-9-]+)\.jpg$/.exec(url);
+  const normalized = normalizeMediaUrl(url);
+  const style = /^\/styles\/([a-z0-9-]+)\.jpg$/.exec(normalized);
   if (style) return `/styles/sm/${style[1]}.jpg`;
-  const base = url.replace(/\.(jpg|jpeg|png)$/i, '');
-  return CARDED.has(base) ? `/cards${base}.jpg` : url;
+  const base = normalized.replace(/\.(jpg|jpeg|png)$/i, '');
+  return CARDED.has(base) ? `/cards${base}.jpg` : normalized;
 }

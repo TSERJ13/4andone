@@ -26,7 +26,7 @@ const envChecks = (): Check[] => {
     c('Music files', 'R2_SECRET_ACCESS_KEY', 'Storage secret key', true, 'Needed to upload music.'),
     c('Music files', 'R2_ENDPOINT', 'Storage endpoint', true, 'Needed to upload music.'),
     c('Music files', 'R2_BUCKET_NAME', 'Storage bucket', true, 'Needed to upload music.'),
-    c('Music files', 'NEXT_PUBLIC_R2_PUBLIC_URL', 'Public music address', true, 'Where listeners download the audio from.'),
+    c('Music files', 'NEXT_PUBLIC_R2_PUBLIC_URL', 'Public music address', false, 'Where listeners download the audio from. Optional: the site already has a built-in address and works without this.'),
     c('Email & reports', 'GMAIL_APP_PASSWORD', 'Email password', false, 'Contact-form emails and the daily report.'),
     c('Email & reports', 'CRON_SECRET', 'Scheduled-job secret', false, 'Protects the automatic daily report.'),
     c('Ads', 'GOOGLE_ADSENSE_REFRESH_TOKEN', 'AdSense earnings access', false, 'Earnings figures in Earn & Statistics.'),

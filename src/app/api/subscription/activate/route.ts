@@ -2,6 +2,7 @@ import { resolveReadableTelegramId } from '@/lib/user-session';
 import { NextRequest, NextResponse } from 'next/server';
 import { getSupabaseAdmin, serviceRoleMissing } from '@/lib/supabase-admin';
 import { isPayPalConfigured, verifyPayPalSubscription } from '@/lib/paypal';
+import { notifyTelegramUser, PREMIUM_THANK_YOU } from '@/lib/telegram-notify';
 
 // Activates Premium after the PayPal subscription popup — but only after the
 // subscription is VERIFIED with PayPal's API (status ACTIVE, our plan). The
@@ -46,6 +47,11 @@ export async function POST(request: NextRequest) {
   if (!bound && !legacyOwner) return NextResponse.json({ error: 'Subscription account does not match' }, { status: 403 });
   const until = verified.paidUntil;
 
+  // The thank-you goes out once per subscription: not again when the page re-checks an already active one
+  const { data: current } = await db.from('telegram_users')
+    .select('is_premium, subscription_id').eq('telegram_id', telegramId).maybeSingle();
+  const alreadyActive = !!current?.is_premium && current.subscription_id === subscriptionId;
+
   const { error } = await db.from('telegram_users').upsert(
     {
       telegram_id: telegramId,
@@ -57,6 +63,8 @@ export async function POST(request: NextRequest) {
     { onConflict: 'telegram_id' }
   );
   if (error) return NextResponse.json({ error: error.message }, { status: 502 });
+
+  if (!alreadyActive) await notifyTelegramUser(telegramId, PREMIUM_THANK_YOU);
 
   return NextResponse.json({ active: true, subscriptionId, premiumUntil: until.toISOString() });
 }

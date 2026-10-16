@@ -11,7 +11,7 @@ import {
   Search, Calendar, User, Clock, CheckCircle2, AlertTriangle, 
   Filter, Send, Users, Sparkles, ExternalLink, ShieldCheck, 
   Bot, AlertCircle, Plus, Eye, EyeOff, Bold, Italic, Link2, Code, 
-  BellRing, Award, CheckSquare, Square, Megaphone, Crown, UserCheck, UserX,
+  Award, CheckSquare, Square, Megaphone, Crown, UserCheck, UserX,
   Smile, X, Image as ImageIcon, Upload, Loader2
 } from 'lucide-react';
 import ConfirmModal from '@/components/admin/ConfirmModal';
@@ -90,7 +90,7 @@ export default function AdminMessagesPage() {
   // TELEGRAM STATE
   const [tgUsers, setTgUsers] = useState<TelegramUser[]>([]);
   const [loadingTgUsers, setLoadingTgUsers] = useState(false);
-  const [sendTarget, setSendTarget] = useState<'broadcast' | 'free' | 'premium' | 'expiring' | 'selected' | 'channel'>('broadcast');
+  const [sendTarget, setSendTarget] = useState<'broadcast' | 'free' | 'premium' | 'selected' | 'channel'>('broadcast');
   const [selectedUserIds, setSelectedUserIds] = useState<number[]>([]);
   const [channelUsername, setChannelUsername] = useState('@fourandonemusic');
   const [sidebarFilter, setSidebarFilter] = useState<'all' | 'free' | 'premium' | 'activeBot'>('all');
@@ -309,28 +309,6 @@ export default function AdminMessagesPage() {
   // User segments
   const freeUsers = useMemo(() => tgUsers.filter(u => !u.is_premium), [tgUsers]);
   const premiumUsers = useMemo(() => tgUsers.filter(u => !!u.is_premium), [tgUsers]);
-  // Compute users whose Premium expires in the next 5 days
-  // (EXCLUDES permanent/lifetime premium users who have unlimited access or no expiry)
-  const expiringUsers = useMemo(() => {
-    const now = Date.now();
-    const fiveDaysMs = 5 * 86400000;
-    return tgUsers.filter(u => {
-      // Must have active premium
-      if (!u.is_premium) return false;
-      // If no expiration date (null/undefined), it is permanent/lifetime! DO NOT SEND!
-      if (!u.premium_until) return false;
-
-      const untilDate = new Date(u.premium_until);
-      const until = untilDate.getTime();
-      if (isNaN(until)) return false;
-
-      // Permanent / Lifetime check: if set to 2030+ or more than a year away, DO NOT SEND!
-      if (untilDate.getFullYear() > 2030 || (until - now) > 365 * 86400000) return false;
-
-      // Only true if expiry is actually in the future AND within <= 5 days!
-      return until > now && (until - now) <= fiveDaysMs;
-    });
-  }, [tgUsers]);
 
   const filteredSidebarUsers = useMemo(() => {
     let list = tgUsers;
@@ -437,9 +415,6 @@ export default function AdminMessagesPage() {
 
       if (sendTarget === 'selected') {
         payload.telegramIds = selectedUserIds;
-      } else if (sendTarget === 'expiring') {
-        payload.target = 'selected';
-        payload.telegramIds = expiringUsers.map(u => u.telegram_id);
       } else if (sendTarget === 'channel') {
         payload.channel = channelUsername.trim() || '@fourandonemusic';
       }
@@ -538,7 +513,7 @@ export default function AdminMessagesPage() {
     }
   };
 
-  const applyTemplate = (type: 'update' | 'gift' | 'referral' | 'expiring' | 'channel') => {
+  const applyTemplate = (type: 'update' | 'gift' | 'referral' | 'channel') => {
     let newText = '';
     let newBtn: InlineBtn = { text: '🎵 Open 4and.one Player', url: 'https://4and.one' };
 
@@ -551,9 +526,6 @@ export default function AdminMessagesPage() {
     } else if (type === 'referral') {
       newText = "🎁 <b>Invite a Friend, Both Get 1 Month Free!</b>\n\nInvite your dance partner to 4and.one. When they sign in, you both receive 1 month of free Premium immediately!";
       newBtn = { text: '🎁 Get Invite Link', url: 'https://4and.one/earn' };
-    } else if (type === 'expiring') {
-      newText = "⏳ <b>Your 4and.one Premium expires soon!</b>\n\nYour Premium subscription will end in 5 days. Renew now to keep uninterrupted ad-free playback, offline downloads, and competition Final Mode practice!";
-      newBtn = { text: '💎 Renew Premium Now', url: 'https://4and.one/earn' };
     } else if (type === 'channel') {
       newText = "📢 <b>Join our official Telegram Channel!</b>\n\nHey {first_name}! 🎵 Follow @fourandonemusic to get the freshest ballroom & latin track releases, competition playlists, and exclusive dance gifts first!";
       newBtn = { text: '📢 Join @fourandonemusic', url: 'https://t.me/fourandonemusic' };
@@ -573,10 +545,6 @@ export default function AdminMessagesPage() {
     });
   };
 
-  const loadExpiringReminder = () => {
-    setSendTarget('expiring');
-    applyTemplate('expiring');
-  };
 
 
 
@@ -909,32 +877,6 @@ export default function AdminMessagesPage() {
       {/* TAB 2: ADVANCED TELEGRAM BOT MESSAGING */}
       {activeTab === 'telegram' && (
         <div className="telegram-panel">
-          {/* Quick Notice for Expiring Users (only shown if users actually expiring) */}
-          {expiringUsers.length > 0 && (
-            <div className="expiring-alert-banner glass">
-              <div className="alert-left">
-                <div className="alert-icon-box">
-                  <BellRing size={20} className="text-amber" />
-                </div>
-                <div>
-                  <h4 style={{ margin: 0, fontSize: '14px', fontWeight: 800, color: 'white' }}>
-                    Expiring Subscriptions Reminder (Next 5 Days)
-                  </h4>
-                  <p style={{ margin: '2px 0 0', fontSize: '12px', color: '#a1a1aa' }}>
-                    Found {expiringUsers.length} user(s) whose Premium expires within the next 5 days.
-                  </p>
-                </div>
-              </div>
-              <button
-                type="button"
-                className="btn-notify-expiring"
-                onClick={loadExpiringReminder}
-              >
-                <span>Notify All {expiringUsers.length} Expiring Users ➔</span>
-              </button>
-            </div>
-          )}
-
           {/* Mobile Segments: Compose / Live Preview / Users List */}
           <div className="mobile-tg-tabs glass">
             <button
@@ -1130,18 +1072,6 @@ export default function AdminMessagesPage() {
                   </button>
                   <button
                     type="button"
-                    className={`target-btn ${sendTarget === 'expiring' ? 'active' : ''}`}
-                    onClick={() => {
-                      setSendTarget('expiring');
-                      applyTemplate('expiring');
-                    }}
-                    title="ვისაც 5 დღეში ეწურება გამოწერა"
-                  >
-                    <BellRing size={15} />
-                    <span>Expiring Soon ({expiringUsers.length})</span>
-                  </button>
-                  <button
-                    type="button"
                     className={`target-btn selected-target-btn ${sendTarget === 'selected' ? 'active' : ''}`}
                     onClick={() => {
                       setSendTarget('selected');
@@ -1183,12 +1113,6 @@ export default function AdminMessagesPage() {
                     <div className="info-banner-inner" style={{ borderColor: 'rgba(168, 85, 247, 0.3)', background: 'rgba(168, 85, 247, 0.08)' }}>
                       <Crown size={16} color="#c084fc" />
                       <span>მესიჯი გაეგზავნება მხოლოდ <b>{premiumUsers.length}</b> მომხმარებელს <b>აქტიური პრემიუმით</b> (VIP შეტყობინებები &amp; ექსკლუზივები).</span>
-                    </div>
-                  )}
-                  {sendTarget === 'expiring' && (
-                    <div className="info-banner-inner" style={{ borderColor: 'rgba(234, 179, 8, 0.3)', background: 'rgba(234, 179, 8, 0.08)' }}>
-                      <BellRing size={16} color="#eab308" />
-                      <span>მესიჯი გაეგზავნება <b>{expiringUsers.length}</b> მომხმარებელს, ვისაც ვადა 5 დღეში ეწურება.</span>
                     </div>
                   )}
                   {sendTarget === 'selected' && (
@@ -1277,13 +1201,6 @@ export default function AdminMessagesPage() {
                     onClick={() => applyTemplate('referral')}
                   >
                     🎁 Referral Reminder
-                  </button>
-                  <button
-                    type="button"
-                    className="template-chip"
-                    onClick={() => applyTemplate('expiring')}
-                  >
-                    ⏳ Expiry (5 Days)
                   </button>
                   <button
                     type="button"
@@ -1580,8 +1497,6 @@ export default function AdminMessagesPage() {
                         ? `🆓 Send to Free Users (${freeUsers.length} Users)`
                         : sendTarget === 'premium'
                         ? `💎 Send to Premium Users (${premiumUsers.length} Users)`
-                        : sendTarget === 'expiring'
-                        ? `⏰ Send to Expiring (${expiringUsers.length} Users)`
                         : sendTarget === 'selected'
                         ? `☑️ Send to Selected (${selectedUserIds.length} Users)`
                         : `📢 Post to ${channelUsername || '@fourandonemusic'}`}
@@ -1944,48 +1859,6 @@ export default function AdminMessagesPage() {
         }
         @keyframes spin {
           to { transform: rotate(360deg); }
-        }
-
-        /* Expiring Alert Banner */
-        .expiring-alert-banner {
-          display: flex;
-          align-items: center;
-          justify-content: space-between;
-          padding: 14px 20px;
-          border-radius: 16px;
-          background: rgba(245, 158, 11, 0.08);
-          border: 1px solid rgba(245, 158, 11, 0.25);
-          margin-bottom: 20px;
-          flex-wrap: wrap;
-          gap: 12px;
-        }
-        .alert-left {
-          display: flex;
-          align-items: center;
-          gap: 12px;
-        }
-        .alert-icon-box {
-          width: 36px;
-          height: 36px;
-          border-radius: 10px;
-          background: rgba(245, 158, 11, 0.15);
-          display: flex;
-          align-items: center;
-          justify-content: center;
-        }
-        .btn-notify-expiring {
-          padding: 8px 16px;
-          border-radius: 10px;
-          background: #f59e0b;
-          border: none;
-          color: #000000;
-          font-size: 12px;
-          font-weight: 800;
-          cursor: pointer;
-          transition: background 0.2s;
-        }
-        .btn-notify-expiring:hover {
-          background: #d97706;
         }
 
         /* Telegram Layout */

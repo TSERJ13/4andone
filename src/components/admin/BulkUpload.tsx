@@ -142,7 +142,7 @@ const BulkUpload = () => {
   }, [albums, recentArtists]);
 
   const selectedAlbum = albums.find(a => a.slug === batchDestKey) || null;
-  const selectedSlot = selectedAlbum ? albumOriginalSlot(tracks, selectedAlbum) : null;
+  const selectedSlot = selectedAlbum ? albumOriginalSlot(tracks, selectedAlbum, batchStyle) : null;
   const libraryKeys = React.useMemo(
     () => new Set(tracks.map(t => `${(t.title || '').trim().toLowerCase()}|${(t.artist || '').trim().toLowerCase()}`)),
     [tracks]
@@ -473,7 +473,7 @@ const BulkUpload = () => {
         if (keepOriginalDate) {
           const dests = f.destinations || batchDestinations;
           const alb = albums.find(a => dests[a.slug]);
-          const base = alb ? albumOriginalSlot(tracks, alb) : null;
+          const base = alb ? albumOriginalSlot(tracks, alb, f.style) : null;
           if (base) slot = slotForIndex(base, slotIndex++);
         }
 
@@ -566,7 +566,7 @@ const BulkUpload = () => {
                     <span>
                       <b>Add as part of the earlier upload</b>
                       <small>{selectedSlot
-                        ? `Dated ${new Date(selectedSlot.createdAt).toLocaleDateString(undefined, { day: 'numeric', month: 'short', year: 'numeric' })}, next to its ${selectedSlot.trackCount} tracks. Not shown as new music.`
+                        ? `Dated ${new Date(selectedSlot.createdAt).toLocaleDateString(undefined, { day: 'numeric', month: 'short', year: 'numeric' })}, next to its ${selectedSlot.trackCount} ${selectedSlot.sameStyle ? `${batchStyle} ` : ''}tracks. Each track joins the list of its own dance style. Not shown as new music.`
                         : 'This album has no tracks yet, so it will be a normal new upload.'}</small>
                     </span>
                   </label>

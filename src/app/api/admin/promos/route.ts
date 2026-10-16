@@ -48,6 +48,8 @@ export async function POST(req: NextRequest) {
       .select('id')
       .eq('event_type', 'promo_def')
       .eq('bpm', rawCode)
+      .order('created_at', { ascending: false })
+      .limit(1)
       .maybeSingle();
 
     const extraJson = JSON.stringify({ active, maxUses });
@@ -108,7 +110,7 @@ export async function DELETE(req: NextRequest) {
       .eq('bpm', code);
     if (delErr) throw delErr;
 
-    // If it's a default code, mark it deactivated by inserting an inactive override
+    // Built-in codes live in the code and cannot be erased from it: a small "deleted" row hides them everywhere
     const isDefault = DEFAULT_PROMOS.some(p => p.code === code);
     if (isDefault) {
       const { error: offErr } = await db
@@ -117,9 +119,9 @@ export async function DELETE(req: NextRequest) {
           event_type: 'promo_def',
           track_id: 'promo_code_config',
           bpm: code,
-          style: 'Deactivated Promo',
+          style: 'Deleted Promo',
           duration_seconds: 0,
-          session_id: JSON.stringify({ active: false }),
+          session_id: JSON.stringify({ deleted: true }),
           user_ref: 'admin',
         });
       if (offErr) throw offErr;

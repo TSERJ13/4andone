@@ -1,6 +1,7 @@
 "use client";
 
 import { useFlash } from '@/hooks/useFlash';
+import ConfirmModal from '@/components/admin/ConfirmModal';
 import React, { useEffect, useState } from 'react';
 import { Gift, Plus, Check, X, Sparkles, RefreshCw, Trash2, Calendar, Tag, ShieldCheck, Power } from 'lucide-react';
 
@@ -127,8 +128,10 @@ export default function PromoCodesManager() {
     }
   };
 
+  const [toDelete, setToDelete] = useState<PromoItem | null>(null);
+
   const deletePromo = async (promo: PromoItem) => {
-    if (!confirm(`ნამდვილად გსურთ პრომო კოდის ${promo.code} წაშლა / გამორთვა?`)) return;
+    setToDelete(null);
     setActionLoading(promo.code);
     try {
       const res = await fetch(`/api/admin/promos?code=${encodeURIComponent(promo.code)}`, {
@@ -269,7 +272,7 @@ export default function PromoCodesManager() {
                         type="button"
                         className="pm-btn del"
                         disabled={actionLoading === p.code}
-                        onClick={() => deletePromo(p)}
+                        onClick={() => setToDelete(p)}
                         title="წაშლა"
                       >
                         <Trash2 size={13} />
@@ -327,7 +330,7 @@ export default function PromoCodesManager() {
                   type="button"
                   className="pm-btn del"
                   disabled={actionLoading === p.code}
-                  onClick={() => deletePromo(p)}
+                  onClick={() => setToDelete(p)}
                   title="წაშლა"
                 >
                   <Trash2 size={13} />
@@ -438,6 +441,16 @@ export default function PromoCodesManager() {
       )}
 
       {/* Toast Notification */}
+      <ConfirmModal
+        isOpen={!!toDelete}
+        onClose={() => setToDelete(null)}
+        onConfirm={() => toDelete && deletePromo(toDelete)}
+        title={`პრომო კოდის წაშლა: ${toDelete?.code ?? ''}`}
+        message="კოდი სრულად წაიშლება და მომხმარებლები მას ვეღარ გამოიყენებენ. უკვე გააქტიურებული Premium არ შეიცვლება."
+        confirmText="წაშლა"
+        variant="danger"
+      />
+
       {toast && (
         <div className={`toast-box ${toast.ok ? 'ok' : 'err'}`}>
           {toast.ok ? <Check size={16} /> : <X size={16} />}

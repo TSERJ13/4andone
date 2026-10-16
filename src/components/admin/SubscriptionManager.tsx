@@ -1,6 +1,7 @@
 "use client";
 
 import { useFlash } from '@/hooks/useFlash';
+import ConfirmModal from '@/components/admin/ConfirmModal';
 import React, { useState, useEffect } from 'react';
 import { Crown, Sparkles, DollarSign, Users, Calendar, Check, X, ShieldAlert, Search, RefreshCw, UserCheck } from 'lucide-react';
 import { supabase } from '@/utils/supabase';
@@ -129,7 +130,9 @@ export default function SubscriptionManager() {
 
   // Give or extend free Premium. Extending adds to the current end date
   // (not to today), so a gifted month is never lost.
-  const grantPremium = (user: Subscriber) => {
+  const [pending, setPending] = useState<{ title: string; message: string; confirmText: string; run: () => void } | null>(null);
+
+  const grantPremium = (user: Subscriber, confirmed = false) => {
     const opt = DURATIONS.find(d => d.key === selectedDuration(user)) || DURATIONS[1];
     let premiumUntil: string | null = null;
     // A Forever user switched to a fixed period: confirm (it shortens it)
@@ -137,7 +140,15 @@ export default function SubscriptionManager() {
       const end = new Date();
       if (opt.days) end.setDate(end.getDate() + opt.days);
       if (opt.months) end.setMonth(end.getMonth() + opt.months);
-      if (!confirm(`${user.first_name} has Premium forever. Change it to ${opt.label} (ends ${end.toLocaleDateString()})?`)) return;
+      if (!confirmed) {
+        setPending({
+          title: 'Shorten Premium?',
+          message: `${user.first_name} has Premium forever. Change it to ${opt.label} (ends ${end.toLocaleDateString()})?`,
+          confirmText: 'Change it',
+          run: () => grantPremium(user, true),
+        });
+        return;
+      }
     }
     if (opt.key !== 'forever') {
       const current = user.premium_until ? new Date(user.premium_until).getTime() : 0;
@@ -155,9 +166,14 @@ export default function SubscriptionManager() {
     });
   };
 
-  const revokePremium = (user: Subscriber) => {
-    if (user.subscription_id?.startsWith('I-') &&
-        !confirm('This user pays through PayPal. Revoking here does NOT stop their PayPal payments — cancel the subscription in PayPal too. Revoke anyway?')) {
+  const revokePremium = (user: Subscriber, confirmed = false) => {
+    if (user.subscription_id?.startsWith('I-') && !confirmed) {
+      setPending({
+        title: 'Revoke a PayPal subscriber?',
+        message: 'This user pays through PayPal. Revoking here does NOT stop their PayPal payments, so cancel the subscription in PayPal too. Revoke anyway?',
+        confirmText: 'Revoke anyway',
+        run: () => revokePremium(user, true),
+      });
       return;
     }
     return updateUser(user, { is_premium: false, subscription_id: null, premium_until: null });
@@ -554,6 +570,16 @@ export default function SubscriptionManager() {
           </div>
         </div>
       )}
+
+      <ConfirmModal
+        isOpen={!!pending}
+        onClose={() => setPending(null)}
+        onConfirm={() => { const p = pending; setPending(null); p?.run(); }}
+        title={pending?.title ?? ''}
+        message={pending?.message ?? ''}
+        confirmText={pending?.confirmText ?? 'Confirm'}
+        variant="danger"
+      />
 
       {toast && (
         <div className={`admin-toast ${toast.ok ? 'ok' : 'err'}`} role="status">

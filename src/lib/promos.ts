@@ -9,6 +9,8 @@ export interface PromoCodeItem {
   active: boolean;
   maxUses?: number | null; // null = unlimited
   createdAt: string;
+  /** internal: set on a stored row that marks the code as deleted */
+  deleted?: boolean;
 }
 
 // Built-in presets to guarantee availability out of the box
@@ -48,7 +50,7 @@ export async function getStoredPromoCodes(db = getSupabaseAdmin() || fallbackSup
   });
 
   const customPromos: PromoCodeItem[] = (defRows || []).map(r => {
-    let extra: { active?: boolean; maxUses?: number | null } = {};
+    let extra: { active?: boolean; maxUses?: number | null; deleted?: boolean } = {};
     try {
       if (r.session_id) extra = JSON.parse(r.session_id);
     } catch { /* ignore */ }
@@ -61,6 +63,7 @@ export async function getStoredPromoCodes(db = getSupabaseAdmin() || fallbackSup
       active: extra.active !== false,
       maxUses: extra.maxUses ?? null,
       createdAt: r.created_at,
+      deleted: extra.deleted === true,
     };
   });
 
@@ -68,7 +71,11 @@ export async function getStoredPromoCodes(db = getSupabaseAdmin() || fallbackSup
   const codeMap = new Map<string, PromoCodeItem>();
   DEFAULT_PROMOS.forEach(p => codeMap.set(p.code, p));
   // Rows are newest-first: apply oldest first so a newer disable wins.
-  [...customPromos].reverse().forEach(p => codeMap.set(p.code, p));
+  // A "deleted" row removes the code, built-in ones too (they cannot be erased from the code, so deleting leaves this marker)
+  [...customPromos].reverse().forEach(p => {
+    if (p.deleted) codeMap.delete(p.code);
+    else codeMap.set(p.code, p);
+  });
 
   return {
     promos: Array.from(codeMap.values()),

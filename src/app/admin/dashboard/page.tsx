@@ -100,7 +100,7 @@ export default function AdminOverview() {
 
   const attention = [
     newInquiries > 0 && { href: '/admin/messages?tab=incoming', icon: <Mail size={18} />, tone: 'blue', title: `${newInquiries} new ${newInquiries === 1 ? 'inquiry' : 'inquiries'}`, text: 'Messages from the contact form are waiting.' },
-    stats && stats.premiumEnding > 0 && { href: '/admin/earn', icon: <Crown size={18} />, tone: 'amber', title: `${stats.premiumEnding} Premium ending within 7 days`, text: 'Extend them or let them lapse.' },
+    stats && stats.premiumEnding > 0 && { href: '/admin/premium', icon: <Crown size={18} />, tone: 'amber', title: `${stats.premiumEnding} Premium ending within 7 days`, text: 'Extend them or let them lapse.' },
     issues > 0 && { href: '/admin/settings', icon: <AlertTriangle size={18} />, tone: 'red', title: `${issues} setup ${issues === 1 ? 'problem' : 'problems'}`, text: 'Something the site needs is not configured.' },
   ].filter(Boolean) as { href: string; icon: React.ReactNode; tone: string; title: string; text: string }[];
 

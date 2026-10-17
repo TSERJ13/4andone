@@ -77,6 +77,7 @@ export default function YtPlayerBar({ onExpandPlayer }: YtPlayerBarProps) {
   const [isSpeedPopoverOpen, setIsSpeedPopoverOpen] = useState(false);
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [scrubTime, setScrubTime] = useState<number | null>(null);
+  const [draftBpm, setDraftBpm] = useState<number | null>(null);
   const [showCopiedToast, setShowCopiedToast] = useState(false);
   
   const popoverRef = useRef<HTMLDivElement>(null);
@@ -140,7 +141,6 @@ export default function YtPlayerBar({ onExpandPlayer }: YtPlayerBarProps) {
 
   const handleDownload = () => saveTrackOffline(currentTrack);
 
-  const [draftBpm, setDraftBpm] = useState<number | null>(null);
   const currentBpm = bpm || 100;
   const shownBpm = draftBpm ?? currentBpm;
   const bpmDelta = shownBpm - 100;

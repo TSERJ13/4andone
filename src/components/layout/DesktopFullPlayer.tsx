@@ -83,6 +83,7 @@ export default function DesktopFullPlayer({ onClose }: DesktopFullPlayerProps) {
   const { tracks, albums, toggleFavorite } = useStudio();
   const [activeTab, setActiveTab] = useState<'recent' | 'style' | 'album' | 'artist'>('style');
   const [scrubTime, setScrubTime] = useState<number | null>(null);
+  const [draftBpm, setDraftBpm] = useState<number | null>(null);
   const [isSpeedPopoverOpen, setIsSpeedPopoverOpen] = useState(false);
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [showCopiedToast, setShowCopiedToast] = useState(false);
@@ -176,7 +177,6 @@ export default function DesktopFullPlayer({ onClose }: DesktopFullPlayerProps) {
 
   const handleDownload = () => saveTrackOffline(currentTrack);
 
-  const [draftBpm, setDraftBpm] = useState<number | null>(null);
   const currentBpm = bpm || 100;
   const shownBpm = draftBpm ?? currentBpm;
   const bpmDelta = shownBpm - 100;

@@ -39,7 +39,7 @@ function isAppleTouchDevice(): boolean {
  * (?finalsRender=1) played clean — so rendered Finals is the default on
  * iPhone/iPad again. A stuck preparation times out and falls back to the old route.
  */
-export const rolloutState = { defaultOnApple: false, liveListeningOnApple: false, slowRenderOnApple: false }; // native plain element + FinalsClock is default; rendered/live remain opt-in via URL flags
+export const rolloutState = { defaultOnApple: false, liveListeningOnApple: true, slowRenderOnApple: true }; // live SignalsmithStretch engine enabled by default; guarded by runtime silence watchdog
 
 /** Behaviour switch for rendered Finals.
  * Opt-in (?finalsRender=1) unless rolloutState.defaultOnApple is set, in which
@@ -67,7 +67,7 @@ export function isLiveFinalEnabled(): boolean {
 export const liveRuntime = { failed: false };
 
 export const LIVE_LISTENING_OPTOUT_KEY = '4andone-live-listening-optout-v1';
-/** Ordinary listening on iPhone/iPad uses the live stretch engine (the phone's own stretch croaks).
+/** Ordinary and Final listening uses the live SignalsmithStretch engine across platforms.
  * ?finalsLive=0 turns it off on this device, ?finalsLive=1 turns it on anywhere (and back on after an opt-out). */
 export function isLiveListeningEnabled(): boolean {
   if (typeof window === 'undefined' || liveRuntime.failed) return false;
@@ -79,7 +79,7 @@ export function isLiveListeningEnabled(): boolean {
     optedOut = localStorage.getItem(LIVE_LISTENING_OPTOUT_KEY) === '1';
   } catch { optedOut = requested === '0'; }
   if (optedOut || isNativeFinalTestEnabled()) return false; // the explicit native-audio diagnostic wins
-  return rolloutState.liveListeningOnApple && isAppleTouchDevice();
+  return rolloutState.liveListeningOnApple;
 }
 
 export function isRenderedFinalEnabled(): boolean {

@@ -244,6 +244,8 @@ export const AudioProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   const liveEngineRef = useRef<FinalsLiveEngine | null>(null);
   const liveUpgradeAbortRef = useRef<AbortController | null>(null);
   const liveUpgradingRef = useRef(false);
+  const livePredecodeTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const livePredecodeAbortRef = useRef<AbortController | null>(null);
   useEffect(() => { void purgeSlowCache(); }, []); // slowed tracks are never kept on the device (older versions did)
   const engineHandoffStopRef = useRef<(() => void) | null>(null); // live engine still sounding while the phone's own player takes over
   const liveHandoffRef = useRef(false);   // the live engine already plays this track; the timeline element is only being handed over
@@ -273,6 +275,8 @@ export const AudioProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     return ctx;
   };
   const stopLive = () => {
+    if (livePredecodeTimerRef.current) { clearTimeout(livePredecodeTimerRef.current); livePredecodeTimerRef.current = null; }
+    livePredecodeAbortRef.current?.abort();
     const l = liveListenersRef.current;
     if (l) { l.el.removeEventListener('pause', l.pause); l.el.removeEventListener('play', l.play); l.el.removeEventListener('seeked', l.seeked); liveListenersRef.current = null; }
     if (liveActiveRef.current) { try { liveEngineRef.current?.stop(); } catch { /* ignore */ } }
@@ -288,7 +292,7 @@ export const AudioProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     if (liveCtx && (liveCtx.state as string) !== 'running') { try { void liveCtx.resume().catch(() => {}); } catch { /* ignore */ } }
     const normal = liveNormalRef.current;
     const el = nativePlayerRef.current;
-    const slot = normal ? Infinity : FINAL_DANCE_SECONDS - finalsClockRef.current.elapsed;
+    const slot = (normal && (!isFinalModeRef.current || isFitnessRef.current)) ? Infinity : Math.max(0.1, FINAL_DANCE_SECONDS - finalsClockRef.current.elapsed);
     if (normal && !liveStartedRef.current && el) liveSourceStartRef.current = el.currentTime + LIVE_START_LEAD * playbackRateFor(bpmRef.current);
     if (!liveStartedRef.current) {
       liveStartedRef.current = true;
@@ -324,7 +328,7 @@ export const AudioProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         liveRuntime.failed = true;
         const startAt = timeline.currentTime;
         stopLive();
-        loadTrackRef.current(track, true, false, { startAt, paused: false });
+        loadTrackRef.current(track, true, isFinalModeRef.current, { startAt, paused: false });
       }, 250);
     } else {
       void engine.resume(slot);
@@ -342,7 +346,8 @@ export const AudioProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         if (!liveNormalRef.current || !liveStartedRef.current || el.paused) return;
         const eng = liveEngineRef.current; if (!eng) return;
         const rate = playbackRateFor(bpmRef.current);
-        void eng.start({ sourceStart: el.currentTime + LIVE_START_LEAD * rate, percent: bpmRef.current, slotSeconds: Infinity });
+        const slot = (isFinalModeRef.current && !isFitnessRef.current) ? Math.max(0.1, FINAL_DANCE_SECONDS - finalsClockRef.current.elapsed) : Infinity;
+        void eng.start({ sourceStart: el.currentTime + LIVE_START_LEAD * rate, percent: bpmRef.current, slotSeconds: slot });
       },
     };
     el.addEventListener('pause', handlers.pause);
@@ -1175,6 +1180,8 @@ export const AudioProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     // This device's history, with the play time (orders it with the account's plays)
     if (track?.id && opts?.finalElapsed === undefined && !opts?.liveHandoff && !opts?.nativeHandoff) recordTrackPlayed(track.id);
 
+    if (livePredecodeTimerRef.current) { clearTimeout(livePredecodeTimerRef.current); livePredecodeTimerRef.current = null; }
+    livePredecodeAbortRef.current?.abort();
     cancelLoadRef.current?.();
     renderAbortRef.current?.abort();
     liveUpgradeAbortRef.current?.abort();
@@ -1183,7 +1190,8 @@ export const AudioProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     const currentToken = ++loadingTokenRef.current;
     // A prepared replacement (tempo change while playing) swaps in without stopping first.
     const seamless = !!opts?.prepared;
-    if (!seamless) isPlayingRef.current = false;
+    const handoffSwap = seamless || !!opts?.liveHandoff || !!opts?.nativeHandoff;
+    if (!handoffSwap) isPlayingRef.current = false;
     monitorPlaybackRef.current = null;
     restRunningRef.current = false;
 
@@ -1364,7 +1372,7 @@ export const AudioProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       }
 
       // INSTANT FEEDBACK: Update UI info immediately so the PlayerBar pops up right away
-      if (!seamless) {
+      if (!handoffSwap) {
         setIsPlaying(false);
         setIsLoaded(false);
         setIsLoading(true);
@@ -1376,7 +1384,7 @@ export const AudioProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       const continuesFinalSession = (renderPlan !== null && initialElapsed > 0) || isFinalModeRef.current
         && sessionTracksRef.current.length > 0
         && sessionIndexRef.current > 0;
-      if (!continuesFinalSession) {
+      if (!continuesFinalSession && !opts?.liveHandoff && !opts?.nativeHandoff) {
         setCurrentTime(0);
         currentTimeRef.current = 0;
       }
@@ -1406,10 +1414,12 @@ export const AudioProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       };
 
       let finalUrl = track.audioUrl;
+      const trackCacheKey = String(track.id) + '|' + String(track.audioUrl);
+      const liveAlreadyDecoded = !!opts?.liveHandoff && liveEngineRef.current?.sourceKey === trackCacheKey;
 
       // 0. LOCAL OFFLINE STORAGE (IndexedDB) CHECK FIRST
       let isLocalAvailable = false;
-      if (track.id && !seamless) {
+      if (track.id && !seamless && !liveAlreadyDecoded) {
         try {
           const cachedBlob = await getAudioFile(track.id);
           if (currentToken !== loadingTokenRef.current) return;
@@ -1424,7 +1434,7 @@ export const AudioProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       }
 
       // 1. If not available offline, sign the Cloudflare R2 URL (cached)
-      if (!isLocalAvailable && finalUrl && !seamless) {
+      if (!isLocalAvailable && finalUrl && !seamless && !liveAlreadyDecoded) {
         finalUrl = await resolvePlaybackUrl(finalUrl);
       }
       if (currentToken !== loadingTokenRef.current) return; // a newer track was picked meanwhile
@@ -1555,7 +1565,7 @@ export const AudioProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       // (playing at the chosen speed), and the stretch engine makes the sound, so the speed changes without croak or gap.
       // At normal speed the phone's own player is already clean and starts at once; the live engine (which must
       // download and decode the whole track first) is only used when the tempo is changed.
-      if (!renderPlan && !isFinalModeRef.current && isLiveListeningEnabled() && Math.abs(bpmRef.current - 100) > 0.5) {
+      if (!renderPlan && !isFitnessRef.current && isLiveListeningEnabled() && Math.abs(bpmRef.current - 100) > 0.5) {
         try {
           const ctx = ensureLiveContext();
           if (!ctx) throw new Error('Live audio is unavailable');
@@ -1567,7 +1577,7 @@ export const AudioProvider: React.FC<{ children: React.ReactNode }> = ({ childre
           if (!engine || engine.ctx !== ctx) { engine = new FinalsLiveEngine(ctx); liveEngineRef.current = engine; }
           const controller = new AbortController();
           renderAbortRef.current = controller;
-          await engine.decodeAndLoad(finalUrl, String(track.id) + '|' + String(track.audioUrl), controller.signal);
+          await engine.decodeAndLoad(finalUrl, trackCacheKey, controller.signal);
           if (currentToken !== loadingTokenRef.current) return;
           if (activeBlobUrlRef.current) URL.revokeObjectURL(activeBlobUrlRef.current);
           finalUrl = URL.createObjectURL(silentWav(engine.sourceDuration));
@@ -1966,7 +1976,8 @@ export const AudioProvider: React.FC<{ children: React.ReactNode }> = ({ childre
           }, { once: true });
         } else if (handoffEngine) {
           // Continue exactly where the live sound is right now (it kept playing while this file loaded).
-          try { audio.currentTime = Math.max(0, handoffEngine.position() + 0.12); } catch { /* ignore */ }
+          const livePos = handoffEngine.position();
+          try { audio.currentTime = Math.max(0, (livePos > 0.5 ? livePos : startAt) + 0.08); } catch { /* ignore */ }
         } else if (startAt > 0) {
           try { audio.currentTime = startAt; } catch { /* ignore */ }
         }
@@ -2009,6 +2020,22 @@ export const AudioProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         if (liveActiveRef.current && (renderPlan || liveNormalRef.current)) {
           attachLive(audio);
           if (!audio.paused && !opts?.paused) startOrResumeLive();
+        } else if (!renderPlan && !isFitnessRef.current && isLiveListeningEnabled() && !opts?.nativeHandoff) {
+          // Background pre-decode after 4.5s of normal playback so any later speed change switches in <150ms without decoding wait.
+          const preUrl = finalUrl;
+          const preKey = trackCacheKey;
+          livePredecodeTimerRef.current = setTimeout(() => {
+            livePredecodeTimerRef.current = null;
+            if (currentToken !== loadingTokenRef.current || liveActiveRef.current || playingTrackRef.current?.id !== track.id) return;
+            const ctx = liveCtxRef.current;
+            if (!ctx || (ctx.state as string) !== 'running') return;
+            let engine = liveEngineRef.current;
+            if (!engine || engine.ctx !== ctx) { engine = new FinalsLiveEngine(ctx); liveEngineRef.current = engine; }
+            if (engine.sourceKey === preKey) return;
+            const preAbort = new AbortController();
+            livePredecodeAbortRef.current = preAbort;
+            void engine.decodeAndLoad(preUrl, preKey, preAbort.signal).catch(() => {});
+          }, 4500);
         }
       } catch (e: any) {
         if (currentToken !== loadingTokenRef.current || e.message === "Loading cancelled by new request") return;
@@ -2555,26 +2582,30 @@ export const AudioProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       }
       let engine = liveEngineRef.current;
       if (!engine || engine.ctx !== ctx) { engine = new FinalsLiveEngine(ctx); liveEngineRef.current = engine; }
-      let url: string = track.audioUrl;
-      try {
-        const cached = track.id ? await getAudioFile(track.id) : null;
-        if (cached && cached.size > 0) { local = URL.createObjectURL(cached); url = local; }
-      } catch { /* signed URL */ }
-      if (!local) url = await resolvePlaybackUrl(url);
-      if (!url || controller.signal.aborted) return;
-      await engine.decodeAndLoad(url, String(track.id) + '|' + String(track.audioUrl), controller.signal);
+      const cacheKey = String(track.id) + '|' + String(track.audioUrl);
+      if (engine.sourceKey !== cacheKey) {
+        let url: string = track.audioUrl;
+        try {
+          const cached = track.id ? await getAudioFile(track.id) : null;
+          if (cached && cached.size > 0) { local = URL.createObjectURL(cached); url = local; }
+        } catch { /* signed URL */ }
+        if (!local) url = await resolvePlaybackUrl(url);
+        if (!url || controller.signal.aborted) return;
+        await engine.decodeAndLoad(url, cacheKey, controller.signal);
+      }
       if (controller.signal.aborted || playingTrackRef.current?.id !== track.id) return;
       if (liveActiveRef.current || Math.abs(bpmRef.current - 100) <= 0.5 || !isLiveListeningEnabled()) return;
       const a = nativePlayerRef.current;
       if (!a) return;
-      if (a.paused) { loadTrackRef.current(track, true, false, { startAt: a.currentTime, paused: true }); return; }
+      if (a.paused) { loadTrackRef.current(track, true, isFinalModeRef.current, { startAt: a.currentTime, paused: true }); return; }
       // Gapless takeover: the engine starts a moment ahead, at the position the phone player will have reached, and the
       // phone player is only stopped when the engine's sound begins.
       const token = loadingTokenRef.current;
       const rate = playbackRateFor(bpmRef.current);
       liveActiveRef.current = true; liveNormalRef.current = true; liveStartedRef.current = false; liveHandoffRef.current = false;
       const sourceStart = a.currentTime + LIVE_START_LEAD * rate;
-      const at = await engine.start({ sourceStart, percent: bpmRef.current, slotSeconds: Infinity, volume: volumeRef.current });
+      const slot = (isFinalModeRef.current && !isFitnessRef.current) ? Math.max(0.1, FINAL_DANCE_SECONDS - finalsClockRef.current.elapsed) : Infinity;
+      const at = await engine.start({ sourceStart, percent: bpmRef.current, slotSeconds: slot, volume: volumeRef.current });
       const waitMs = Math.max(0, (at - ctx.currentTime) * 1000) + 25;
       setTimeout(() => {
         if (loadingTokenRef.current !== token || liveEngineRef.current !== engine || !liveActiveRef.current) return; // another track/start took over
@@ -2584,8 +2615,8 @@ export const AudioProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         // Where the engine is now = where it started + the time it has played since. (The engine's own position report
         // can still be the old idle value (0) at this instant, which sent the music back to the start.)
         const nowRate = playbackRateFor(bpmRef.current);
-        const where = sourceStart + Math.max(0, ctx.currentTime - at) * rate;
-        loadTrackRef.current(track, true, false, { startAt: where + 0.45 * nowRate, paused: wasPaused, liveHandoff: true });
+        const where = sourceStart + Math.max(0, ctx.currentTime - at) * nowRate;
+        loadTrackRef.current(track, true, isFinalModeRef.current, { startAt: where, paused: wasPaused, liveHandoff: true });
       }, waitMs);
     } catch (error: any) {
       if (error?.name !== 'AbortError') console.warn('[AUDIO-ENGINE] Live engine unavailable; keeping the normal player:', error);
@@ -2600,19 +2631,19 @@ export const AudioProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   applySlowTempoRef.current = async () => {
     // Back to the normal speed while the live engine plays: the phone's own player is perfect at 100% (and lighter),
     // so it takes over from the same spot while the engine keeps sounding until the player is running.
-    if (liveActiveRef.current && liveNormalRef.current && liveStartedRef.current && !isFinalModeRef.current
+    if (liveActiveRef.current && liveNormalRef.current && liveStartedRef.current && !renderPlanRef.current
         && !isFitnessRef.current && !isPauseCountdownRef.current && Math.abs(bpmRef.current - 100) <= 0.5) {
       const track = playingTrackRef.current;
       const engine = liveEngineRef.current;
       const el = nativePlayerRef.current;
       if (track && engine && el) {
         const pos = engine.position() > 0.5 ? engine.position() : el.currentTime;
-        if (el.paused) loadTrackRef.current(track, true, false, { startAt: pos, paused: true });
-        else loadTrackRef.current(track, true, false, { startAt: pos, nativeHandoff: true });
+        if (el.paused) loadTrackRef.current(track, true, isFinalModeRef.current, { startAt: pos, paused: true });
+        else loadTrackRef.current(track, true, isFinalModeRef.current, { startAt: pos, nativeHandoff: true });
         return;
       }
     }
-    if (isLiveListeningEnabled() && !isFinalModeRef.current && !isFitnessRef.current && !isPauseCountdownRef.current
+    if (isLiveListeningEnabled() && !renderPlanRef.current && !isFitnessRef.current && !isPauseCountdownRef.current
         && !liveActiveRef.current && Math.abs(bpmRef.current - 100) > 0.5) { upgradeToLiveRef.current(); return; }
     if (!isSlowRenderEnabled() || isLiveListeningEnabled() || isFinalModeRef.current || isFitnessRef.current || isPauseCountdownRef.current) return;
     const track = playingTrackRef.current;
@@ -2688,14 +2719,16 @@ export const AudioProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         finalsClockRef.current.changeRate(audio.currentTime, audio.duration, rate);
         setMusicTempo(audio, rate * 100);
       }
-      if (liveNormalRef.current && liveStartedRef.current) void liveEngineRef.current?.setRate(rate * 100);
+      if (liveActiveRef.current && liveNormalRef.current) void liveEngineRef.current?.setRate(rate * 100);
     }
     bpmRef.current = rate * 100;
     if (persistent) {
       setBpmState(rate * 100);
-      if (audio && !isFinalModeRef.current && !isFitnessRef.current && !isPauseCountdownRef.current) {
+      if (audio && !renderPlanRef.current && !isFitnessRef.current && !isPauseCountdownRef.current) {
         if (slowRetempoTimerRef.current) clearTimeout(slowRetempoTimerRef.current);
-        slowRetempoTimerRef.current = setTimeout(() => applySlowTempoRef.current(), 700); // taps/drags settle first
+        const curTrack = playingTrackRef.current;
+        const predecoded = curTrack && liveEngineRef.current?.sourceKey === (String(curTrack.id) + '|' + String(curTrack.audioUrl));
+        slowRetempoTimerRef.current = setTimeout(() => applySlowTempoRef.current(), predecoded && !liveActiveRef.current ? 150 : 700); // taps/drags settle first
       }
     }
   }, []);
@@ -2783,6 +2816,12 @@ export const AudioProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     finalsClockRef.current.reset(audio?.currentTime || 0, playbackRateFor(bpmRef.current),
       nextVal ? Math.min(FINAL_DANCE_SECONDS - FINAL_FADE_SECONDS, (audio?.currentTime || 0) / playbackRateFor(bpmRef.current)) : 0);
     cancelFadeAndRestore();
+
+    if (liveActiveRef.current && liveNormalRef.current) {
+      const slot = (nextVal && !isFitnessRef.current) ? Math.max(0.1, FINAL_DANCE_SECONDS - finalsClockRef.current.elapsed) : Infinity;
+      liveEngineRef.current?.rearmSlot(slot);
+      return;
+    }
 
     // iOS needs the gain path for fades; desktop keeps the native element.
     const track = playingTrackRef.current;

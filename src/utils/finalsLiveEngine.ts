@@ -75,8 +75,8 @@ export class FinalsLiveEngine {
     // One (unconnected) input is required: the processor reads its length on every block and crashes without it,
     // which leaves the engine silent while the clock keeps running.
     const node: StretchNode = await create(this.ctx, { numberOfInputs: 1, numberOfOutputs: 1, outputChannelCount: [2] });
-    // 80/16: sharper drum attacks than 120/30 in an offline transient test, about the same real-time load.
-    await node.configure({ blockMs: 80, intervalMs: 16, splitComputation: true });
+    // Studio 120ms/20ms spectral window (6x overlap) with splitComputation for smooth real-time bass & transients.
+    await node.configure({ blockMs: 120, intervalMs: 20, splitComputation: true });
     node.setUpdateInterval?.(0.1, (t: number) => { this.lastInput = t; });
     node.connect(this.gate);
     this.stretch = node;
@@ -135,6 +135,8 @@ export class FinalsLiveEngine {
   private armFade(at: number, slotSeconds: number): void {
     const gain = this.fade.gain;
     gain.cancelScheduledValues(0);
+    const now = Math.max(0, this.ctx.currentTime);
+    if (at > now) gain.setValueAtTime(0, now);
     if (slotSeconds === Infinity) { // ordinary listening: no fade-out, only a 20 ms fade-in so a start/seek never clicks
       gain.setValueAtTime(0, at);
       gain.linearRampToValueAtTime(1, at + 0.02);
@@ -149,6 +151,18 @@ export class FinalsLiveEngine {
       gain.setValueAtTime(Math.min(1, slotSeconds / FINAL_FADE_SECONDS), at);
     }
     gain.linearRampToValueAtTime(0, at + slotSeconds);
+  }
+
+  /** Update the fade-out schedule in-place when toggling 1:45 Final Mode on/off without restarting playback. */
+  rearmSlot(slotSeconds: number): void {
+    const now = Math.max(0, this.ctx.currentTime);
+    const gain = this.fade.gain;
+    gain.cancelScheduledValues(0);
+    if (slotSeconds === Infinity) {
+      gain.setValueAtTime(1, now);
+      return;
+    }
+    this.armFade(now, slotSeconds);
   }
 
   setVolume(volume: number): void {

@@ -136,7 +136,7 @@ export class FinalsLiveEngine {
     const gain = this.fade.gain;
     gain.cancelScheduledValues(0);
     const now = Math.max(0, this.ctx.currentTime);
-    if (at > now) gain.setValueAtTime(0, now);
+    if (at > now && !this.running) gain.setValueAtTime(0, now);
     if (slotSeconds === Infinity) { // ordinary listening: no fade-out, only a 20 ms fade-in so a start/seek never clicks
       gain.setValueAtTime(0, at);
       gain.linearRampToValueAtTime(1, at + 0.02);
@@ -236,7 +236,7 @@ export class FinalsLiveEngine {
       const now = this.ctx.currentTime;
       this.fade.gain.cancelScheduledValues(0);
       this.fade.gain.setTargetAtTime(0, now, 0.012);
-      void this.schedule({ output: now + 0.08, rate: 0 });
+      void this.schedule({ output: now + 0.08, active: false, rate: 0 });
     } catch { /* context already closed */ }
   }
 

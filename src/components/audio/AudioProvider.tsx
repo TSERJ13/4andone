@@ -246,6 +246,8 @@ export const AudioProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   const liveUpgradingRef = useRef(false);
   const livePredecodeTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const livePredecodeAbortRef = useRef<AbortController | null>(null);
+  const handoffSeekPendingRef = useRef(false);
+  const programmaticSeekTimeRef = useRef(0);
   useEffect(() => { void purgeSlowCache(); }, []); // slowed tracks are never kept on the device (older versions did)
   const engineHandoffStopRef = useRef<(() => void) | null>(null); // live engine still sounding while the phone's own player takes over
   const liveHandoffRef = useRef(false);   // the live engine already plays this track; the timeline element is only being handed over
@@ -278,7 +280,16 @@ export const AudioProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     if (livePredecodeTimerRef.current) { clearTimeout(livePredecodeTimerRef.current); livePredecodeTimerRef.current = null; }
     livePredecodeAbortRef.current?.abort();
     const l = liveListenersRef.current;
-    if (l) { l.el.removeEventListener('pause', l.pause); l.el.removeEventListener('play', l.play); l.el.removeEventListener('seeked', l.seeked); liveListenersRef.current = null; }
+    if (l) {
+      l.el.removeEventListener('pause', l.pause);
+      l.el.removeEventListener('play', l.play);
+      l.el.removeEventListener('seeked', l.seeked);
+      l.el.muted = false;
+      liveListenersRef.current = null;
+    }
+    if (plainPlayerRef.current) plainPlayerRef.current.muted = false;
+    if (finalPlayerRef.current) finalPlayerRef.current.muted = false;
+    if (nativePlayerRef.current) nativePlayerRef.current.muted = false;
     if (liveActiveRef.current) { try { liveEngineRef.current?.stop(); } catch { /* ignore */ } }
     liveActiveRef.current = false;
     liveNormalRef.current = false;
@@ -293,7 +304,10 @@ export const AudioProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     const normal = liveNormalRef.current;
     const el = nativePlayerRef.current;
     const slot = (normal && (!isFinalModeRef.current || isFitnessRef.current)) ? Infinity : Math.max(0.1, FINAL_DANCE_SECONDS - finalsClockRef.current.elapsed);
-    if (normal && !liveStartedRef.current && el) liveSourceStartRef.current = el.currentTime + LIVE_START_LEAD * playbackRateFor(bpmRef.current);
+    if (normal && !liveStartedRef.current && el) {
+      const basePos = Math.max(liveSourceStartRef.current, el.currentTime || 0);
+      liveSourceStartRef.current = basePos + LIVE_START_LEAD * playbackRateFor(bpmRef.current);
+    }
     if (!liveStartedRef.current) {
       liveStartedRef.current = true;
       const handoff = liveHandoffRef.current;
@@ -342,12 +356,16 @@ export const AudioProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       pause: () => { if (liveActiveRef.current) void liveEngineRef.current?.pause(); },
       play: () => startOrResumeLive(),
       seeked: () => {
+        if (Date.now() - programmaticSeekTimeRef.current < 600) {
+          programmaticSeekTimeRef.current = 0;
+          return;
+        }
         // A jump in the timeline (scrub, lock-screen seek, repeat) moves the sound to the same spot.
         if (!liveNormalRef.current || !liveStartedRef.current || el.paused) return;
         const eng = liveEngineRef.current; if (!eng) return;
         const rate = playbackRateFor(bpmRef.current);
         const slot = (isFinalModeRef.current && !isFitnessRef.current) ? Math.max(0.1, FINAL_DANCE_SECONDS - finalsClockRef.current.elapsed) : Infinity;
-        void eng.start({ sourceStart: el.currentTime + LIVE_START_LEAD * rate, percent: bpmRef.current, slotSeconds: slot });
+        void eng.start({ sourceStart: el.currentTime + 0.04 * rate, percent: bpmRef.current, slotSeconds: slot, when: eng.ctx.currentTime + 0.04 });
       },
     };
     el.addEventListener('pause', handlers.pause);
@@ -610,7 +628,7 @@ export const AudioProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       } catch { /* scheduling on a closed context — ignore */ }
       fadeScheduledRef.current = false;
     } else if (nativePlayerRef.current) {
-      setElementVolume(nativePlayerRef.current, v, isVolumeWritable());
+      setElementVolume(nativePlayerRef.current, nativePlayerRef.current.muted ? 0 : v, isVolumeWritable());
     }
     if (liveActiveRef.current) liveEngineRef.current?.setVolume(v);
   }, []);
@@ -1906,8 +1924,8 @@ export const AudioProvider: React.FC<{ children: React.ReactNode }> = ({ childre
                 }
                 return;
               }
-              // Rendered samples already contain the fade; do not fade twice.
-              if (renderPlan) return;
+              // Rendered samples or live engine already contain the fade; do not fade twice.
+              if (renderPlan || liveActiveRef.current) return;
               const ratio = Math.min(1, remaining / FINAL_FADE_SECONDS);
               if (isGainActive() && g && ctx && audio.readyState >= 3 && !audio.paused) {
                 // Schedule ahead on the audio clock; re-arm after pause/stall.
@@ -1942,9 +1960,10 @@ export const AudioProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       };
 
       try {
+        if (startAt > 0 || handoffEngine) handoffSeekPendingRef.current = true;
         const audio = await setupPlayer(finalUrl);
         if (oldBlobUrl) { const stale = oldBlobUrl; setTimeout(() => URL.revokeObjectURL(stale), 3000); }
-        if (currentToken !== loadingTokenRef.current) return;
+        if (currentToken !== loadingTokenRef.current) { handoffSeekPendingRef.current = false; return; }
         if (renderPlan) renderPlan.ready = true;
         const shipped = renderedFinalRef.current;
         let into = 0;
@@ -1977,10 +1996,13 @@ export const AudioProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         } else if (handoffEngine) {
           // Continue exactly where the live sound is right now (it kept playing while this file loaded).
           const livePos = handoffEngine.position();
+          programmaticSeekTimeRef.current = Date.now();
           try { audio.currentTime = Math.max(0, (livePos > 0.5 ? livePos : startAt) + 0.08); } catch { /* ignore */ }
         } else if (startAt > 0) {
+          programmaticSeekTimeRef.current = Date.now();
           try { audio.currentTime = startAt; } catch { /* ignore */ }
         }
+        handoffSeekPendingRef.current = false;
 
         // CRITICAL: if the AudioContext is suspended, everything routed through
         // it is SILENT even though the element "plays". This was the likely
@@ -2038,6 +2060,7 @@ export const AudioProvider: React.FC<{ children: React.ReactNode }> = ({ childre
           }, 4500);
         }
       } catch (e: any) {
+        handoffSeekPendingRef.current = false;
         if (currentToken !== loadingTokenRef.current || e.message === "Loading cancelled by new request") return;
         setError(e.message || "File Unreachable");
         setIsLoaded(false);
@@ -2133,7 +2156,7 @@ export const AudioProvider: React.FC<{ children: React.ReactNode }> = ({ childre
           return;
         }
 
-        if (nativePlayerRef.current) {
+        if (nativePlayerRef.current && !handoffSeekPendingRef.current) {
           const currentTimeVal = nativePlayerRef.current.currentTime;
           if (showRenderedFinalTestRef.current && isFinalModeRef.current && !isPauseCountdownRef.current) {
             // Test mode only: report any stretch where the playhead stood still while "playing".
@@ -2597,26 +2620,42 @@ export const AudioProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       if (liveActiveRef.current || Math.abs(bpmRef.current - 100) <= 0.5 || !isLiveListeningEnabled()) return;
       const a = nativePlayerRef.current;
       if (!a) return;
-      if (a.paused) { loadTrackRef.current(track, true, isFinalModeRef.current, { startAt: a.currentTime, paused: true }); return; }
-      // Gapless takeover: the engine starts a moment ahead, at the position the phone player will have reached, and the
-      // phone player is only stopped when the engine's sound begins.
+      if (a.paused) {
+        liveActiveRef.current = true;
+        liveNormalRef.current = true;
+        liveStartedRef.current = false;
+        liveHandoffRef.current = false;
+        liveSourceStartRef.current = a.currentTime;
+        a.muted = true;
+        setElementVolume(a, 0, isVolumeWritable());
+        attachLive(a);
+        return;
+      }
+      // Gapless in-place takeover: the engine starts a moment ahead, at the position the player will reach at `at`,
+      // and the player is muted at that exact instant so it continues silently as the timeline clock without reloading.
       const token = loadingTokenRef.current;
       const rate = playbackRateFor(bpmRef.current);
-      liveActiveRef.current = true; liveNormalRef.current = true; liveStartedRef.current = false; liveHandoffRef.current = false;
+      liveActiveRef.current = true;
+      liveNormalRef.current = true;
+      liveStartedRef.current = false;
+      liveHandoffRef.current = true;
       const sourceStart = a.currentTime + LIVE_START_LEAD * rate;
+      liveSourceStartRef.current = sourceStart;
       const slot = (isFinalModeRef.current && !isFitnessRef.current) ? Math.max(0.1, FINAL_DANCE_SECONDS - finalsClockRef.current.elapsed) : Infinity;
       const at = await engine.start({ sourceStart, percent: bpmRef.current, slotSeconds: slot, volume: volumeRef.current });
-      const waitMs = Math.max(0, (at - ctx.currentTime) * 1000) + 25;
+      attachLive(a);
+      startOrResumeLive();
+      const waitMs = Math.max(0, (at - ctx.currentTime) * 1000);
       setTimeout(() => {
         if (loadingTokenRef.current !== token || liveEngineRef.current !== engine || !liveActiveRef.current) return; // another track/start took over
         const now = nativePlayerRef.current;
-        const wasPaused = !now || now.paused;
-        if (wasPaused) void engine.pause();
-        // Where the engine is now = where it started + the time it has played since. (The engine's own position report
-        // can still be the old idle value (0) at this instant, which sent the music back to the start.)
-        const nowRate = playbackRateFor(bpmRef.current);
-        const where = sourceStart + Math.max(0, ctx.currentTime - at) * nowRate;
-        loadTrackRef.current(track, true, isFinalModeRef.current, { startAt: where, paused: wasPaused, liveHandoff: true });
+        if (!now) return;
+        if (now.paused) {
+          void engine.pause();
+        } else {
+          now.muted = true;
+          setElementVolume(now, 0, isVolumeWritable());
+        }
       }, waitMs);
     } catch (error: any) {
       if (error?.name !== 'AbortError') console.warn('[AUDIO-ENGINE] Live engine unavailable; keeping the normal player:', error);
@@ -2637,6 +2676,17 @@ export const AudioProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       const engine = liveEngineRef.current;
       const el = nativePlayerRef.current;
       if (track && engine && el) {
+        if (el.muted) {
+          const livePos = engine.position();
+          if (livePos > 0.5 && Math.abs(el.currentTime - livePos) > 0.25) {
+            programmaticSeekTimeRef.current = Date.now();
+            try { el.currentTime = livePos; } catch { /* ignore */ }
+          }
+          el.muted = false;
+          applyVolume(volumeRef.current);
+          stopLive();
+          return;
+        }
         const pos = engine.position() > 0.5 ? engine.position() : el.currentTime;
         if (el.paused) loadTrackRef.current(track, true, isFinalModeRef.current, { startAt: pos, paused: true });
         else loadTrackRef.current(track, true, isFinalModeRef.current, { startAt: pos, nativeHandoff: true });
@@ -2740,6 +2790,7 @@ export const AudioProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       const trackDur = duration || nativePlayerRef.current.duration || 0;
       const safeTime = Math.max(0, Math.min(time, trackDur || 999999));
       const wasPlaying = isPlayingRef.current;
+      programmaticSeekTimeRef.current = 0;
       nativePlayerRef.current.currentTime = safeTime;
       setCurrentTime(safeTime);
       currentTimeRef.current = safeTime;

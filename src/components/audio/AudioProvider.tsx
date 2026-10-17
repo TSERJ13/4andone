@@ -579,7 +579,7 @@ export const AudioProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   // Device capability and diagnostic routing are separate: opting into native
   // playback does NOT make element.volume writable on iOS or implement a fade.
   const isVolumeWritable = () => !isIOS();
-  const useNativeFinalDiagnostic = () => isIOS() && isNativeFinalTestEnabled();
+  const useNativeFinalDiagnostic = () => isIOS() && (isNativeFinalTestEnabled() || (typeof window !== 'undefined' && new URLSearchParams(window.location.search).get('finalsRender') !== '0'));
 
   // True when the CURRENTLY ACTIVE element is the gain-routed Final one.
   const isGainActive = () =>

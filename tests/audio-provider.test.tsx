@@ -520,7 +520,7 @@ describe('prepared slow-down in ordinary listening on iPhone/iPad', () => {
 });
 describe('rendered Finals is the default on iPhone', () => {
   beforeEach(() => { rolloutState.defaultOnApple = true; });
-  afterEach(() => { rolloutState.defaultOnApple = true; });
+  afterEach(() => { rolloutState.defaultOnApple = false; });
   it('uses prepared 1x audio without any URL flag and keeps the requested tempo', async () => {
     const ua = vi.spyOn(navigator, 'userAgent', 'get').mockReturnValue(IPHONE);
     try {
@@ -626,7 +626,33 @@ describe('rendered Finals safety switches', () => {
       await act(async () => { api.setBpm(95); api.loadTrack(track('safe'), false, true); }); await flush();
       expect(renderState.requests).toHaveLength(0);
       expect(api.isFinalMode).toBe(true); expect(api.error).toBeNull();
-    } finally { rolloutState.defaultOnApple = true; ua.mockRestore(); }
+    } finally { rolloutState.defaultOnApple = false; ua.mockRestore(); }
+  });
+  it('allows slowing down before AND during single-track 1:45 Final Mode without reloading or jumping', async () => {
+    const ua = vi.spyOn(navigator, 'userAgent', 'get').mockReturnValue(IPHONE);
+    try {
+      await renderIosDefault();
+      await act(async () => { api.loadTrack(track('single-final')); }); await flush();
+      const el = active();
+      expect(el.playbackRate).toBe(1);
+      await tick(10);
+      // 1. Slow down in Normal Mode — no background render or element swap
+      await act(async () => { api.setBpm(90); }); await tick(2); await flush();
+      expect(active()).toBe(el);
+      expect(el.playbackRate).toBeCloseTo(0.9, 3);
+      expect(renderState.requests).toHaveLength(0);
+      // 2. Toggle 1:45 Final Mode in-place on the playing track — no reload
+      const loadsBefore = (el.load as any).mock.calls.length;
+      await act(async () => { api.toggleFinalMode(); }); await flush();
+      expect(api.isFinalMode).toBe(true);
+      expect(active()).toBe(el);
+      expect((el.load as any).mock.calls.length).toBe(loadsBefore);
+      // 3. Change speed again while inside 1:45 Final Mode — immediate, no reload
+      await act(async () => { api.setBpm(80); }); await tick(2); await flush();
+      expect(active()).toBe(el);
+      expect(el.playbackRate).toBeCloseTo(0.8, 3);
+      expect(api.bpm).toBe(80);
+    } finally { ua.mockRestore(); }
   });
   it('never leaves Finals loading forever: a stuck preparation times out and the dance plays on the previous route', async () => {
     rolloutState.defaultOnApple = true;
@@ -638,7 +664,7 @@ describe('rendered Finals safety switches', () => {
       expect(api.isPlaying).toBe(false);
       await tick(26); await flush();
       expect(api.error).toBeNull(); expect(api.isFinalMode).toBe(true); expect(api.isPlaying).toBe(true);
-    } finally { rolloutState.defaultOnApple = true; ua.mockRestore(); }
+    } finally { rolloutState.defaultOnApple = false; ua.mockRestore(); }
   });
   it('shows the timeout in the explicit test mode instead of hiding it', async () => {
     await enableRenderedFinals();

@@ -176,9 +176,16 @@ export default function DesktopFullPlayer({ onClose }: DesktopFullPlayerProps) {
 
   const handleDownload = () => saveTrackOffline(currentTrack);
 
+  const [draftBpm, setDraftBpm] = useState<number | null>(null);
   const currentBpm = bpm || 100;
-  const bpmDelta = currentBpm - 100;
+  const shownBpm = draftBpm ?? currentBpm;
+  const bpmDelta = shownBpm - 100;
   const isBpmChanged = currentBpm !== 100;
+  const commitDraftBpm = () => {
+    if (draftBpm === null) return;
+    setBpm(draftBpm, true);
+    setDraftBpm(null);
+  };
   const bpmDisplay = bpmDelta === 0 ? '0%' : (bpmDelta > 0 ? `+${bpmDelta}%` : `${bpmDelta}%`);
 
   return (
@@ -477,8 +484,13 @@ export default function DesktopFullPlayer({ onClose }: DesktopFullPlayerProps) {
                     min={50}
                     max={150}
                     step={1}
-                    value={currentBpm}
-                    onChange={(e) => setBpm(parseInt(e.target.value), true)}
+                    value={shownBpm}
+                    onChange={(e) => setDraftBpm(parseInt(e.target.value, 10))}
+                    onPointerUp={commitDraftBpm}
+                    onTouchEnd={commitDraftBpm}
+                    onMouseUp={commitDraftBpm}
+                    onKeyUp={commitDraftBpm}
+                    onBlur={commitDraftBpm}
                     className="yt-speed-range-slider"
                   />
 

@@ -39,7 +39,7 @@ function isAppleTouchDevice(): boolean {
  * (?finalsRender=1) played clean — so rendered Finals is the default on
  * iPhone/iPad again. A stuck preparation times out and falls back to the old route.
  */
-export const rolloutState = { defaultOnApple: true, liveListeningOnApple: true, slowRenderOnApple: true }; // live listening: verified on a real iPhone (sound + speed changes); guarded by a runtime silence watchdog
+export const rolloutState = { defaultOnApple: false, liveListeningOnApple: false, slowRenderOnApple: false }; // native plain element + FinalsClock is default; rendered/live remain opt-in via URL flags
 
 /** Behaviour switch for rendered Finals.
  * Opt-in (?finalsRender=1) unless rolloutState.defaultOnApple is set, in which

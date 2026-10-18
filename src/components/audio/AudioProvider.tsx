@@ -103,15 +103,23 @@ const isIOS = (): boolean => {
     (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
 };
 
+// Opaque black square: the transparent logo shows on a WHITE background on the iPhone lock screen.
+export const FINAL_LOCK_COVER = '/logo-lockscreen.png';
+
 // LOCK-SCREEN METADATA. iOS picks one artwork size from the list, so offer the
 // same cover at every usual size, with the app icon as the last fallback.
 const ARTWORK_SIZES = ['96x96', '128x128', '192x192', '256x256', '384x384', '512x512'];
 const coverMime = (path: string) => /\.png($|\?)/i.test(path) ? 'image/png' : /\.webp($|\?)/i.test(path) ? 'image/webp' : 'image/jpeg';
 const absoluteUrl = (path: string) => (typeof window !== 'undefined' && path.startsWith('/')) ? `${window.location.origin}${path}` : path;
-const lockScreenArtwork = (coverPath: string): MediaImage[] => [
-  ...ARTWORK_SIZES.map(sizes => ({ src: absoluteUrl(coverPath), sizes, type: coverMime(coverPath) })),
-  { src: absoluteUrl('/icons/icon-512x512.png'), sizes: '512x512', type: 'image/png' },
-];
+const lockScreenArtwork = (rawCoverPath: string): MediaImage[] => {
+  const coverPath = (!rawCoverPath || /\/(logo-3d|logo-square|logo-4andone-3d)\.png($|\?)/i.test(rawCoverPath))
+    ? FINAL_LOCK_COVER
+    : rawCoverPath;
+  return [
+    ...ARTWORK_SIZES.map(sizes => ({ src: absoluteUrl(coverPath), sizes, type: coverMime(coverPath) })),
+    { src: absoluteUrl('/icons/icon-512x512.png'), sizes: '512x512', type: 'image/png' },
+  ];
+};
 // A proper 0.2 s silent WAV for unlocking extra elements. (The 8-frame data URI above can be too
 // short for iPhone to start, which left the unlock promise hanging.)
 let silentBlobUrl: string | null = null;
@@ -130,8 +138,6 @@ const unlockSource = (): string => {
 };
 export const REST_TITLE = 'Rest Time';
 export const FINAL_LOCK_TITLE = 'Final Mode';
-// Opaque black square: the transparent logo shows on a WHITE background on the iPhone lock screen.
-export const FINAL_LOCK_COVER = '/logo-lockscreen.png';
 
 // FINAL MODE ON THE LOCK SCREEN: the whole program looks like ONE item (title
 // "Final Mode", the site logo, total time). The in-app list is unchanged.

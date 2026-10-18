@@ -22,7 +22,7 @@ export function getTrackCover(
   albums: Album[] = [],
   styles: Style[] = []
 ): string {
-  if (!track) return '/logo-3d.png';
+  if (!track) return '/logo-lockscreen.png';
 
   const artistLower = (track.artist || '').toLowerCase().trim();
   const albumLower = (track.album || '').toLowerCase().trim();
@@ -162,20 +162,18 @@ export function getTrackCover(
     if (matchedArtistAlb?.coverUrl) return normalizeMediaUrl(matchedArtistAlb.coverUrl);
   }
 
-  // 4. Fallback explicit cover (even if generic) or default logo
-  if (track.coverUrl) return normalizeMediaUrl(track.coverUrl);
-  if (track.artworkUrl) return normalizeMediaUrl(track.artworkUrl);
-
-  return '/logo-3d.png';
+  // 4. Opaque black-background logo (never transparent /logo-3d.png, which iOS Lock Screen renders on a white square)
+  return '/logo-lockscreen.png';
 }
 
 
 /** Covers that also exist as 128 px thumbnails in /public/thumbs (a few KB instead of ~300 KB / 4 MB decoded). */
-const THUMBNAILED = new Set<string>(['/4andone-mix.jpg', '/blackpool-live-sounds.jpg', '/boris-myagkov-big-band.jpg', '/dancestar.jpg', '/dj-maksy.jpg', '/empress-orchestra.jpg', '/georgie-musheev.jpg', '/goc2026.png', '/la-grande-orchestra-italiana.jpg', '/len-phillips-big-band.jpg', '/logo-3d.png', '/logo-4andone-3d.jpg', '/logo-4andone-3d.png', '/logo-square.jpg', '/logo-square.png', '/midland-big-band.jpg', '/rosesband.jpg']);
+const THUMBNAILED = new Set<string>(['/4andone-mix.jpg', '/blackpool-live-sounds.jpg', '/boris-myagkov-big-band.jpg', '/dancestar.jpg', '/dj-maksy.jpg', '/empress-orchestra.jpg', '/georgie-musheev.jpg', '/goc2026.png', '/la-grande-orchestra-italiana.jpg', '/len-phillips-big-band.jpg', '/logo-4andone-3d.jpg', '/logo-square.jpg', '/midland-big-band.jpg', '/rosesband.jpg']);
 
 /** The cover for a small picture (list rows): the thumbnail when there is one, else the cover itself. */
 export function getTrackThumb(track: Track | any | null, albums: Album[] = [], styles: Style[] = []): string {
   const cover = getTrackCover(track, albums, styles);
+  if (cover === '/logo-lockscreen.png') return '/thumbs/logo-square.jpg';
   return THUMBNAILED.has(cover) ? `/thumbs${cover}` : cover;
 }
 

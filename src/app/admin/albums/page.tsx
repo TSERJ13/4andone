@@ -10,7 +10,7 @@ import { normalizeMediaUrl } from '@/lib/media-key';
 import { trackInAlbum } from '@/utils/albumMatch';
 import { 
   Disc, Plus, Edit3, Trash2, ArrowUp, ArrowDown, ExternalLink, 
-  Upload, Check, X, Sparkles, Music2, Eye, Flame, Layers
+  Upload, Check, X, Sparkles, Music2, Eye, Flame, Layers, Lock, Unlock
 } from 'lucide-react';
 import ConfirmModal from '@/components/admin/ConfirmModal';
 
@@ -44,6 +44,8 @@ export default function AdminAlbumsPage() {
   const [program, setProgram] = useState<'Latin' | 'Standard' | 'Both'>('Latin');
   const [allowedStyles, setAllowedStyles] = useState<string[]>(ALL_LATIN_STYLES);
   const [tagsInput, setTagsInput] = useState('');
+  const [isPremium, setIsPremium] = useState(false);
+  const [togglingId, setTogglingId] = useState<string | null>(null);
 
   // Save state: errors stay inside the editor, results show as a short notice
   const [formError, setFormError] = useState<string | null>(null);
@@ -72,6 +74,7 @@ export default function AdminAlbumsPage() {
     setProgram('Latin');
     setAllowedStyles(ALL_LATIN_STYLES);
     setTagsInput('');
+    setIsPremium(false);
     setEditingAlbum(null);
     setFormError(null);
   };
@@ -94,6 +97,7 @@ export default function AdminAlbumsPage() {
     setProgram(album.program || 'Both');
     setAllowedStyles(album.allowedStyles || (album.program === 'Latin' ? ALL_LATIN_STYLES : ALL_STANDARD_STYLES));
     setTagsInput((album.tags || []).join(', '));
+    setIsPremium(!!album.isPremium);
     setIsModalOpen(true);
   };
 
@@ -188,6 +192,7 @@ export default function AdminAlbumsPage() {
       program,
       allowedStyles,
       tags: parsedTags,
+      isPremium,
     };
 
     setIsSaving(true);
@@ -207,6 +212,19 @@ export default function AdminAlbumsPage() {
     setIsModalOpen(false);
     resetForm();
     showNotice('ok', editingAlbum ? 'Album saved' : 'Album created');
+  };
+
+  const handleTogglePremium = async (album: Album) => {
+    const nextVal = !album.isPremium;
+    setTogglingId(album.id);
+    try {
+      await updateAlbum(album.id, { slug: album.slug, isPremium: nextVal });
+      showNotice('ok', nextVal ? `"${album.title}" ჩაიკეტა (მხოლოდ Premium-ისთვის)` : `"${album.title}" გაიხსნა ყველასთვის`);
+    } catch (err) {
+      showNotice('error', `Could not update "${album.title}": ${(err as Error).message}`);
+    } finally {
+      setTogglingId(null);
+    }
   };
 
   const handleMove = async (index: number, direction: 'up' | 'down') => {
@@ -327,6 +345,22 @@ export default function AdminAlbumsPage() {
                   <span className={`program-badge ${album.program.toLowerCase()}`}>
                     {album.program}
                   </span>
+                  {album.isPremium && (
+                    <span
+                      className="program-badge"
+                      style={{
+                        background: 'rgba(245, 158, 11, 0.2)',
+                        color: '#fbbf24',
+                        border: '1px solid rgba(245, 158, 11, 0.45)',
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        gap: 4,
+                      }}
+                    >
+                      <Lock size={10} />
+                      <span>PREMIUM ONLY</span>
+                    </span>
+                  )}
                 </div>
                 <h3 className="album-title">{album.title}</h3>
                 <p className="album-subtitle">{album.subtitle || album.description}</p>
@@ -355,6 +389,37 @@ export default function AdminAlbumsPage() {
 
               {/* Action Buttons */}
               <div className="album-actions">
+                <button
+                  type="button"
+                  disabled={togglingId === album.id}
+                  onClick={() => handleTogglePremium(album)}
+                  title={
+                    album.isPremium
+                      ? 'ჩაკეტილია უფასოებისთვის (მხოლოდ Premium) — დააჭირე ყველასთვის გასახსნელად'
+                      : 'ღიაა ყველასთვის — დააჭირე რომ მხოლოდ Premium-ისთვის ჩაიკეტოს (ალბომი + მუსიკები)'
+                  }
+                  style={{
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: 6,
+                    padding: '8px 12px',
+                    borderRadius: 10,
+                    fontSize: 12,
+                    fontWeight: 800,
+                    cursor: togglingId === album.id ? 'wait' : 'pointer',
+                    border: album.isPremium
+                      ? '1px solid rgba(245, 158, 11, 0.5)'
+                      : '1px solid rgba(255, 255, 255, 0.12)',
+                    background: album.isPremium
+                      ? 'linear-gradient(135deg, rgba(245, 158, 11, 0.25), rgba(217, 119, 6, 0.18))'
+                      : 'rgba(255, 255, 255, 0.05)',
+                    color: album.isPremium ? '#fbbf24' : '#a1a1aa',
+                    transition: 'all 0.2s ease',
+                  }}
+                >
+                  {album.isPremium ? <Lock size={14} /> : <Unlock size={14} />}
+                  <span>{album.isPremium ? 'Premium Only' : 'Free & Pro'}</span>
+                </button>
                 <Link
                   href={`/admin/upload?album=${album.slug}`}
                   className="action-icon-btn upload-tracks-btn"
@@ -507,6 +572,44 @@ export default function AdminAlbumsPage() {
                   onChange={e => setSubtitle(e.target.value)}
                   className="input-field textarea"
                 />
+              </div>
+
+              {/* Access / Premium Visibility Selector */}
+              <div className="field-group full-width">
+                <label className="field-label">Access / წვდომა (ვინ ხედავს ამ ალბომს და მის მუსიკებს)</label>
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 10 }}>
+                  <button
+                    type="button"
+                    className={`program-opt-btn ${!isPremium ? 'active' : ''}`}
+                    onClick={() => setIsPremium(false)}
+                    style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8 }}
+                  >
+                    <Unlock size={16} />
+                    <span>ყველასთვის (უფასო + Premium)</span>
+                  </button>
+                  <button
+                    type="button"
+                    className={`program-opt-btn ${isPremium ? 'active' : ''}`}
+                    onClick={() => setIsPremium(true)}
+                    style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      gap: 8,
+                      borderColor: isPremium ? '#f59e0b' : undefined,
+                      background: isPremium ? 'rgba(245, 158, 11, 0.18)' : undefined,
+                      color: isPremium ? '#fbbf24' : undefined,
+                    }}
+                  >
+                    <Lock size={16} />
+                    <span>👑 მხოლოდ Premium-ისთვის (ჩაკეტილი)</span>
+                  </button>
+                </div>
+                {isPremium && (
+                  <p style={{ margin: '8px 0 0', fontSize: 12.5, color: '#fbbf24', opacity: 0.9 }}>
+                    🔒 ეს ალბომი და მასში შემავალი ყველა მუსიკა დაემალება უფასო მომხმარებლებს და ხელმისაწვდომი იქნება მხოლოდ Premium გამომწერებისთვის.
+                  </p>
+                )}
               </div>
 
               {/* Program Discipline Selector */}

@@ -2,11 +2,13 @@
 
 import { userDb } from '@/lib/user-db';
 import React, { createContext, useContext, useState, useEffect, useLayoutEffect, useMemo } from 'react';
+import { usePathname } from 'next/navigation';
 import { supabase } from '@/utils/supabase';
 import { adminDb } from '@/lib/admin-db';
 import { useAuth } from '@/context/AuthContext';
 import { Album, DEFAULT_ALBUMS } from '@/types/album';
 import { getOfflineTrackMeta } from '@/utils/offline';
+import { trackInAlbum } from '@/utils/albumMatch';
 
 export type { Album } from '@/types/album';
 export { DEFAULT_ALBUMS } from '@/types/album';
@@ -108,6 +110,8 @@ interface StudioContextType {
   getTracksForFinalFolder: (finalFolderId: string) => Track[];
   // Albums (Dynamic Album Builder)
   albums: Album[];
+  /** Unfiltered album list including Premium-only albums (for direct URL lock screens and admin). */
+  allAlbums: Album[];
   /** false until the real album order is known (from this device's saved copy or the server): don't draw album lists before it */
   albumsReady: boolean;
   refreshAlbums: () => Promise<void>;
@@ -224,7 +228,9 @@ const mapTrackRows = (rows: any[], userLikes: string[]) => {
 };
 
 export const StudioProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const { user, isAuthenticated, setIsAuthModalOpen, sessionVersion } = useAuth();
+  const { user, isAuthenticated, isPremium, setIsAuthModalOpen, sessionVersion } = useAuth();
+  const pathname = usePathname();
+  const isAdminRoute = pathname?.startsWith('/admin') ?? false;
   const [tracks, setTracks] = useState<Track[]>([]);
   const [folders, setFolders] = useState<Folder[]>([]);
   const [folderTracksMap, setFolderTracksMap] = useState<Record<string, string[]>>({});
@@ -1094,7 +1100,7 @@ export const StudioProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ id, ...updates }),
     });
-    if (json?.album) setAlbums(prev => prev.map(a => a.id === id ? json.album : a));
+    if (json?.album) setAlbums(prev => prev.map(a => (a.id === id || a.slug === json.album.slug) ? json.album : a));
     syncAlbumsToOtherTabs();
   };
 
@@ -1133,8 +1139,22 @@ export const StudioProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     }
   };
 
+  // Hide Premium-only albums and their tracks from free listeners on public pages.
+  // Admin pages (/admin/*) and Premium users see the full catalog.
+  const visibleAlbums = useMemo(() => {
+    if (isAdminRoute || isPremium) return albums;
+    return albums.filter(a => !a.isPremium);
+  }, [albums, isAdminRoute, isPremium]);
+
+  const visibleTracks = useMemo(() => {
+    if (isAdminRoute || isPremium) return tracks;
+    const premiumAlbums = albums.filter(a => a.isPremium);
+    if (premiumAlbums.length === 0) return tracks;
+    return tracks.filter(t => !premiumAlbums.some(a => trackInAlbum(t, a)));
+  }, [tracks, albums, isAdminRoute, isPremium]);
+
   const stats = {
-    totalTracks: tracks.length,
+    totalTracks: visibleTracks.length,
     totalFolders: folders.length,
     totalPlaylists: finalFolders.length,
     activeUsers: 1,
@@ -1142,7 +1162,7 @@ export const StudioProvider: React.FC<{ children: React.ReactNode }> = ({ childr
 
   return (
     <StudioContext.Provider value={{
-      tracks, folders, folderTracksMap, styles, tags,
+      tracks: visibleTracks, folders, folderTracksMap, styles, tags,
       addTrack, removeTrack, updateTrack, toggleFavorite,
       addFolder, updateFolder, removeFolder, assignToFolder,
       addTrackToFolder, removeTrackFromFolder,
@@ -1151,7 +1171,7 @@ export const StudioProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       finalTracks, finalFolders, addFinalFolder, removeFinalFolder,
       addToFinal, removeFromFinal, reorderFinalTracks, setFinalTracks,
       reorderGlobalTracks, reorderTracks, moveTrack, addTrackToFinalFolder, getTracksForFinalFolder,
-      albums, albumsReady, refreshAlbums, addAlbum, updateAlbum, deleteAlbum, reorderAlbums,
+      albums: visibleAlbums, allAlbums: albums, albumsReady, refreshAlbums, addAlbum, updateAlbum, deleteAlbum, reorderAlbums,
       stats,
       isLoading,
       refreshData: fetchData

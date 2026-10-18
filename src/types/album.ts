@@ -15,6 +15,8 @@ export interface Album {
   tags: string[];
   orderIndex: number;
   isPublished?: boolean;
+  /** When true, this album and all its tracks are restricted to Premium users (hidden from free users). */
+  isPremium?: boolean;
   createdAt?: string;
   updatedAt?: string;
 }

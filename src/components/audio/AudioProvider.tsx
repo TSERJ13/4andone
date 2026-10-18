@@ -13,6 +13,7 @@ import RenderedFinalAudioBadge from './RenderedFinalAudioBadge';
 import { finalsDiag } from '@/utils/finalsDiag';
 import IosFinalAudioTestBadge from './IosFinalAudioTestBadge';
 import { getTrackCover } from '@/utils/trackCover';
+import { trackInAlbum } from '@/utils/albumMatch';
 import { playOrder, queueFromContext } from '@/utils/playQueue';
 import { recordTrackPlayed } from '@/utils/history';
 import { FinalsClock, FINAL_DANCE_SECONDS, FINAL_REST_SECONDS, FINAL_FADE_SECONDS, FINAL_REST_URL, playbackRateFor, setMusicTempo } from '@/utils/finals';
@@ -211,7 +212,7 @@ import { useAuth } from '@/context/AuthContext';
 import { supabase } from '@/utils/supabase';
 
 export const AudioProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const { tracks, finalTracks, albums } = useStudio();
+  const { tracks, finalTracks, albums, allAlbums } = useStudio();
   const { user, isPremium, setIsSubscriptionModalOpen } = useAuth();
   const [isPlaying, setIsPlaying] = useState(false);
   const [bpm, setBpmState] = useState(100);
@@ -443,6 +444,8 @@ export const AudioProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   const currentTrackQualifiedRef = useRef(false);
   const isPremiumRef = useRef(isPremium);
   useEffect(() => { isPremiumRef.current = isPremium; }, [isPremium]);
+  const allAlbumsRef = useRef(allAlbums);
+  useEffect(() => { allAlbumsRef.current = allAlbums; }, [allAlbums]);
   // AD BREAK STATE
   const adOpenRef = useRef(false);          // ad break currently on screen
   const breakPausedRef = useRef(false);     // break reached its Premium popup → music paused
@@ -1200,6 +1203,11 @@ export const AudioProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     if (forceFinalMode === true && !isPremiumRef.current) {
       setActiveMode(null);
       setSessionTracks([]);
+      setIsSubscriptionModalOpen(true);
+      return;
+    }
+    // Tracks belonging to a Premium-only album are locked for free users
+    if (!isPremiumRef.current && (allAlbumsRef.current || []).some(a => a.isPremium && trackInAlbum(track, a))) {
       setIsSubscriptionModalOpen(true);
       return;
     }

@@ -6,7 +6,7 @@ export function trackInAlbum(t: TrackLike, album: AlbumLike): boolean {
   const albumSlug = album.slug.toLowerCase().trim();
   const albumTitle = album.title.toLowerCase().trim();
   const albumArtist = (album.artist || '').toLowerCase().trim();
-  const albumTags = (album.tags || []).map(x => x.toLowerCase().trim()).filter(Boolean);
+  const albumTags = (album.tags || []).map(x => x.toLowerCase().trim()).filter(x => Boolean(x) && x !== '__premium__');
   const tAlbum = (t.album || '').toLowerCase().trim();
   const tArtist = (t.artist || '').toLowerCase().trim();
   // Whole-tag matches only: "title contains the tag" let a generic tag like

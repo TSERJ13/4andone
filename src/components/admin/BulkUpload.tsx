@@ -19,7 +19,8 @@ import {
   Layers,
   Disc,
   ChevronDown,
-  Image as ImageIcon
+  Image as ImageIcon,
+  Lock
 } from 'lucide-react';
 import { useStudio, Album } from './StudioProvider';
 import { albumOriginalSlot, slotForIndex } from '@/utils/albumSlot';
@@ -546,12 +547,15 @@ const BulkUpload = () => {
                     <span className="tile-name">Standard Library</span>
                   </button>
                   {albums.map(alb => (
-                    <button key={alb.id || alb.slug} type="button" role="option" aria-selected={batchDestKey === alb.slug} title={alb.title}
+                    <button key={alb.id || alb.slug} type="button" role="option" aria-selected={batchDestKey === alb.slug} title={alb.isPremium ? `${alb.title} (👑 Premium Only)` : alb.title}
                       className={`album-tile ${batchDestKey === alb.slug ? 'on' : ''}`}
                       style={{ '--tile-color': alb.themeColor || '#ff416c' } as React.CSSProperties}
                       onClick={() => handleDestinationChange(alb.slug)}>
                       <span className="tile-img">{alb.coverUrl ? <img src={smallImage(alb.coverUrl)} alt="" loading="lazy" /> : <Disc size={20} />}</span>
-                      <span className="tile-name">{alb.title}</span>
+                      <span className="tile-name" style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}>
+                        {alb.isPremium && <Lock size={11} style={{ color: '#fbbf24', flexShrink: 0 }} />}
+                        <span>{alb.title}</span>
+                      </span>
                     </button>
                   ))}
                   <button type="button" role="option" aria-selected={batchDestKey === '__custom__'} className={`album-tile ${batchDestKey === '__custom__' ? 'on' : ''}`} onClick={() => handleDestinationChange('__custom__')}>

@@ -4,7 +4,7 @@ import { trackInAlbum } from '@/utils/albumMatch';
 import React, { useState, useMemo, useEffect } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
-import { Play, Disc, Flame, Music2, Zap, Activity, Settings, ChevronLeft } from 'lucide-react';
+import { Play, Disc, Flame, Music2, Zap, Activity, Settings, ChevronLeft, Lock, Sparkles } from 'lucide-react';
 import { useAudioControls } from '@/components/audio/AudioProvider';
 import { useStudio, Track } from '@/components/admin/StudioProvider';
 import { useAuth } from '@/context/AuthContext';
@@ -24,16 +24,21 @@ export default function DynamicAlbumPage() {
   const slug = (params?.slug as string) || '';
 
   const { loadTrack, isPlaying, title: playingTitle, trackId: playingTrackId, setActiveMode, setSessionTracks, isFinalMode, stop } = useAudioControls();
-  const { albums, tracks, styles, toggleFavorite, isLoading } = useStudio();
-  const { isAuthenticated, setIsAuthModalOpen } = useAuth();
+  const { albums, allAlbums, tracks, styles, toggleFavorite, isLoading } = useStudio();
+  const { isAuthenticated, isPremium, setIsAuthModalOpen, setIsSubscriptionModalOpen } = useAuth();
   const downloadedIds = useDownloadedTracks();
   const [showAlbumStopConfirm, setShowAlbumStopConfirm] = useState(false);
   const [pendingTrack, setPendingTrack] = useState<Track | null>(null);
 
-  // Find matching album from albums list
+  // Find matching album from albums list (or allAlbums if locked for free users)
   const album = useMemo(() => {
     return albums.find(a => a.slug.toLowerCase() === slug.toLowerCase());
   }, [albums, slug]);
+
+  const lockedAlbum = useMemo(() => {
+    if (album) return null;
+    return (allAlbums || []).find(a => a.slug.toLowerCase() === slug.toLowerCase() && a.isPremium);
+  }, [album, allAlbums, slug]);
 
   const [activeTab, setActiveTab] = useState<'Latin' | 'Standard'>('Latin');
   const [showPasoSettingsModal, setShowPasoSettingsModal] = useState(false);
@@ -187,6 +192,76 @@ export default function DynamicAlbumPage() {
     }
     action();
   };
+
+  if (lockedAlbum && !isPremium && !isLoading) {
+    return (
+      <div className="page-wrapper goc-page-wrapper">
+        <div className="goc-container not-found-state glass" style={{ borderColor: 'rgba(245, 158, 11, 0.4)', textAlign: 'center', padding: '48px 24px' }}>
+          <div style={{
+            width: 72,
+            height: 72,
+            borderRadius: '50%',
+            background: 'linear-gradient(135deg, rgba(245, 158, 11, 0.25), rgba(217, 119, 6, 0.15))',
+            border: '2px solid rgba(245, 158, 11, 0.5)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            margin: '0 auto 20px',
+            color: '#fbbf24',
+          }}>
+            <Lock size={36} />
+          </div>
+          <span style={{
+            display: 'inline-block',
+            padding: '4px 12px',
+            borderRadius: 20,
+            fontSize: 11,
+            fontWeight: 900,
+            letterSpacing: '0.8px',
+            background: 'rgba(245, 158, 11, 0.2)',
+            color: '#fbbf24',
+            border: '1px solid rgba(245, 158, 11, 0.45)',
+            marginBottom: 12,
+          }}>
+            PREMIUM EXCLUSIVE
+          </span>
+          <h2 style={{ fontSize: '1.8rem', fontWeight: 900, margin: '0 0 10px', color: '#fff' }}>
+            {lockedAlbum.title}
+          </h2>
+          <p style={{ maxWidth: 480, margin: '0 auto 28px', color: 'rgba(255, 255, 255, 0.7)', lineHeight: 1.6 }}>
+            ეს ალბომი და მისი ყველა მუსიკა ხელმისაწვდომია მხოლოდ 4and.one Music Premium წევრებისთვის. გაიაქტიურეთ Premium და მიიღეთ შეუზღუდავი წვდომა.
+          </p>
+          <div style={{ display: 'flex', gap: 12, justifyContent: 'center', flexWrap: 'wrap' }}>
+            <button
+              type="button"
+              onClick={() => setIsSubscriptionModalOpen(true)}
+              style={{
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: 8,
+                padding: '12px 26px',
+                borderRadius: 14,
+                background: 'linear-gradient(135deg, #f59e0b, #d97706)',
+                color: '#000',
+                fontWeight: 800,
+                fontSize: 15,
+                border: 'none',
+                cursor: 'pointer',
+                boxShadow: '0 4px 20px rgba(245, 158, 11, 0.35)',
+              }}
+            >
+              <Sparkles size={18} />
+              <span>Unlock with Premium</span>
+            </button>
+            <Link href="/" className="back-home-btn">
+              <ChevronLeft size={18} />
+              <span>Return to Homepage</span>
+            </Link>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   if (!album && !isLoading) {
     return (

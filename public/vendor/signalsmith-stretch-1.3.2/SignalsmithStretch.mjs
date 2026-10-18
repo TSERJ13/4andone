@@ -287,11 +287,12 @@ function registerWorkletProcessor(Module, audioNodeKey) {
 			} else {
 				let inputTime = currentMapSegment.input + (outputTime - currentMapSegment.output)*currentMapSegment.rate;
 				let loopLength = currentMapSegment.loopEnd - currentMapSegment.loopStart;
-				if (loopLength > 0 && inputTime >= currentMapSegment.loopEnd) {
+				while (loopLength > 0 && inputTime >= currentMapSegment.loopEnd) {
 					currentMapSegment.input -= loopLength;
 					inputTime -= loopLength;
 				}
 				
+				let reportedInputTime = inputTime;
 				inputTime += this.inputLatencySeconds;
 				let inputSamplesEnd = Math.round(inputTime*sampleRate);
 
@@ -304,11 +305,11 @@ function registerWorkletProcessor(Module, audioNodeKey) {
 				// zero-pad until the start of the audio data
 				let inputSamples = inputSamplesEnd - this.bufferLength;
 				if (inputSamples < audioSamples) {
-					blockSamples = audioSamples - inputSamples;
+					blockSamples = Math.min(this.bufferLength, audioSamples - inputSamples);
 					buffers.forEach(b => b.fill(0, 0, blockSamples));
-					inputSamples = audioSamples;
+					inputSamples += blockSamples;
 				}
-				while (audioBufferIndex < this.audioBuffers.length && audioSamples < inputSamplesEnd) {
+				while (audioBufferIndex < this.audioBuffers.length && inputSamples < inputSamplesEnd) {
 					let audioBuffer = this.audioBuffers[audioBufferIndex];
 					let startIndex = inputSamples - audioSamples; // start index within the audio buffer
 					let bufferEnd = audioSamples + audioBuffer[0].length;
@@ -324,10 +325,11 @@ function registerWorkletProcessor(Module, audioNodeKey) {
 								buffer.subarray(blockSamples).set(channelBuffer.subarray(startIndex, startIndex + count));
 							}
 						});
-						audioSamples += count;
+						audioSamples = bufferEnd;
+						inputSamples += count;
 						blockSamples += count;
 					} else { // we're already past this buffer - skip it
-						audioSamples += audioBuffer[0].length;
+						audioSamples = bufferEnd;
 					}
 					++audioBufferIndex;
 				}
@@ -342,7 +344,7 @@ function registerWorkletProcessor(Module, audioNodeKey) {
 				this.timeIntervalCounter -= outputBlockSize;
 				if (this.timeIntervalCounter <= 0) {
 					this.timeIntervalCounter = this.timeIntervalSamples;
-					this.port.postMessage(['time', inputTime]);
+					this.port.postMessage(['time', reportedInputTime]);
 				}
 			}
 			
@@ -350,7 +352,16 @@ function registerWorkletProcessor(Module, audioNodeKey) {
 			memory = wasmModule.exports ? wasmModule.exports.memory.buffer : wasmModule.HEAP8.buffer;
 			outputList[0].forEach((channelBuffer, c) => {
 				let buffer = new Float32Array(memory, this.buffersOut[c], outputBlockSize);
-				channelBuffer.set(buffer);
+				for (let i = 0; i < outputBlockSize; ++i) {
+					let x = buffer[i] * 0.9;
+					let ax = x < 0 ? -x : x;
+					if (ax > 0.85) {
+						let u = (ax - 0.85) / 0.15;
+						ax = 0.85 + 0.15 * (u / (1 + u));
+						x = x < 0 ? -ax : ax;
+					}
+					channelBuffer[i] = x;
+				}
 			});
 			
 			return true;

@@ -268,12 +268,14 @@ export const AudioProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     }
     // iPhone: Web Audio is silenced by the ring/silent switch unless the page declares itself a media player.
     try { const session = (navigator as any).audioSession; if (session && session.type !== 'playback') session.type = 'playback'; } catch { /* older iOS */ }
-    if (ctx.state !== 'running') { try { void ctx.resume().catch(() => {}); } catch { /* ignore */ } }
-    try { // iPhone only starts audio from inside a tap: a silent buffer unlocks the context
-      const buffer = ctx.createBuffer(1, 1, ctx.sampleRate || 44100);
-      const source = ctx.createBufferSource();
-      source.buffer = buffer; source.connect(ctx.destination); source.start(0);
-    } catch { /* cosmetic */ }
+    if (ctx.state !== 'running') {
+      try { void ctx.resume().catch(() => {}); } catch { /* ignore */ }
+      try { // iPhone only starts audio from inside a tap: a silent buffer unlocks the context
+        const buffer = ctx.createBuffer(1, 1, ctx.sampleRate || 44100);
+        const source = ctx.createBufferSource();
+        source.buffer = buffer; source.connect(ctx.destination); source.start(0);
+      } catch { /* cosmetic */ }
+    }
     return ctx;
   };
   const stopLive = () => {
@@ -1022,9 +1024,12 @@ export const AudioProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         heartbeatRef.current.play().catch(() => {});
       }
 
-      // Resume the Final-Mode audio context if it exists (iOS suspends it).
+      // Resume the Final-Mode and Live-Engine audio contexts if they exist (iOS suspends them).
       if (audioCtxRef.current && audioCtxRef.current.state === 'suspended') {
         audioCtxRef.current.resume().catch(() => {});
+      }
+      if (isLiveListeningEnabled()) {
+        ensureLiveContext();
       }
 
       // Remove listeners once unlocked
@@ -1039,6 +1044,9 @@ export const AudioProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         // gain chain (and therefore all sound) stays silent.
         if (audioCtxRef.current && audioCtxRef.current.state === 'suspended') {
           audioCtxRef.current.resume().catch(() => {});
+        }
+        if (liveCtxRef.current && liveCtxRef.current.state === 'suspended') {
+          liveCtxRef.current.resume().catch(() => {});
         }
 
         // Synchronize React state with actual hardware audio playback state
@@ -2049,7 +2057,7 @@ export const AudioProvider: React.FC<{ children: React.ReactNode }> = ({ childre
           livePredecodeTimerRef.current = setTimeout(() => {
             livePredecodeTimerRef.current = null;
             if (currentToken !== loadingTokenRef.current || liveActiveRef.current || playingTrackRef.current?.id !== track.id) return;
-            const ctx = liveCtxRef.current;
+            const ctx = liveCtxRef.current || ensureLiveContext();
             if (!ctx || (ctx.state as string) !== 'running') return;
             let engine = liveEngineRef.current;
             if (!engine || engine.ctx !== ctx) { engine = new FinalsLiveEngine(ctx); liveEngineRef.current = engine; }
@@ -2592,6 +2600,7 @@ export const AudioProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     const track = playingTrackRef.current;
     const audio = nativePlayerRef.current;
     if (!track?.audioUrl || !audio || liveUpgradingRef.current) return;
+    if (livePredecodeTimerRef.current) { clearTimeout(livePredecodeTimerRef.current); livePredecodeTimerRef.current = null; }
     liveUpgradingRef.current = true;
     const controller = new AbortController();
     liveUpgradeAbortRef.current = controller;

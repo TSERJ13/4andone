@@ -27,6 +27,9 @@ export class FinalsLiveEngine {
   private readonly meter: AnalyserNode; // measures what actually comes out, so a silent engine can be detected
   private meterData: Float32Array<ArrayBuffer>;
   private loadedKey = '';
+  private inFlightKey = '';
+  private inFlightPromise: Promise<void> | null = null;
+  private loadSeq = 0;
   private duration = 0;
   private lastInput = 0;
   private running = false;
@@ -84,20 +87,22 @@ export class FinalsLiveEngine {
 
   /**
    * Replace the audio the processor plays (no-op when the same recording is already loaded). The track is stored as
-   * 16-bit audio (half the memory of floats) and handed over in ~10 s pieces with a pause between them, so the page
+   * 16-bit audio (half the memory of floats) and handed over in ~30 s pieces with a pause between them, so the page
    * never needs a second full copy of the track and stays responsive while it loads.
    */
   async load(key: string, channels: Float32Array[], duration: number, signal?: AbortSignal): Promise<void> {
     await this.init();
     if (this.loadedKey === key && this.duration === duration) return;
+    const seq = ++this.loadSeq;
     await this.stretch!.dropBuffers();
+    if (seq !== this.loadSeq) return;
     this.loadedKey = ''; // usable only once every piece has arrived
     this.duration = 0;
     const total = channels[0]?.length ?? 0;
-    const piece = Math.max(1, Math.round(((this.ctx as AudioContext).sampleRate || 44100) * 10));
+    const piece = Math.max(1, Math.round(((this.ctx as AudioContext).sampleRate || 44100) * 30));
     try {
       for (let from = 0; from < total; from += piece) {
-        if (signal?.aborted) throw new DOMException('Audio preparation cancelled', 'AbortError');
+        if (signal?.aborted || seq !== this.loadSeq) throw new DOMException('Audio preparation cancelled', 'AbortError');
         const to = Math.min(total, from + piece);
         const part = channels.map(channel => {
           const out = new Int16Array(to - from);
@@ -108,28 +113,50 @@ export class FinalsLiveEngine {
           return out;
         });
         await this.stretch!.addBuffers(part, part.map(channel => channel.buffer) as any); // moved, not copied
+        if (seq !== this.loadSeq) throw new DOMException('Audio preparation cancelled', 'AbortError');
         await new Promise<void>(resolve => setTimeout(resolve, 0)); // let the page breathe between pieces
       }
     } catch (error) {
-      try { await this.stretch!.dropBuffers(); } catch { /* ignore */ }
+      if (seq === this.loadSeq) {
+        try { await this.stretch!.dropBuffers(); } catch { /* ignore */ }
+      }
       throw error;
     }
-    this.loadedKey = key;
-    this.duration = duration;
+    if (seq === this.loadSeq) {
+      this.loadedKey = key;
+      this.duration = duration;
+    }
   }
 
   async decodeAndLoad(url: string, key: string, signal: AbortSignal): Promise<void> {
     await this.init();
     if (this.loadedKey === key) return;
-    const bytes = await readAudio(url, signal);
-    if (signal.aborted) throw new DOMException('Audio preparation cancelled', 'AbortError');
-    const decoded = await this.ctx.decodeAudioData(bytes); // resampled to the context's rate
-    if (signal.aborted) throw new DOMException('Audio preparation cancelled', 'AbortError');
-    if (!(decoded.duration > 0) || decoded.duration > 300 || decoded.numberOfChannels > 2) {
-      throw new Error('Live Finals currently supports mono/stereo recordings up to five minutes');
+    if (this.inFlightKey === key && this.inFlightPromise) {
+      await this.inFlightPromise;
+      if (signal.aborted) throw new DOMException('Audio preparation cancelled', 'AbortError');
+      if (this.loadedKey === key) return;
     }
-    const channels = Array.from({ length: decoded.numberOfChannels }, (_, c) => decoded.getChannelData(c));
-    await this.load(key, channels, decoded.duration, signal);
+    const run = (async () => {
+      const bytes = await readAudio(url, signal);
+      if (signal.aborted) throw new DOMException('Audio preparation cancelled', 'AbortError');
+      const decoded = await this.ctx.decodeAudioData(bytes); // resampled to the context's rate
+      if (signal.aborted) throw new DOMException('Audio preparation cancelled', 'AbortError');
+      if (!(decoded.duration > 0) || decoded.duration > 300 || decoded.numberOfChannels > 2) {
+        throw new Error('Live Finals currently supports mono/stereo recordings up to five minutes');
+      }
+      const channels = Array.from({ length: decoded.numberOfChannels }, (_, c) => decoded.getChannelData(c));
+      await this.load(key, channels, decoded.duration, signal);
+    })();
+    this.inFlightKey = key;
+    this.inFlightPromise = run;
+    try {
+      await run;
+    } finally {
+      if (this.inFlightPromise === run) {
+        this.inFlightKey = '';
+        this.inFlightPromise = null;
+      }
+    }
   }
 
   private armFade(at: number, slotSeconds: number): void {

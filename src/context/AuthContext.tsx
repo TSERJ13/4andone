@@ -1,7 +1,9 @@
 "use client";
 
-import React, { createContext, useContext, useState, useEffect } from 'react';
+import React, { createContext, useContext, useState, useEffect, useLayoutEffect } from 'react';
 import { saveSessionToken, sessionFetch } from '@/utils/userSession';
+
+const useIsoLayoutEffect = typeof window !== 'undefined' ? useLayoutEffect : useEffect;
 
 export interface TelegramUser {
   id: number;
@@ -111,6 +113,21 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       return 'unavailable';
     }
   };
+
+  // Restore user from storage synchronously before paint so the UI never flickers between unauthenticated and authenticated
+  useIsoLayoutEffect(() => {
+    try {
+      const savedUser = localStorage.getItem('4andone-user');
+      if (savedUser) {
+        const parsedUser = JSON.parse(savedUser);
+        if (parsedUser && parsedUser.id) {
+          setUser(parsedUser);
+          setIsPremium(!!parsedUser.is_premium);
+          setIsLoading(false);
+        }
+      }
+    } catch {}
+  }, []);
 
   useEffect(() => {
     const savedUser = localStorage.getItem('4andone-user');

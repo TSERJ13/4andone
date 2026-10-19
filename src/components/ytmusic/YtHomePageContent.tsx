@@ -117,7 +117,7 @@ export default function YtHomePageContent() {
       />
 
       {/* Quick Picks Section (Mobile 3x3 Grid / Desktop 3-column rows) */}
-      <YtQuickPicks tracks={filteredTracks} onPlayAll={handlePlayAll} loading={!recentReady || (tracks.length === 0 && studioLoading)} />
+      <YtQuickPicks tracks={filteredTracks} onPlayAll={handlePlayAll} loading={tracks.length === 0 && (studioLoading || !recentReady)} />
 
       {/* Albums Shelf */}
       {albumShelfItems.length > 0 && (

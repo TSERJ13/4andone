@@ -173,7 +173,6 @@ const fetchAllTracks = async () => {
 
 // The last track list is kept on the device, so the app opens with the library already on screen
 // (stale-while-revalidate): the fresh list from the server replaces it a moment later.
-// Albums too: without this the page first showed the built-in order and re-ordered itself a moment later.
 const ALBUMS_CACHE_KEY = '4andone_albums_cache_v1';
 const readAlbumsCache = (): Album[] | null => {
   if (typeof window === 'undefined') return null;
@@ -181,6 +180,18 @@ const readAlbumsCache = (): Album[] | null => {
     const rows = JSON.parse(localStorage.getItem(ALBUMS_CACHE_KEY) || 'null');
     return Array.isArray(rows) && rows.length > 0 && rows.every(a => a && typeof a.slug === 'string' && typeof a.title === 'string') ? rows : null;
   } catch { return null; }
+};
+const STYLES_CACHE_KEY = '4andone_styles_cache_v1';
+const readStylesCache = (): Style[] | null => {
+  if (typeof window === 'undefined') return null;
+  try {
+    const rows = JSON.parse(localStorage.getItem(STYLES_CACHE_KEY) || 'null');
+    return Array.isArray(rows) && rows.length > 0 ? rows : null;
+  } catch { return null; }
+};
+const writeStylesCache = (rows: Style[]) => {
+  if (typeof window === 'undefined') return;
+  try { localStorage.setItem(STYLES_CACHE_KEY, JSON.stringify(rows)); } catch {}
 };
 // Runs before the browser paints on the device, and is a no-op on the server
 const useIsoLayoutEffect = typeof window !== 'undefined' ? useLayoutEffect : useEffect;
@@ -244,6 +255,20 @@ export const StudioProvider: React.FC<{ children: React.ReactNode }> = ({ childr
   useIsoLayoutEffect(() => {
     const saved = readAlbumsCache();
     if (saved) { setAlbums(saved); setAlbumsReady(true); }
+    const savedStyles = readStylesCache();
+    if (savedStyles) { setStyles(savedStyles); }
+    const cachedRows = readTracksCache();
+    if (cachedRows && cachedRows.length > 0) {
+      let userLikes: string[] = [];
+      try {
+        const savedUser = localStorage.getItem('4andone-user');
+        const parsed = savedUser ? JSON.parse(savedUser) : null;
+        const userKey = parsed?.id ? `4andone_liked_tracks_${parsed.id}` : '';
+        const rawLikes = (userKey && localStorage.getItem(userKey)) || localStorage.getItem('4andone_liked_tracks');
+        if (rawLikes) userLikes = JSON.parse(rawLikes);
+      } catch {}
+      setTracks(mapTrackRows(cachedRows, userLikes) as any);
+    }
   }, []);
   // Keep this device's copy equal to what the screen shows once it is the real list
   useEffect(() => {
@@ -297,7 +322,10 @@ export const StudioProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       }
 
       const [{ data: stylesData }, { data: tagsData }, aData] = await sharedPromise;
-      if (stylesData) setStyles(stylesData);
+      if (stylesData) {
+        setStyles(stylesData);
+        writeStylesCache(stylesData);
+      }
       if (tagsData) setTags(tagsData);
       // Albums (Dynamic Album Builder)
       if (aData?.albums && Array.isArray(aData.albums)) {
@@ -386,12 +414,7 @@ export const StudioProvider: React.FC<{ children: React.ReactNode }> = ({ childr
 
   // Load from Supabase and Subscribe to Real-Time Updates
   useEffect(() => {
-    const cachedRows = readTracksCache();
-    if (cachedRows) {
-      setTracks(prev => (prev.length > 0 ? prev : (mapTrackRows(cachedRows, []) as any)));
-      // isLoading stays true until the fresh data (albums, styles) arrives, so pages never judge an album "missing" too early
-    }
-    fetchData(!!cachedRows);
+    fetchData(true);
 
     // Enable Real-Time Subscription
     const channel = supabase

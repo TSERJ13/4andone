@@ -51,7 +51,12 @@ export function useRecentlyPlayed(limit = 50): string[] {
  */
 export function useRecentlyPlayedState(limit = 50): { ids: string[]; ready: boolean } {
   const { user, sessionVersion, isLoading } = useAuth();
-  const uid = user?.id ?? null;
+  const uid = user?.id ?? (typeof window !== 'undefined' ? (() => {
+    try {
+      const u = JSON.parse(localStorage.getItem('4andone-user') || 'null');
+      return u?.id ?? null;
+    } catch { return null; }
+  })() : null);
   const [local, setLocal] = useState(readLocal);
   const [fetched, setFetched] = useState<{ uid: number; list: CloudPlay[] } | null>(null);
   const [baseline, setBaseline] = useState<{ ids: string[]; withCloud: boolean } | null>(null);
@@ -100,8 +105,8 @@ export function useRecentlyPlayedState(limit = 50): { ids: string[]; ready: bool
     };
   }, [uid, sessionVersion]);
 
-  const cloud = uid ? ((fetched?.uid === uid ? fetched.list : null) ?? cached) : null; // signed out → device only
-  const ready = !isLoading && (!uid || cloud !== null || waitedFor === uid);
+  const cloud = uid ? ((fetched && fetched.uid === uid ? fetched.list : null) ?? cached) : null; // signed out → device only
+  const ready = (!isLoading || cached !== null || !uid) && (!uid || cloud !== null || waitedFor === uid);
 
   let clearedAt = 0;
   try { clearedAt = Number(localStorage.getItem(HISTORY_CLEARED_KEY) || 0); } catch { /* ignore */ }

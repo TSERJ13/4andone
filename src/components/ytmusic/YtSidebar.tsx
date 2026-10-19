@@ -15,18 +15,6 @@ interface YtSidebarProps {
   onCloseMobile?: () => void;
 }
 
-const DANCE_PLAYLISTS = [
-  { slug: 'cha-cha-cha', name: 'Cha Cha Cha Music' },
-  { slug: 'samba', name: 'Samba Music' },
-  { slug: 'rumba', name: 'Rumba Music' },
-  { slug: 'paso-doble', name: 'Paso Doble Music' },
-  { slug: 'jive', name: 'Jive Music' },
-  { slug: 'slow-waltz', name: 'Slow Waltz Music' },
-  { slug: 'tango', name: 'Tango Music' },
-  { slug: 'viennese-waltz', name: 'Viennese Waltz' },
-  { slug: 'slow-foxtrot', name: 'Slow Foxtrot' },
-  { slug: 'quickstep', name: 'Quickstep' },
-];
 
 export default function YtSidebar({ isCollapsed = false, isOpenMobile = false, onCloseMobile }: YtSidebarProps) {
   const pathname = usePathname();
@@ -194,23 +182,7 @@ export default function YtSidebar({ isCollapsed = false, isOpenMobile = false, o
                 );
               })}
 
-              {DANCE_PLAYLISTS.map((pl) => {
-                const href = `/style/${pl.slug}`;
-                const isActive = pathname === href;
-                return (
-                  <Link
-                    key={pl.slug}
-                    href={href}
-                    className={`yt-playlist-item ${isActive ? 'active' : ''}`}
-                    onClick={onCloseMobile}
-                  >
-                    <div className="yt-playlist-meta">
-                      <span className="yt-playlist-title">{pl.name}</span>
-                      <span className="yt-playlist-sub">4andone Music</span>
-                    </div>
-                  </Link>
-                );
-              })}
+
             </div>
           </>
         )}

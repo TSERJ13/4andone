@@ -443,7 +443,7 @@ export const AudioProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   const songsPlayedRef = useRef(0);
   const currentTrackQualifiedRef = useRef(false);
   const isPremiumRef = useRef(isPremium);
-  useEffect(() => { isPremiumRef.current = isPremium; }, [isPremium]);
+  isPremiumRef.current = isPremium;
   const allAlbumsRef = useRef(allAlbums);
   useEffect(() => { allAlbumsRef.current = allAlbums; }, [allAlbums]);
   // AD BREAK STATE
@@ -1142,7 +1142,7 @@ export const AudioProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   const isInFinalSession = () => isFinalModeRef.current && sessionTracksRef.current.length > 0;
 
   const openAdBreak = () => {
-    if (adOpenRef.current || isPremiumRef.current) return;
+    if (adOpenRef.current || isPremiumRef.current || !AD_BREAK_ENABLED) return;
     pendingAdRef.current = false;
     adOpenRef.current = true;
     breakPausedRef.current = false;
@@ -1162,7 +1162,7 @@ export const AudioProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   }, []);
 
   const registerQualifiedTrack = () => {
-    if (!AD_BREAK_ENABLED) return;
+    if (!AD_BREAK_ENABLED || isPremiumRef.current) return;
     songsPlayedRef.current += 1;
     if (songsPlayedRef.current >= AD_EVERY_TRACKS) {
       songsPlayedRef.current = 0;
@@ -1190,6 +1190,28 @@ export const AudioProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     if (open) openAdBreak();
     else closeAdBreak();
   }, [closeAdBreak]);
+
+  // Clean up any pending ad break or counters when user has Premium
+  useEffect(() => {
+    if (isPremium) {
+      pendingAdRef.current = false;
+      songsPlayedRef.current = 0;
+      setSongsPlayedCount(0);
+      closeAdBreak();
+      try { localStorage.setItem(AD_COUNT_KEY, '0'); } catch { /* ignore */ }
+    }
+  }, [isPremium, closeAdBreak]);
+
+  // Clean up any pending pre-login ad counters when user logs in
+  useEffect(() => {
+    if (user?.id) {
+      pendingAdRef.current = false;
+      songsPlayedRef.current = 0;
+      setSongsPlayedCount(0);
+      closeAdBreak();
+      try { localStorage.setItem(AD_COUNT_KEY, '0'); } catch { /* ignore */ }
+    }
+  }, [user?.id, closeAdBreak]);
 
   const playAudioRef = useRef<() => Promise<void> | void>(() => {});
 
@@ -1291,10 +1313,12 @@ export const AudioProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       // not start yet — the sponsored strip shows (site stays visible), then
       // the Premium popup, and the picked track starts when it is closed.
       // Never inside a Final program (its dances advance on their own).
-      if (pendingAdRef.current && !isInFinalSession() && !isPremiumRef.current && !isRetry && !startAt) {
+      if (pendingAdRef.current && !isInFinalSession() && !isPremiumRef.current && !isRetry && !startAt && AD_BREAK_ENABLED) {
         openAdBreak();
         breakPausedRef.current = true;   // hold this track's autoplay
         resumeAfterAdRef.current = true; // …and start it when the break closes
+      } else if (isPremiumRef.current || !AD_BREAK_ENABLED) {
+        pendingAdRef.current = false;
       }
 
       // Opt-in rendered Finals: time-stretch samples ahead of playback, then

@@ -14,7 +14,7 @@ interface FullPlayerAdProps {
 
 export default function FullPlayerAd({ className = '', onClose }: FullPlayerAdProps) {
   const router = useRouter();
-  const { isPremium, isLoading, setIsSubscriptionModalOpen } = useAuth();
+  const { isPremium, isLoading, isAuthModalOpen, setIsSubscriptionModalOpen } = useAuth();
   const [status, setStatus] = useState<'loading' | 'filled' | 'unfilled'>('loading');
   const [card, setCard] = useState(0); // the two house promotions take turns in one slot
 
@@ -37,7 +37,7 @@ export default function FullPlayerAd({ className = '', onClose }: FullPlayerAdPr
     return () => clearTimeout(t);
   }, []);
 
-  if (isLoading || isPremium) return null;
+  if (isLoading || isPremium || isAuthModalOpen) return null;
 
   const closePlayerAndNavigate = (callback: () => void) => {
     // 1. Call direct prop

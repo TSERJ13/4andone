@@ -27,8 +27,9 @@ const STRIP_SECONDS = 15; // the strip closes by itself after 15s
  *    resumes on "Continue listening".
  */
 export const TrackLimitAdModal: React.FC<TrackLimitAdModalProps> = ({ isOpen, onClose }) => {
-  // Mounted fresh on every open, so each break starts at the strip.
-  if (!isOpen) return null;
+  const { isPremium, isAuthModalOpen } = useAuth();
+  // Never show ad break if closed, user has premium, or user is logging in
+  if (!isOpen || isPremium || isAuthModalOpen) return null;
   return <AdBreak onClose={onClose} />;
 };
 

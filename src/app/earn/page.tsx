@@ -68,7 +68,7 @@ export default function EarnPremiumPage() {
 
       if (res.ok && resData?.ok) {
         const codeUpper = promoInput.trim().toUpperCase();
-        setPromoSuccess(`გილოცავთ! პრომო კოდი ${codeUpper} წარმატებით გააქტიურდა (+${resData.days} დღე Premium).`);
+        setPromoSuccess(`Promo code ${codeUpper} activated (+${resData.days}d Premium)`);
         setPromoInput('');
         if (resData.premiumUntil) {
           setActivePromoInfo({ code: codeUpper, until: resData.premiumUntil });
@@ -79,22 +79,22 @@ export default function EarnPremiumPage() {
         const reason = resData?.reason;
         const msg = resData?.message
           || (res.status === 401 || res.status === 403
-            ? 'სესია ამოიწურა. შედით Telegram-ით ხელახლა და სცადეთ თავიდან.'
+            ? 'Session expired. Please log in again.'
             : res.status >= 500 || reason === 'failed' || reason === 'not_setup'
-            ? 'სერვერზე დროებითი შეცდომაა, კოდი არ დაიხარჯა. სცადეთ ცოტა ხანში.'
+            ? 'Server error. Please try again later.'
             : reason === 'already_has_promo'
-            ? 'თქვენ უკვე გაქვთ აქტიური პრომო კოდი! ერთდროულად 2 პრომო აქციით სარგებლობა არ შეიძლება.'
+            ? 'You already have an active promo code.'
             : reason === 'already_used'
-            ? 'ეს პრომო კოდი უკვე გამოყენებულია ამ ანგარიშზე.'
+            ? 'Promo code already used on this account.'
             : reason === 'existing_subscription'
-            ? 'თქვენ უკვე გაქვთ Premium გამოწერა, პრომო კოდი საჭირო არ არის.'
+            ? 'You already have an active Premium subscription.'
             : reason === 'promo_limit_reached'
-            ? 'ამ პრომო კოდის გამოყენების მაქსიმალური რაოდენობა ამოიწურა.'
-            : 'პრომო კოდი არასწორია ან ვადაგასულია.');
+            ? 'This promo code usage limit has been reached.'
+            : 'Invalid or expired promo code.');
         setPromoError(msg);
       }
     } catch {
-      setPromoError('დაფიქსირდა შეცდომა კოდის შემოწმებისას.');
+      setPromoError('Failed to verify promo code.');
     } finally {
       setPromoLoading(false);
     }

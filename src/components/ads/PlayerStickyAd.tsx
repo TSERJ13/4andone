@@ -8,7 +8,7 @@ import { recordAdEvent } from '@/lib/adEvents';
 import { Crown, Ban, Trophy, Download, ArrowRight } from 'lucide-react';
 
 export default function PlayerStickyAd() {
-  const { isPremium, isLoading, setIsSubscriptionModalOpen } = useAuth();
+  const { isPremium, isLoading, isAuthModalOpen, setIsSubscriptionModalOpen } = useAuth();
   const { isLoaded, title, currentTrack } = useAudio();
   const [adStatus, setAdStatus] = useState<'loading' | 'filled' | 'unfilled'>('loading');
 
@@ -29,7 +29,7 @@ export default function PlayerStickyAd() {
     return () => clearTimeout(timer);
   }, []);
 
-  if (isLoading || isPremium) return null;
+  if (isLoading || isPremium || isAuthModalOpen) return null;
 
   return (
     <div 

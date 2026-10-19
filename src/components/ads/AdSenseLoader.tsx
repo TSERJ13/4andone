@@ -20,13 +20,22 @@ export default function AdSenseLoader() {
   const excluded = NO_ADS_PREFIXES.some((p) => pathname === p || pathname.startsWith(p + '/'));
 
   useEffect(() => {
-    if (isLoading || isPremium || excluded) return;
+    if (isLoading || isPremium || excluded) {
+      if (isPremium && typeof document !== 'undefined') {
+        // Clean up AdSense scripts and any injected auto-ad / vignette overlays
+        document.querySelectorAll('script[src*="adsbygoogle.js"]').forEach(el => el.remove());
+        document.querySelectorAll('ins.adsbygoogle, .google-auto-placed, iframe[id*="google_ads"], iframe[id*="aswift"], #google-auto-placed').forEach(el => el.remove());
+      }
+      return;
+    }
     // Already added? (match by src — AdSense rejects unknown attributes on its tag)
     if (document.querySelector('script[src*="adsbygoogle.js"]')) return;
     const s = document.createElement('script');
     s.async = true;
     s.src = ADSENSE_SRC;
     s.crossOrigin = 'anonymous';
+    // Disable Google Auto Ads overlays/vignettes that disrupt navigation/login on large screens
+    s.setAttribute('data-overlays', 'false');
     document.head.appendChild(s);
   }, [isLoading, isPremium, excluded]);
 

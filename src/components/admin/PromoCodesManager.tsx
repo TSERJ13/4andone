@@ -3,6 +3,7 @@
 import { useFlash } from '@/hooks/useFlash';
 import React, { useEffect, useState } from 'react';
 import { Gift, Plus, Check, X, Sparkles, RefreshCw, Trash2, Calendar, Tag, ShieldCheck, Power } from 'lucide-react';
+import ConfirmModal from '@/components/admin/ConfirmModal';
 
 interface PromoItem {
   id: string;
@@ -20,6 +21,7 @@ export default function PromoCodesManager() {
   const [loading, setLoading] = useState(true);
   const [showAddModal, setShowAddModal] = useState(false);
   const [actionLoading, setActionLoading] = useState<string | null>(null);
+  const [promoToDelete, setPromoToDelete] = useState<PromoItem | null>(null);
 
   // Form states
   const [newCode, setNewCode] = useState('');
@@ -127,18 +129,21 @@ export default function PromoCodesManager() {
     }
   };
 
-  const deletePromo = async (promo: PromoItem) => {
-    if (!confirm(`ნამდვილად გსურთ პრომო კოდის ${promo.code} წაშლა / გამორთვა?`)) return;
-    setActionLoading(promo.code);
+  const executeDeletePromo = async () => {
+    if (!promoToDelete) return;
+    const targetCode = promoToDelete.code;
+    setPromoToDelete(null);
+    setActionLoading(targetCode);
     try {
-      const res = await fetch(`/api/admin/promos?code=${encodeURIComponent(promo.code)}`, {
+      const res = await fetch(`/api/admin/promos?code=${encodeURIComponent(targetCode)}`, {
         method: 'DELETE',
       });
       if (res.ok) {
-        showToast(true, `პრომო კოდი ${promo.code} წაიშალა`);
+        showToast(true, `პრომო კოდი ${targetCode} წარმატებით წაიშალა`);
         fetchPromos(true);
       } else {
-        showToast(false, 'წაშლა ვერ მოხერხდა');
+        const d = await res.json().catch(() => null);
+        showToast(false, d?.error || 'წაშლა ვერ მოხერხდა');
       }
     } catch {
       showToast(false, 'კავშირის შეცდომა');
@@ -269,7 +274,7 @@ export default function PromoCodesManager() {
                         type="button"
                         className="pm-btn del"
                         disabled={actionLoading === p.code}
-                        onClick={() => deletePromo(p)}
+                        onClick={() => setPromoToDelete(p)}
                         title="წაშლა"
                       >
                         <Trash2 size={13} />
@@ -327,7 +332,7 @@ export default function PromoCodesManager() {
                   type="button"
                   className="pm-btn del"
                   disabled={actionLoading === p.code}
-                  onClick={() => deletePromo(p)}
+                  onClick={() => setPromoToDelete(p)}
                   title="წაშლა"
                 >
                   <Trash2 size={13} />
@@ -436,6 +441,17 @@ export default function PromoCodesManager() {
           </div>
         </div>
       )}
+
+      {/* Delete Confirmation Modal */}
+      <ConfirmModal
+        isOpen={!!promoToDelete}
+        onClose={() => setPromoToDelete(null)}
+        onConfirm={executeDeletePromo}
+        title="პრომო კოდის წაშლა"
+        message={`ნამდვილად გსურთ პრომო კოდის «${promoToDelete?.code || ''}» წაშლა? კოდი სრულად წაიშლება სიიდან და მომხმარებლები მას ვეღარ გამოიყენებენ.`}
+        confirmText="დიახ, წაშლა"
+        variant="danger"
+      />
 
       {/* Toast Notification */}
       {toast && (

@@ -100,30 +100,26 @@ export async function DELETE(req: NextRequest) {
       return NextResponse.json({ error: 'Code is required' }, { status: 400 });
     }
 
-    // Delete custom definition if exists
-    const { error: delErr } = await db
+    // Delete existing custom definitions if exists
+    await db
       .from('track_plays')
       .delete()
       .eq('event_type', 'promo_def')
       .eq('bpm', code);
-    if (delErr) throw delErr;
 
-    // If it's a default code, mark it deactivated by inserting an inactive override
-    const isDefault = DEFAULT_PROMOS.some(p => p.code === code);
-    if (isDefault) {
-      const { error: offErr } = await db
-        .from('track_plays')
-        .insert({
-          event_type: 'promo_def',
-          track_id: 'promo_code_config',
-          bpm: code,
-          style: 'Deactivated Promo',
-          duration_seconds: 0,
-          session_id: JSON.stringify({ active: false }),
-          user_ref: 'admin',
-        });
-      if (offErr) throw offErr;
-    }
+    // Record tombstone entry to keep it deleted even if it was a default code
+    const { error: offErr } = await db
+      .from('track_plays')
+      .insert({
+        event_type: 'promo_def',
+        track_id: 'promo_code_config',
+        bpm: code,
+        style: 'DELETED_PROMO',
+        duration_seconds: 0,
+        session_id: JSON.stringify({ active: false, deleted: true }),
+        user_ref: 'admin',
+      });
+    if (offErr) throw offErr;
 
     return NextResponse.json({ success: true, code });
   } catch (err: any) {

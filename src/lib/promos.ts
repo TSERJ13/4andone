@@ -47,28 +47,50 @@ export async function getStoredPromoCodes(db = getSupabaseAdmin() || fallbackSup
     if (c) claimsCount[c] = (claimsCount[c] || 0) + 1;
   });
 
-  const customPromos: PromoCodeItem[] = (defRows || []).map(r => {
-    let extra: { active?: boolean; maxUses?: number | null } = {};
+  const deletedCodes = new Set<string>();
+  const customPromos: PromoCodeItem[] = [];
+
+  (defRows || []).forEach(r => {
+    let extra: { active?: boolean; maxUses?: number | null; deleted?: boolean } = {};
     try {
       if (r.session_id) extra = JSON.parse(r.session_id);
     } catch { /* ignore */ }
 
-    return {
+    const code = (r.bpm || '').toUpperCase();
+    if (!code) return;
+
+    if (extra.deleted || r.style === 'Deactivated Promo' || r.style === 'DELETED_PROMO') {
+      deletedCodes.add(code);
+      return;
+    }
+
+    customPromos.push({
       id: String(r.id),
-      code: (r.bpm || '').toUpperCase(),
+      code,
       name: r.style || 'Custom Promo',
       days: Number(r.duration_seconds) || 30,
       active: extra.active !== false,
       maxUses: extra.maxUses ?? null,
       createdAt: r.created_at,
-    };
+    });
   });
 
-  // Merge default promos with custom promos (custom override defaults if same code)
+  // Merge default promos with custom promos, completely omitting deleted codes
   const codeMap = new Map<string, PromoCodeItem>();
-  DEFAULT_PROMOS.forEach(p => codeMap.set(p.code, p));
-  // Rows are newest-first: apply oldest first so a newer disable wins.
-  [...customPromos].reverse().forEach(p => codeMap.set(p.code, p));
+  DEFAULT_PROMOS.forEach(p => {
+    if (!deletedCodes.has(p.code)) {
+      codeMap.set(p.code, p);
+    }
+  });
+
+  // Rows are newest-first: apply oldest first so a newer change wins.
+  [...customPromos].reverse().forEach(p => {
+    if (!deletedCodes.has(p.code)) {
+      codeMap.set(p.code, p);
+    } else {
+      codeMap.delete(p.code);
+    }
+  });
 
   return {
     promos: Array.from(codeMap.values()),

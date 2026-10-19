@@ -16,6 +16,7 @@ import {
   Users,
   Coins,
   Gift,
+  Tag,
   Send,
   Upload
 } from 'lucide-react';
@@ -63,6 +64,7 @@ const AdminSidebar = ({ isCollapsed, onToggle }: { isCollapsed: boolean, onToggl
       title: 'Money',
       items: [
         { icon: <Coins size={20} />, label: 'Earn & Premium', href: '/admin/earn' },
+        { icon: <Tag size={20} />, label: 'Promo Codes', href: '/admin/promos' },
         { icon: <Gift size={20} />, label: 'Affiliates', href: '/admin/affiliates' },
       ],
     },

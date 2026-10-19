@@ -3,9 +3,10 @@
 import AdminPageHeader from '@/components/admin/AdminPageHeader';
 import { sortUsers, USER_SORT_OPTIONS, UserSortKey } from '@/utils/sortUsers';
 import React, { useState, useEffect, useCallback } from 'react';
-import { Users, Globe, Clock, TrendingUp, RefreshCw, MessageCircle, Search, Sparkles } from 'lucide-react';
+import { Users, Globe, Clock, TrendingUp, RefreshCw, MessageCircle, Search, Sparkles, Send } from 'lucide-react';
 import { adminDb as supabase } from '@/lib/admin-db';
 import { adminDb } from '@/lib/admin-db';
+import SendTelegramModal from '@/components/admin/SendTelegramModal';
 
 interface TelegramUser {
   telegram_id: number;
@@ -70,6 +71,7 @@ export default function AdminUsersPage() {
   const [visible, setVisible] = useState(50);
   // Invites: who invited whom (empty until the referrals table exists)
   const [invites, setInvites] = useState<{ inviter_id: number; invitee_id: number }[]>([]);
+  const [messageRecipient, setMessageRecipient] = useState<TelegramUser | null>(null);
 
   const fetchData = useCallback(async () => {
     setLoading(true);
@@ -286,7 +288,18 @@ export default function AdminUsersPage() {
                         <div className="cell country" data-label="Country">{u.country_name ? `${FLAG[u.country_code || ''] || '🌍'} ${u.country_name}` : <span className="muted">—</span>}</div>
                         <div className="cell" data-label="Joined">{fmtDate(u.first_seen)}</div>
                         <div className="cell" data-label="Last active">{timeAgo(u.last_seen)}</div>
-                        <div className="cell r" data-label="Logins"><span className="count">{u.visit_count}×</span></div>
+                        <div className="cell r action-cell" data-label="Actions">
+                          <span className="count">{u.visit_count}×</span>
+                          <button
+                            type="button"
+                            className="user-msg-btn"
+                            title="Telegram-ზე მიწერა"
+                            onClick={() => setMessageRecipient(u)}
+                          >
+                            <Send size={11} />
+                            <span>მიწერა</span>
+                          </button>
+                        </div>
                       </li>
                     );
                   })}
@@ -351,8 +364,34 @@ export default function AdminUsersPage() {
         </aside>
       </div>
 
+      <SendTelegramModal
+        isOpen={!!messageRecipient}
+        onClose={() => setMessageRecipient(null)}
+        user={messageRecipient}
+      />
+
       <style jsx>{`
         .users-page { display:flex; flex-direction:column; gap:20px; padding-bottom:80px; width:100%; max-width:1400px; margin:0 auto; }
+        .action-cell { display: flex; align-items: center; justify-content: flex-end; gap: 8px; }
+        .user-msg-btn {
+          display: inline-flex;
+          align-items: center;
+          gap: 4px;
+          padding: 3px 8px;
+          border-radius: 6px;
+          background: rgba(56, 189, 248, 0.12);
+          border: 1px solid rgba(56, 189, 248, 0.3);
+          color: #38bdf8;
+          font-size: 11px;
+          font-weight: 700;
+          cursor: pointer;
+          transition: all 0.15s;
+        }
+        .user-msg-btn:hover {
+          background: rgba(56, 189, 248, 0.22);
+          border-color: #38bdf8;
+          color: #fff;
+        }
         .load-error { padding:10px 14px; border-radius:12px; background:rgba(239,68,68,0.12); color:#fca5a5; font-size:14px; }
         .spin { animation:sp 0.8s linear infinite; }
         @keyframes sp { to { transform:rotate(360deg); } }

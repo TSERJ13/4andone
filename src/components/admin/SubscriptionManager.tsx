@@ -2,9 +2,10 @@
 
 import { useFlash } from '@/hooks/useFlash';
 import React, { useState, useEffect } from 'react';
-import { Crown, Sparkles, DollarSign, Users, Calendar, Check, X, ShieldAlert, Search, RefreshCw, UserCheck } from 'lucide-react';
+import { Crown, Sparkles, DollarSign, Users, Calendar, Check, X, ShieldAlert, Search, RefreshCw, UserCheck, Send } from 'lucide-react';
 import { supabase } from '@/utils/supabase';
 import { adminDb } from '@/lib/admin-db';
+import SendTelegramModal from '@/components/admin/SendTelegramModal';
 
 interface Subscriber {
   telegram_id: number;
@@ -49,6 +50,7 @@ export default function SubscriptionManager() {
   const [statusFilter, setStatusFilter] = useState<StatusFilter>('all');
   const [sortKey, setSortKey] = useState<SortKey>('joined_new');
   const [detail, setDetail] = useState<Subscriber | null>(null);
+  const [messageRecipient, setMessageRecipient] = useState<Subscriber | null>(null);
 
   const fetchSubscribers = async (silent = false) => {
     if (!silent) setLoading(true);
@@ -498,6 +500,15 @@ export default function SubscriptionManager() {
                       {DURATIONS.map(d => <option key={d.key} value={d.key}>{d.label}</option>)}
                     </select>
                     <button
+                      type="button"
+                      onClick={(e) => { e.stopPropagation(); setMessageRecipient(user); }}
+                      className="toggle-sub-btn msg"
+                      title="Telegram-ზე მიწერა"
+                    >
+                      <Send size={13} />
+                      <span>მიწერა</span>
+                    </button>
+                    <button
                       disabled={actionLoading === user.telegram_id || (isForever(user) && selectedDuration(user) === 'forever')}
                       onClick={() => grantPremium(user)}
                       className="toggle-sub-btn activate"
@@ -551,9 +562,32 @@ export default function SubscriptionManager() {
               <dt>Telegram ID</dt><dd>{detail.telegram_id}</dd>
               {detail.referral_code && (<><dt>Invite code</dt><dd>{detail.referral_code}</dd></>)}
             </dl>
+            <div style={{ marginTop: 18, display: 'flex', gap: 10 }}>
+              <button
+                type="button"
+                className="toggle-sub-btn msg"
+                style={{ flex: 1, height: 38, justifyContent: 'center', fontSize: '0.85rem' }}
+                onClick={() => {
+                  const target = detail;
+                  setDetail(null);
+                  setMessageRecipient(target);
+                }}
+              >
+                <Send size={15} />
+                <span>Telegram-ზე მიწერა</span>
+              </button>
+            </div>
           </div>
         </div>
       )}
+
+      {/* Send Telegram Message Modal */}
+      <SendTelegramModal
+        isOpen={!!messageRecipient}
+        onClose={() => setMessageRecipient(null)}
+        user={messageRecipient}
+        onSuccess={(msg) => showToast(true, msg)}
+      />
 
       {toast && (
         <div className={`admin-toast ${toast.ok ? 'ok' : 'err'}`} role="status">
@@ -849,6 +883,16 @@ export default function SubscriptionManager() {
           border: none;
           cursor: pointer;
           transition: all 0.15s;
+        }
+        .toggle-sub-btn.msg {
+          background: rgba(56, 189, 248, 0.12);
+          border: 1px solid rgba(56, 189, 248, 0.35);
+          color: #38bdf8;
+        }
+        .toggle-sub-btn.msg:hover:not(:disabled) {
+          background: rgba(56, 189, 248, 0.25);
+          border-color: #38bdf8;
+          color: #fff;
         }
         .toggle-sub-btn.activate {
           background: rgba(16, 185, 129, 0.15);

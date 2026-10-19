@@ -28,30 +28,37 @@ interface SavedTemplate {
 
 const DEFAULT_TEMPLATES: SavedTemplate[] = [
   {
+    id: 'tpl_invite',
+    title: '🎁 Invite Friend (Free Premium)',
+    text: "🎁 <b>Get 1 Month of Free Premium for You & Your Friends!</b>\n\nHello {first_name}! Did you know that you can earn free Premium by inviting your dance partners? Share your personal invite link from 4and.one/earn — when your friend signs in, <b>both you and your friend instantly get 1 month of Premium free!</b> Enjoy ad-free practice, Final Mode, and 320kbps audio together.",
+    btnText: '🎁 Invite Friends & Earn Premium',
+    btnUrl: 'https://4and.one/earn'
+  },
+  {
     id: 'tpl_music',
-    title: '🎵 ახალი მუსიკა',
-    text: "🎵 <b>ახალი მუსიკა 4and.one-ზე!</b>\n\nგამარჯობა {first_name}! საიტზე დაემატა ახალი Ballroom & Latin ტრეკები ტემპის (BPM) კონტროლით. ისიამოვნეთ ვარჯიშით და შეამოწმეთ განახლებები!",
-    btnText: '🎵 გახსენი ფლეიერი',
+    title: '🎵 New Music',
+    text: "🎵 <b>New Music on 4and.one!</b>\n\nHello {first_name}! Fresh Ballroom & Latin tracks and albums have just been added to the library with full tempo (BPM) control. Check out the latest updates and enjoy your dance practice!",
+    btnText: '🎵 Open Player',
     btnUrl: 'https://4and.one'
   },
   {
     id: 'tpl_premium',
-    title: '👑 Premium შეთავაზება',
-    text: "👑 <b>სპეციალური შეთავაზება {first_name}!</b>\n\nმიიღეთ 4and.one Premium ულიმიტო შესაძლებლობებით: რეკლამების გარეშე, Final Mode და უმაღლესი 320kbps ხარისხი. ისარგებლეთ სპეციალური შეთავაზებით დღესვე!",
-    btnText: '👑 Premium-ის გააქტიურება',
+    title: '👑 Premium Offer',
+    text: "👑 <b>Special Offer for {first_name}!</b>\n\nUnlock the full power of 4and.one Premium: 100% ad-free listening, official competition Final Mode with automated fades, offline mode, and studio-grade 320kbps audio. Take your practice to the next level today!",
+    btnText: '👑 Activate Premium',
     btnUrl: 'https://4and.one/upgrade'
   },
   {
     id: 'tpl_promo',
-    title: '🎁 პრომო კოდი (საჩუქარი)',
-    text: "🎁 <b>საჩუქარი 4and.one-სგან!</b>\n\nგამარჯობა {first_name}! გჩუქნით 1 თვიან Premium-ს. გამოიყენეთ პრომო კოდი საიტზე 4and.one/earn და ისარგებლეთ ყველა პრემიუმ ფუნქციით უფასოდ!",
-    btnText: '🎁 კოდის გააქტიურება',
+    title: '🎟️ Promo Code (Gift)',
+    text: "🎁 <b>Special Gift from 4and.one!</b>\n\nHello {first_name}! Here is a gift for you: enjoy free Premium access. Activate your promo code at 4and.one/earn to unlock all premium features free of charge!",
+    btnText: '🎟️ Redeem Promo Code',
     btnUrl: 'https://4and.one/earn'
   },
   {
     id: 'tpl_checkin',
-    title: '💃 მოკითხვა & მხარდაჭერა',
-    text: "✨ <b>გამარჯობა {first_name}!</b>\n\nგმადლობთ, რომ სარგებლობთ 4and.one-ით. როგორ მიდის ვარჯიში? თუ გაქვთ რაიმე შეკითხვა, მუსიკალური სურვილი ან გჭირდებათ დახმარება, მოგვწერეთ ნებისმიერ დროს!",
+    title: '💃 Check-in & Support',
+    text: "✨ <b>Hello {first_name}!</b>\n\nThank you for practicing with 4and.one. How is your dance training going? If you have any music requests, questions, or need assistance, feel free to message us anytime!",
     btnText: '🎵 4and.one Player',
     btnUrl: 'https://4and.one'
   }
@@ -147,7 +154,7 @@ export default function SendTelegramModal({
       const wrapped = selected ? `<code>${selected}</code>` : '<code>code</code>';
       insertTextAtCursor(wrapped);
     } else if (tag === 'a') {
-      const url = prompt('შეიყვანეთ ბმულის მისამართი (URL):', 'https://4and.one');
+      const url = prompt('Enter link destination (URL):', 'https://4and.one');
       if (url) {
         const text = selected || 'link text';
         insertTextAtCursor(`<a href="${url}">${text}</a>`);
@@ -194,7 +201,7 @@ export default function SendTelegramModal({
 
   const handleDeleteCustomTemplate = (id: string, e: React.MouseEvent) => {
     e.stopPropagation();
-    if (!confirm('ნამდვილად გსურთ ამ შაბლონის წაშლა?')) return;
+    if (!confirm('Are you sure you want to delete this template?')) return;
     const updated = customTemplates.filter(t => t.id !== id);
     setCustomTemplates(updated);
     try {
@@ -204,7 +211,7 @@ export default function SendTelegramModal({
 
   const handleSend = async () => {
     if (!messageText.trim()) {
-      setError('გთხოვთ შეიყვანოთ შეტყობინების ტექსტი');
+      setError('Please enter a message text');
       return;
     }
 
@@ -233,18 +240,18 @@ export default function SendTelegramModal({
       const data = await res.json().catch(() => null);
 
       if (res.ok && (data?.success || data?.results?.[0]?.success)) {
-        const msg = `შეტყობინება წარმატებით გაეგზავნა ${user.first_name}-ს!`;
+        const msg = `Message sent successfully to ${user.first_name}!`;
         setSuccess(msg);
         if (onSuccess) onSuccess(msg);
         setTimeout(() => {
           onClose();
         }, 1400);
       } else {
-        const errDetail = data?.error || data?.results?.[0]?.error || 'გაგზავნა ვერ მოხერხდა';
-        setError(`შეცდომა: ${errDetail}`);
+        const errDetail = data?.error || data?.results?.[0]?.error || 'Failed to send message';
+        setError(`Error: ${errDetail}`);
       }
     } catch (err: any) {
-      setError(`კავშირის შეცდომა: ${err?.message || 'სერვერთან კავშირი ვერ დამყარდა'}`);
+      setError(`Connection error: ${err?.message || 'Could not connect to server'}`);
     } finally {
       setSending(false);
     }
@@ -298,17 +305,17 @@ export default function SendTelegramModal({
           {/* Templates Section */}
           <div className="tg-section">
             <div className="tg-section-head">
-              <span className="tg-section-label">⚡ შაბლონები (Templates):</span>
+              <span className="tg-section-label">⚡ Templates:</span>
               {!isSavingTemplate ? (
                 <button
                   type="button"
                   className="tg-save-tpl-btn"
                   onClick={() => setIsSavingTemplate(true)}
                   disabled={!messageText.trim()}
-                  title="მიმდინარე ტექსტის შაბლონად შენახვა"
+                  title="Save current text as template"
                 >
                   <BookmarkPlus size={13} />
-                  <span>შაბლონად შენახვა</span>
+                  <span>Save as Template</span>
                 </button>
               ) : null}
             </div>
@@ -319,17 +326,17 @@ export default function SendTelegramModal({
                 <input
                   type="text"
                   className="tg-input"
-                  placeholder="შეიყვანეთ შაბლონის სახელი (მაგ. ფასდაკლება 50%)..."
+                  placeholder="Template title (e.g. 50% Off Promo)..."
                   value={newTemplateTitle}
                   onChange={e => setNewTemplateTitle(e.target.value)}
                   autoFocus
                   required
                 />
                 <button type="submit" className="tg-btn primary sm" disabled={!newTemplateTitle.trim()}>
-                  შენახვა
+                  Save
                 </button>
                 <button type="button" className="tg-btn sm" onClick={() => setIsSavingTemplate(false)}>
-                  გაუქმება
+                  Cancel
                 </button>
               </form>
             )}
@@ -356,7 +363,7 @@ export default function SendTelegramModal({
                     type="button"
                     className="tg-chip-del"
                     onClick={(e) => handleDeleteCustomTemplate(tpl.id, e)}
-                    title="შაბლონის წაშლა"
+                    title="Delete template"
                   >
                     <X size={11} />
                   </button>
@@ -371,14 +378,14 @@ export default function SendTelegramModal({
             <div className="tg-composer">
               {/* Variable Helper Pills */}
               <div className="tg-vars-row">
-                <span className="tg-vars-label">ცვლადები:</span>
-                <button type="button" className="tg-var-pill" onClick={() => insertTextAtCursor('{first_name}')} title="სახელის ჩასმა">
+                <span className="tg-vars-label">Variables:</span>
+                <button type="button" className="tg-var-pill" onClick={() => insertTextAtCursor('{first_name}')} title="Insert first name">
                   +{'{first_name}'}
                 </button>
-                <button type="button" className="tg-var-pill" onClick={() => insertTextAtCursor('{name}')} title="სრული სახელის ჩასმა">
+                <button type="button" className="tg-var-pill" onClick={() => insertTextAtCursor('{name}')} title="Insert full name">
                   +{'{name}'}
                 </button>
-                <button type="button" className="tg-var-pill" onClick={() => insertTextAtCursor('{username}')} title="ტელეგრამის @username ჩასმა">
+                <button type="button" className="tg-var-pill" onClick={() => insertTextAtCursor('{username}')} title="Insert Telegram @username">
                   +{'{username}'}
                 </button>
               </div>
@@ -386,16 +393,16 @@ export default function SendTelegramModal({
               {/* Toolbar */}
               <div className="tg-toolbar">
                 <div className="tg-format-group">
-                  <button type="button" className="tg-tool-btn" onClick={() => insertFormat('b')} title="Bold (მუქი)">
+                  <button type="button" className="tg-tool-btn" onClick={() => insertFormat('b')} title="Bold">
                     <Bold size={14} />
                   </button>
-                  <button type="button" className="tg-tool-btn" onClick={() => insertFormat('i')} title="Italic (დახრილი)">
+                  <button type="button" className="tg-tool-btn" onClick={() => insertFormat('i')} title="Italic">
                     <Italic size={14} />
                   </button>
-                  <button type="button" className="tg-tool-btn" onClick={() => insertFormat('a')} title="Link (ბმული)">
+                  <button type="button" className="tg-tool-btn" onClick={() => insertFormat('a')} title="Link">
                     <Link2 size={14} />
                   </button>
-                  <button type="button" className="tg-tool-btn" onClick={() => insertFormat('code')} title="Code (მონოსპეისი)">
+                  <button type="button" className="tg-tool-btn" onClick={() => insertFormat('code')} title="Monospace code">
                     <Code size={14} />
                   </button>
                 </div>
@@ -419,13 +426,13 @@ export default function SendTelegramModal({
               <textarea
                 ref={textareaRef}
                 className="tg-textarea"
-                placeholder={`დაწერეთ შეტყობინება ${user.first_name}-სთვის (მხარდაჭერილია HTML ტეგები: <b>, <i>, <code>, <a href="...">)...`}
+                placeholder={`Write a message for ${user.first_name}... (HTML tags supported: <b>, <i>, <code>, <a href="...">)...`}
                 value={messageText}
                 onChange={e => setMessageText(e.target.value)}
                 rows={7}
               />
               <div className="tg-char-count">
-                {messageText.length} სიმბოლო · Telegram HTML formatting
+                {messageText.length} characters · Telegram HTML formatting
               </div>
 
               {/* Extras Row (Photo + Button Toggles) */}
@@ -436,7 +443,7 @@ export default function SendTelegramModal({
                   onClick={() => setShowPhotoInput(!showPhotoInput)}
                 >
                   <ImageIcon size={14} />
-                  <span>{showPhotoInput ? 'ფოტოს მოხსნა' : '+ ფოტოს დამატება'}</span>
+                  <span>{showPhotoInput ? 'Remove Photo' : '+ Add Photo'}</span>
                 </button>
 
                 <button
@@ -445,14 +452,14 @@ export default function SendTelegramModal({
                   onClick={() => setShowButtonInput(!showButtonInput)}
                 >
                   <ExternalLink size={14} />
-                  <span>{showButtonInput ? 'ღილაკის მოხსნა' : '+ Inline ღილაკის დამატება'}</span>
+                  <span>{showButtonInput ? 'Remove Button' : '+ Add Button'}</span>
                 </button>
               </div>
 
               {/* Photo Input */}
               {showPhotoInput && (
                 <div className="tg-extra-field animate-in">
-                  <label className="tg-field-label">ფოტოს URL (პირდაპირი public ბმული):</label>
+                  <label className="tg-field-label">Photo URL (direct public image link):</label>
                   <input
                     type="url"
                     className="tg-input"
@@ -467,21 +474,21 @@ export default function SendTelegramModal({
               {showButtonInput && (
                 <div className="tg-extra-fields-row animate-in">
                   <div className="tg-extra-field">
-                    <label className="tg-field-label">ღილაკის ტექსტი:</label>
+                    <label className="tg-field-label">Button Text:</label>
                     <input
                       type="text"
                       className="tg-input"
-                      placeholder="მაგ. 🎵 გახსენი ფლეიერი"
+                      placeholder="e.g. 🎁 Get Free Premium"
                       value={btnText}
                       onChange={e => setBtnText(e.target.value)}
                     />
                   </div>
                   <div className="tg-extra-field">
-                    <label className="tg-field-label">ღილაკის ლინკი (URL):</label>
+                    <label className="tg-field-label">Button Link (URL):</label>
                     <input
                       type="url"
                       className="tg-input"
-                      placeholder="https://4and.one"
+                      placeholder="https://4and.one/earn"
                       value={btnUrl}
                       onChange={e => setBtnUrl(e.target.value)}
                     />
@@ -493,7 +500,7 @@ export default function SendTelegramModal({
             {/* Right: Live Telegram Preview */}
             <div className="tg-preview-pane">
               <div className="tg-preview-label">
-                📱 ცოცხალი გადახედვა (Telegram Live Preview):
+                📱 Telegram Live Preview:
               </div>
               <div className="tg-preview-screen">
                 <div className="tg-bubble">
@@ -506,7 +513,7 @@ export default function SendTelegramModal({
                   <div
                     className="tg-bubble-text"
                     dangerouslySetInnerHTML={{
-                      __html: telegramPreviewHtml(personalizedPreview || '<i>შეტყობინების ტექსტი გამოჩნდება აქ...</i>')
+                      __html: telegramPreviewHtml(personalizedPreview || '<i>Message text will appear here...</i>')
                     }}
                   />
 
@@ -545,7 +552,7 @@ export default function SendTelegramModal({
         {/* Footer */}
         <div className="tg-modal-foot">
           <button type="button" className="tg-btn" onClick={onClose} disabled={sending}>
-            გაუქმება
+            Cancel
           </button>
           <button
             type="button"
@@ -556,12 +563,12 @@ export default function SendTelegramModal({
             {sending ? (
               <>
                 <Loader2 size={16} className="animate-spin" />
-                <span>იგზავნება...</span>
+                <span>Sending...</span>
               </>
             ) : (
               <>
                 <Send size={15} />
-                <span>ტელეგრამზე გაგზავნა</span>
+                <span>Send to Telegram</span>
               </>
             )}
           </button>

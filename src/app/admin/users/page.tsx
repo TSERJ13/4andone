@@ -293,11 +293,11 @@ export default function AdminUsersPage() {
                           <button
                             type="button"
                             className="user-msg-btn"
-                            title="Telegram-ზე მიწერა"
+                            title="Message on Telegram"
                             onClick={() => setMessageRecipient(u)}
                           >
                             <Send size={11} />
-                            <span>მიწერა</span>
+                            <span>Message</span>
                           </button>
                         </div>
                       </li>

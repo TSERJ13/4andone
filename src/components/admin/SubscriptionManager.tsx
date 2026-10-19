@@ -503,10 +503,10 @@ export default function SubscriptionManager() {
                       type="button"
                       onClick={(e) => { e.stopPropagation(); setMessageRecipient(user); }}
                       className="toggle-sub-btn msg"
-                      title="Telegram-ზე მიწერა"
+                      title="Message on Telegram"
                     >
                       <Send size={13} />
-                      <span>მიწერა</span>
+                      <span>Message</span>
                     </button>
                     <button
                       disabled={actionLoading === user.telegram_id || (isForever(user) && selectedDuration(user) === 'forever')}
@@ -574,7 +574,7 @@ export default function SubscriptionManager() {
                 }}
               >
                 <Send size={15} />
-                <span>Telegram-ზე მიწერა</span>
+                <span>Message on Telegram</span>
               </button>
             </div>
           </div>

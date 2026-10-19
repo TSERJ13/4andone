@@ -493,6 +493,11 @@ export const AudioProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   const currentTimeRef = useRef(currentTime);
   const trackCurrentTimeRef = useRef(0); // PERF: skip no-op renders in the tick timer
   const lastPositionSyncRef = useRef(0); // PERF: throttle mediaSession.setPositionState
+  // True from the moment a new track is requested until its source is attached to the
+  // audio element. In that gap the element still holds the OLD (paused) track, so the
+  // progress timer must not read its position — it made the line jump back to the old
+  // spot for a moment at every track change.
+  const swappingSourceRef = useRef(false);
   const isPauseCountdownRef = useRef(isPauseCountdown);
   const pauseTimeRef = useRef(pauseTime);
   const isFinalModeRef = useRef(isFinalMode);
@@ -1440,6 +1445,14 @@ export const AudioProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         setIsPlaying(false);
         setIsLoaded(false);
         setIsLoading(true);
+        swappingSourceRef.current = true;
+        // Screen locked / app in background: the old track has just been paused, and a new
+        // one only starts after its address is fetched. Keep the silent heartbeat running in
+        // that gap or the phone drops the audio session and the next song never starts.
+        if (typeof document !== 'undefined' && document.visibilityState === 'hidden' && !opts?.paused
+            && heartbeatRef.current && heartbeatRef.current.paused) {
+          heartbeatRef.current.play().catch(() => {});
+        }
       }
       setError(null);
       // In a Final program currentTime is the SESSION clock. Resetting it to 0
@@ -1451,6 +1464,8 @@ export const AudioProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       if (!continuesFinalSession && !opts?.liveHandoff && !opts?.nativeHandoff) {
         setCurrentTime(0);
         currentTimeRef.current = 0;
+        // The previous song's length would make the bar scale wrongly until the new file reports its own.
+        setDuration(Number(track?.duration) > 0 ? Number(track.duration) : 0);
       }
       setTrackCurrentTime(startAt);
       trackCurrentTimeRef.current = startAt;
@@ -2002,6 +2017,7 @@ export const AudioProvider: React.FC<{ children: React.ReactNode }> = ({ childre
           audio.loop = !renderPlan && ((isFinalModeRef.current && !isFitnessRef.current) || (!isFinalModeRef.current && isRepeatRef.current));
           audio.src = url;
           audio.load();
+          swappingSourceRef.current = false; // the element now holds the new track
         });
       };
 
@@ -2108,6 +2124,7 @@ export const AudioProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       } catch (e: any) {
         handoffSeekPendingRef.current = false;
         if (currentToken !== loadingTokenRef.current || e.message === "Loading cancelled by new request") return;
+        swappingSourceRef.current = false;
         setError(e.message || "File Unreachable");
         setIsLoaded(false);
         setIsLoading(false);
@@ -2176,6 +2193,7 @@ export const AudioProvider: React.FC<{ children: React.ReactNode }> = ({ childre
 
     } catch (err: any) {
       if (currentToken !== loadingTokenRef.current) return;
+      swappingSourceRef.current = false;
       setError(err.message || "Failed to load track");
       setIsLoaded(false);
       setIsLoading(false);
@@ -2202,7 +2220,7 @@ export const AudioProvider: React.FC<{ children: React.ReactNode }> = ({ childre
           return;
         }
 
-        if (nativePlayerRef.current && !handoffSeekPendingRef.current) {
+        if (nativePlayerRef.current && !handoffSeekPendingRef.current && !swappingSourceRef.current) {
           const currentTimeVal = nativePlayerRef.current.currentTime;
           if (showRenderedFinalTestRef.current && isFinalModeRef.current && !isPauseCountdownRef.current) {
             // Test mode only: report any stretch where the playhead stood still while "playing".

@@ -50,7 +50,8 @@ export default function YtSidebar({ isCollapsed = false, isOpenMobile = false, o
     { label: 'Library', href: '/library', icon: Library },
     { label: 'Upgrade', href: '/upgrade', icon: Sparkles },
     { label: 'Earn Premium', href: '/earn', icon: Gift },
-    { label: 'Install App', href: '#install', icon: Smartphone, isInstall: true },
+    { label: 'Download App', href: '#install', icon: Smartphone, isInstall: true },
+    { label: 'Contact us', href: '#contact', icon: MessageSquare, isContact: true },
   ];
 
   return (
@@ -95,6 +96,23 @@ export default function YtSidebar({ isCollapsed = false, isOpenMobile = false, o
                   style={{ background: 'none', border: 'none', width: '100%', textAlign: 'left', cursor: 'pointer' }}
                 >
                   <Icon size={20} className="yt-nav-icon text-purple-400" />
+                  <span className="yt-nav-label">{item.label}</span>
+                </button>
+              );
+            }
+            if (item.isContact) {
+              return (
+                <button
+                  key={item.label}
+                  type="button"
+                  className="yt-nav-item"
+                  onClick={() => {
+                    onCloseMobile?.();
+                    window.dispatchEvent(new CustomEvent('open-contact-modal'));
+                  }}
+                  style={{ background: 'none', border: 'none', width: '100%', textAlign: 'left', cursor: 'pointer' }}
+                >
+                  <Icon size={20} className="yt-nav-icon text-sky-400" />
                   <span className="yt-nav-label">{item.label}</span>
                 </button>
               );
@@ -193,21 +211,6 @@ export default function YtSidebar({ isCollapsed = false, isOpenMobile = false, o
                   </Link>
                 );
               })}
-            </div>
-
-            <div className="yt-sidebar-divider" />
-            <div className="yt-sidebar-action-row">
-              <button
-                type="button"
-                className="yt-btn-new-playlist"
-                onClick={() => {
-                  onCloseMobile?.();
-                  window.dispatchEvent(new CustomEvent('open-contact-modal'));
-                }}
-              >
-                <MessageSquare size={18} />
-                <span>Contact us</span>
-              </button>
             </div>
           </>
         )}

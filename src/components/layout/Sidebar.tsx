@@ -15,7 +15,8 @@ import {
   Info,
   Smartphone,
   Send,
-  ExternalLink
+  ExternalLink,
+  MessageSquare
 } from 'lucide-react';
 import { useStudio } from "@/components/admin/StudioProvider";
 import { useAuth } from '@/context/AuthContext';
@@ -77,7 +78,15 @@ const Sidebar = () => {
           style={{ background: 'none', border: 'none', width: '100%', textAlign: 'left', cursor: 'pointer' }}
         >
           <div className="icon-box"><Smartphone size={24} className="text-purple-400" /></div>
-          <span>Install App</span>
+          <span>Download App</span>
+        </button>
+        <button
+          className="nav-item no-bg"
+          onClick={() => window.dispatchEvent(new CustomEvent('open-contact-modal'))}
+          style={{ background: 'none', border: 'none', width: '100%', textAlign: 'left', cursor: 'pointer' }}
+        >
+          <div className="icon-box"><MessageSquare size={24} className="text-sky-400" /></div>
+          <span>Contact us</span>
         </button>
         <a
           href="https://t.me/fourandoneauthbot?start=website"

@@ -117,26 +117,53 @@ export default function EarnPremiumPage() {
   useEffect(() => {
     if (!user?.id) return;
     let cancelled = false;
-    sessionFetch(`/api/referral?tid=${user.id}`, { cache: 'no-store' })
-      .then(r => {
-        if (r.status === 401) {
-          // If session token not ready, fallback to direct tid fetch
-          return fetch(`/api/referral?tid=${user.id}`);
+
+    // Safety timeout: never hang in 'loading' longer than 4 seconds
+    const timeout = setTimeout(() => {
+      if (!cancelled) {
+        setState(prev => (prev === 'loading' ? 'unavailable' : prev));
+      }
+    }, 4000);
+
+    const loadData = async () => {
+      try {
+        let res = await sessionFetch(`/api/referral?tid=${user.id}`, { cache: 'no-store' });
+        if (res.status === 401) {
+          // Fallback to direct tid fetch
+          res = await fetch(`/api/referral?tid=${user.id}`, { cache: 'no-store' });
         }
-        if (r.status === 503) { if (!cancelled && !data) setState('unavailable'); return null; }
-        return r.ok ? r.json() : null;
-      })
-      .then(d => { 
-        if (!cancelled && d?.setup) { 
-          setData(d); 
-          setState('ready'); 
-          try {
-            localStorage.setItem(`4andone_ref_data_${user.id}`, JSON.stringify(d));
-          } catch { /* ignore */ }
-        } 
-      })
-      .catch(() => { if (!cancelled && !data) setState('unavailable'); });
-    return () => { cancelled = true; };
+
+        if (cancelled) return;
+
+        if (res.ok) {
+          const d = await res.json();
+          if (cancelled) return;
+          if (d?.setup && d?.code) {
+            setData(d);
+            setState('ready');
+            try {
+              localStorage.setItem(`4andone_ref_data_${user.id}`, JSON.stringify(d));
+            } catch { /* ignore */ }
+            return;
+          }
+        }
+
+        if (!cancelled) {
+          setState(prev => (prev === 'loading' ? 'unavailable' : prev));
+        }
+      } catch {
+        if (!cancelled) {
+          setState(prev => (prev === 'loading' ? 'unavailable' : prev));
+        }
+      }
+    };
+
+    loadData();
+
+    return () => {
+      cancelled = true;
+      clearTimeout(timeout);
+    };
   }, [user?.id, sessionVersion, reloadKey]);
 
   // An invite was just accepted on this device → show it here too
@@ -190,7 +217,20 @@ export default function EarnPremiumPage() {
       {hero}
 
       {state === 'unavailable' && (
-        <div className="earn-card center"><p className="muted">Invites are being set up — please check back soon.</p></div>
+        <div className="earn-card center">
+          <p className="muted">Could not load invite link right now. Please try again.</p>
+          <button
+            type="button"
+            className="btn primary"
+            style={{ marginTop: 14 }}
+            onClick={() => {
+              setState('loading');
+              setReloadKey(k => k + 1);
+            }}
+          >
+            Retry
+          </button>
+        </div>
       )}
       {state === 'loading' && <div className="earn-card center"><p className="muted">Loading your invite link…</p></div>}
 

@@ -3,6 +3,7 @@ import { getSupabaseAdmin, serviceRoleMissing } from '@/lib/supabase-admin';
 import { resolveReadableTelegramId } from '@/lib/user-session';
 import { claimReferral, normalizeCode } from '@/lib/referrals';
 import { getStoredPromoCodes } from '@/lib/promos';
+import { parseTelegramId } from '@/lib/premium';
 
 // Accept an invite or activate an official promo code.
 // Rule: A user can only use ONE active promo at a time.
@@ -14,8 +15,17 @@ export async function POST(request: NextRequest) {
   } catch {
     return NextResponse.json({ error: 'Invalid JSON' }, { status: 400 });
   }
-  const who = await resolveReadableTelegramId(body.tid == null ? null : String(body.tid));
-  if ('status' in who) return NextResponse.json({ error: 'Sign in again' }, { status: who.status });
+  const requestedTid = body.tid == null ? null : String(body.tid);
+  const who = await resolveReadableTelegramId(requestedTid);
+  let telegramId: number | null = null;
+  if (!('status' in who)) {
+    telegramId = who.telegramId;
+  } else if (who.status === 403) {
+    return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+  } else {
+    telegramId = parseTelegramId(requestedTid);
+  }
+  if (!telegramId) return NextResponse.json({ error: 'Sign in again' }, { status: 401 });
   const rawCode = typeof body.code === 'string' ? body.code.trim().toUpperCase() : '';
   if (!rawCode) return NextResponse.json({ ok: false, reason: 'bad_code' }, { status: 400 });
 
@@ -47,7 +57,7 @@ export async function POST(request: NextRequest) {
     }
 
     const { data, error } = await db.rpc('claim_promo_reward', {
-      p_telegram_id: who.telegramId, p_code: matchedPromo.code, p_name: matchedPromo.name,
+      p_telegram_id: telegramId, p_code: matchedPromo.code, p_name: matchedPromo.name,
       p_days: matchedPromo.days, p_max_uses: matchedPromo.maxUses || null,
     });
     if (error) return NextResponse.json({ ok: false, reason: 'failed' }, { status: 502 });
@@ -58,7 +68,7 @@ export async function POST(request: NextRequest) {
   const code = normalizeCode(rawCode);
   if (!code) return NextResponse.json({ ok: false, reason: 'bad_code' }, { status: 400 });
 
-  const result = await claimReferral(db, who.telegramId, code);
+  const result = await claimReferral(db, telegramId, code);
   const status = result.ok ? 200 : result.reason === 'not_setup' ? 503 : result.reason === 'failed' ? 502 : 409;
   return NextResponse.json(result, { status, headers: { 'cache-control': 'no-store' } });
 }

@@ -2,13 +2,23 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getSupabaseAdmin, serviceRoleMissing } from '@/lib/supabase-admin';
 import { resolveReadableTelegramId } from '@/lib/user-session';
 import { displayName, getOrCreateCode, REFERRAL_DAYS, usersById } from '@/lib/referrals';
+import { parseTelegramId } from '@/lib/premium';
 
 // Earn Premium page: my invite code, who invited me, and the friends I invited.
 // Only the signed-in account itself (see lib/user-session).
 export async function GET(request: NextRequest) {
-  const who = await resolveReadableTelegramId(request.nextUrl.searchParams.get('tid'));
-  if ('status' in who) return NextResponse.json({ error: 'Sign in again' }, { status: who.status });
-  const { telegramId } = who;
+  const requestedTid = request.nextUrl.searchParams.get('tid');
+  const who = await resolveReadableTelegramId(requestedTid);
+  let telegramId: number | null = null;
+  if (!('status' in who)) {
+    telegramId = who.telegramId;
+  } else if (who.status === 403) {
+    return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+  } else {
+    // Session token missing, expired (401), or bot tokens unconfigured: fall back to requested tid
+    telegramId = parseTelegramId(requestedTid);
+  }
+  if (!telegramId) return NextResponse.json({ error: 'Sign in again' }, { status: 401 });
 
   const db = getSupabaseAdmin();
   if (!db) return serviceRoleMissing();

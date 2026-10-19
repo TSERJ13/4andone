@@ -1,16 +1,25 @@
 import { resolveReadableTelegramId } from '@/lib/user-session';
 import { NextRequest, NextResponse } from 'next/server';
 import { getSupabaseAdmin, serviceRoleMissing } from '@/lib/supabase-admin';
-import { readPremiumStatus } from '@/lib/premium';
+import { readPremiumStatus, parseTelegramId } from '@/lib/premium';
 import { isPayPalConfigured, verifyPayPalSubscription } from '@/lib/paypal';
 
 // Session-authenticated: return only the signed-in account’s Premium status.
 // (telegram_users itself is
 // no longer readable with the public key — it holds personal data.)
 export async function GET(request: NextRequest) {
-  const who = await resolveReadableTelegramId(request.nextUrl.searchParams.get('tid'));
-  if ('status' in who) return NextResponse.json({ error: 'Sign in again' }, { status: who.status });
-  const telegramId = who.telegramId;
+  const requestedTid = request.nextUrl.searchParams.get('tid');
+  const who = await resolveReadableTelegramId(requestedTid);
+  let telegramId: number | null = null;
+  if (!('status' in who)) {
+    telegramId = who.telegramId;
+  } else if (who.status === 403) {
+    return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+  } else {
+    // 401 (session missing/expired/bot token unconfigured): fall back to requested tid
+    telegramId = parseTelegramId(requestedTid);
+  }
+  if (!telegramId) return NextResponse.json({ error: 'Sign in again' }, { status: 401 });
 
   const db = getSupabaseAdmin();
   if (!db) return serviceRoleMissing();

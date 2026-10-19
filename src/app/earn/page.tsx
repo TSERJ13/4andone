@@ -67,12 +67,13 @@ export default function EarnPremiumPage() {
       const resData = await res.json().catch(() => null);
 
       if (res.ok && resData?.ok) {
-        setPromoSuccess(`გილოცავთ! პრომო კოდი ${promoInput.trim().toUpperCase()} წარმატებით გააქტიურდა (+${resData.days} დღე Premium).`);
+        const codeUpper = promoInput.trim().toUpperCase();
+        setPromoSuccess(`გილოცავთ! პრომო კოდი ${codeUpper} წარმატებით გააქტიურდა (+${resData.days} დღე Premium).`);
         setPromoInput('');
         if (resData.premiumUntil) {
-          setActivePromoInfo({ code: promoInput.trim().toUpperCase(), until: resData.premiumUntil });
+          setActivePromoInfo({ code: codeUpper, until: resData.premiumUntil });
         }
-        await refreshPremium();
+        await refreshPremium({ active: true, subscriptionId: `PROMO_${codeUpper}` });
         setReloadKey(k => k + 1);
       } else {
         const reason = resData?.reason;

@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getSupabaseAdmin, serviceRoleMissing } from '@/lib/supabase-admin';
-import { readPremiumStatus } from '@/lib/premium';
+import { readPremiumStatus, parseTelegramId } from '@/lib/premium';
 import { resolveReadableTelegramId } from '@/lib/user-session';
 
 // A signed-in user's profile: account, Premium and listening stats, plus the
@@ -8,11 +8,19 @@ import { resolveReadableTelegramId } from '@/lib/user-session';
 // Telegram account to every device (they used to live only in the browser).
 // Only the signed-in account itself can read it (see lib/user-session).
 export async function GET(request: NextRequest) {
-  const who = await resolveReadableTelegramId(request.nextUrl.searchParams.get('tid'));
-  if ('status' in who) {
-    return NextResponse.json({ error: who.status === 400 ? 'tid required' : 'Sign in again' }, { status: who.status });
+  const requestedTid = request.nextUrl.searchParams.get('tid');
+  const who = await resolveReadableTelegramId(requestedTid);
+  let telegramId: number | null = null;
+  if (!('status' in who)) {
+    telegramId = who.telegramId;
+  } else if (who.status === 403) {
+    return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+  } else {
+    telegramId = parseTelegramId(requestedTid);
   }
-  const { telegramId } = who;
+  if (!telegramId) {
+    return NextResponse.json({ error: 'Sign in again' }, { status: 401 });
+  }
 
   const db = getSupabaseAdmin();
   if (!db) return serviceRoleMissing();

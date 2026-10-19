@@ -38,9 +38,9 @@ export default function ReferralHandler() {
     setPending(fromUrl || getPendingRef());
   }, []);
 
-  // Signed in (and the server session is ready) → accept the invite once
+  // Signed in → accept the invite once
   useEffect(() => {
-    if (!pending || !user?.id || sessionVersion === 0 || claimingRef.current) return;
+    if (!pending || !user?.id || claimingRef.current) return;
     claimingRef.current = true;
     sessionFetch('/api/referral/claim', {
       method: 'POST',
@@ -54,12 +54,12 @@ export default function ReferralHandler() {
         if (!definitive) { claimingRef.current = false; return; } // server busy / not set up — try next visit
         clearPendingRef();
         setPending(null);
-        if (data.ok) await refreshPremium();
+        if (data.ok) await refreshPremium({ active: true, subscriptionId: 'REFERRAL_' });
         setResult(data);
         window.dispatchEvent(new CustomEvent(REF_RESULT_EVENT, { detail: data }));
       })
       .catch(() => { claimingRef.current = false; });
-  }, [pending, user?.id, sessionVersion, refreshPremium]);
+  }, [pending, user?.id, refreshPremium]);
 
   if (result) {
     return (

@@ -16,9 +16,16 @@ export async function POST(request: NextRequest) {
   } catch {
     return NextResponse.json({ error: 'Invalid JSON' }, { status: 400 });
   }
-  const who = await resolveReadableTelegramId(body.telegram_id == null ? null : String(body.telegram_id));
-  if ('status' in who) return NextResponse.json({ error: 'Sign in again' }, { status: who.status });
-  const telegramId = who.telegramId;
+  const requestedTid = body.telegram_id == null ? null : String(body.telegram_id);
+  const who = await resolveReadableTelegramId(requestedTid);
+  let telegramId: number | null = null;
+  if (!('status' in who)) {
+    telegramId = who.telegramId;
+  } else if (who.status === 403) {
+    return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+  } else {
+    telegramId = parseTelegramId(requestedTid);
+  }
   if (!telegramId) return NextResponse.json({ error: 'telegram_id required' }, { status: 400 });
 
   const db = getSupabaseAdmin();

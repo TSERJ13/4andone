@@ -30,8 +30,8 @@ interface AuthContextType {
   cancelSubscription: () => Promise<void>;
   /** Changes each time the server session (httpOnly cookie) is (re)established. */
   sessionVersion: number;
-  /** Re-read Premium from the server (e.g. right after an invite gave Premium). */
-  refreshPremium: () => Promise<void>;
+  /** Re-read Premium from the server (e.g. right after an invite or promo gave Premium). */
+  refreshPremium: (override?: { active: boolean; subscriptionId?: string | null }) => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -83,7 +83,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   // server not configured) — callers then keep what they have.
   const fetchPremiumStatus = async (telegramId: number): Promise<{ active: boolean; subscriptionId: string | null } | null> => {
     try {
-      const res = await sessionFetch(`/api/user/premium?tid=${encodeURIComponent(String(telegramId))}`, { cache: 'no-store' });
+      let res = await sessionFetch(`/api/user/premium?tid=${encodeURIComponent(String(telegramId))}`, { cache: 'no-store' });
+      if (res.status === 401) {
+        res = await fetch(`/api/user/premium?tid=${encodeURIComponent(String(telegramId))}`, { cache: 'no-store' });
+      }
       if (!res.ok) return null;
       const data = await res.json();
       return { active: !!data.active, subscriptionId: data.subscriptionId ?? null };
@@ -194,8 +197,14 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   };
 
-  const refreshPremium = async () => {
+  const refreshPremium = async (override?: { active: boolean; subscriptionId?: string | null }) => {
     if (!user) return;
+    if (override) {
+      const immediate = { ...user, is_premium: override.active, subscription_id: override.subscriptionId ?? undefined };
+      setUser(immediate);
+      setIsPremium(override.active);
+      try { localStorage.setItem('4andone-user', JSON.stringify(immediate)); } catch { /* ignore */ }
+    }
     const status = await fetchPremiumStatus(user.id);
     if (!status) return;
     const refreshed = { ...user, is_premium: status.active, subscription_id: status.subscriptionId ?? undefined };

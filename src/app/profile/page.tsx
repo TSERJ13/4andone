@@ -67,7 +67,8 @@ export default function ProfilePage() {
 
   const name = [user.first_name, user.last_name].filter(Boolean).join(' ') || 'Dancer';
   const premium = data?.premium;
-  const subId = premium?.subscriptionId || '';
+  const subId = premium?.subscriptionId || user.subscription_id || '';
+  const untilDate = premium?.premiumUntil;
   const plan = !isPremium && !premium?.active
     ? { label: 'Free plan', detail: 'Ads between tracks · Final Mode locked' }
     : subId.startsWith('LIFETIME_')
@@ -76,6 +77,8 @@ export default function ProfilePage() {
         ? { label: 'Premium · Free from an invite', detail: premium?.premiumUntil ? `Free until ${fmtDate(premium.premiumUntil)}` : 'Active' }
       : subId.startsWith('MANUAL_')
         ? { label: 'Premium · Gift', detail: premium?.premiumUntil ? `Until ${fmtDate(premium.premiumUntil)}` : 'Forever' }
+      : subId.startsWith('PROMO_')
+        ? { label: 'Premium · Promo Code', detail: untilDate ? `Free until ${fmtDate(untilDate)}` : 'Active' }
         : subId.startsWith('I-')
           ? { label: 'Premium · $1.99/month', detail: premium?.premiumUntil ? `Paid through ${fmtDate(premium.premiumUntil)} · renews automatically via PayPal` : 'Renews automatically via PayPal' }
           : { label: 'Premium', detail: premium?.premiumUntil ? `Until ${fmtDate(premium.premiumUntil)}` : 'Active' };

@@ -410,6 +410,7 @@ describe('live listening is the default on iPhone/iPad', () => {
     resume = async () => {}; createBuffer() { return {}; } createBufferSource() { return { connect() {}, start() {}, buffer: null }; } close = async () => {}; });
   it('uses the stretch engine for ordinary listening without any URL flag, and ?finalsLive=0 switches it off', async () => {
     rolloutState.liveListeningOnApple = true;
+    rolloutState.slowRenderOnApple = true;
     const ua = vi.spyOn(navigator, 'userAgent', 'get').mockReturnValue('Mozilla/5.0 (iPhone; CPU iPhone OS 18_0 like Mac OS X)');
     try {
       fakeCtx();
@@ -422,7 +423,7 @@ describe('live listening is the default on iPhone/iPad', () => {
       await act(async () => { api.setBpm(85); api.loadTrack(track('apple2')); }); await flush();
       expect(liveState.calls.some(c => c.startsWith('start'))).toBe(false);
       expect(renderState.requests.at(-1)).toMatchObject({ full: true, percent: 85 }); // the prepared slowed track instead
-    } finally { ua.mockRestore(); localStorage.clear(); rolloutState.liveListeningOnApple = false; }
+    } finally { ua.mockRestore(); localStorage.clear(); rolloutState.liveListeningOnApple = false; rolloutState.slowRenderOnApple = false; }
   });
   it('falls back to the normal player when the audio context cannot run', async () => {
     rolloutState.liveListeningOnApple = true;

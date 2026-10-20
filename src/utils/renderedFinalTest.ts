@@ -39,7 +39,7 @@ function isAppleTouchDevice(): boolean {
  * (?finalsRender=1) played clean — so rendered Finals is the default on
  * iPhone/iPad again. A stuck preparation times out and falls back to the old route.
  */
-export const rolloutState = { defaultOnApple: false, liveListeningOnApple: true, slowRenderOnApple: true }; // live SignalsmithStretch engine enabled by default; guarded by runtime silence watchdog
+export const rolloutState = { defaultOnApple: false, liveListeningOnApple: false, slowRenderOnApple: false }; // native plain element + FinalsClock is default; rendered/live remain opt-in via URL flags
 
 /** Behaviour switch for rendered Finals.
  * Opt-in (?finalsRender=1) unless rolloutState.defaultOnApple is set, in which
@@ -79,7 +79,8 @@ export function isLiveListeningEnabled(): boolean {
     optedOut = localStorage.getItem(LIVE_LISTENING_OPTOUT_KEY) === '1';
   } catch { optedOut = requested === '0'; }
   if (optedOut || isNativeFinalTestEnabled()) return false; // the explicit native-audio diagnostic wins
-  return rolloutState.liveListeningOnApple;
+  if (requested === '1') return true;
+  return rolloutState.liveListeningOnApple && isAppleTouchDevice();
 }
 
 export function isRenderedFinalEnabled(): boolean {

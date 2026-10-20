@@ -340,6 +340,9 @@ export const AudioProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         if (liveEngineRef.current !== engine || !liveActiveRef.current) { clearInterval(watch); return; }
         const timeline = nativePlayerRef.current;
         if (!timeline || timeline.paused) { silentChecks = 0; return; }
+        // Screen locked / app in background: the phone may hold the audio context, and timers run late.
+        // Judging "silence" here reloaded the song (or skipped it) at unlock — the hidden handoff covers this case.
+        if (typeof document !== 'undefined' && document.visibilityState === 'hidden') { silentChecks = 0; return; }
         const ctxNow = liveCtxRef.current;
         if (ctxNow && (ctxNow.state as string) !== 'running') { try { void ctxNow.resume().catch(() => {}); } catch { /* ignore */ } }
         if (engine.peak() > 0.002) { if (silentChecks > 0) silentChecks = 0; return; }
@@ -1079,6 +1082,16 @@ export const AudioProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         if (isPauseCountdownRef.current && pauseDeadlineRef.current && checkPauseCountdownRef.current) {
           checkPauseCountdownRef.current();
         }
+
+        // Screen on again at a changed tempo: the clean live engine takes over again (gapless, same spot).
+        setTimeout(() => {
+          if (document.visibilityState !== 'visible' || liveActiveRef.current || !isPlayingRef.current) return;
+          if (renderPlanRef.current || isFitnessRef.current || isPauseCountdownRef.current) return;
+          if (Math.abs(bpmRef.current - 100) <= 0.5 || !isLiveListeningEnabled()) return;
+          upgradeToLiveRef.current();
+        }, 800);
+      } else if (document.visibilityState === 'hidden') {
+        leaveLiveForBackgroundRef.current();
       }
     };
 
@@ -1644,7 +1657,8 @@ export const AudioProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       // (playing at the chosen speed), and the stretch engine makes the sound, so the speed changes without croak or gap.
       // At normal speed the phone's own player is already clean and starts at once; the live engine (which must
       // download and decode the whole track first) is only used when the tempo is changed.
-      if (!renderPlan && !isFitnessRef.current && isLiveListeningEnabled() && Math.abs(bpmRef.current - 100) > 0.5) {
+      if (!renderPlan && !isFitnessRef.current && isLiveListeningEnabled() && Math.abs(bpmRef.current - 100) > 0.5 && opts?.native !== true
+          && !(typeof document !== 'undefined' && document.visibilityState === 'hidden')) {
         try {
           const ctx = ensureLiveContext();
           if (!ctx) throw new Error('Live audio is unavailable');
@@ -2648,6 +2662,38 @@ export const AudioProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     loadTrackRef.current(track, true, true, { startAt: position, finalElapsed: elapsed, paused, renderFinal: true });
   };
 
+  // Screen locked / app in background while a changed tempo plays on the live engine: phones (iPhone above all)
+  // hold the WebAudio context there, so the sound stopped while the silent timeline kept running — and at its end
+  // the player jumped to the next song. The phone's own player keeps playing in the background, so it takes over
+  // from the same spot at the same speed; the live engine comes back when the screen is on again.
+  const leaveLiveForBackgroundRef = useRef<() => void>(() => {});
+  leaveLiveForBackgroundRef.current = () => {
+    if (!liveActiveRef.current || !liveNormalRef.current || renderPlanRef.current || isPauseCountdownRef.current) return;
+    liveUpgradeAbortRef.current?.abort();
+    const track = playingTrackRef.current;
+    const engine = liveEngineRef.current;
+    const el = nativePlayerRef.current;
+    if (!track || !engine || !el) return;
+    const livePos = liveStartedRef.current ? engine.position() : 0;
+    const silentTimeline = !!activeBlobUrlRef.current && el.src === activeBlobUrlRef.current;
+    if (!silentTimeline) {
+      // The real recording is the (muted) timeline: just let it sound again.
+      if (livePos > 0.5 && Math.abs(el.currentTime - livePos) > 0.25) {
+        programmaticSeekTimeRef.current = Date.now();
+        try { el.currentTime = livePos; } catch { /* ignore */ }
+      }
+      el.muted = false;
+      applyVolume(volumeRef.current, false);
+      stopLive();
+      finalsDiag('screen off · phone player took over from the live engine');
+      return;
+    }
+    const pos = livePos > 0.5 ? livePos : el.currentTime;
+    finalsDiag('screen off · reloading the recording on the phone player');
+    if (el.paused) loadTrackRef.current(track, true, isFinalModeRef.current, { startAt: pos, paused: true, native: true });
+    else loadTrackRef.current(track, true, isFinalModeRef.current, { startAt: pos, nativeHandoff: true, native: true });
+  };
+
   // Normal-speed playback runs on the phone's own player (instant start). When the tempo is then changed, the live
   // engine prepares the track in the background (the phone's player keeps playing at the new rate meanwhile) and
   // takes over from the same position as soon as it is ready.
@@ -2656,6 +2702,7 @@ export const AudioProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     const track = playingTrackRef.current;
     const audio = nativePlayerRef.current;
     if (!track?.audioUrl || !audio || liveUpgradingRef.current) return;
+    if (typeof document !== 'undefined' && document.visibilityState === 'hidden') return; // resumed when the screen is on
     if (livePredecodeTimerRef.current) { clearTimeout(livePredecodeTimerRef.current); livePredecodeTimerRef.current = null; }
     liveUpgradingRef.current = true;
     const controller = new AbortController();

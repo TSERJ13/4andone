@@ -10,7 +10,7 @@ import { normalizeMediaUrl } from '@/lib/media-key';
 import { trackInAlbum } from '@/utils/albumMatch';
 import { 
   Disc, Plus, Edit3, Trash2, ArrowUp, ArrowDown, ExternalLink, 
-  Upload, Check, X, Sparkles, Music2, Eye, Flame, Layers, Lock, Unlock, Trophy
+  Upload, Check, X, Sparkles, Music2, Eye, Flame, Layers, Lock, Unlock, Trophy, Clock
 } from 'lucide-react';
 import ConfirmModal from '@/components/admin/ConfirmModal';
 
@@ -48,6 +48,8 @@ export default function AdminAlbumsPage() {
   const [togglingId, setTogglingId] = useState<string | null>(null);
   const [allowFinalMode, setAllowFinalMode] = useState(true);
   const [togglingFinalId, setTogglingFinalId] = useState<string | null>(null);
+  const [isComingSoon, setIsComingSoon] = useState(false);
+  const [togglingSoonId, setTogglingSoonId] = useState<string | null>(null);
 
   // Save state: errors stay inside the editor, results show as a short notice
   const [formError, setFormError] = useState<string | null>(null);
@@ -78,6 +80,7 @@ export default function AdminAlbumsPage() {
     setTagsInput('');
     setIsPremium(false);
     setAllowFinalMode(true);
+    setIsComingSoon(false);
     setEditingAlbum(null);
     setFormError(null);
   };
@@ -102,6 +105,7 @@ export default function AdminAlbumsPage() {
     setTagsInput((album.tags || []).join(', '));
     setIsPremium(!!album.isPremium);
     setAllowFinalMode(album.allowFinalMode !== false);
+    setIsComingSoon(!!album.isComingSoon);
     setIsModalOpen(true);
   };
 
@@ -198,6 +202,7 @@ export default function AdminAlbumsPage() {
       tags: parsedTags,
       isPremium,
       allowFinalMode,
+      isComingSoon,
     };
 
     setIsSaving(true);
@@ -242,6 +247,19 @@ export default function AdminAlbumsPage() {
       showNotice('error', `Could not update "${album.title}": ${(err as Error).message}`);
     } finally {
       setTogglingFinalId(null);
+    }
+  };
+
+  const handleToggleComingSoon = async (album: Album) => {
+    const nextVal = !album.isComingSoon;
+    setTogglingSoonId(album.id);
+    try {
+      await updateAlbum(album.id, { slug: album.slug, isComingSoon: nextVal });
+      showNotice('ok', nextVal ? `"${album.title}" მონიშნულია როგორც SOON (დახურულია)` : `"${album.title}" გაიხსნა ჩვეულებრივად`);
+    } catch (err) {
+      showNotice('error', `Could not update "${album.title}": ${(err as Error).message}`);
+    } finally {
+      setTogglingSoonId(null);
     }
   };
 
@@ -395,6 +413,24 @@ export default function AdminAlbumsPage() {
                       <span>NO FINALS</span>
                     </span>
                   )}
+                  {album.isComingSoon && (
+                    <span
+                      className="program-badge"
+                      style={{
+                        background: 'rgba(255, 255, 255, 0.16)',
+                        color: '#ffffff',
+                        border: '1px solid rgba(255, 255, 255, 0.45)',
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        gap: 4,
+                        fontWeight: 900,
+                        letterSpacing: '0.06em',
+                      }}
+                    >
+                      <Clock size={10} />
+                      <span>SOON</span>
+                    </span>
+                  )}
                 </div>
                 <h3 className="album-title">{album.title}</h3>
                 <p className="album-subtitle">{album.subtitle || album.description}</p>
@@ -484,6 +520,37 @@ export default function AdminAlbumsPage() {
                 >
                   <Trophy size={14} />
                   <span>{album.allowFinalMode === false ? 'Finals: Off' : 'Finals: On'}</span>
+                </button>
+                <button
+                  type="button"
+                  disabled={togglingSoonId === album.id}
+                  onClick={() => handleToggleComingSoon(album)}
+                  title={
+                    album.isComingSoon
+                      ? 'SOON რეჟიმი ჩართულია (ალბომზე გადაფარებულია შავი ფერი + SOON წარწერა და დახურულია) — დააჭირე გასახსნელად'
+                      : 'ჩვეულებრივი ალბომი — დააჭირე რომ ჩაირთოს SOON (მალე დაემატება)'
+                  }
+                  style={{
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: 6,
+                    padding: '8px 12px',
+                    borderRadius: 10,
+                    fontSize: 12,
+                    fontWeight: 800,
+                    cursor: togglingSoonId === album.id ? 'wait' : 'pointer',
+                    border: album.isComingSoon
+                      ? '1px solid rgba(255, 255, 255, 0.45)'
+                      : '1px solid rgba(255, 255, 255, 0.12)',
+                    background: album.isComingSoon
+                      ? 'linear-gradient(135deg, rgba(255, 255, 255, 0.22), rgba(0, 0, 0, 0.5))'
+                      : 'rgba(255, 255, 255, 0.05)',
+                    color: album.isComingSoon ? '#ffffff' : '#a1a1aa',
+                    transition: 'all 0.2s ease',
+                  }}
+                >
+                  <Clock size={14} />
+                  <span>{album.isComingSoon ? 'SOON: On' : 'SOON: Off'}</span>
                 </button>
                 <Link
                   href={`/admin/upload?album=${album.slug}`}
@@ -723,6 +790,56 @@ export default function AdminAlbumsPage() {
                 ) : (
                   <p style={{ margin: '8px 0 0', fontSize: 12.5, color: '#a1a1aa', opacity: 0.8 }}>
                     ✓ ამ ალბომის სიმღერები ჩვეულებრივ დაუკრავს Final Mode-ის საერთო სესიებში.
+                  </p>
+                )}
+              </div>
+
+              {/* Coming Soon Selector */}
+              <div className="field-group full-width">
+                <label className="field-label">ალბომის სტატუსი / Coming Soon (SOON)</label>
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 10 }}>
+                  <button
+                    type="button"
+                    className={`program-opt-btn ${!isComingSoon ? 'active' : ''}`}
+                    onClick={() => setIsComingSoon(false)}
+                    style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      gap: 8,
+                      borderColor: !isComingSoon ? '#10b981' : undefined,
+                      background: !isComingSoon ? 'rgba(16, 185, 129, 0.18)' : undefined,
+                      color: !isComingSoon ? '#34d399' : undefined,
+                    }}
+                  >
+                    <Check size={16} />
+                    <span>✓ აქტიური (ხელმისაწვდომია)</span>
+                  </button>
+                  <button
+                    type="button"
+                    className={`program-opt-btn ${isComingSoon ? 'active' : ''}`}
+                    onClick={() => setIsComingSoon(true)}
+                    style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      gap: 8,
+                      borderColor: isComingSoon ? '#ffffff' : undefined,
+                      background: isComingSoon ? 'rgba(255, 255, 255, 0.18)' : undefined,
+                      color: isComingSoon ? '#ffffff' : undefined,
+                    }}
+                  >
+                    <Clock size={16} />
+                    <span>⏳ მალე (SOON — ჯერ ვერ შევლენ)</span>
+                  </button>
+                </div>
+                {isComingSoon ? (
+                  <p style={{ margin: '8px 0 0', fontSize: 12.5, color: '#e4e4e7', opacity: 0.9 }}>
+                    ✨ მთავარ გვერდზე ამ ალბომის სურათს თხელი შავი ფერი გადაეფარება და ლამაზად დაეწერება <strong>SOON</strong>. მომხმარებლები ალბომში ჯერ ვერ შევლენ.
+                  </p>
+                ) : (
+                  <p style={{ margin: '8px 0 0', fontSize: 12.5, color: '#a1a1aa', opacity: 0.8 }}>
+                    ალბომი ღიაა და მომხმარებლებს შეუძლიათ შესვლა და სიმღერების მოსმენა.
                   </p>
                 )}
               </div>

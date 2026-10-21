@@ -70,7 +70,8 @@ export default function YtHomePageContent() {
     title: alb.title,
     subtitle: `Album • ${alb.artist || '4ANDONE'}`,
     imageUrl: alb.coverUrl || '/logo-square.jpg',
-    href: `/album/${alb.slug}`,
+    href: alb.isComingSoon ? undefined : `/album/${alb.slug}`,
+    isComingSoon: !!alb.isComingSoon,
   }));
 
   const getStyleCover = (st: any): string => {

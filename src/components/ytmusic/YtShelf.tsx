@@ -14,6 +14,7 @@ export interface YtShelfItem {
   type?: 'album' | 'video' | 'playlist' | 'style';
   onPlay?: () => void;
   isPlaying?: boolean;
+  isComingSoon?: boolean;
 }
 
 interface YtShelfProps {
@@ -69,10 +70,11 @@ export default function YtShelf({
       <div className="yt-shelf-scroll-container" ref={scrollRef}>
         <div className="yt-shelf-row">
           {items.map((item, index) => {
+            const isSoon = !!item.isComingSoon;
             const content = (
               <div
-                className={`yt-shelf-card ${aspectRatio === 'wide' ? 'wide' : 'square'}`}
-                onClick={item.onPlay}
+                className={`yt-shelf-card ${aspectRatio === 'wide' ? 'wide' : 'square'} ${isSoon ? 'is-coming-soon' : ''}`}
+                onClick={isSoon ? undefined : item.onPlay}
               >
                 <div className="yt-shelf-img-box">
                   <img
@@ -82,15 +84,21 @@ export default function YtShelf({
                     loading={index < 3 ? 'eager' : 'lazy'}
                     decoding="async"
                   />
-                  <div className="yt-shelf-play-overlay">
-                    <button type="button" className="yt-shelf-play-btn">
-                      {item.isPlaying ? (
-                        <Pause size={22} fill="#ffffff" color="#ffffff" />
-                      ) : (
-                        <Play size={22} fill="#ffffff" color="#ffffff" />
-                      )}
-                    </button>
-                  </div>
+                  {isSoon ? (
+                    <div className="yt-shelf-soon-overlay">
+                      <span className="yt-shelf-soon-badge">SOON</span>
+                    </div>
+                  ) : (
+                    <div className="yt-shelf-play-overlay">
+                      <button type="button" className="yt-shelf-play-btn" aria-label={`Play ${item.title}`}>
+                        {item.isPlaying ? (
+                          <Pause size={22} fill="#ffffff" color="#ffffff" />
+                        ) : (
+                          <Play size={22} fill="#ffffff" color="#ffffff" />
+                        )}
+                      </button>
+                    </div>
+                  )}
                 </div>
 
                 <div className="yt-shelf-meta">
@@ -100,7 +108,7 @@ export default function YtShelf({
               </div>
             );
 
-            if (item.href) {
+            if (item.href && !isSoon) {
               return (
                 <Link key={item.id} href={item.href} className="yt-shelf-card-link">
                   {content}

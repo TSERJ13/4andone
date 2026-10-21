@@ -275,6 +275,61 @@ export default function DynamicAlbumPage() {
     );
   }
 
+  if (album?.isComingSoon) {
+    return (
+      <div className="page-wrapper goc-page-wrapper">
+        <div className="goc-container not-found-state glass" style={{ maxWidth: 540, textAlign: 'center', padding: '48px 24px', margin: '40px auto' }}>
+          <div style={{
+            position: 'relative',
+            width: 140,
+            height: 140,
+            margin: '0 auto 20px',
+            borderRadius: 16,
+            overflow: 'hidden',
+            boxShadow: '0 12px 30px rgba(0, 0, 0, 0.6)'
+          }}>
+            <img
+              src={album.coverUrl || '/logo-square.jpg'}
+              alt={album.title}
+              style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+            />
+            <div style={{
+              position: 'absolute',
+              inset: 0,
+              background: 'rgba(0, 0, 0, 0.65)',
+              backdropFilter: 'blur(1.5px)',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+            }}>
+              <span style={{
+                padding: '6px 16px',
+                background: 'rgba(255, 255, 255, 0.12)',
+                border: '1px solid rgba(255, 255, 255, 0.4)',
+                borderRadius: 9999,
+                color: '#ffffff',
+                fontSize: 12,
+                fontWeight: 900,
+                letterSpacing: '0.24em',
+                textIndent: '0.24em',
+              }}>
+                SOON
+              </span>
+            </div>
+          </div>
+          <h2 style={{ fontSize: 24, fontWeight: 800, marginBottom: 8, color: '#ffffff' }}>{album.title}</h2>
+          <p style={{ color: '#a1a1aa', fontSize: 14, maxWidth: 380, margin: '0 auto 24px', lineHeight: 1.6 }}>
+            ეს ალბომი მალე დაემატება. სიმღერები ჯერ მზადების პროცესშია.
+          </p>
+          <Link href="/" className="back-home-btn" style={{ margin: '0 auto', display: 'inline-flex' }}>
+            <ChevronLeft size={18} />
+            <span>Return to Homepage</span>
+          </Link>
+        </div>
+      </div>
+    );
+  }
+
   if (!album && !isLoading) {
     return (
       <div className="page-wrapper goc-page-wrapper">

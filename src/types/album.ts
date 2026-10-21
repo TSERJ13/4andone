@@ -19,6 +19,8 @@ export interface Album {
   isPremium?: boolean;
   /** When false, tracks from this album will NOT play in Final Mode sessions. Defaults to true. */
   allowFinalMode?: boolean;
+  /** When true, marked as Coming Soon: displays a thin dark overlay with "SOON" badge and cannot be entered yet. */
+  isComingSoon?: boolean;
   createdAt?: string;
   updatedAt?: string;
 }

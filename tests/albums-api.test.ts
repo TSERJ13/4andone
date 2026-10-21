@@ -163,4 +163,16 @@ describe('albums API saves to the database and reports failures', () => {
     expect(update.json.album.allowFinalMode).toBe(true);
     expect(rows.find(r => r.slug === 'low-quality')?.tags).not.toContain('__no_final__');
   });
+
+  it('POST and PUT persist isComingSoon flag via __coming_soon__ tag and property', async () => {
+    const res = await call('albums', 'POST', { title: 'Upcoming Band', slug: 'upcoming-band', isComingSoon: true });
+    expect(res.status).toBe(200);
+    expect(res.json.album.isComingSoon).toBe(true);
+    expect(rows.find(r => r.slug === 'upcoming-band')?.tags).toContain('__coming_soon__');
+
+    const update = await call('albums', 'PUT', { id: res.json.album.id, slug: 'upcoming-band', isComingSoon: false });
+    expect(update.status).toBe(200);
+    expect(update.json.album.isComingSoon).toBe(false);
+    expect(rows.find(r => r.slug === 'upcoming-band')?.tags).not.toContain('__coming_soon__');
+  });
 });

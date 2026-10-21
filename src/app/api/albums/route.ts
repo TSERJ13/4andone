@@ -62,6 +62,7 @@ export async function POST(req: NextRequest) {
       isPublished: true,
       isPremium: body.isPremium === true,
       allowFinalMode: body.allowFinalMode !== false,
+      isComingSoon: body.isComingSoon === true,
     };
 
     const { data, error } = await db().from('albums').insert(albumToDbRow(album)).select('*').single();
@@ -102,6 +103,7 @@ export async function PUT(req: NextRequest) {
       isPublished: true,
       isPremium: typeof updates.isPremium === 'boolean' ? updates.isPremium : !!existing.isPremium,
       allowFinalMode: typeof updates.allowFinalMode === 'boolean' ? updates.allowFinalMode : existing.allowFinalMode !== false,
+      isComingSoon: typeof updates.isComingSoon === 'boolean' ? updates.isComingSoon : !!existing.isComingSoon,
     };
     const row = { ...albumToDbRow(merged), updated_at: new Date().toISOString() };
 

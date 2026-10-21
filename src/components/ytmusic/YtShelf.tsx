@@ -15,6 +15,7 @@ export interface YtShelfItem {
   onPlay?: () => void;
   isPlaying?: boolean;
   isComingSoon?: boolean;
+  comingSoonText?: string;
 }
 
 interface YtShelfProps {
@@ -86,7 +87,7 @@ export default function YtShelf({
                   />
                   {isSoon ? (
                     <div className="yt-shelf-soon-overlay">
-                      <span className="yt-shelf-soon-badge">SOON</span>
+                      <span className="yt-shelf-soon-badge">{item.comingSoonText?.trim() || 'SOON'}</span>
                     </div>
                   ) : (
                     <div className="yt-shelf-play-overlay">

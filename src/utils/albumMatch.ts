@@ -6,7 +6,9 @@ export function trackInAlbum(t: TrackLike, album: AlbumLike): boolean {
   const albumSlug = album.slug.toLowerCase().trim();
   const albumTitle = album.title.toLowerCase().trim();
   const albumArtist = (album.artist || '').toLowerCase().trim();
-  const albumTags = (album.tags || []).map(x => x.toLowerCase().trim()).filter(x => Boolean(x) && x !== '__premium__' && x !== '__no_final__' && x !== '__coming_soon__');
+  const albumTags = (album.tags || [])
+    .map(x => x.toLowerCase().trim())
+    .filter(x => Boolean(x) && x !== '__premium__' && x !== '__no_final__' && x !== '__coming_soon__' && !x.startsWith('__soon_text:'));
   const tAlbum = (t.album || '').toLowerCase().trim();
   const tArtist = (t.artist || '').toLowerCase().trim();
   // Whole-tag matches only: "title contains the tag" let a generic tag like

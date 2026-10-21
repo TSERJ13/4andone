@@ -303,17 +303,22 @@ export default function DynamicAlbumPage() {
               justifyContent: 'center',
             }}>
               <span style={{
+                maxWidth: '85%',
                 padding: '6px 16px',
-                background: 'rgba(255, 255, 255, 0.12)',
-                border: '1px solid rgba(255, 255, 255, 0.4)',
+                background: 'rgba(255, 255, 255, 0.14)',
+                border: '1px solid rgba(255, 255, 255, 0.45)',
                 borderRadius: 9999,
                 color: '#ffffff',
                 fontSize: 12,
                 fontWeight: 900,
-                letterSpacing: '0.24em',
-                textIndent: '0.24em',
+                letterSpacing: '0.16em',
+                textIndent: '0.16em',
+                whiteSpace: 'nowrap',
+                overflow: 'hidden',
+                textOverflow: 'ellipsis',
+                textAlign: 'center',
               }}>
-                SOON
+                {album.comingSoonText?.trim() || 'SOON'}
               </span>
             </div>
           </div>

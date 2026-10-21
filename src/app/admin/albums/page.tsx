@@ -49,6 +49,7 @@ export default function AdminAlbumsPage() {
   const [allowFinalMode, setAllowFinalMode] = useState(true);
   const [togglingFinalId, setTogglingFinalId] = useState<string | null>(null);
   const [isComingSoon, setIsComingSoon] = useState(false);
+  const [comingSoonText, setComingSoonText] = useState('');
   const [togglingSoonId, setTogglingSoonId] = useState<string | null>(null);
 
   // Save state: errors stay inside the editor, results show as a short notice
@@ -81,6 +82,7 @@ export default function AdminAlbumsPage() {
     setIsPremium(false);
     setAllowFinalMode(true);
     setIsComingSoon(false);
+    setComingSoonText('');
     setEditingAlbum(null);
     setFormError(null);
   };
@@ -106,6 +108,7 @@ export default function AdminAlbumsPage() {
     setIsPremium(!!album.isPremium);
     setAllowFinalMode(album.allowFinalMode !== false);
     setIsComingSoon(!!album.isComingSoon);
+    setComingSoonText(album.comingSoonText || '');
     setIsModalOpen(true);
   };
 
@@ -203,6 +206,7 @@ export default function AdminAlbumsPage() {
       isPremium,
       allowFinalMode,
       isComingSoon,
+      comingSoonText: comingSoonText.trim(),
     };
 
     setIsSaving(true);
@@ -254,8 +258,9 @@ export default function AdminAlbumsPage() {
     const nextVal = !album.isComingSoon;
     setTogglingSoonId(album.id);
     try {
-      await updateAlbum(album.id, { slug: album.slug, isComingSoon: nextVal });
-      showNotice('ok', nextVal ? `"${album.title}" მონიშნულია როგორც SOON (დახურულია)` : `"${album.title}" გაიხსნა ჩვეულებრივად`);
+      await updateAlbum(album.id, { slug: album.slug, isComingSoon: nextVal, comingSoonText: album.comingSoonText });
+      const badgeText = album.comingSoonText?.trim() || 'SOON';
+      showNotice('ok', nextVal ? `"${album.title}" მონიშნულია როგორც ${badgeText} (დახურულია)` : `"${album.title}" გაიხსნა ჩვეულებრივად`);
     } catch (err) {
       showNotice('error', `Could not update "${album.title}": ${(err as Error).message}`);
     } finally {
@@ -428,7 +433,7 @@ export default function AdminAlbumsPage() {
                       }}
                     >
                       <Clock size={10} />
-                      <span>SOON</span>
+                      <span>{album.comingSoonText?.trim() || 'SOON'}</span>
                     </span>
                   )}
                 </div>
@@ -550,7 +555,7 @@ export default function AdminAlbumsPage() {
                   }}
                 >
                   <Clock size={14} />
-                  <span>{album.isComingSoon ? 'SOON: On' : 'SOON: Off'}</span>
+                  <span>{album.isComingSoon ? `${album.comingSoonText?.trim() || 'SOON'}: On` : 'SOON: Off'}</span>
                 </button>
                 <Link
                   href={`/admin/upload?album=${album.slug}`}
@@ -834,9 +839,55 @@ export default function AdminAlbumsPage() {
                   </button>
                 </div>
                 {isComingSoon ? (
-                  <p style={{ margin: '8px 0 0', fontSize: 12.5, color: '#e4e4e7', opacity: 0.9 }}>
-                    ✨ მთავარ გვერდზე ამ ალბომის სურათს თხელი შავი ფერი გადაეფარება და ლამაზად დაეწერება <strong>SOON</strong>. მომხმარებლები ალბომში ჯერ ვერ შევლენ.
-                  </p>
+                  <div style={{ marginTop: 14 }}>
+                    <label style={{ display: 'block', fontSize: 12.5, fontWeight: 700, color: '#f4f4f5', marginBottom: 6 }}>
+                      ალბომზე გადასაფარებელი წარწერა (მაგ. SOON, COMING SOON, მალე...)
+                    </label>
+                    <input
+                      type="text"
+                      className="form-input"
+                      placeholder="SOON (ცარიელი = SOON)"
+                      value={comingSoonText}
+                      onChange={(e) => setComingSoonText(e.target.value)}
+                      maxLength={32}
+                      style={{
+                        width: '100%',
+                        padding: '10px 14px',
+                        borderRadius: 10,
+                        border: '1px solid rgba(255, 255, 255, 0.18)',
+                        background: 'rgba(255, 255, 255, 0.06)',
+                        color: '#ffffff',
+                        fontSize: 13,
+                        fontWeight: 600,
+                        letterSpacing: '0.04em',
+                      }}
+                    />
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginTop: 8, flexWrap: 'wrap' }}>
+                      <span style={{ fontSize: 11.5, color: '#a1a1aa' }}>სწრაფი არჩევანი:</span>
+                      {['SOON', 'COMING SOON', 'მალე', 'მალე დაემატება'].map((opt) => (
+                        <button
+                          key={opt}
+                          type="button"
+                          onClick={() => setComingSoonText(opt)}
+                          style={{
+                            padding: '3px 9px',
+                            borderRadius: 6,
+                            fontSize: 11,
+                            fontWeight: 700,
+                            background: comingSoonText === opt ? 'rgba(255, 255, 255, 0.25)' : 'rgba(255, 255, 255, 0.08)',
+                            border: comingSoonText === opt ? '1px solid #ffffff' : '1px solid rgba(255, 255, 255, 0.15)',
+                            color: '#ffffff',
+                            cursor: 'pointer',
+                          }}
+                        >
+                          {opt}
+                        </button>
+                      ))}
+                    </div>
+                    <p style={{ margin: '10px 0 0', fontSize: 12.5, color: '#e4e4e7', opacity: 0.9 }}>
+                      ✨ მთავარ გვერდზე ამ ალბომის სურათს თხელი შავი ფერი გადაეფარება და ლამაზად დაეწერება <strong>{comingSoonText.trim() || 'SOON'}</strong>. მომხმარებლები ალბომში ჯერ ვერ შევლენ.
+                    </p>
+                  </div>
                 ) : (
                   <p style={{ margin: '8px 0 0', fontSize: 12.5, color: '#a1a1aa', opacity: 0.8 }}>
                     ალბომი ღიაა და მომხმარებლებს შეუძლიათ შესვლა და სიმღერების მოსმენა.

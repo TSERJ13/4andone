@@ -175,4 +175,36 @@ describe('albums API saves to the database and reports failures', () => {
     expect(update.json.album.isComingSoon).toBe(false);
     expect(rows.find(r => r.slug === 'upcoming-band')?.tags).not.toContain('__coming_soon__');
   });
+
+  it('POST and PUT persist custom comingSoonText via __soon_text: tag', async () => {
+    const res = await call('albums', 'POST', {
+      title: 'Custom Soon Album',
+      slug: 'custom-soon',
+      isComingSoon: true,
+      comingSoonText: 'მალე',
+    });
+    expect(res.status).toBe(200);
+    expect(res.json.album.isComingSoon).toBe(true);
+    expect(res.json.album.comingSoonText).toBe('მალე');
+    expect(rows.find(r => r.slug === 'custom-soon')?.tags).toContain('__coming_soon__');
+    expect(rows.find(r => r.slug === 'custom-soon')?.tags?.some(t => t.startsWith('__soon_text:'))).toBe(true);
+
+    const update = await call('albums', 'PUT', {
+      id: res.json.album.id,
+      slug: 'custom-soon',
+      isComingSoon: true,
+      comingSoonText: 'COMING SOON',
+    });
+    expect(update.status).toBe(200);
+    expect(update.json.album.comingSoonText).toBe('COMING SOON');
+
+    // Turning off coming soon cleans up the tag
+    const turnOff = await call('albums', 'PUT', {
+      id: res.json.album.id,
+      slug: 'custom-soon',
+      isComingSoon: false,
+    });
+    expect(turnOff.status).toBe(200);
+    expect(rows.find(r => r.slug === 'custom-soon')?.tags?.some(t => t.startsWith('__soon_text:'))).toBe(false);
+  });
 });

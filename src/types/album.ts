@@ -21,6 +21,8 @@ export interface Album {
   allowFinalMode?: boolean;
   /** When true, marked as Coming Soon: displays a thin dark overlay with "SOON" badge and cannot be entered yet. */
   isComingSoon?: boolean;
+  /** Custom overlay text (defaults to 'SOON' if empty). */
+  comingSoonText?: string;
   createdAt?: string;
   updatedAt?: string;
 }

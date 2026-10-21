@@ -72,6 +72,7 @@ export default function YtHomePageContent() {
     imageUrl: alb.coverUrl || '/logo-square.jpg',
     href: alb.isComingSoon ? undefined : `/album/${alb.slug}`,
     isComingSoon: !!alb.isComingSoon,
+    comingSoonText: alb.comingSoonText,
   }));
 
   const getStyleCover = (st: any): string => {

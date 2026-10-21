@@ -29,6 +29,7 @@ import { useDownloadedTracks } from '@/hooks/useDownloadedTracks';
 import ConfirmModal from '@/components/admin/ConfirmModal';
 import { TrackRow } from '@/components/tracks/TrackRow';
 import { isFourAndOneMix } from '@/utils/playQueue';
+import { isTrackAllowedInFinals } from '@/utils/albumMatch';
 
 // Clock formatting helper
 const formatClock = (seconds: number) => {
@@ -237,6 +238,7 @@ const FinalsPage = () => {
   const {
     tracks,
     styles,
+    albums,
     finalTracks,
     toggleFavorite
   } = useStudio();
@@ -471,6 +473,7 @@ const FinalsPage = () => {
     const availableTracks = tracks.filter(t =>
       !t.tags?.some(tag => tag.toLowerCase() === 'closed' || tag === 'დახურული') &&
       !isFourAndOneMix(t) &&
+      isTrackAllowedInFinals(t, albums) &&
       filterFn(t)
     );
 
@@ -550,7 +553,7 @@ const FinalsPage = () => {
       return;
     }
     updateLastPlayed('LikedSongs');
-    const liked = tracks.filter(t => t.isFavorite && !isFourAndOneMix(t));
+    const liked = tracks.filter(t => t.isFavorite && !isFourAndOneMix(t) && isTrackAllowedInFinals(t, albums));
     if (liked.length === 0) {
       setInfoModal({
         isOpen: true,
@@ -590,7 +593,7 @@ const FinalsPage = () => {
       return;
     }
     updateLastPlayed('Fitness');
-    const fitnessPool = tracks.filter(t => t.style?.toLowerCase() === 'fitness');
+    const fitnessPool = tracks.filter(t => t.style?.toLowerCase() === 'fitness' && isTrackAllowedInFinals(t, albums));
     setIsFitness(true);
 
     if (fitnessPool.length === 0) {

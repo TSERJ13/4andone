@@ -13,11 +13,13 @@ import { normalizeMediaUrl } from '@/lib/media-key';
 const BUILT_IN_FILE = path.join(process.cwd(), 'src', 'data', 'albums.json');
 
 export const PREMIUM_ALBUM_TAG = '__premium__';
+export const NO_FINAL_MODE_ALBUM_TAG = '__no_final__';
 
 export function mapDbToAlbum(row: any): Album {
   const rawTags: string[] = Array.isArray(row.tags) ? row.tags : [];
   const isPremium = row.is_premium === true || rawTags.includes(PREMIUM_ALBUM_TAG);
-  const cleanTags = rawTags.filter((t) => t !== PREMIUM_ALBUM_TAG);
+  const allowFinalMode = row.allow_final_mode !== false && !rawTags.includes(NO_FINAL_MODE_ALBUM_TAG);
+  const cleanTags = rawTags.filter((t) => t !== PREMIUM_ALBUM_TAG && t !== NO_FINAL_MODE_ALBUM_TAG);
   return {
     id: row.id,
     slug: row.slug,
@@ -36,14 +38,18 @@ export function mapDbToAlbum(row: any): Album {
     orderIndex: typeof row.order_index === 'number' ? row.order_index : 0,
     isPublished: row.is_published !== false,
     isPremium,
+    allowFinalMode,
     createdAt: row.created_at,
     updatedAt: row.updated_at,
   };
 }
 
 export function albumToDbRow(a: Album): Record<string, unknown> {
-  const baseTags = (a.tags || []).filter((t) => t !== PREMIUM_ALBUM_TAG);
-  const tags = a.isPremium ? [...baseTags, PREMIUM_ALBUM_TAG] : baseTags;
+  const baseTags = (a.tags || []).filter((t) => t !== PREMIUM_ALBUM_TAG && t !== NO_FINAL_MODE_ALBUM_TAG);
+  let tags = a.isPremium ? [...baseTags, PREMIUM_ALBUM_TAG] : baseTags;
+  if (a.allowFinalMode === false) {
+    tags = [...tags, NO_FINAL_MODE_ALBUM_TAG];
+  }
   return {
     slug: a.slug,
     title: a.title,

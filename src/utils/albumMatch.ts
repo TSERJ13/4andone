@@ -6,7 +6,7 @@ export function trackInAlbum(t: TrackLike, album: AlbumLike): boolean {
   const albumSlug = album.slug.toLowerCase().trim();
   const albumTitle = album.title.toLowerCase().trim();
   const albumArtist = (album.artist || '').toLowerCase().trim();
-  const albumTags = (album.tags || []).map(x => x.toLowerCase().trim()).filter(x => Boolean(x) && x !== '__premium__');
+  const albumTags = (album.tags || []).map(x => x.toLowerCase().trim()).filter(x => Boolean(x) && x !== '__premium__' && x !== '__no_final__');
   const tAlbum = (t.album || '').toLowerCase().trim();
   const tArtist = (t.artist || '').toLowerCase().trim();
   // Whole-tag matches only: "title contains the tag" let a generic tag like
@@ -47,3 +47,15 @@ export function albumOfTrack<A extends AlbumLike>(t: TrackLike | null | undefine
   const sorted = [...albums].filter(a => a.isPublished !== false).sort((a, b) => (a.orderIndex ?? 0) - (b.orderIndex ?? 0));
   return sorted.find(a => trackInAlbum(t, a)) ?? null;
 }
+
+/** Check if a track is permitted to play in Final Mode based on its album settings. */
+export function isTrackAllowedInFinals<A extends AlbumLike & { allowFinalMode?: boolean }>(
+  t: TrackLike | null | undefined,
+  albums: A[]
+): boolean {
+  if (!t) return false;
+  const album = albumOfTrack(t, albums);
+  if (album && album.allowFinalMode === false) return false;
+  return true;
+}
+

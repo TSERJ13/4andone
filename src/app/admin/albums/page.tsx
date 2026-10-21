@@ -10,7 +10,7 @@ import { normalizeMediaUrl } from '@/lib/media-key';
 import { trackInAlbum } from '@/utils/albumMatch';
 import { 
   Disc, Plus, Edit3, Trash2, ArrowUp, ArrowDown, ExternalLink, 
-  Upload, Check, X, Sparkles, Music2, Eye, Flame, Layers, Lock, Unlock
+  Upload, Check, X, Sparkles, Music2, Eye, Flame, Layers, Lock, Unlock, Trophy
 } from 'lucide-react';
 import ConfirmModal from '@/components/admin/ConfirmModal';
 
@@ -46,6 +46,8 @@ export default function AdminAlbumsPage() {
   const [tagsInput, setTagsInput] = useState('');
   const [isPremium, setIsPremium] = useState(false);
   const [togglingId, setTogglingId] = useState<string | null>(null);
+  const [allowFinalMode, setAllowFinalMode] = useState(true);
+  const [togglingFinalId, setTogglingFinalId] = useState<string | null>(null);
 
   // Save state: errors stay inside the editor, results show as a short notice
   const [formError, setFormError] = useState<string | null>(null);
@@ -75,6 +77,7 @@ export default function AdminAlbumsPage() {
     setAllowedStyles(ALL_LATIN_STYLES);
     setTagsInput('');
     setIsPremium(false);
+    setAllowFinalMode(true);
     setEditingAlbum(null);
     setFormError(null);
   };
@@ -98,6 +101,7 @@ export default function AdminAlbumsPage() {
     setAllowedStyles(album.allowedStyles || (album.program === 'Latin' ? ALL_LATIN_STYLES : ALL_STANDARD_STYLES));
     setTagsInput((album.tags || []).join(', '));
     setIsPremium(!!album.isPremium);
+    setAllowFinalMode(album.allowFinalMode !== false);
     setIsModalOpen(true);
   };
 
@@ -193,6 +197,7 @@ export default function AdminAlbumsPage() {
       allowedStyles,
       tags: parsedTags,
       isPremium,
+      allowFinalMode,
     };
 
     setIsSaving(true);
@@ -224,6 +229,19 @@ export default function AdminAlbumsPage() {
       showNotice('error', `Could not update "${album.title}": ${(err as Error).message}`);
     } finally {
       setTogglingId(null);
+    }
+  };
+
+  const handleToggleFinalMode = async (album: Album) => {
+    const nextVal = album.allowFinalMode === false ? true : false;
+    setTogglingFinalId(album.id);
+    try {
+      await updateAlbum(album.id, { slug: album.slug, allowFinalMode: nextVal });
+      showNotice('ok', nextVal ? `"${album.title}" ჩაირთო Final Mode-ში` : `"${album.title}" გამოირთო Final Mode-დან`);
+    } catch (err) {
+      showNotice('error', `Could not update "${album.title}": ${(err as Error).message}`);
+    } finally {
+      setTogglingFinalId(null);
     }
   };
 
@@ -361,6 +379,22 @@ export default function AdminAlbumsPage() {
                       <span>PREMIUM ONLY</span>
                     </span>
                   )}
+                  {album.allowFinalMode === false && (
+                    <span
+                      className="program-badge"
+                      style={{
+                        background: 'rgba(239, 68, 68, 0.2)',
+                        color: '#f87171',
+                        border: '1px solid rgba(239, 68, 68, 0.45)',
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        gap: 4,
+                      }}
+                    >
+                      <X size={10} />
+                      <span>NO FINALS</span>
+                    </span>
+                  )}
                 </div>
                 <h3 className="album-title">{album.title}</h3>
                 <p className="album-subtitle">{album.subtitle || album.description}</p>
@@ -419,6 +453,37 @@ export default function AdminAlbumsPage() {
                 >
                   {album.isPremium ? <Lock size={14} /> : <Unlock size={14} />}
                   <span>{album.isPremium ? 'Premium Only' : 'Free & Pro'}</span>
+                </button>
+                <button
+                  type="button"
+                  disabled={togglingFinalId === album.id}
+                  onClick={() => handleToggleFinalMode(album)}
+                  title={
+                    album.allowFinalMode === false
+                      ? 'Final Mode გამორთულია — დააჭირე რომ ჩაირთოს Final Mode-ში'
+                      : 'Final Mode ჩართულია — დააჭირე რომ გამოირთოს Final Mode-დან (ხარისხის გამო)'
+                  }
+                  style={{
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: 6,
+                    padding: '8px 12px',
+                    borderRadius: 10,
+                    fontSize: 12,
+                    fontWeight: 800,
+                    cursor: togglingFinalId === album.id ? 'wait' : 'pointer',
+                    border: album.allowFinalMode === false
+                      ? '1px solid rgba(239, 68, 68, 0.5)'
+                      : '1px solid rgba(16, 185, 129, 0.4)',
+                    background: album.allowFinalMode === false
+                      ? 'linear-gradient(135deg, rgba(239, 68, 68, 0.25), rgba(185, 28, 28, 0.18))'
+                      : 'rgba(16, 185, 129, 0.12)',
+                    color: album.allowFinalMode === false ? '#f87171' : '#34d399',
+                    transition: 'all 0.2s ease',
+                  }}
+                >
+                  <Trophy size={14} />
+                  <span>{album.allowFinalMode === false ? 'Finals: Off' : 'Finals: On'}</span>
                 </button>
                 <Link
                   href={`/admin/upload?album=${album.slug}`}
@@ -608,6 +673,56 @@ export default function AdminAlbumsPage() {
                 {isPremium && (
                   <p style={{ margin: '8px 0 0', fontSize: 12.5, color: '#fbbf24', opacity: 0.9 }}>
                     🔒 ეს ალბომი და მასში შემავალი ყველა მუსიკა დაემალება უფასო მომხმარებლებს და ხელმისაწვდომი იქნება მხოლოდ Premium გამომწერებისთვის.
+                  </p>
+                )}
+              </div>
+
+              {/* Final Mode Playback Selector */}
+              <div className="field-group full-width">
+                <label className="field-label">Final Mode მხარდაჭერა / Finals Session</label>
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 10 }}>
+                  <button
+                    type="button"
+                    className={`program-opt-btn ${allowFinalMode ? 'active' : ''}`}
+                    onClick={() => setAllowFinalMode(true)}
+                    style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      gap: 8,
+                      borderColor: allowFinalMode ? '#10b981' : undefined,
+                      background: allowFinalMode ? 'rgba(16, 185, 129, 0.18)' : undefined,
+                      color: allowFinalMode ? '#34d399' : undefined,
+                    }}
+                  >
+                    <Trophy size={16} />
+                    <span>🏆 დაუკრას Final Mode-ში (ჩართულია)</span>
+                  </button>
+                  <button
+                    type="button"
+                    className={`program-opt-btn ${!allowFinalMode ? 'active' : ''}`}
+                    onClick={() => setAllowFinalMode(false)}
+                    style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      gap: 8,
+                      borderColor: !allowFinalMode ? '#ef4444' : undefined,
+                      background: !allowFinalMode ? 'rgba(239, 68, 68, 0.18)' : undefined,
+                      color: !allowFinalMode ? '#f87171' : undefined,
+                    }}
+                  >
+                    <X size={16} />
+                    <span>⛔ არ დაუკრას Final Mode-ში (გამორთულია)</span>
+                  </button>
+                </div>
+                {!allowFinalMode ? (
+                  <p style={{ margin: '8px 0 0', fontSize: 12.5, color: '#f87171', opacity: 0.9 }}>
+                    🚫 ამ ალბომის სიმღერები არ ჩაჯდება Final Mode-ის სესიებში (გამოიყენეთ თუ სიმღერების ხარისხი არ არის სატურნირო/Finals-ისთვის შესაფერისი).
+                  </p>
+                ) : (
+                  <p style={{ margin: '8px 0 0', fontSize: 12.5, color: '#a1a1aa', opacity: 0.8 }}>
+                    ✓ ამ ალბომის სიმღერები ჩვეულებრივ დაუკრავს Final Mode-ის საერთო სესიებში.
                   </p>
                 )}
               </div>

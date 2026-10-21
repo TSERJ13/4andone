@@ -61,6 +61,7 @@ export async function POST(req: NextRequest) {
       orderIndex: typeof body.orderIndex === 'number' && body.orderIndex !== 0 ? body.orderIndex : first - 1,
       isPublished: true,
       isPremium: body.isPremium === true,
+      allowFinalMode: body.allowFinalMode !== false,
     };
 
     const { data, error } = await db().from('albums').insert(albumToDbRow(album)).select('*').single();
@@ -100,6 +101,7 @@ export async function PUT(req: NextRequest) {
       gradient: updates.gradient || `linear-gradient(90deg, ${themeColor}, ${secondaryColor})`,
       isPublished: true,
       isPremium: typeof updates.isPremium === 'boolean' ? updates.isPremium : !!existing.isPremium,
+      allowFinalMode: typeof updates.allowFinalMode === 'boolean' ? updates.allowFinalMode : existing.allowFinalMode !== false,
     };
     const row = { ...albumToDbRow(merged), updated_at: new Date().toISOString() };
 

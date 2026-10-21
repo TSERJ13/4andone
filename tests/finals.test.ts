@@ -29,3 +29,28 @@ describe('Finals timing and pitch', () => {
     expect(finalSessionDuration(10)).toBe(1185);
   });
 });
+
+import { isTrackAllowedInFinals } from '../src/utils/albumMatch';
+
+describe('Finals track filtering by album quality/settings', () => {
+  const albums = [
+    { slug: 'roses-band', title: "Rose's Band", allowFinalMode: true, isPublished: true, orderIndex: 0 },
+    { slug: 'poor-quality-band', title: 'Low Quality Band', allowFinalMode: false, isPublished: true, orderIndex: 1 },
+  ];
+
+  it('allows tracks from albums with allowFinalMode true or default', () => {
+    const track = { title: 'Nice Song', album: "Rose's Band", artist: "Rose's Band" };
+    expect(isTrackAllowedInFinals(track, albums)).toBe(true);
+  });
+
+  it('rejects tracks from albums where allowFinalMode is false', () => {
+    const track = { title: 'Bad Quality Song', album: 'Low Quality Band', artist: 'Low Quality Band' };
+    expect(isTrackAllowedInFinals(track, albums)).toBe(false);
+  });
+
+  it('allows standalone tracks without album', () => {
+    const track = { title: 'Unknown Song', album: '', artist: 'Unknown Artist' };
+    expect(isTrackAllowedInFinals(track, albums)).toBe(true);
+  });
+});
+

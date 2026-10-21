@@ -17,6 +17,8 @@ export interface Album {
   isPublished?: boolean;
   /** When true, this album and all its tracks are restricted to Premium users (hidden from free users). */
   isPremium?: boolean;
+  /** When false, tracks from this album will NOT play in Final Mode sessions. Defaults to true. */
+  allowFinalMode?: boolean;
   createdAt?: string;
   updatedAt?: string;
 }

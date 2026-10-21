@@ -151,4 +151,16 @@ describe('albums API saves to the database and reports failures', () => {
     expect(failed.json.error).toMatch(/not saved.*disk full/);
     expect(own.status).toBe(200);
   });
+
+  it('POST and PUT persist allowFinalMode flag via __no_final__ tag and property', async () => {
+    const res = await call('albums', 'POST', { title: 'Low Quality Band', slug: 'low-quality', allowFinalMode: false });
+    expect(res.status).toBe(200);
+    expect(res.json.album.allowFinalMode).toBe(false);
+    expect(rows.find(r => r.slug === 'low-quality')?.tags).toContain('__no_final__');
+
+    const update = await call('albums', 'PUT', { id: res.json.album.id, slug: 'low-quality', allowFinalMode: true });
+    expect(update.status).toBe(200);
+    expect(update.json.album.allowFinalMode).toBe(true);
+    expect(rows.find(r => r.slug === 'low-quality')?.tags).not.toContain('__no_final__');
+  });
 });

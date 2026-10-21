@@ -129,6 +129,18 @@ export default function DynamicAlbumPage() {
   };
 
   const startFinalMode = (discipline: 'Latin' | 'Standard' = 'Latin') => {
+    if (album?.allowFinalMode === false) {
+      setInfoModal({
+        isOpen: true,
+        title: 'Final Mode Not Available',
+        message: 'Final Mode is disabled for this album.',
+        confirmText: 'OK',
+        variant: 'primary',
+        showCancel: false,
+        onConfirm: () => setInfoModal(prev => ({ ...prev, isOpen: false }))
+      });
+      return;
+    }
     const targetStyles = discipline === 'Latin' ? LATIN_STYLES : STANDARD_STYLES;
     const pool = discipline === 'Latin' ? latinTracks : standardTracks;
 
@@ -378,33 +390,35 @@ export default function DynamicAlbumPage() {
             </div>
           </div>
           
-          <div className="banner-actions-group">
-            <button 
-              className="start-final-btn"
-              style={{
-                background: themeGradient,
-                boxShadow: `0 4px 20px ${themePrimary}50`
-              }}
-              onClick={() => startFinalMode(isBoth ? activeTab : (isLatinOnly ? 'Latin' : 'Standard'))}
-            >
-              <Play size={20} fill="currentColor" />
-              <span>Start Final</span>
-            </button>
-
-            {(!isStandardOnly || activeTab === 'Latin') && (
-              <button
-                className="goc-settings-btn glass"
-                style={{ borderColor: `${themePrimary}40` }}
-                onClick={() => setShowPasoSettingsModal(true)}
-                title="Paso Doble Settings"
+          {album?.allowFinalMode !== false && (
+            <div className="banner-actions-group">
+              <button 
+                className="start-final-btn"
+                style={{
+                  background: themeGradient,
+                  boxShadow: `0 4px 20px ${themePrimary}50`
+                }}
+                onClick={() => startFinalMode(isBoth ? activeTab : (isLatinOnly ? 'Latin' : 'Standard'))}
               >
-                <Settings size={20} />
-                <span className="paso-theme-label" style={{ color: themePrimary }}>
-                  {pasoTheme === '3-theme' ? '3 Themes' : '2 Themes'}
-                </span>
+                <Play size={20} fill="currentColor" />
+                <span>Start Final</span>
               </button>
-            )}
-          </div>
+
+              {(!isStandardOnly || activeTab === 'Latin') && (
+                <button
+                  className="goc-settings-btn glass"
+                  style={{ borderColor: `${themePrimary}40` }}
+                  onClick={() => setShowPasoSettingsModal(true)}
+                  title="Paso Doble Settings"
+                >
+                  <Settings size={20} />
+                  <span className="paso-theme-label" style={{ color: themePrimary }}>
+                    {pasoTheme === '3-theme' ? '3 Themes' : '2 Themes'}
+                  </span>
+                </button>
+              )}
+            </div>
+          )}
         </div>
 
         {/* Tracks by Dance Style */}

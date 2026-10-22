@@ -13,21 +13,22 @@ interface SpeedSelectorProps {
 
 const SpeedSelector: React.FC<SpeedSelectorProps> = React.memo(({ currentBpm, onSelect, onClose, onDragStateChange, isFinalMode }) => {
   // OPTIMIZATION: Use local state for immediate slider feedback to avoid iPad lag
-  const [localBpm, setLocalBpm] = React.useState(currentBpm);
+  const [localBpm, setLocalBpm] = React.useState(Math.round(currentBpm));
   const displayRef = React.useRef<HTMLSpanElement>(null);
   const lastUpdateRef = React.useRef(0);
 
   // Sync internal state when external prop changes (e.g. on Reset)
   React.useEffect(() => {
-    setLocalBpm(currentBpm);
+    const rounded = Math.round(currentBpm);
+    setLocalBpm(rounded);
     if (displayRef.current) {
-      const displayValue = currentBpm - 100;
+      const displayValue = rounded - 100;
       displayRef.current.textContent = `${displayValue > 0 ? `+${displayValue}` : displayValue}%`;
     }
   }, [currentBpm]);
 
   const handleAdjust = (delta: number) => {
-    const newVal = Math.max(50, Math.min(150, localBpm + delta));
+    const newVal = Math.round(Math.max(50, Math.min(150, localBpm + delta)));
     setLocalBpm(newVal);
     onSelect(newVal);
   };
@@ -37,7 +38,7 @@ const SpeedSelector: React.FC<SpeedSelectorProps> = React.memo(({ currentBpm, on
   };
 
   const handleSliderChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const newVal = parseInt(e.target.value);
+    const newVal = Math.round(parseInt(e.target.value, 10));
     
     // ZERO-BLOCK: Update the DOM directly to bypass React re-render cycle
     // This keeps the UI thread free for perfectly smooth movement.
@@ -59,17 +60,19 @@ const SpeedSelector: React.FC<SpeedSelectorProps> = React.memo(({ currentBpm, on
 
   // Ensure the final value is synced when the user stops dragging
   const handleSliderEnd = (e: React.ChangeEvent<HTMLInputElement> | any) => {
-    const finalVal = parseInt(e.target.value || localBpm);
+    const finalVal = Math.round(parseInt(e.target.value || String(localBpm), 10));
     setLocalBpm(finalVal);
     onSelect(finalVal);
     onDragStateChange?.(false);
   };
 
+  const currentDisplayDelta = Math.round(localBpm - 100);
+
   return (
     <div className="speed-container animate-in" onDoubleClick={(e) => e.stopPropagation()}>
       <div className="speed-header">
         <span ref={displayRef} className="current-display">
-           {localBpm - 100 > 0 ? `+${localBpm - 100}` : localBpm - 100}%
+           {currentDisplayDelta > 0 ? `+${currentDisplayDelta}` : currentDisplayDelta}%
         </span>
         <button className="reset-btn glass" onClick={() => { setLocalBpm(100); onSelect(100); }}>Reset</button>
       </div>

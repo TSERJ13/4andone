@@ -255,8 +255,11 @@ const PlayerBar = ({ onExpand }: { onExpand?: () => void }) => {
   const [isDraggingSpeed, setIsDraggingSpeed] = useState(false);
   const handleCloseSpeed = React.useCallback(() => setShowSpeedSelector(false), []);
   const onSelectSpeed = React.useCallback((val: number, persistent?: boolean) => {
-    setBpm(val, persistent);
+    setBpm(Math.round(val), persistent);
   }, [setBpm]);
+
+  const roundedBpm = Math.round(bpm || 100);
+  const isBpmChanged = Math.abs(roundedBpm - 100) >= 1;
 
   if (isAdmin) return null;
 
@@ -460,8 +463,8 @@ const PlayerBar = ({ onExpand }: { onExpand?: () => void }) => {
 
             <div className="speed-control-wrapper">
               <button
-                className={`action-btn-speed icon-only ${bpm !== 100 ? 'active' : ''} ${isFinalMode ? 'final-speed' : ''}`}
-                aria-label={`Control music tempo speed. Current tempo ${bpm}%`}
+                className={`action-btn-speed icon-only ${isBpmChanged ? 'active' : ''} ${isFinalMode ? 'final-speed' : ''}`}
+                aria-label={`Control music tempo speed. Current tempo ${roundedBpm}%`}
                 disabled={speedLocked}
                 style={speedLocked ? { opacity: 0.35 } : undefined}
                 onClick={(e) => {
@@ -469,19 +472,19 @@ const PlayerBar = ({ onExpand }: { onExpand?: () => void }) => {
                   setShowSpeedSelector(!showSpeedSelector);
                 }}
                 onDoubleClick={(e) => e.stopPropagation()}
-                title={`Playback Speed: ${bpm}%`}
+                title={`Playback Speed: ${roundedBpm}%`}
               >
                 <div className="flex flex-col items-center">
                   <Gauge size={28} strokeWidth={2.5} />
                   <span style={{ fontSize: '9px', marginTop: '-15px', lineHeight: 1, color: 'white' }} className="font-bold opacity-90 tracking-wide uppercase">SPEED</span>
                 </div>
-                {bpm !== 100 && <span className="speed-badge">{bpm}%</span>}
+                {isBpmChanged && <span className="speed-badge">{roundedBpm}%</span>}
               </button>
 
               {showSpeedSelector && (
                 <div ref={speedSelectorRef} onDoubleClick={(e) => e.stopPropagation()}>
                   <SpeedSelector
-                    currentBpm={bpm}
+                    currentBpm={roundedBpm}
                     onSelect={onSelectSpeed}
                     onClose={handleCloseSpeed}
                     onDragStateChange={setIsDraggingSpeed}

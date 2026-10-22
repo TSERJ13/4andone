@@ -2806,7 +2806,8 @@ export const AudioProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   };
 
   const setBpm = React.useCallback((newBpm: number, persistent = true) => {
-    const rate = playbackRateFor(newBpm);
+    const roundedBpm = Math.round(Number.isFinite(newBpm) ? Math.min(150, Math.max(50, newBpm)) : 100);
+    const rate = playbackRateFor(roundedBpm);
     const audio = nativePlayerRef.current;
     const renderedMode = isFinalModeRef.current && !isFitnessRef.current
       && (!renderDisabledRef.current && isRenderedFinalEnabled() || !!renderedFinalRef.current || !!renderPlanRef.current);
@@ -2815,9 +2816,9 @@ export const AudioProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       if (!isLiveFinalEnabled()) return;
       // While dragging, update only the selector. Preparing intermediate speeds
       // wastes memory and repeatedly interrupts the music. Commit on release.
-      if (!persistent || Math.abs(bpmRef.current - rate * 100) < 0.001) return;
-      bpmRef.current = rate * 100;
-      setBpmState(rate * 100);
+      if (!persistent || Math.abs(bpmRef.current - roundedBpm) < 0.001) return;
+      bpmRef.current = roundedBpm;
+      setBpmState(roundedBpm);
       if (isPauseCountdownRef.current) { // Rest is never time-stretched; prepare the next dance at the new tempo.
         const list = sessionTracksRef.current;
         const at = list.findIndex(t => t.id === trackIdRef.current);
@@ -2833,16 +2834,16 @@ export const AudioProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       if (shipped && !isFinalModeRef.current) {
         // A prepared (clean) file is playing: change speed at once with the phone's own rate, until the new one is ready.
         requestPitchPreservation(audio);
-        audio.playbackRate = Math.min(2, Math.max(0.5, rate * 100 / shipped.percent));
+        audio.playbackRate = Math.min(2, Math.max(0.5, roundedBpm / shipped.percent));
       } else {
         finalsClockRef.current.changeRate(audio.currentTime, audio.duration, rate);
-        setMusicTempo(audio, rate * 100);
+        setMusicTempo(audio, roundedBpm);
       }
-      if (liveActiveRef.current && liveNormalRef.current) void liveEngineRef.current?.setRate(rate * 100);
+      if (liveActiveRef.current && liveNormalRef.current) void liveEngineRef.current?.setRate(roundedBpm);
     }
-    bpmRef.current = rate * 100;
+    bpmRef.current = roundedBpm;
     if (persistent) {
-      setBpmState(rate * 100);
+      setBpmState(roundedBpm);
       if (audio && !renderPlanRef.current && !isFitnessRef.current && !isPauseCountdownRef.current) {
         if (slowRetempoTimerRef.current) clearTimeout(slowRetempoTimerRef.current);
         const curTrack = playingTrackRef.current;

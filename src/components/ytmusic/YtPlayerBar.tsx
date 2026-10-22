@@ -113,8 +113,8 @@ export default function YtPlayerBar({ onExpandPlayer }: YtPlayerBarProps) {
   const totalDur = isFinalMode && sessionDuration > 0 ? sessionDuration : duration;
 
   const handleBpmChange = (delta: number) => {
-    const currentVal = bpm || 100;
-    const newBpm = Math.min(150, Math.max(50, currentVal + delta));
+    const currentVal = Math.round(bpm || 100);
+    const newBpm = Math.round(Math.min(150, Math.max(50, currentVal + delta)));
     setBpm(newBpm, true);
   };
 
@@ -141,13 +141,13 @@ export default function YtPlayerBar({ onExpandPlayer }: YtPlayerBarProps) {
 
   const handleDownload = () => saveTrackOffline(currentTrack);
 
-  const currentBpm = bpm || 100;
-  const shownBpm = draftBpm ?? currentBpm;
-  const bpmDelta = shownBpm - 100;
-  const isBpmChanged = currentBpm !== 100;
+  const currentBpm = Math.round(bpm || 100);
+  const shownBpm = draftBpm !== null && draftBpm !== undefined ? Math.round(draftBpm) : currentBpm;
+  const bpmDelta = Math.round(shownBpm - 100);
+  const isBpmChanged = Math.abs(currentBpm - 100) >= 1;
   const commitDraftBpm = () => {
     if (draftBpm === null) return;
-    setBpm(draftBpm, true);
+    setBpm(Math.round(draftBpm), true);
     setDraftBpm(null);
   };
   const bpmDisplay = bpmDelta === 0 ? '0%' : (bpmDelta > 0 ? `+${bpmDelta}%` : `${bpmDelta}%`);
@@ -378,7 +378,7 @@ export default function YtPlayerBar({ onExpandPlayer }: YtPlayerBarProps) {
                   max={150}
                   step={1}
                   value={shownBpm}
-                  onChange={(e) => setDraftBpm(parseInt(e.target.value, 10))}
+                  onChange={(e) => setDraftBpm(Math.round(parseInt(e.target.value, 10)))}
                   onPointerUp={commitDraftBpm}
                   onTouchEnd={commitDraftBpm}
                   onMouseUp={commitDraftBpm}

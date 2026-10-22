@@ -148,6 +148,8 @@ const AdminLibrary = () => {
   };
 
   const [draggedTrackId, setDraggedTrackId] = useState<string | null>(null);
+  const [dragOverTrackId, setDragOverTrackId] = useState<string | null>(null);
+  const [movingTrackId, setMovingTrackId] = useState<string | null>(null);
 
   const handleDragStart = (e: React.DragEvent, trackId: string) => {
     setDraggedTrackId(trackId);
@@ -164,6 +166,7 @@ const AdminLibrary = () => {
     e.preventDefault();
     const sourceId = e.dataTransfer.getData('text/plain') || draggedTrackId;
     setDraggedTrackId(null);
+    setDragOverTrackId(null);
     if (sourceId && sourceId !== targetTrackId) {
       const draggedTrack = tracks.find(t => t.id === sourceId);
       try {
@@ -424,12 +427,20 @@ const AdminLibrary = () => {
                 return (
                   <tr 
                     key={track.id} 
-                    className={`admin-track-row ${isThisPlaying ? 'is-playing-row' : ''} ${draggedTrackId === track.id ? 'is-dragging' : ''}`}
-                    draggable
-                    onDragStart={(e) => handleDragStart(e, track.id)}
-                    onDragEnd={() => setDraggedTrackId(null)}
-                    onDragOver={handleDragOver}
-                    onDrop={(e) => handleDrop(e, track.id)}
+                    className={`admin-track-row ${isThisPlaying ? 'is-playing-row' : ''} ${draggedTrackId === track.id ? 'is-dragging' : ''} ${dragOverTrackId === track.id ? 'is-drag-over' : ''}`}
+                    onDragOver={(e) => {
+                      handleDragOver(e);
+                      if (draggedTrackId && draggedTrackId !== track.id && dragOverTrackId !== track.id) {
+                        setDragOverTrackId(track.id);
+                      }
+                    }}
+                    onDragLeave={() => {
+                      if (dragOverTrackId === track.id) setDragOverTrackId(null);
+                    }}
+                    onDrop={(e) => {
+                      setDragOverTrackId(null);
+                      handleDrop(e, track.id);
+                    }}
                   >
                     <td className="col-play">
                       <div className="play-cell">
@@ -443,7 +454,13 @@ const AdminLibrary = () => {
                             : <Square size={16} className="sel-off" />}
                         </button>
                         <span className="row-idx">{i + 1}</span>
-                        <div title="Drag to reorder" style={{ display: 'flex', alignItems: 'center' }}>
+                        <div
+                          draggable
+                          onDragStart={(e) => handleDragStart(e, track.id)}
+                          onDragEnd={() => { setDraggedTrackId(null); setDragOverTrackId(null); }}
+                          className="drag-handle-wrap"
+                          title="Drag to reorder"
+                        >
                           <GripVertical size={16} className="drag-handle-icon" />
                         </div>
                         <div className="quick-move-btns">
@@ -451,14 +468,19 @@ const AdminLibrary = () => {
                             type="button"
                             className="btn-move-arrow up"
                             title="Move Up"
-                            disabled={i === 0}
+                            disabled={i === 0 || movingTrackId === track.id}
                             onClick={async (e) => {
                               e.stopPropagation();
-                              if (i > 0) {
+                              if (i > 0 && movingTrackId !== track.id) {
+                                setMovingTrackId(track.id);
                                 try {
                                   await moveTrack(track.id, 'up', filteredTracks);
                                   showToast(`Moved up: "${track.title}"`);
-                                } catch (err) { showToast((err as Error).message, 'error'); }
+                                } catch (err) {
+                                  showToast((err as Error).message, 'error');
+                                } finally {
+                                  setMovingTrackId(null);
+                                }
                               }
                             }}
                           >
@@ -468,14 +490,19 @@ const AdminLibrary = () => {
                             type="button"
                             className="btn-move-arrow down"
                             title="Move Down"
-                            disabled={i === filteredTracks.length - 1}
+                            disabled={i === filteredTracks.length - 1 || movingTrackId === track.id}
                             onClick={async (e) => {
                               e.stopPropagation();
-                              if (i < filteredTracks.length - 1) {
+                              if (i < filteredTracks.length - 1 && movingTrackId !== track.id) {
+                                setMovingTrackId(track.id);
                                 try {
                                   await moveTrack(track.id, 'down', filteredTracks);
                                   showToast(`Moved down: "${track.title}"`);
-                                } catch (err) { showToast((err as Error).message, 'error'); }
+                                } catch (err) {
+                                  showToast((err as Error).message, 'error');
+                                } finally {
+                                  setMovingTrackId(null);
+                                }
                               }
                             }}
                           >
@@ -733,20 +760,23 @@ const AdminLibrary = () => {
         .col-play { width: 145px; }
         .play-cell { display: flex; align-items: center; gap: 8px; }
         .row-idx { font-size: 11px; font-weight: 800; color: #555; min-width: 20px; }
-        .drag-handle-icon { color: #555; opacity: 0.4; cursor: grab; transition: opacity 0.2s; }
-        .drag-handle-icon:hover { opacity: 1; color: #1db954; }
-        .drag-handle-icon:active { cursor: grabbing; }
+        .drag-handle-wrap { display: flex; align-items: center; justify-content: center; width: 18px; height: 26px; cursor: grab; border-radius: 4px; user-select: none; }
+        .drag-handle-wrap:active { cursor: grabbing; }
+        .drag-handle-icon { color: #71717a; opacity: 0.5; transition: opacity 0.2s, color 0.2s; }
+        .drag-handle-wrap:hover .drag-handle-icon { opacity: 1; color: #1db954; }
 
         .quick-move-btns { display: flex; flex-direction: column; gap: 2px; }
-        .btn-move-arrow { background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.08); border-radius: 4px; color: #a1a1aa; width: 18px; height: 16px; display: flex; align-items: center; justify-content: center; cursor: pointer; transition: all 0.15s; padding: 0; }
-        .btn-move-arrow:hover:not(:disabled) { background: #1db954; color: black; border-color: #1db954; }
+        .btn-move-arrow { background: rgba(255,255,255,0.06); border: 1px solid rgba(255,255,255,0.12); border-radius: 4px; color: #a1a1aa; width: 20px; height: 16px; display: flex; align-items: center; justify-content: center; cursor: pointer; transition: all 0.15s; padding: 0; }
+        .btn-move-arrow:hover:not(:disabled) { background: #1db954; color: black; border-color: #1db954; transform: scale(1.08); }
         .btn-move-arrow:disabled { opacity: 0.15; cursor: not-allowed; }
 
-        .row-play-btn { color: #1db954; width: 36px; height: 36px; display: flex; align-items: center; justify-content: center; border-radius: 10px; transition: all 0.2s; }
+        .row-play-btn { color: #1db954; width: 36px; height: 36px; display: flex; align-items: center; justify-content: center; border-radius: 10px; transition: all 0.2s; background: transparent; border: none; cursor: pointer; }
         .row-play-btn:hover { background: rgba(29, 185, 84, 0.1); transform: scale(1.05); }
 
-        .admin-track-row { transition: background 0.2s; }
+        .admin-track-row { transition: background 0.15s, border 0.15s; }
         .admin-track-row:hover { background: rgba(255, 255, 255, 0.03); }
+        .admin-track-row.is-dragging { opacity: 0.35; background: rgba(255, 255, 255, 0.05); }
+        .admin-track-row.is-drag-over { background: rgba(29, 185, 84, 0.12) !important; outline: 2px dashed #1db954; outline-offset: -2px; }
         .is-playing-row { background: rgba(29, 185, 84, 0.05); }
 
         .track-cell { display: flex; align-items: center; gap: 14px; }

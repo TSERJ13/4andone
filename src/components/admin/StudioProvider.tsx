@@ -1,7 +1,7 @@
 "use client";
 
 import { userDb } from '@/lib/user-db';
-import React, { createContext, useContext, useState, useEffect, useLayoutEffect, useMemo } from 'react';
+import React, { createContext, useContext, useState, useEffect, useLayoutEffect, useMemo, useRef } from 'react';
 import { usePathname } from 'next/navigation';
 import { supabase } from '@/utils/supabase';
 import { adminDb } from '@/lib/admin-db';
@@ -252,6 +252,7 @@ export const StudioProvider: React.FC<{ children: React.ReactNode }> = ({ childr
   const [finalFolderTracksMap, setFinalFolderTracksMap] = useState<Record<string, string[]>>({}); // folderId -> [trackIds]
   const [albums, setAlbums] = useState<Album[]>(DEFAULT_ALBUMS);
   const [albumsReady, setAlbumsReady] = useState(false);
+  const lastAssignedMinOrderRef = useRef<number | null>(null);
   useIsoLayoutEffect(() => {
     const saved = readAlbumsCache();
     if (saved) { setAlbums(saved); setAlbumsReady(true); }
@@ -540,7 +541,11 @@ export const StudioProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     let initialOrder = trackData.globalOrder;
     if (initialOrder === undefined) {
       const minO = tracks.length > 0 ? Math.min(...tracks.map(t => t.globalOrder ?? 10)) : 10;
-      initialOrder = minO - 10;
+      const base = lastAssignedMinOrderRef.current !== null && lastAssignedMinOrderRef.current <= minO
+        ? lastAssignedMinOrderRef.current
+        : minO;
+      initialOrder = base - 10;
+      lastAssignedMinOrderRef.current = initialOrder;
     }
 
     const { data, error } = await adminDb
@@ -969,11 +974,84 @@ export const StudioProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     return ids.map(id => tracks.find(t => t.id === id)).filter(Boolean) as Track[];
   };
 
+  const moveTrack = async (trackId: string, direction: 'up' | 'down', visibleList?: Track[]) => {
+    const list = visibleList && visibleList.length > 0 ? visibleList : tracks;
+    const idx = list.findIndex(t => t.id === trackId);
+    if (idx === -1) return;
+    const targetIdx = direction === 'up' ? idx - 1 : idx + 1;
+    if (targetIdx < 0 || targetIdx >= list.length) return;
+
+    const trackA = list[idx];
+    const trackB = list[targetIdx];
+
+    let orderA = typeof trackA.globalOrder === 'number' ? trackA.globalOrder : (idx + 1) * 10;
+    let orderB = typeof trackB.globalOrder === 'number' ? trackB.globalOrder : (targetIdx + 1) * 10;
+
+    if (orderA === orderB) {
+      if (direction === 'up') {
+        orderA = orderB - 10;
+      } else {
+        orderA = orderB + 10;
+      }
+    } else {
+      const temp = orderA;
+      orderA = orderB;
+      orderB = temp;
+    }
+
+    // 1. Optimistic update in React state
+    setTracks(prev => {
+      const updated = prev.map(t => {
+        if (t.id === trackA.id) return { ...t, globalOrder: orderA };
+        if (t.id === trackB.id) return { ...t, globalOrder: orderB };
+        return t;
+      });
+      return updated.sort((a, b) => {
+        if ((a.globalOrder ?? 0) !== (b.globalOrder ?? 0)) {
+          return (a.globalOrder ?? 0) - (b.globalOrder ?? 0);
+        }
+        return new Date(b.createdAt || b.date || 0).getTime() - new Date(a.createdAt || a.date || 0).getTime();
+      });
+    });
+
+    // 2. Persist to Supabase
+    try {
+      const [resA, resB] = await Promise.all([
+        adminDb.from('tracks').update({ global_order: orderA }).eq('id', trackA.id),
+        adminDb.from('tracks').update({ global_order: orderB }).eq('id', trackB.id),
+      ]);
+      if (resA?.error) throw new Error(resA.error.message);
+      if (resB?.error) throw new Error(resB.error.message);
+    } catch (err) {
+      console.error('[STUDIO-ERROR] Failed to save track move:', err);
+      // Revert optimistic state
+      setTracks(prev => {
+        const reverted = prev.map(t => {
+          if (t.id === trackA.id) return { ...t, globalOrder: trackA.globalOrder };
+          if (t.id === trackB.id) return { ...t, globalOrder: trackB.globalOrder };
+          return t;
+        });
+        return reverted.sort((a, b) => {
+          if ((a.globalOrder ?? 0) !== (b.globalOrder ?? 0)) {
+            return (a.globalOrder ?? 0) - (b.globalOrder ?? 0);
+          }
+          return new Date(b.createdAt || b.date || 0).getTime() - new Date(a.createdAt || a.date || 0).getTime();
+        });
+      });
+      throw new Error(`Could not save the new position: ${(err as Error).message}`);
+    }
+  };
+
   const reorderTracks = async (draggedTrackId: string, dropTrackId: string, visibleList?: Track[]) => {
     const list = visibleList && visibleList.length > 0 ? visibleList : tracks;
     const dragIdx = list.findIndex(t => t.id === draggedTrackId);
     const dropIdx = list.findIndex(t => t.id === dropTrackId);
     if (dragIdx === -1 || dropIdx === -1 || dragIdx === dropIdx) return;
+
+    if (Math.abs(dragIdx - dropIdx) === 1) {
+      await moveTrack(draggedTrackId, dragIdx < dropIdx ? 'down' : 'up', list);
+      return;
+    }
 
     const reorderedList = Array.from(list);
     const [movedTrack] = reorderedList.splice(dragIdx, 1);
@@ -985,40 +1063,28 @@ export const StudioProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     let newOrder: number;
 
     if (!prevInScoped && nextInScoped) {
-      const nO = nextInScoped.globalOrder ?? 10;
-      const globalNextIdx = tracks.findIndex(t => t.id === nextInScoped.id);
-      const globalPrev = globalNextIdx > 0 ? tracks[globalNextIdx - 1] : null;
-      if (globalPrev && globalPrev.id !== movedTrack.id) {
-        const pO = globalPrev.globalOrder ?? (nO - 10);
-        newOrder = nO > pO ? (pO + nO) / 2 : nO - 1;
-      } else {
-        newOrder = nO - 10;
-      }
+      newOrder = (nextInScoped.globalOrder ?? 10) - 10;
     } else if (prevInScoped && !nextInScoped) {
-      const pO = prevInScoped.globalOrder ?? 10;
-      const globalPrevIdx = tracks.findIndex(t => t.id === prevInScoped.id);
-      const globalNext = globalPrevIdx < tracks.length - 1 ? tracks[globalPrevIdx + 1] : null;
-      if (globalNext && globalNext.id !== movedTrack.id) {
-        const nO = globalNext.globalOrder ?? (pO + 10);
-        newOrder = nO > pO ? (pO + nO) / 2 : pO + 1;
-      } else {
-        newOrder = pO + 10;
-      }
+      newOrder = (prevInScoped.globalOrder ?? 10) + 10;
     } else if (prevInScoped && nextInScoped) {
       const pO = prevInScoped.globalOrder ?? 10;
       const nO = nextInScoped.globalOrder ?? 20;
-      newOrder = nO > pO ? (pO + nO) / 2 : pO + 1;
+      if (nO > pO + 0.001) {
+        newOrder = (pO + nO) / 2;
+      } else {
+        newOrder = pO + 10;
+        const bumpOrder = pO + 20;
+        await adminDb.from('tracks').update({ global_order: bumpOrder }).eq('id', nextInScoped.id);
+        nextInScoped.globalOrder = bumpOrder;
+      }
     } else {
       newOrder = movedTrack.globalOrder ?? 10;
     }
 
-    // 1. Optimistic update in React state (undone below if the server refuses)
     const previousOrder = movedTrack.globalOrder;
     setTracks(prev => {
       const updated = prev.map(t => {
-        if (t.id === movedTrack.id) {
-          return { ...t, globalOrder: newOrder };
-        }
+        if (t.id === movedTrack.id) return { ...t, globalOrder: newOrder };
         return t;
       });
       return updated.sort((a, b) => {
@@ -1029,40 +1095,25 @@ export const StudioProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       });
     });
 
-    // 2. Persist to Supabase. The screen used to keep the new order (and the page said "Saved") even when the
-    //    save failed, so the order jumped back after a reload.
-    let failure: string | null = null;
     try {
       const { error } = await adminDb
         .from('tracks')
         .update({ global_order: newOrder })
         .eq('id', movedTrack.id);
-      if (error) failure = error.message || 'the server refused';
+      if (error) throw new Error(error.message);
     } catch (err) {
-      failure = (err as Error)?.message || 'network error';
-    }
-    if (failure) {
-      console.error('[STUDIO-ERROR] Failed to save track global_order:', failure);
+      console.error('[STUDIO-ERROR] Failed to save track global_order:', err);
       setTracks(prev => prev.map(t => (t.id === movedTrack.id ? { ...t, globalOrder: previousOrder } : t)).sort((a, b) => {
         if ((a.globalOrder ?? 0) !== (b.globalOrder ?? 0)) return (a.globalOrder ?? 0) - (b.globalOrder ?? 0);
         return new Date(b.createdAt || b.date || 0).getTime() - new Date(a.createdAt || a.date || 0).getTime();
       }));
-      throw new Error(`Could not save the new position: ${failure}`);
+      throw new Error(`Could not save the new position: ${(err as Error).message}`);
     }
-  };
-
-  const moveTrack = async (trackId: string, direction: 'up' | 'down', visibleList?: Track[]) => {
-    const list = visibleList && visibleList.length > 0 ? visibleList : tracks;
-    const idx = list.findIndex(t => t.id === trackId);
-    if (idx === -1) return;
-    const targetIdx = direction === 'up' ? idx - 1 : idx + 1;
-    if (targetIdx < 0 || targetIdx >= list.length) return;
-    await reorderTracks(trackId, list[targetIdx].id, list);
   };
 
   const reorderGlobalTracks = async (startIndex: number, endIndex: number, visibleList?: Track[]) => {
     const list = visibleList && visibleList.length > 0 ? visibleList : tracks;
-    if (startIndex >= 0 && startIndex < list.length && endIndex >= 0 && endIndex < list.length) {
+    if (startIndex >= 0 && startIndex < list.length && endIndex >= 0 && endIndex < list.length && startIndex !== endIndex) {
       await reorderTracks(list[startIndex].id, list[endIndex].id, list);
     }
   };

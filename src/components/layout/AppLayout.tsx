@@ -42,6 +42,9 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
 
   useEffect(() => {
     setIsMobileDrawerOpen(false);
+    if (!pathname?.startsWith('/track/')) {
+      setIsDesktopExpanded(false);
+    }
   }, [pathname]);
 
   // "Save to playlist" from any player menu

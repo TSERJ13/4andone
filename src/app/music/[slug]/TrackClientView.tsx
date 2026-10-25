@@ -1,14 +1,18 @@
 "use client";
 
-import React from 'react';
+import React, { useEffect } from 'react';
 import Link from 'next/link';
-import { Play, Pause, Heart, Share2, Disc, ArrowLeft, Clock, Music } from 'lucide-react';
+import { Play, Pause, Heart, Share2, Plus, Clock, Activity, Music2 } from 'lucide-react';
 import { useAudioControls } from '@/components/audio/AudioProvider';
 import { useStudio } from '@/components/admin/StudioProvider';
 import { useAuth } from '@/context/AuthContext';
 import { SeoTrack } from '@/lib/seo-data';
 import { SeoDanceCategory } from '@/utils/seo';
 import { formatDuration } from '@/utils/format';
+import { displayStyleName } from '@/utils/styleNames';
+import { getTrackCover } from '@/utils/trackCover';
+import { TrackRow } from '@/components/tracks/TrackRow';
+import { OPEN_ADD_TO_PLAYLIST_EVENT } from '@/components/audio/playerActions';
 
 interface Props {
   track: SeoTrack;
@@ -19,13 +23,20 @@ interface Props {
 
 export default function TrackClientView({ track, slug, category, relatedTracks }: Props) {
   const { isPlaying, title: playingTitle, trackId: playingTrackId, loadTrack, togglePlay } = useAudioControls();
-  const { tracks, toggleFavorite } = useStudio();
+  const { tracks, albums, styles, toggleFavorite } = useStudio();
   const { isAuthenticated, setIsAuthModalOpen } = useAuth();
 
-  // Find track in StudioProvider state if present to get live favorite status
+  // Find track in StudioProvider state if present to get live state
   const liveTrack = tracks.find((t) => t.id === track.id) || track;
   const isThisTrackPlaying = isPlaying && (playingTrackId ? playingTrackId === track.id : playingTitle === track.title);
   const isThisTrackLoaded = playingTrackId ? playingTrackId === track.id : playingTitle === track.title;
+
+  // Automatically load the track into the player bar when opening the page
+  useEffect(() => {
+    if (liveTrack && (!playingTrackId || playingTrackId !== liveTrack.id)) {
+      loadTrack(liveTrack);
+    }
+  }, [liveTrack.id, loadTrack]);
 
   const handlePlayMain = () => {
     if (isThisTrackLoaded) {
@@ -36,16 +47,19 @@ export default function TrackClientView({ track, slug, category, relatedTracks }
   };
 
   const handleShare = async () => {
+    const shareUrl = typeof window !== 'undefined' ? window.location.href : `https://4and.one/music/${slug}`;
     if (typeof navigator !== 'undefined' && navigator.share) {
       try {
         await navigator.share({
           title: `${track.title} – ${track.style} | 4and.one`,
-          text: `Listen to ${track.title} (${track.style}) on 4and.one Music with adjustable BPM!`,
-          url: window.location.href,
+          text: `Listen to ${track.title} (${track.style}) on 4and.one Music!`,
+          url: shareUrl,
         });
-      } catch (e) {}
+      } catch (e) {
+        // Ignored if user dismissed share sheet
+      }
     } else if (typeof navigator !== 'undefined' && navigator.clipboard) {
-      await navigator.clipboard.writeText(window.location.href);
+      await navigator.clipboard.writeText(shareUrl);
       alert('Link copied to clipboard!');
     }
   };
@@ -58,186 +72,188 @@ export default function TrackClientView({ track, slug, category, relatedTracks }
     toggleFavorite?.(track.id);
   };
 
+  const handleAddToPlaylist = () => {
+    if (typeof window !== 'undefined') {
+      window.dispatchEvent(new CustomEvent(OPEN_ADD_TO_PLAYLIST_EVENT, { detail: liveTrack }));
+    }
+  };
+
   const discipline = category?.discipline || (['Cha-Cha-Cha', 'Samba', 'Rumba', 'Paso Doble', 'Jive'].includes(track.style) ? 'Latin' : 'Standard');
   const categoryPath = category?.slug ? `/${category.slug}` : `/style/${track.style.toLowerCase().replace(/[\s\-_]+/g, '-')}`;
+  const coverImage = getTrackCover(liveTrack, albums, styles);
+  const styleTitle = displayStyleName(track.style);
 
   return (
-    <div className="seo-track-page animate-in">
-      {/* Top Breadcrumb Nav */}
-      <nav aria-label="Breadcrumb" className="seo-breadcrumb-nav">
+    <div className="cat-page-wrapper track-view-page animate-in">
+      {/* Breadcrumb Navigation */}
+      <nav aria-label="Breadcrumb" className="cat-breadcrumb">
         <Link href="/" className="crumb-link">Home</Link>
         <span className="crumb-sep">/</span>
-        <span className="crumb-plain">{discipline}</span>
+        <span className="crumb-plain">{discipline} Ballroom</span>
         <span className="crumb-sep">/</span>
         <Link href={categoryPath} className="crumb-link">
-          {category?.name || track.style}
+          {category?.name || styleTitle}
         </Link>
         <span className="crumb-sep">/</span>
         <span className="crumb-current">{track.title}</span>
       </nav>
 
-      {/* Main Track Showcase Card */}
-      <article className="seo-track-card glass">
-        <div className="seo-cover-wrapper">
-          {track.artworkUrl ? (
+      {/* Main Track Hero Header in 4and.one Style */}
+      <header className="track-hero">
+        <div className="track-hero-layout">
+          <div className="track-cover-box">
             <img
-              src={track.artworkUrl}
-              alt={`${track.title} ${track.style} cover art`}
-              className="seo-cover-img"
-              width={220}
-              height={220}
+              src={coverImage}
+              alt={`${track.title} cover`}
+              className="track-cover-img"
+              onError={(e) => {
+                (e.target as HTMLImageElement).src = '/logo-lockscreen.png';
+              }}
             />
-          ) : (
-            <div className="seo-cover-placeholder">
-              <Disc size={64} className={isThisTrackPlaying ? 'animate-spin-slow' : ''} />
-            </div>
-          )}
-          <button
-            type="button"
-            className="seo-play-floating-btn"
-            onClick={handlePlayMain}
-            aria-label={isThisTrackPlaying ? `Pause ${track.title}` : `Play ${track.title}`}
-          >
-            {isThisTrackPlaying ? <Pause size={32} /> : <Play size={32} fill="currentColor" style={{ marginLeft: 3 }} />}
-          </button>
-        </div>
-
-        <div className="seo-details">
-          <div className="seo-badge-row">
-            <Link href={categoryPath} className="seo-style-badge">
-              {category?.name || track.style}
-            </Link>
-            {track.bpm && (
-              <span className="seo-bpm-badge">
-                ⚡ {track.bpm} BPM
-              </span>
-            )}
-            <span className="seo-discipline-tag">{discipline} Ballroom</span>
           </div>
 
-          <h1 className="seo-track-title">{track.title}</h1>
+          <div className="track-hero-info">
+            <span className="cat-kicker">
+              {styleTitle} · {discipline} Ballroom
+            </span>
 
-          <div className="seo-artist-meta">
-            <span className="seo-artist-name">{track.artist || '4and.one Music'}</span>
-            {track.duration ? (
-              <>
-                <span className="seo-dot">·</span>
-                <span className="seo-duration">
-                  <Clock size={14} className="inline mr-1 opacity-70" />
-                  {formatDuration(track.duration)}
-                </span>
-              </>
-            ) : null}
-          </div>
+            <h1 className="track-title">{track.title}</h1>
 
-          <p className="seo-track-summary">
-            Listen to <strong>{track.title}</strong> by {track.artist || '4and.one Music'} in <strong>{category?.name || track.style}</strong> tempo ({track.bpm || 'Standard'} BPM). Full tempo-adjustable DanceSport and ballroom practice music on 4and.one.
-          </p>
-
-          <div className="seo-actions-bar">
-            <button
-              type="button"
-              className={`seo-main-play-cta ${isThisTrackPlaying ? 'is-playing' : ''}`}
-              onClick={handlePlayMain}
-            >
-              {isThisTrackPlaying ? (
+            <div className="track-meta-row">
+              <span className="track-artist">{track.artist || '4and.one Music'}</span>
+              {track.bpm && (
                 <>
-                  <Pause size={20} />
-                  <span>Pause Playback</span>
-                </>
-              ) : (
-                <>
-                  <Play size={20} fill="currentColor" />
-                  <span>{isThisTrackLoaded ? 'Resume Playback' : 'Play Track Now'}</span>
+                  <span className="cat-meta-dot" />
+                  <span className="track-meta-badge">
+                    <Activity size={13} />
+                    {track.bpm} BPM
+                  </span>
                 </>
               )}
-            </button>
+              {track.duration ? (
+                <>
+                  <span className="cat-meta-dot" />
+                  <span className="track-meta-item">
+                    <Clock size={13} />
+                    {formatDuration(track.duration)}
+                  </span>
+                </>
+              ) : null}
+            </div>
 
-            <button
-              type="button"
-              className={`seo-icon-btn ${liveTrack.isFavorite ? 'is-favorite' : ''}`}
-              onClick={handleToggleFavorite}
-              title={liveTrack.isFavorite ? 'Remove from favorites' : 'Add to favorites'}
-              aria-label="Toggle favorite"
-            >
-              <Heart size={20} fill={liveTrack.isFavorite ? 'currentColor' : 'none'} />
-            </button>
+            <div className="track-actions-row">
+              <button
+                type="button"
+                className={`cat-play-all-btn ${isThisTrackPlaying ? 'is-playing' : ''}`}
+                onClick={handlePlayMain}
+                aria-label={isThisTrackPlaying ? `Pause ${track.title}` : `Play ${track.title}`}
+              >
+                {isThisTrackPlaying ? (
+                  <>
+                    <Pause size={18} fill="currentColor" />
+                    <span>Pause</span>
+                  </>
+                ) : (
+                  <>
+                    <Play size={18} fill="currentColor" style={{ marginLeft: 2 }} />
+                    <span>Play</span>
+                  </>
+                )}
+              </button>
 
-            <button
-              type="button"
-              className="seo-icon-btn"
-              onClick={handleShare}
-              title="Share this track"
-              aria-label="Share track"
-            >
-              <Share2 size={20} />
-            </button>
+              <button
+                type="button"
+                className={`track-icon-btn ${liveTrack.isFavorite ? 'is-fav' : ''}`}
+                onClick={handleToggleFavorite}
+                title={liveTrack.isFavorite ? 'Remove from favorites' : 'Add to favorites'}
+                aria-label="Toggle favorite"
+              >
+                <Heart size={18} fill={liveTrack.isFavorite ? 'currentColor' : 'none'} />
+              </button>
+
+              <button
+                type="button"
+                className="track-icon-btn"
+                onClick={handleAddToPlaylist}
+                title="Save to playlist"
+                aria-label="Save to playlist"
+              >
+                <Plus size={18} />
+              </button>
+
+              <button
+                type="button"
+                className="track-icon-btn"
+                onClick={handleShare}
+                title="Share track"
+                aria-label="Share track"
+              >
+                <Share2 size={18} />
+              </button>
+            </div>
           </div>
         </div>
-      </article>
+      </header>
 
-      {/* Related Tracks Section */}
+      {/* Related Tracks List in exact 4and.one TrackRow Style */}
       {relatedTracks.length > 0 && (
-        <section className="seo-related-section">
-          <div className="seo-related-header">
+        <section className="track-related-section">
+          <div className="track-related-header">
             <div>
-              <h2 className="seo-related-title">More {category?.name || track.style} Music</h2>
-              <p className="seo-related-subtitle">
-                Explore popular {category?.name || track.style} practice tracks for DanceSport competitors.
-              </p>
+              <h2 className="cat-title" style={{ fontSize: '20px' }}>
+                More {category?.name || styleTitle} Tracks
+              </h2>
             </div>
-            <Link href={categoryPath} className="seo-view-all-link">
-              View All ({category?.name || track.style}) →
+            <Link href={categoryPath} className="cat-view-all">
+              View All ({category?.name || styleTitle}) →
             </Link>
           </div>
 
-          <div className="seo-related-grid">
+          <div className="tracks-list">
             {relatedTracks.map(({ track: rTrack, slug: rSlug }) => {
-              const isPlayingThis = isPlaying && (playingTrackId ? playingTrackId === rTrack.id : playingTitle === rTrack.title);
+              const rLive = tracks.find((t) => t.id === rTrack.id) || rTrack;
+              const isRowActive = isPlaying && (playingTrackId ? playingTrackId === rTrack.id : playingTitle === rTrack.title);
 
               return (
-                <div key={rTrack.id} className="seo-related-card glass">
-                  <button
-                    type="button"
-                    className="seo-related-play"
-                    onClick={() => loadTrack(rTrack)}
-                    aria-label={`Play ${rTrack.title}`}
-                  >
-                    {isPlayingThis ? <Pause size={18} /> : <Play size={18} fill="currentColor" />}
-                  </button>
-
-                  <div className="seo-related-info">
-                    <Link href={`/music/${rSlug}`} className="seo-related-name" title={rTrack.title}>
-                      {rTrack.title}
-                    </Link>
-                    <div className="seo-related-meta">
-                      <span className="seo-related-artist">{rTrack.artist}</span>
-                      {rTrack.bpm && <span>· {rTrack.bpm} BPM</span>}
-                      {rTrack.duration ? <span>· {formatDuration(rTrack.duration)}</span> : null}
-                    </div>
-                  </div>
-                </div>
+                <TrackRow
+                  key={rTrack.id}
+                  track={rLive}
+                  isActive={isRowActive}
+                  onPlay={() => {
+                    if (isRowActive) togglePlay();
+                    else loadTrack(rLive);
+                  }}
+                  onToggleFavorite={() => {
+                    if (!isAuthenticated) {
+                      setIsAuthModalOpen(true);
+                      return;
+                    }
+                    toggleFavorite?.(rTrack.id);
+                  }}
+                  badge="duration"
+                  href={`/music/${rSlug}`}
+                />
               );
             })}
           </div>
         </section>
       )}
 
-      {/* Scoped CSS styling matching 4and.one dark glass aesthetic */}
+      {/* Scoped CSS strictly matching 4and.one YouTube Music design system */}
       <style jsx>{`
-        .seo-track-page {
-          padding: 32px 40px 140px 40px;
-          max-width: 1200px;
+        .track-view-page {
+          padding: 24px 32px 140px 32px;
+          max-width: 1100px;
           margin: 0 auto;
         }
 
-        .seo-breadcrumb-nav {
+        .cat-breadcrumb {
           display: flex;
           align-items: center;
-          gap: 10px;
+          gap: 8px;
           font-size: 13px;
           color: #71717a;
-          margin-bottom: 28px;
+          margin-bottom: 24px;
           flex-wrap: wrap;
         }
 
@@ -248,7 +264,7 @@ export default function TrackClientView({ track, slug, category, relatedTracks }
         }
 
         .crumb-link:hover {
-          color: #ffffff;
+          color: #fff;
         }
 
         .crumb-sep {
@@ -260,198 +276,143 @@ export default function TrackClientView({ track, slug, category, relatedTracks }
         }
 
         .crumb-current {
-          color: #ffffff;
+          color: #fff;
           font-weight: 600;
         }
 
-        .seo-track-card {
-          display: flex;
-          gap: 36px;
-          align-items: center;
-          padding: 36px;
-          border-radius: 24px;
-          background: rgba(24, 24, 27, 0.6);
-          border: 1px solid rgba(255, 255, 255, 0.08);
-          backdrop-filter: blur(20px);
-          margin-bottom: 48px;
+        .cat-kicker {
+          font-size: 11px;
+          font-weight: 800;
+          letter-spacing: 1.4px;
+          text-transform: uppercase;
+          color: #ff0033;
         }
 
-        .seo-cover-wrapper {
-          position: relative;
-          width: 220px;
-          height: 220px;
-          flex-shrink: 0;
+        .cat-meta-dot {
+          width: 3px;
+          height: 3px;
+          border-radius: 50%;
+          background: #52525b;
+        }
+
+        .track-hero {
+          padding: 28px;
           border-radius: 20px;
-          overflow: hidden;
-          background: #121214;
-          box-shadow: 0 16px 36px rgba(0, 0, 0, 0.5);
-          display: flex;
-          align-items: center;
-          justify-content: center;
+          background: rgba(255, 255, 255, 0.03);
+          border: 1px solid rgba(255, 255, 255, 0.08);
+          margin-bottom: 32px;
+          backdrop-filter: blur(20px);
         }
 
-        .seo-cover-img {
+        .track-hero-layout {
+          display: flex;
+          align-items: center;
+          gap: 28px;
+        }
+
+        .track-cover-box {
+          width: 140px;
+          height: 140px;
+          border-radius: 16px;
+          overflow: hidden;
+          background: #18181b;
+          border: 1px solid rgba(255, 255, 255, 0.1);
+          box-shadow: 0 12px 30px rgba(0, 0, 0, 0.6);
+          flex-shrink: 0;
+        }
+
+        .track-cover-img {
           width: 100%;
           height: 100%;
           object-fit: cover;
+          display: block;
         }
 
-        .seo-cover-placeholder {
-          width: 100%;
-          height: 100%;
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          color: #52525b;
-          background: linear-gradient(135deg, #18181b 0%, #09090b 100%);
-        }
-
-        .seo-play-floating-btn {
-          position: absolute;
-          inset: 0;
-          margin: auto;
-          width: 64px;
-          height: 64px;
-          border-radius: 50%;
-          background: #1db954;
-          color: #000;
-          border: none;
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          cursor: pointer;
-          opacity: 0.95;
-          box-shadow: 0 8px 24px rgba(29, 185, 84, 0.4);
-          transition: transform 0.2s cubic-bezier(0.34, 1.56, 0.64, 1), background-color 0.2s;
-        }
-
-        .seo-play-floating-btn:hover {
-          transform: scale(1.08);
-          background: #1ed760;
-        }
-
-        .seo-details {
+        .track-hero-info {
           flex: 1;
+          min-width: 0;
           display: flex;
           flex-direction: column;
-          gap: 12px;
+          gap: 6px;
         }
 
-        .seo-badge-row {
-          display: flex;
-          align-items: center;
-          gap: 10px;
-          flex-wrap: wrap;
-        }
-
-        .seo-style-badge {
-          background: rgba(29, 185, 84, 0.15);
-          color: #1ed760;
-          border: 1px solid rgba(29, 185, 84, 0.3);
-          padding: 4px 12px;
-          border-radius: 999px;
-          font-size: 12px;
-          font-weight: 700;
-          text-decoration: none;
-          text-transform: uppercase;
-          letter-spacing: 0.5px;
-          transition: all 0.2s;
-        }
-
-        .seo-style-badge:hover {
-          background: rgba(29, 185, 84, 0.25);
-          transform: translateY(-1px);
-        }
-
-        .seo-bpm-badge {
-          background: rgba(234, 179, 8, 0.12);
-          color: #facc15;
-          border: 1px solid rgba(234, 179, 8, 0.25);
-          padding: 4px 10px;
-          border-radius: 999px;
-          font-size: 12px;
-          font-weight: 600;
-        }
-
-        .seo-discipline-tag {
-          font-size: 12px;
-          color: #a1a1aa;
-        }
-
-        .seo-track-title {
-          font-size: 36px;
+        .track-title {
+          font-size: 32px;
           font-weight: 900;
-          color: #ffffff;
-          line-height: 1.15;
-          letter-spacing: -0.8px;
+          color: #fff;
           margin: 0;
+          line-height: 1.15;
+          letter-spacing: -0.5px;
         }
 
-        .seo-artist-meta {
+        .track-meta-row {
           display: flex;
           align-items: center;
-          gap: 8px;
-          font-size: 15px;
-          color: #a1a1aa;
-        }
-
-        .seo-artist-name {
-          color: #e4e4e7;
-          font-weight: 600;
-        }
-
-        .seo-dot {
-          color: #52525b;
-        }
-
-        .seo-track-summary {
+          flex-wrap: wrap;
+          gap: 10px;
+          margin-top: 2px;
           font-size: 14px;
-          line-height: 1.6;
           color: #a1a1aa;
-          margin: 6px 0 12px 0;
-          max-width: 680px;
         }
 
-        .seo-track-summary strong {
-          color: #ffffff;
+        .track-artist {
+          font-weight: 600;
+          color: #e4e4e7;
         }
 
-        .seo-actions-bar {
-          display: flex;
-          align-items: center;
-          gap: 12px;
-          margin-top: 6px;
-        }
-
-        .seo-main-play-cta {
+        .track-meta-badge {
           display: inline-flex;
           align-items: center;
-          gap: 10px;
-          padding: 12px 28px;
-          background: #1db954;
-          color: #000000;
+          gap: 5px;
+          font-size: 12px;
           font-weight: 700;
-          font-size: 15px;
-          border-radius: 999px;
+          color: #facc15;
+        }
+
+        .track-meta-item {
+          display: inline-flex;
+          align-items: center;
+          gap: 5px;
+          font-size: 13px;
+        }
+
+        .track-actions-row {
+          display: flex;
+          align-items: center;
+          gap: 12px;
+          margin-top: 14px;
+        }
+
+        .cat-play-all-btn {
+          display: inline-flex;
+          align-items: center;
+          gap: 8px;
+          padding: 10px 24px;
+          border-radius: 9999px;
+          background: #ff0033;
+          color: #fff;
+          font-size: 14px;
+          font-weight: 700;
           border: none;
           cursor: pointer;
-          transition: all 0.2s cubic-bezier(0.34, 1.56, 0.64, 1);
+          transition: all 0.2s;
+          box-shadow: 0 4px 16px rgba(255, 0, 51, 0.35);
         }
 
-        .seo-main-play-cta:hover {
-          background: #1ed760;
-          transform: scale(1.03);
+        .cat-play-all-btn:hover {
+          background: #cc0029;
+          transform: scale(1.02);
         }
 
-        .seo-main-play-cta.is-playing {
+        .cat-play-all-btn.is-playing {
           background: #27272a;
-          color: #ffffff;
+          box-shadow: none;
           border: 1px solid rgba(255, 255, 255, 0.15);
         }
 
-        .seo-icon-btn {
-          width: 44px;
-          height: 44px;
+        .track-icon-btn {
+          width: 40px;
+          height: 40px;
           border-radius: 50%;
           background: rgba(255, 255, 255, 0.05);
           border: 1px solid rgba(255, 255, 255, 0.1);
@@ -463,164 +424,72 @@ export default function TrackClientView({ track, slug, category, relatedTracks }
           transition: all 0.2s;
         }
 
-        .seo-icon-btn:hover {
+        .track-icon-btn:hover {
           background: rgba(255, 255, 255, 0.1);
-          color: #ffffff;
+          color: #fff;
           transform: scale(1.05);
         }
 
-        .seo-icon-btn.is-favorite {
+        .track-icon-btn.is-fav {
           color: #f43f5e;
           background: rgba(244, 63, 94, 0.15);
           border-color: rgba(244, 63, 94, 0.3);
         }
 
-        /* Related Section */
-        .seo-related-section {
-          margin-top: 48px;
+        .track-related-section {
+          margin-top: 24px;
         }
 
-        .seo-related-header {
+        .track-related-header {
           display: flex;
-          align-items: flex-end;
+          align-items: center;
           justify-content: space-between;
-          margin-bottom: 20px;
-          flex-wrap: wrap;
-          gap: 12px;
+          margin-bottom: 16px;
         }
 
-        .seo-related-title {
-          font-size: 22px;
-          font-weight: 800;
-          color: #ffffff;
-          margin: 0 0 4px 0;
-        }
-
-        .seo-related-subtitle {
-          font-size: 13px;
-          color: #71717a;
-          margin: 0;
-        }
-
-        .seo-view-all-link {
+        .cat-view-all {
           font-size: 13px;
           font-weight: 600;
-          color: #1ed760;
+          color: #ff0033;
           text-decoration: none;
           transition: opacity 0.2s;
         }
 
-        .seo-view-all-link:hover {
+        .cat-view-all:hover {
           opacity: 0.8;
         }
 
-        .seo-related-grid {
-          display: grid;
-          grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
-          gap: 16px;
-        }
-
-        .seo-related-card {
-          display: flex;
-          align-items: center;
-          gap: 14px;
-          padding: 14px 16px;
-          border-radius: 16px;
-          background: rgba(24, 24, 27, 0.4);
-          border: 1px solid rgba(255, 255, 255, 0.05);
-          transition: all 0.2s ease;
-        }
-
-        .seo-related-card:hover {
-          background: rgba(39, 39, 42, 0.6);
-          border-color: rgba(255, 255, 255, 0.12);
-          transform: translateY(-2px);
-        }
-
-        .seo-related-play {
-          width: 38px;
-          height: 38px;
-          border-radius: 50%;
-          background: #1db954;
-          color: #000;
-          border: none;
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          cursor: pointer;
-          flex-shrink: 0;
-          transition: transform 0.2s;
-        }
-
-        .seo-related-play:hover {
-          transform: scale(1.1);
-        }
-
-        .seo-related-info {
-          flex: 1;
-          min-width: 0;
-        }
-
-        .seo-related-name {
-          display: block;
-          font-size: 14px;
-          font-weight: 700;
-          color: #ffffff;
-          text-decoration: none;
-          white-space: nowrap;
-          overflow: hidden;
-          text-overflow: ellipsis;
-          transition: color 0.2s;
-        }
-
-        .seo-related-name:hover {
-          color: #1ed760;
-        }
-
-        .seo-related-meta {
-          font-size: 12px;
-          color: #71717a;
-          margin-top: 2px;
-          white-space: nowrap;
-          overflow: hidden;
-          text-overflow: ellipsis;
-        }
-
-        @media (max-width: 840px) {
-          .seo-track-page {
-            padding: 20px 16px 140px 16px;
+        @media (max-width: 768px) {
+          .track-view-page {
+            padding: 16px 16px 140px 16px;
           }
 
-          .seo-track-card {
+          .track-hero {
+            padding: 20px 16px;
+          }
+
+          .track-hero-layout {
             flex-direction: column;
             text-align: center;
-            padding: 24px 20px;
-            gap: 24px;
+            gap: 16px;
           }
 
-          .seo-badge-row {
+          .track-cover-box {
+            width: 130px;
+            height: 130px;
+            margin: 0 auto;
+          }
+
+          .track-meta-row {
             justify-content: center;
           }
 
-          .seo-artist-meta {
+          .track-actions-row {
             justify-content: center;
           }
 
-          .seo-actions-bar {
-            justify-content: center;
-          }
-
-          .seo-track-title {
-            font-size: 26px;
-          }
-
-          .seo-cover-wrapper {
-            width: 180px;
-            height: 180px;
-          }
-
-          .seo-related-grid {
-            grid-template-columns: 1fr;
+          .track-title {
+            font-size: 24px;
           }
         }
       `}</style>

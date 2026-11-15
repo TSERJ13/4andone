@@ -14,6 +14,7 @@ import ConfirmModal from '@/components/admin/ConfirmModal';
 import { Album } from '@/types/album';
 import { TrackRow } from '@/components/tracks/TrackRow';
 import { orderByStyles } from '@/utils/playQueue';
+import { fullLengthForFinal } from '@/utils/finals';
 
 const LATIN_STYLES = ['Samba', 'Cha-Cha-Cha', 'Rumba', 'Paso Doble', 'Jive'];
 const STANDARD_STYLES = ['Slow Waltz', 'Tango', 'Viennese Waltz', 'Slow Foxtrot', 'Quickstep'];
@@ -146,7 +147,7 @@ export default function DynamicAlbumPage() {
 
     const selectedTracks: Track[] = [];
     targetStyles.forEach(styleName => {
-      const styleTracks = pool.filter(t => canonicalStyle(t.style) === canonicalStyle(styleName));
+      const styleTracks = fullLengthForFinal(pool.filter(t => canonicalStyle(t.style) === canonicalStyle(styleName)));
       if (styleTracks.length > 0) {
         if (canonicalStyle(styleName) === 'pasodoble') {
           const matchingThemeTrack = styleTracks.find(t => t.tags?.includes(`paso-${pasoTheme}`));

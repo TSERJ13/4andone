@@ -2995,7 +2995,8 @@ export const AudioProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     if (list.length === 0) return;
 
     const currentIndex = isFinalModeRef.current ? sessionIndexRef.current : list.findIndex(t => t.id === trackIdRef.current || t.title === playingTrackRef.current?.title);
-    const prevIndex = currentIndex <= 0 ? list.length - 1 : currentIndex - 1;
+    // In a Final program Previous never wraps to the last dance; on the first dance it restarts it.
+    const prevIndex = isFinalModeRef.current ? Math.max(0, currentIndex - 1) : (currentIndex <= 0 ? list.length - 1 : currentIndex - 1);
     if (isFinalModeRef.current) sessionIndexRef.current = prevIndex;
     loadTrackRef.current(list[prevIndex], isFinalModeRef.current, isFinalModeRef.current);
   }, [tracks]);

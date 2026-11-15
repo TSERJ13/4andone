@@ -354,8 +354,7 @@ const PlayerBar = ({ onExpand }: { onExpand?: () => void }) => {
               className="control-btn"
               aria-label="Play previous track"
               onClick={playPrevious}
-              disabled={isFinalMode}
-              style={{ opacity: isFinalMode ? 0.3 : 1, cursor: isFinalMode ? 'not-allowed' : 'pointer', marginRight: '4px' }}
+              style={{ marginRight: '4px' }}
             ><SkipBack size={24} fill="currentColor" /></button>
 
             <div className="play-btn-wrapper">
@@ -380,8 +379,7 @@ const PlayerBar = ({ onExpand }: { onExpand?: () => void }) => {
               className="control-btn"
               aria-label="Play next track"
               onClick={playNext}
-              disabled={isFinalMode}
-              style={{ opacity: isFinalMode ? 0.3 : 1, cursor: isFinalMode ? 'not-allowed' : 'pointer', marginLeft: '4px' }}
+              style={{ marginLeft: '4px' }}
             ><SkipForward size={24} fill="currentColor" /></button>
 
             {/* 3. Right Button 1: Offline Download — in Final Mode: STOP Final Mode */}

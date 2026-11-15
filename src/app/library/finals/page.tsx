@@ -298,7 +298,6 @@ const FinalsPage = () => {
   const [showSettingsModal, setShowSettingsModal] = useState(false);
   const [latinStartDance, setLatinStartDance] = useState('Samba');
   const [pasoDuration, setPasoDuration] = useState('All');
-  const [pasoVersion, setPasoVersion] = useState('All');
 
   // Load last played final program & prefs
   useEffect(() => {
@@ -315,7 +314,6 @@ const FinalsPage = () => {
         const parsed = JSON.parse(savedPrefs);
         if (parsed.latinStartDance) setLatinStartDance(parsed.latinStartDance);
         if (parsed.pasoDuration) setPasoDuration(parsed.pasoDuration);
-        if (parsed.pasoVersion) setPasoVersion(parsed.pasoVersion);
       } catch (e) {}
     }
   }, []);
@@ -330,8 +328,7 @@ const FinalsPage = () => {
   const saveSettings = () => {
     localStorage.setItem('final_mode_prefs', JSON.stringify({
       latinStartDance,
-      pasoDuration,
-      pasoVersion
+      pasoDuration
     }));
     setShowSettingsModal(false);
   };
@@ -491,16 +488,20 @@ const FinalsPage = () => {
           const hit = styleTracks.filter(fn);
           if (hit.length > 0) styleTracks = hit;
         };
+        // Ordinary finals: España Cañí (WDSF) versions only; Blackpool programs already
+        // hold only Blackpool-tagged tracks. Soft: if none match, keep the pool.
+        if (!requiredTag) {
+          narrow(t => !!t.tags?.includes('paso-wdsf'));
+          if (!styleTracks.some(t => t.tags?.includes('paso-wdsf'))) {
+            const noBp = styleTracks.filter(t => !t.tags?.some(tag => tag.toLowerCase().includes('blackpool')));
+            if (noBp.length > 0) styleTracks = noBp;
+          }
+        }
+
         if (pasoDuration === 'short') {
           narrow(t => (t.duration || 0) > 0 && (t.duration || 0) < 110);
         } else if (pasoDuration === 'long') {
           narrow(t => (t.duration || 0) >= 110);
-        }
-
-        if (pasoVersion === '2') {
-          narrow(t => !!t.tags?.some(tag => tag.toLowerCase().includes('2 highlight') || tag.toLowerCase().includes('2 accents')));
-        } else if (pasoVersion === '3') {
-          narrow(t => !!t.tags?.some(tag => tag.toLowerCase().includes('3 highlight') || tag.toLowerCase().includes('3 accents')));
         }
       }
 
@@ -900,7 +901,7 @@ const FinalsPage = () => {
               </div>
 
               <div className="yt-setting-group">
-                <label>Paso Doble Length</label>
+                <label>Paso Doble Length (España Cañí)</label>
                 <div className="yt-modal-chips-group">
                   <button
                     type="button"
@@ -922,33 +923,6 @@ const FinalsPage = () => {
                     onClick={() => setPasoDuration('long')}
                   >
                     Long (&gt;1:50)
-                  </button>
-                </div>
-              </div>
-
-              <div className="yt-setting-group">
-                <label>Paso Doble Accents</label>
-                <div className="yt-modal-chips-group">
-                  <button
-                    type="button"
-                    className={`yt-modal-chip ${pasoVersion === 'All' ? 'active' : ''}`}
-                    onClick={() => setPasoVersion('All')}
-                  >
-                    All Accents
-                  </button>
-                  <button
-                    type="button"
-                    className={`yt-modal-chip ${pasoVersion === '2' ? 'active' : ''}`}
-                    onClick={() => setPasoVersion('2')}
-                  >
-                    2 Accents
-                  </button>
-                  <button
-                    type="button"
-                    className={`yt-modal-chip ${pasoVersion === '3' ? 'active' : ''}`}
-                    onClick={() => setPasoVersion('3')}
-                  >
-                    3 Accents
                   </button>
                 </div>
               </div>

@@ -54,6 +54,16 @@ export class FinalsClock {
   }
 }
 
+/**
+ * Final dances last 1:45. A recording shorter than that runs out in the middle of the dance (and would start over),
+ * so such tracks are not picked for a Final. A track whose length is unknown is kept. If a dance has no full-length
+ * track at all, its whole pool is returned so the dance is never dropped from the program.
+ */
+export function fullLengthForFinal<T extends { duration?: number }>(pool: T[]): T[] {
+  const full = pool.filter(t => !(t.duration && t.duration > 0 && t.duration < FINAL_DANCE_SECONDS));
+  return full.length > 0 ? full : pool;
+}
+
 export function finalSessionDuration(count: number): number {
   return count > 0 ? count * FINAL_DANCE_SECONDS + (count - 1) * FINAL_REST_SECONDS : 0;
 }

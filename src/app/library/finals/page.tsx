@@ -30,6 +30,7 @@ import ConfirmModal from '@/components/admin/ConfirmModal';
 import { TrackRow } from '@/components/tracks/TrackRow';
 import { isFourAndOneMix } from '@/utils/playQueue';
 import { isTrackAllowedInFinals } from '@/utils/albumMatch';
+import { fullLengthForFinal } from '@/utils/finals';
 
 // Clock formatting helper
 const formatClock = (seconds: number) => {
@@ -479,7 +480,7 @@ const FinalsPage = () => {
 
     const selectedTracks: Track[] = [];
     order.forEach((styleName) => {
-      let styleTracks = availableTracks.filter(t => t.style?.toLowerCase() === styleName.toLowerCase());
+      let styleTracks = fullLengthForFinal(availableTracks.filter(t => t.style?.toLowerCase() === styleName.toLowerCase()));
 
       if (styleName.toLowerCase() === 'paso doble') {
         // Soft filters (as on main): narrow only when something matches,
@@ -572,7 +573,7 @@ const FinalsPage = () => {
     const selectedTracks: Track[] = [];
 
     order.forEach(styleName => {
-      const styleTracks = liked.filter(t => t.style?.toLowerCase() === styleName.toLowerCase());
+      const styleTracks = fullLengthForFinal(liked.filter(t => t.style?.toLowerCase() === styleName.toLowerCase()));
       if (styleTracks.length > 0) {
         const randomTrack = styleTracks[Math.floor(Math.random() * styleTracks.length)];
         selectedTracks.push(randomTrack);

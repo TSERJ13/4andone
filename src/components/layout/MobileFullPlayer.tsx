@@ -491,8 +491,6 @@ export default function MobileFullPlayer({ isOpen, onClose }: MobileFullPlayerPr
           type="button"
           className="yt-mobile-control-btn"
           onClick={playPrevious}
-          disabled={isFinalMode}
-          style={isFinalMode ? { opacity: 0.3 } : undefined}
         >
           <SkipBack size={26} fill="currentColor" />
         </button>
@@ -511,8 +509,6 @@ export default function MobileFullPlayer({ isOpen, onClose }: MobileFullPlayerPr
           type="button"
           className="yt-mobile-control-btn"
           onClick={playNext}
-          disabled={isFinalMode}
-          style={isFinalMode ? { opacity: 0.3 } : undefined}
         >
           <SkipForward size={26} fill="currentColor" />
         </button>

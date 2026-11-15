@@ -420,13 +420,13 @@ export default function DesktopFullPlayer({ onClose }: DesktopFullPlayerProps) {
 
           {/* CENTER: Prev, Play/Pause, Next & Time Display */}
           <div className="yt-player-center-controls">
-            <button type="button" className="yt-player-icon-btn" onClick={playPrevious} title="Previous" disabled={isFinalMode} style={isFinalMode ? { opacity: 0.3, cursor: 'not-allowed' } : undefined}>
+            <button type="button" className="yt-player-icon-btn" onClick={playPrevious} title="Previous">
               <SkipBack size={20} fill="currentColor" />
             </button>
             <button type="button" className="yt-player-icon-btn yt-main-play-btn" onClick={togglePlay} title={isPlaying ? 'Pause' : 'Play'}>
               {isPlaying ? <Pause size={22} fill="currentColor" color="currentColor" /> : <Play size={22} fill="currentColor" color="currentColor" style={{ marginLeft: 2 }} />}
             </button>
-            <button type="button" className="yt-player-icon-btn" onClick={playNext} title="Next" disabled={isFinalMode} style={isFinalMode ? { opacity: 0.3, cursor: 'not-allowed' } : undefined}>
+            <button type="button" className="yt-player-icon-btn" onClick={playNext} title="Next">
               <SkipForward size={20} fill="currentColor" />
             </button>
             {isFinalMode ? (

@@ -480,7 +480,9 @@ const FinalsPage = () => {
 
     const selectedTracks: Track[] = [];
     order.forEach((styleName) => {
-      let styleTracks = fullLengthForFinal(availableTracks.filter(t => t.style?.toLowerCase() === styleName.toLowerCase()));
+      const styleMatches = availableTracks.filter(t => t.style?.toLowerCase() === styleName.toLowerCase());
+      // Paso Doble is picked by WDSF / Blackpool-theme tags, so the length rule must not touch it.
+      let styleTracks = styleName.toLowerCase() === 'paso doble' ? styleMatches : fullLengthForFinal(styleMatches);
 
       if (styleName.toLowerCase() === 'paso doble') {
         // Soft filters (as on main): narrow only when something matches,
@@ -573,7 +575,8 @@ const FinalsPage = () => {
     const selectedTracks: Track[] = [];
 
     order.forEach(styleName => {
-      const styleTracks = fullLengthForFinal(liked.filter(t => t.style?.toLowerCase() === styleName.toLowerCase()));
+      const likedMatches = liked.filter(t => t.style?.toLowerCase() === styleName.toLowerCase());
+      const styleTracks = styleName.toLowerCase() === 'paso doble' ? likedMatches : fullLengthForFinal(likedMatches);
       if (styleTracks.length > 0) {
         const randomTrack = styleTracks[Math.floor(Math.random() * styleTracks.length)];
         selectedTracks.push(randomTrack);

@@ -147,7 +147,9 @@ export default function DynamicAlbumPage() {
 
     const selectedTracks: Track[] = [];
     targetStyles.forEach(styleName => {
-      const styleTracks = fullLengthForFinal(pool.filter(t => canonicalStyle(t.style) === canonicalStyle(styleName)));
+      const styleMatches = pool.filter(t => canonicalStyle(t.style) === canonicalStyle(styleName));
+      // Paso Doble keeps its own theme matching; the length rule must not touch it.
+      const styleTracks = canonicalStyle(styleName) === 'pasodoble' ? styleMatches : fullLengthForFinal(styleMatches);
       if (styleTracks.length > 0) {
         if (canonicalStyle(styleName) === 'pasodoble') {
           const matchingThemeTrack = styleTracks.find(t => t.tags?.includes(`paso-${pasoTheme}`));

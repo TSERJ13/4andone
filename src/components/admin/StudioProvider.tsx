@@ -1213,18 +1213,23 @@ export const StudioProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     }
   };
 
+  // Hide hidden albums and their tracks completely from public listeners.
   // Hide Premium-only albums and their tracks from free listeners on public pages.
-  // Admin pages (/admin/*) and Premium users see the full catalog.
+  // Admin pages (/admin/*) see the full catalog (including hidden albums) to manage them.
   const visibleAlbums = useMemo(() => {
-    if (isAdminRoute || isPremium) return albums;
-    return albums.filter(a => !a.isPremium);
+    if (isAdminRoute) return albums;
+    const nonHidden = albums.filter(a => !a.isHidden);
+    if (isPremium) return nonHidden;
+    return nonHidden.filter(a => !a.isPremium);
   }, [albums, isAdminRoute, isPremium]);
 
   const visibleTracks = useMemo(() => {
-    if (isAdminRoute || isPremium) return tracks;
-    const premiumAlbums = albums.filter(a => a.isPremium);
-    if (premiumAlbums.length === 0) return tracks;
-    return tracks.filter(t => !premiumAlbums.some(a => trackInAlbum(t, a)));
+    if (isAdminRoute) return tracks;
+    const hiddenAlbums = albums.filter(a => a.isHidden);
+    const premiumAlbums = isPremium ? [] : albums.filter(a => a.isPremium);
+    const albumsToExclude = [...hiddenAlbums, ...premiumAlbums];
+    if (albumsToExclude.length === 0) return tracks;
+    return tracks.filter(t => !albumsToExclude.some(a => trackInAlbum(t, a)));
   }, [tracks, albums, isAdminRoute, isPremium]);
 
   const stats = {

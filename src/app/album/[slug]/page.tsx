@@ -38,7 +38,7 @@ export default function DynamicAlbumPage() {
 
   const lockedAlbum = useMemo(() => {
     if (album) return null;
-    return (allAlbums || []).find(a => a.slug.toLowerCase() === slug.toLowerCase() && a.isPremium);
+    return (allAlbums || []).find(a => a.slug.toLowerCase() === slug.toLowerCase() && a.isPremium && !a.isHidden);
   }, [album, allAlbums, slug]);
 
   const [activeTab, setActiveTab] = useState<'Latin' | 'Standard'>('Latin');

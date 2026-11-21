@@ -23,6 +23,8 @@ export interface Album {
   isComingSoon?: boolean;
   /** Custom overlay text (defaults to 'SOON' if empty). */
   comingSoonText?: string;
+  /** When true, this album and all its tracks are hidden from public listeners on the site. */
+  isHidden?: boolean;
   createdAt?: string;
   updatedAt?: string;
 }
@@ -116,24 +118,6 @@ export const DEFAULT_ALBUMS: Album[] = [
     allowedStyles: ['Samba', 'Cha-Cha-Cha', 'Rumba', 'Paso Doble', 'Jive', 'Slow Waltz', 'Tango', 'Viennese Waltz', 'Slow Foxtrot', 'Quickstep'],
     tags: ['goc 2026', 'goc', 'stuttgart'],
     orderIndex: 4,
-    isPublished: true,
-  },
-  {
-    id: 'album-dj-maksy',
-    slug: 'dj-maksy',
-    title: 'DJ Maksy Playlist',
-    artist: 'DJ Maksy',
-    subtitle: 'Top DanceSport Hits & Remixes by DJ Maksy. Professional ballroom music collection.',
-    description: 'Top DanceSport Hits & Remixes by DJ Maksy. Professional ballroom music collection.',
-    badge: 'DJ COLLECTION',
-    coverUrl: '/dj-maksy.jpg',
-    themeColor: '#3b82f6',
-    secondaryColor: '#2563eb',
-    gradient: 'linear-gradient(90deg, #3b82f6, #2563eb)',
-    program: 'Both',
-    allowedStyles: ['Samba', 'Cha-Cha-Cha', 'Rumba', 'Paso Doble', 'Jive', 'Slow Waltz', 'Tango', 'Viennese Waltz', 'Slow Foxtrot', 'Quickstep'],
-    tags: ['dj maksy', 'maksy'],
-    orderIndex: 5,
     isPublished: true,
   },
   {

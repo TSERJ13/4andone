@@ -114,13 +114,6 @@ export function getTrackCover(
   }
 
   if (
-    artistLower.includes('maksy') ||
-    albumLower.includes('maksy')
-  ) {
-    return '/dj-maksy.jpg';
-  }
-
-  if (
     artistLower.includes('midland') ||
     albumLower.includes('midland')
   ) {
@@ -168,8 +161,8 @@ export function getTrackCover(
 
 
 /** Covers that also exist as 128 px thumbnails in /public/thumbs (a few KB instead of ~300 KB / 4 MB decoded). */
-const THUMBNAILED = new Set<string>(['/4andone-mix.jpg', '/blackpool-live-sounds.jpg', '/boris-myagkov-big-band.jpg', '/dancestar.jpg', '/dj-maksy.jpg', '/empress-orchestra.jpg', '/georgie-musheev.jpg', '/goc2026.png', '/la-grande-orchestra-italiana.jpg', '/len-phillips-big-band.jpg', '/logo-4andone-3d.jpg', '/logo-square.jpg', '/midland-big-band.jpg', '/rosesband.jpg']);
-
+const THUMBNAILED = new Set<string>(['/4andone-mix.jpg', '/blackpool-live-sounds.jpg', '/boris-myagkov-big-band.jpg', '/dancestar.jpg', '/empress-orchestra.jpg', '/georgie-musheev.jpg', '/goc2026.png', '/la-grande-orchestra-italiana.jpg', '/len-phillips-big-band.jpg', '/logo-4andone-3d.jpg', '/logo-square.jpg', '/midland-big-band.jpg', '/rosesband.jpg']);
+ 
 /** The cover for a small picture (list rows): the thumbnail when there is one, else the cover itself. */
 export function getTrackThumb(track: Track | any | null, albums: Album[] = [], styles: Style[] = []): string {
   const cover = getTrackCover(track, albums, styles);
@@ -178,7 +171,7 @@ export function getTrackThumb(track: Track | any | null, albums: Album[] = [], s
 }
 
 /** Covers that also exist as 480 px cards in /public/cards (about 20-60 KB instead of 100-420 KB). */
-const CARDED = new Set<string>(['/4andone-mix', '/blackpool-live-sounds', '/boris-myagkov-big-band', '/dancestar', '/dj-maksy', '/empress-orchestra', '/georgie-musheev', '/goc2026', '/la-grande-orchestra-italiana', '/len-phillips-big-band', '/logo-3d', '/logo-4andone-3d', '/logo-square', '/midland-big-band', '/rosesband']);
+const CARDED = new Set<string>(['/4andone-mix', '/blackpool-live-sounds', '/boris-myagkov-big-band', '/dancestar', '/empress-orchestra', '/georgie-musheev', '/goc2026', '/la-grande-orchestra-italiana', '/len-phillips-big-band', '/logo-3d', '/logo-4andone-3d', '/logo-square', '/midland-big-band', '/rosesband']);
 
 /**
  * A smaller copy of a picture for cards and shelves: the 480 px card of a known

@@ -16,7 +16,7 @@ const STANDARD_STYLES = ['Slow Waltz', 'Tango', 'Viennese Waltz', 'Slow Foxtrot'
 
 export default function BorisMyagkovBigBandPage() {
   const { loadTrack, isPlaying, title: playingTitle, trackId: playingTrackId, setActiveMode, setSessionTracks, isFinalMode, stop } = useAudioControls();
-  const { tracks, styles, toggleFavorite } = useStudio();
+  const { tracks, styles, toggleFavorite, albums, isLoading } = useStudio();
   const { isAuthenticated, setIsAuthModalOpen } = useAuth();
   const downloadedIds = useDownloadedTracks();
   const [showAlbumStopConfirm, setShowAlbumStopConfirm] = useState(false);
@@ -159,6 +159,17 @@ export default function BorisMyagkovBigBandPage() {
     }
     action();
   };
+
+  if (!isLoading && !albums.some(a => a.slug === 'boris-myagkov')) {
+    return (
+      <div className="page-wrapper goc-page-wrapper">
+        <div className="goc-container not-found-state glass" style={{ textAlign: 'center', padding: '60px 20px' }}>
+          <h2>Album Not Found</h2>
+          <p>The album &quot;boris-myagkov&quot; could not be found or has not been published yet.</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="page-wrapper goc-page-wrapper">

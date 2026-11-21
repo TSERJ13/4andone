@@ -16,12 +16,14 @@ export const PREMIUM_ALBUM_TAG = '__premium__';
 export const NO_FINAL_MODE_ALBUM_TAG = '__no_final__';
 export const COMING_SOON_ALBUM_TAG = '__coming_soon__';
 export const SOON_TEXT_PREFIX = '__soon_text:';
+export const HIDDEN_ALBUM_TAG = '__hidden__';
 
 export function mapDbToAlbum(row: any): Album {
   const rawTags: string[] = Array.isArray(row.tags) ? row.tags : [];
   const isPremium = row.is_premium === true || rawTags.includes(PREMIUM_ALBUM_TAG);
   const allowFinalMode = row.allow_final_mode !== false && !rawTags.includes(NO_FINAL_MODE_ALBUM_TAG);
   const isComingSoon = row.is_coming_soon === true || rawTags.includes(COMING_SOON_ALBUM_TAG);
+  const isHidden = row.is_hidden === true || rawTags.includes(HIDDEN_ALBUM_TAG);
 
   const soonTextTag = rawTags.find((t) => t.startsWith(SOON_TEXT_PREFIX));
   let comingSoonText: string | undefined = row.coming_soon_text || row.overlay_text || undefined;
@@ -34,7 +36,7 @@ export function mapDbToAlbum(row: any): Album {
   }
 
   const cleanTags = rawTags.filter(
-    (t) => t !== PREMIUM_ALBUM_TAG && t !== NO_FINAL_MODE_ALBUM_TAG && t !== COMING_SOON_ALBUM_TAG && !t.startsWith(SOON_TEXT_PREFIX)
+    (t) => t !== PREMIUM_ALBUM_TAG && t !== NO_FINAL_MODE_ALBUM_TAG && t !== COMING_SOON_ALBUM_TAG && t !== HIDDEN_ALBUM_TAG && !t.startsWith(SOON_TEXT_PREFIX)
   );
   return {
     id: row.id,
@@ -57,6 +59,7 @@ export function mapDbToAlbum(row: any): Album {
     allowFinalMode,
     isComingSoon,
     comingSoonText: comingSoonText || undefined,
+    isHidden,
     createdAt: row.created_at,
     updatedAt: row.updated_at,
   };
@@ -64,7 +67,7 @@ export function mapDbToAlbum(row: any): Album {
 
 export function albumToDbRow(a: Album): Record<string, unknown> {
   const baseTags = (a.tags || []).filter(
-    (t) => t !== PREMIUM_ALBUM_TAG && t !== NO_FINAL_MODE_ALBUM_TAG && t !== COMING_SOON_ALBUM_TAG && !t.startsWith(SOON_TEXT_PREFIX)
+    (t) => t !== PREMIUM_ALBUM_TAG && t !== NO_FINAL_MODE_ALBUM_TAG && t !== COMING_SOON_ALBUM_TAG && t !== HIDDEN_ALBUM_TAG && !t.startsWith(SOON_TEXT_PREFIX)
   );
   let tags = a.isPremium ? [...baseTags, PREMIUM_ALBUM_TAG] : baseTags;
   if (a.allowFinalMode === false) {
@@ -75,6 +78,9 @@ export function albumToDbRow(a: Album): Record<string, unknown> {
     if (a.comingSoonText && a.comingSoonText.trim()) {
       tags = [...tags, `${SOON_TEXT_PREFIX}${encodeURIComponent(a.comingSoonText.trim())}`];
     }
+  }
+  if (a.isHidden) {
+    tags = [...tags, HIDDEN_ALBUM_TAG];
   }
   return {
     slug: a.slug,

@@ -1236,6 +1236,12 @@ export const AudioProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       setIsSubscriptionModalOpen(true);
       return;
     }
+    // Tracks belonging to a Hidden album are completely blocked on public pages
+    const isPublicRoute = typeof window !== 'undefined' && !window.location.pathname.startsWith('/admin');
+    if (isPublicRoute && (allAlbumsRef.current || []).some(a => a.isHidden && trackInAlbum(track, a))) {
+      console.warn('[AUDIO] Track belongs to a hidden album, skipping playback');
+      return;
+    }
     // Tracks belonging to a Premium-only album are locked for free users
     if (!isPremiumRef.current && (allAlbumsRef.current || []).some(a => a.isPremium && trackInAlbum(track, a))) {
       setIsSubscriptionModalOpen(true);

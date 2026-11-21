@@ -10,7 +10,7 @@ import { normalizeMediaUrl } from '@/lib/media-key';
 import { trackInAlbum } from '@/utils/albumMatch';
 import { 
   Disc, Plus, Edit3, Trash2, ArrowUp, ArrowDown, ExternalLink, 
-  Upload, Check, X, Sparkles, Music2, Eye, Flame, Layers, Lock, Unlock, Trophy, Clock
+  Upload, Check, X, Sparkles, Music2, Eye, EyeOff, Flame, Layers, Lock, Unlock, Trophy, Clock
 } from 'lucide-react';
 import ConfirmModal from '@/components/admin/ConfirmModal';
 
@@ -51,6 +51,8 @@ export default function AdminAlbumsPage() {
   const [isComingSoon, setIsComingSoon] = useState(false);
   const [comingSoonText, setComingSoonText] = useState('');
   const [togglingSoonId, setTogglingSoonId] = useState<string | null>(null);
+  const [isHidden, setIsHidden] = useState(false);
+  const [togglingHiddenId, setTogglingHiddenId] = useState<string | null>(null);
 
   // Save state: errors stay inside the editor, results show as a short notice
   const [formError, setFormError] = useState<string | null>(null);
@@ -83,6 +85,7 @@ export default function AdminAlbumsPage() {
     setAllowFinalMode(true);
     setIsComingSoon(false);
     setComingSoonText('');
+    setIsHidden(false);
     setEditingAlbum(null);
     setFormError(null);
   };
@@ -109,6 +112,7 @@ export default function AdminAlbumsPage() {
     setAllowFinalMode(album.allowFinalMode !== false);
     setIsComingSoon(!!album.isComingSoon);
     setComingSoonText(album.comingSoonText || '');
+    setIsHidden(!!album.isHidden);
     setIsModalOpen(true);
   };
 
@@ -207,6 +211,7 @@ export default function AdminAlbumsPage() {
       allowFinalMode,
       isComingSoon,
       comingSoonText: comingSoonText.trim(),
+      isHidden,
     };
 
     setIsSaving(true);
@@ -268,6 +273,24 @@ export default function AdminAlbumsPage() {
     }
   };
 
+  const handleToggleHidden = async (album: Album) => {
+    const nextVal = !album.isHidden;
+    setTogglingHiddenId(album.id);
+    try {
+      await updateAlbum(album.id, { slug: album.slug, isHidden: nextVal });
+      showNotice(
+        'ok',
+        nextVal
+          ? `"${album.title}" დამალულია (არ გამოჩნდება საიტზე და არც მისი მუსიკები)`
+          : `"${album.title}" გამოჩნდა საიტზე`
+      );
+    } catch (err) {
+      showNotice('error', `Could not update "${album.title}": ${(err as Error).message}`);
+    } finally {
+      setTogglingHiddenId(null);
+    }
+  };
+
   const handleMove = async (index: number, direction: 'up' | 'down') => {
     const targetIdx = direction === 'up' ? index - 1 : index + 1;
     if (targetIdx < 0 || targetIdx >= albums.length) return;
@@ -320,11 +343,20 @@ export default function AdminAlbumsPage() {
         </div>
         <div className="stat-item">
           <span className="stat-label">Homepage Carousel</span>
-          <span className="stat-value text-accent">{albums.length} Slides</span>
+          <span className="stat-value text-accent">
+            {albums.filter(a => !a.isHidden).length} Slides
+            {albums.some(a => a.isHidden) && (
+              <span style={{ fontSize: 13, fontWeight: 600, color: '#f87171', marginLeft: 6 }}>
+                ({albums.filter(a => a.isHidden).length} Hidden)
+              </span>
+            )}
+          </span>
         </div>
         <div className="stat-item">
           <span className="stat-label">Primary Slide (#1)</span>
-          <span className="stat-value text-highlight">{albums[0]?.title || 'None'}</span>
+          <span className="stat-value text-highlight">
+            {albums.find(a => !a.isHidden)?.title || albums[0]?.title || 'None'}
+          </span>
         </div>
       </div>
 
@@ -341,7 +373,8 @@ export default function AdminAlbumsPage() {
               className="album-card glass"
               style={{
                 borderLeftColor: album.themeColor || '#e11d48',
-                borderLeftWidth: '5px'
+                borderLeftWidth: '5px',
+                opacity: album.isHidden ? 0.75 : 1,
               }}
             >
               {/* Order Controls */}
@@ -436,6 +469,23 @@ export default function AdminAlbumsPage() {
                       <span>{album.comingSoonText?.trim() || 'SOON'}</span>
                     </span>
                   )}
+                  {album.isHidden && (
+                    <span
+                      className="program-badge"
+                      style={{
+                        background: 'rgba(239, 68, 68, 0.25)',
+                        color: '#f87171',
+                        border: '1px solid rgba(239, 68, 68, 0.5)',
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        gap: 4,
+                        fontWeight: 900,
+                      }}
+                    >
+                      <EyeOff size={10} />
+                      <span>HIDDEN</span>
+                    </span>
+                  )}
                 </div>
                 <h3 className="album-title">{album.title}</h3>
                 <p className="album-subtitle">{album.subtitle || album.description}</p>
@@ -464,129 +514,136 @@ export default function AdminAlbumsPage() {
 
               {/* Action Buttons */}
               <div className="album-actions">
-                <button
-                  type="button"
-                  disabled={togglingId === album.id}
-                  onClick={() => handleTogglePremium(album)}
-                  title={
-                    album.isPremium
-                      ? 'ჩაკეტილია უფასოებისთვის (მხოლოდ Premium) — დააჭირე ყველასთვის გასახსნელად'
-                      : 'ღიაა ყველასთვის — დააჭირე რომ მხოლოდ Premium-ისთვის ჩაიკეტოს (ალბომი + მუსიკები)'
-                  }
-                  style={{
-                    display: 'inline-flex',
-                    alignItems: 'center',
-                    gap: 6,
-                    padding: '8px 12px',
-                    borderRadius: 10,
-                    fontSize: 12,
-                    fontWeight: 800,
-                    cursor: togglingId === album.id ? 'wait' : 'pointer',
-                    border: album.isPremium
-                      ? '1px solid rgba(245, 158, 11, 0.5)'
-                      : '1px solid rgba(255, 255, 255, 0.12)',
-                    background: album.isPremium
-                      ? 'linear-gradient(135deg, rgba(245, 158, 11, 0.25), rgba(217, 119, 6, 0.18))'
-                      : 'rgba(255, 255, 255, 0.05)',
-                    color: album.isPremium ? '#fbbf24' : '#a1a1aa',
-                    transition: 'all 0.2s ease',
-                  }}
-                >
-                  {album.isPremium ? <Lock size={14} /> : <Unlock size={14} />}
-                  <span>{album.isPremium ? 'Premium Only' : 'Free & Pro'}</span>
-                </button>
-                <button
-                  type="button"
-                  disabled={togglingFinalId === album.id}
-                  onClick={() => handleToggleFinalMode(album)}
-                  title={
-                    album.allowFinalMode === false
-                      ? 'Final Mode გამორთულია — დააჭირე რომ ჩაირთოს Final Mode-ში'
-                      : 'Final Mode ჩართულია — დააჭირე რომ გამოირთოს Final Mode-დან (ხარისხის გამო)'
-                  }
-                  style={{
-                    display: 'inline-flex',
-                    alignItems: 'center',
-                    gap: 6,
-                    padding: '8px 12px',
-                    borderRadius: 10,
-                    fontSize: 12,
-                    fontWeight: 800,
-                    cursor: togglingFinalId === album.id ? 'wait' : 'pointer',
-                    border: album.allowFinalMode === false
-                      ? '1px solid rgba(239, 68, 68, 0.5)'
-                      : '1px solid rgba(16, 185, 129, 0.4)',
-                    background: album.allowFinalMode === false
-                      ? 'linear-gradient(135deg, rgba(239, 68, 68, 0.25), rgba(185, 28, 28, 0.18))'
-                      : 'rgba(16, 185, 129, 0.12)',
-                    color: album.allowFinalMode === false ? '#f87171' : '#34d399',
-                    transition: 'all 0.2s ease',
-                  }}
-                >
-                  <Trophy size={14} />
-                  <span>{album.allowFinalMode === false ? 'Finals: Off' : 'Finals: On'}</span>
-                </button>
-                <button
-                  type="button"
-                  disabled={togglingSoonId === album.id}
-                  onClick={() => handleToggleComingSoon(album)}
-                  title={
-                    album.isComingSoon
-                      ? 'SOON რეჟიმი ჩართულია (ალბომზე გადაფარებულია შავი ფერი + SOON წარწერა და დახურულია) — დააჭირე გასახსნელად'
-                      : 'ჩვეულებრივი ალბომი — დააჭირე რომ ჩაირთოს SOON (მალე დაემატება)'
-                  }
-                  style={{
-                    display: 'inline-flex',
-                    alignItems: 'center',
-                    gap: 6,
-                    padding: '8px 12px',
-                    borderRadius: 10,
-                    fontSize: 12,
-                    fontWeight: 800,
-                    cursor: togglingSoonId === album.id ? 'wait' : 'pointer',
-                    border: album.isComingSoon
-                      ? '1px solid rgba(255, 255, 255, 0.45)'
-                      : '1px solid rgba(255, 255, 255, 0.12)',
-                    background: album.isComingSoon
-                      ? 'linear-gradient(135deg, rgba(255, 255, 255, 0.22), rgba(0, 0, 0, 0.5))'
-                      : 'rgba(255, 255, 255, 0.05)',
-                    color: album.isComingSoon ? '#ffffff' : '#a1a1aa',
-                    transition: 'all 0.2s ease',
-                  }}
-                >
-                  <Clock size={14} />
-                  <span>{album.isComingSoon ? `${album.comingSoonText?.trim() || 'SOON'}: On` : 'SOON: Off'}</span>
-                </button>
-                <Link
-                  href={`/admin/upload?album=${album.slug}`}
-                  className="action-icon-btn upload-tracks-btn"
-                  title="Bulk Upload Tracks to this Album"
-                >
-                  <Upload size={18} />
-                </Link>
-                <a 
-                  href={`/album/${album.slug}`} 
-                  target="_blank" 
-                  rel="noreferrer"
-                  className="action-icon-btn preview-btn" 
-                  title="Open Public Album Page"
-                >
-                  <ExternalLink size={18} />
-                </a>
-                <button 
-                  className="action-icon-btn edit-btn" 
-                  onClick={() => openEditModal(album)}
-                  title="Edit Album Settings"
-                >
-                  <Edit3 size={18} />
-                </button>
-                <button 
-                  className="action-icon-btn delete-btn" 
-                  onClick={() => setDeleteModal({ isOpen: true, album })}
-                  title="Delete Album"
-                >
-                  <Trash2 size={18} />
-                </button>
+                <div className="toggle-pills">
+                  <button
+                    type="button"
+                    className="toggle-pill"
+                    disabled={togglingId === album.id}
+                    onClick={() => handleTogglePremium(album)}
+                    title={
+                      album.isPremium
+                        ? 'ჩაკეტილია უფასოებისთვის (მხოლოდ Premium) — დააჭირე ყველასთვის გასახსნელად'
+                        : 'ღიაა ყველასთვის — დააჭირე რომ მხოლოდ Premium-ისთვის ჩაიკეტოს (ალბომი + მუსიკები)'
+                    }
+                    style={{
+                      cursor: togglingId === album.id ? 'wait' : 'pointer',
+                      borderColor: album.isPremium
+                        ? 'rgba(245, 158, 11, 0.5)'
+                        : 'rgba(255, 255, 255, 0.12)',
+                      background: album.isPremium
+                        ? 'linear-gradient(135deg, rgba(245, 158, 11, 0.25), rgba(217, 119, 6, 0.18))'
+                        : 'rgba(255, 255, 255, 0.05)',
+                      color: album.isPremium ? '#fbbf24' : '#a1a1aa',
+                    }}
+                  >
+                    {album.isPremium ? <Lock size={12} /> : <Unlock size={12} />}
+                    <span>{album.isPremium ? 'Premium' : 'Free'}</span>
+                  </button>
+                  <button
+                    type="button"
+                    className="toggle-pill"
+                    disabled={togglingFinalId === album.id}
+                    onClick={() => handleToggleFinalMode(album)}
+                    title={
+                      album.allowFinalMode === false
+                        ? 'Final Mode გამორთულია — დააჭირე რომ ჩაირთოს'
+                        : 'Final Mode ჩართულია — დააჭირე რომ გამოირთოს'
+                    }
+                    style={{
+                      cursor: togglingFinalId === album.id ? 'wait' : 'pointer',
+                      borderColor: album.allowFinalMode === false
+                        ? 'rgba(239, 68, 68, 0.5)'
+                        : 'rgba(16, 185, 129, 0.4)',
+                      background: album.allowFinalMode === false
+                        ? 'linear-gradient(135deg, rgba(239, 68, 68, 0.25), rgba(185, 28, 28, 0.18))'
+                        : 'rgba(16, 185, 129, 0.12)',
+                      color: album.allowFinalMode === false ? '#f87171' : '#34d399',
+                    }}
+                  >
+                    <Trophy size={12} />
+                    <span>{album.allowFinalMode === false ? 'Finals Off' : 'Finals'}</span>
+                  </button>
+                  <button
+                    type="button"
+                    className="toggle-pill"
+                    disabled={togglingSoonId === album.id}
+                    onClick={() => handleToggleComingSoon(album)}
+                    title={
+                      album.isComingSoon
+                        ? 'SOON ჩართულია — დააჭირე გასახსნელად'
+                        : 'დააჭირე რომ ჩაირთოს SOON'
+                    }
+                    style={{
+                      cursor: togglingSoonId === album.id ? 'wait' : 'pointer',
+                      borderColor: album.isComingSoon
+                        ? 'rgba(255, 255, 255, 0.45)'
+                        : 'rgba(255, 255, 255, 0.12)',
+                      background: album.isComingSoon
+                        ? 'linear-gradient(135deg, rgba(255, 255, 255, 0.22), rgba(0, 0, 0, 0.5))'
+                        : 'rgba(255, 255, 255, 0.05)',
+                      color: album.isComingSoon ? '#ffffff' : '#a1a1aa',
+                    }}
+                  >
+                    <Clock size={12} />
+                    <span>{album.isComingSoon ? 'SOON' : 'Soon Off'}</span>
+                  </button>
+                  <button
+                    type="button"
+                    className="toggle-pill"
+                    disabled={togglingHiddenId === album.id}
+                    onClick={() => handleToggleHidden(album)}
+                    title={
+                      album.isHidden
+                        ? 'ალბომი დამალულია — დააჭირე რომ გამოჩნდეს'
+                        : 'დააჭირე რომ დაიმალოს (ალბომი + ყველა სიმღერა)'
+                    }
+                    style={{
+                      cursor: togglingHiddenId === album.id ? 'wait' : 'pointer',
+                      borderColor: album.isHidden
+                        ? 'rgba(239, 68, 68, 0.5)'
+                        : 'rgba(16, 185, 129, 0.4)',
+                      background: album.isHidden
+                        ? 'linear-gradient(135deg, rgba(239, 68, 68, 0.25), rgba(185, 28, 28, 0.18))'
+                        : 'rgba(16, 185, 129, 0.12)',
+                      color: album.isHidden ? '#f87171' : '#34d399',
+                    }}
+                  >
+                    {album.isHidden ? <EyeOff size={12} /> : <Eye size={12} />}
+                    <span>{album.isHidden ? 'Hidden' : 'Visible'}</span>
+                  </button>
+                </div>
+                <div className="icon-actions">
+                  <Link
+                    href={`/admin/upload?album=${album.slug}`}
+                    className="action-icon-btn upload-tracks-btn"
+                    title="Bulk Upload Tracks to this Album"
+                  >
+                    <Upload size={16} />
+                  </Link>
+                  <a 
+                    href={`/album/${album.slug}`} 
+                    target="_blank" 
+                    rel="noreferrer"
+                    className="action-icon-btn preview-btn" 
+                    title="Open Public Album Page"
+                  >
+                    <ExternalLink size={16} />
+                  </a>
+                  <button 
+                    className="action-icon-btn edit-btn" 
+                    onClick={() => openEditModal(album)}
+                    title="Edit Album Settings"
+                  >
+                    <Edit3 size={16} />
+                  </button>
+                  <button 
+                    className="action-icon-btn delete-btn" 
+                    onClick={() => setDeleteModal({ isOpen: true, album })}
+                    title="Delete Album"
+                  >
+                    <Trash2 size={16} />
+                  </button>
+                </div>
               </div>
             </div>
           );
@@ -891,6 +948,56 @@ export default function AdminAlbumsPage() {
                 ) : (
                   <p style={{ margin: '8px 0 0', fontSize: 12.5, color: '#a1a1aa', opacity: 0.8 }}>
                     ალბომი ღიაა და მომხმარებლებს შეუძლიათ შესვლა და სიმღერების მოსმენა.
+                  </p>
+                )}
+              </div>
+
+              {/* Album Visibility / Hide Selector */}
+              <div className="field-group full-width">
+                <label className="field-label">ხილვადობა საიტზე / Album Visibility (Hide / Show)</label>
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 10 }}>
+                  <button
+                    type="button"
+                    className={`program-opt-btn ${!isHidden ? 'active' : ''}`}
+                    onClick={() => setIsHidden(false)}
+                    style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      gap: 8,
+                      borderColor: !isHidden ? '#10b981' : undefined,
+                      background: !isHidden ? 'rgba(16, 185, 129, 0.18)' : undefined,
+                      color: !isHidden ? '#34d399' : undefined,
+                    }}
+                  >
+                    <Eye size={16} />
+                    <span>✓ ჩანს საიტზე (Visible)</span>
+                  </button>
+                  <button
+                    type="button"
+                    className={`program-opt-btn ${isHidden ? 'active' : ''}`}
+                    onClick={() => setIsHidden(true)}
+                    style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      gap: 8,
+                      borderColor: isHidden ? '#ef4444' : undefined,
+                      background: isHidden ? 'rgba(239, 68, 68, 0.18)' : undefined,
+                      color: isHidden ? '#f87171' : undefined,
+                    }}
+                  >
+                    <EyeOff size={16} />
+                    <span>🙈 დამალულია (Hidden)</span>
+                  </button>
+                </div>
+                {isHidden ? (
+                  <p style={{ margin: '8px 0 0', fontSize: 12.5, color: '#f87171', opacity: 0.9 }}>
+                    🚫 ეს ალბომი და მისი ყველა მუსიკა სრულად დაიმალება საიტიდან (მსმენელები ვერ დაინახავენ ვერც ალბომს და ვერც მის სიმღერებს).
+                  </p>
+                ) : (
+                  <p style={{ margin: '8px 0 0', fontSize: 12.5, color: '#a1a1aa', opacity: 0.8 }}>
+                    ✓ ალბომი და მისი მუსიკები ჩვეულებრივად გამოჩნდება მსმენელებისთვის.
                   </p>
                 )}
               </div>
@@ -1339,14 +1446,47 @@ export default function AdminAlbumsPage() {
 
         .album-actions {
           display: flex;
-          align-items: center;
+          flex-direction: column;
+          align-items: flex-end;
           gap: 8px;
+          flex-shrink: 0;
+        }
+
+        .toggle-pills {
+          display: flex;
+          flex-wrap: wrap;
+          gap: 5px;
+          justify-content: flex-end;
+        }
+
+        .toggle-pill {
+          display: inline-flex;
+          align-items: center;
+          gap: 4px;
+          padding: 5px 10px;
+          border-radius: 8px;
+          font-size: 11px;
+          font-weight: 800;
+          border: 1px solid;
+          transition: all 0.2s ease;
+          white-space: nowrap;
+        }
+
+        .toggle-pill:hover {
+          filter: brightness(1.2);
+          transform: translateY(-1px);
+        }
+
+        .icon-actions {
+          display: flex;
+          gap: 5px;
+          justify-content: flex-end;
         }
 
         .action-icon-btn {
-          width: 38px;
-          height: 38px;
-          border-radius: 10px;
+          width: 34px;
+          height: 34px;
+          border-radius: 8px;
           background: rgba(255, 255, 255, 0.05);
           border: 1px solid rgba(255, 255, 255, 0.1);
           color: white;

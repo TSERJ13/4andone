@@ -59,11 +59,11 @@ describe('albums API saves to the database and reports failures', () => {
   it('GET shows built-in albums when the database has none, and falls back when it cannot be read', async () => {
     const ok = await call('albums', 'GET');
     expect(ok.status).toBe(200);
-    expect(ok.json.albums.length).toBeGreaterThanOrEqual(11);
+    expect(ok.json.albums.length).toBeGreaterThanOrEqual(10);
     failNext = 'connection lost';
     const down = await call('albums', 'GET');
     expect(down.json.source).toBe('fallback');
-    expect(down.json.albums.length).toBeGreaterThanOrEqual(11);
+    expect(down.json.albums.length).toBeGreaterThanOrEqual(10);
   });
 
   it('POST creates the album in the database, first in the carousel, with its real id', async () => {
@@ -78,7 +78,7 @@ describe('albums API saves to the database and reports failures', () => {
   });
 
   it('POST refuses a duplicate address (409) and reports a database failure (500) without pretending it saved', async () => {
-    const dup = await call('albums', 'POST', { title: 'Copy', slug: 'dj-maksy' });
+    const dup = await call('albums', 'POST', { title: 'Copy', slug: 'georgie-musheev' });
     expect(dup.status).toBe(409);
     expect(dup.json.error).toMatch(/already uses/);
     failNext = null; // the first call above read the albums; now fail the INSERT (second query of the next call)
@@ -97,13 +97,13 @@ describe('albums API saves to the database and reports failures', () => {
   });
 
   it('PUT: the first edit of a built-in album gets a database row; a later edit updates it', async () => {
-    const first = await call('albums', 'PUT', { id: 'album-dj-maksy', slug: 'dj-maksy', subtitle: 'Edited' });
+    const first = await call('albums', 'PUT', { id: 'album-georgie-musheev', slug: 'georgie-musheev', subtitle: 'Edited' });
     expect(first.status).toBe(200);
-    expect(rows.find(r => r.slug === 'dj-maksy')?.subtitle).toBe('Edited');
-    const second = await call('albums', 'PUT', { id: first.json.album.id, slug: 'dj-maksy', subtitle: 'Edited again' });
+    expect(rows.find(r => r.slug === 'georgie-musheev')?.subtitle).toBe('Edited');
+    const second = await call('albums', 'PUT', { id: first.json.album.id, slug: 'georgie-musheev', subtitle: 'Edited again' });
     expect(second.status).toBe(200);
-    expect(rows.filter(r => r.slug === 'dj-maksy')).toHaveLength(1);
-    expect(rows.find(r => r.slug === 'dj-maksy')?.subtitle).toBe('Edited again');
+    expect(rows.filter(r => r.slug === 'georgie-musheev')).toHaveLength(1);
+    expect(rows.find(r => r.slug === 'georgie-musheev')?.subtitle).toBe('Edited again');
   });
 
   it('PUT: finds an album that exists only in the database (it used to answer "not found"), and knows missing ones', async () => {
@@ -118,7 +118,7 @@ describe('albums API saves to the database and reports failures', () => {
     const created = await call('albums', 'POST', { title: 'Rename Me', slug: 'rename-me' });
     expect((await call('albums', 'PUT', { id: created.json.album.id, slug: 'renamed' })).status).toBe(200);
     expect(dbSlugs()).toContain('renamed');
-    expect((await call('albums', 'PUT', { id: 'album-dj-maksy', slug: 'something-else' })).status).toBe(400);
+    expect((await call('albums', 'PUT', { id: 'album-georgie-musheev', slug: 'something-else' })).status).toBe(400);
   });
 
   it('DELETE: own albums are removed; built-in ones get a hidden marker; failures are reported', async () => {
@@ -206,5 +206,25 @@ describe('albums API saves to the database and reports failures', () => {
     });
     expect(turnOff.status).toBe(200);
     expect(rows.find(r => r.slug === 'custom-soon')?.tags?.some(t => t.startsWith('__soon_text:'))).toBe(false);
+  });
+
+  it('POST and PUT persist isHidden flag via __hidden__ tag and property', async () => {
+    const res = await call('albums', 'POST', {
+      title: 'Hidden Band',
+      slug: 'hidden-band',
+      isHidden: true,
+    });
+    expect(res.status).toBe(200);
+    expect(res.json.album.isHidden).toBe(true);
+    expect(rows.find(r => r.slug === 'hidden-band')?.tags).toContain('__hidden__');
+
+    const update = await call('albums', 'PUT', {
+      id: res.json.album.id,
+      slug: 'hidden-band',
+      isHidden: false,
+    });
+    expect(update.status).toBe(200);
+    expect(update.json.album.isHidden).toBe(false);
+    expect(rows.find(r => r.slug === 'hidden-band')?.tags).not.toContain('__hidden__');
   });
 });
